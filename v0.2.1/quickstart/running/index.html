@@ -1,0 +1,1862 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+        <link rel="canonical" href="https://jldz9.github.io/InSARHub/v0.2.1/quickstart/running/">
+      
+      
+        <link rel="prev" href="../api_setup/">
+      
+      
+        <link rel="next" href="../cli/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>API - InSARHub</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=sans-serif:300,300i,400,400i,700,700i%7CSource+Code+Pro:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"sans-serif";--md-code-font:"Source Code Pro"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+     
+   
+  <style>     
+    #major-redesign-toast {       
+      position: fixed;       
+      bottom: 30px;       
+      right: 30px;       
+      width: 340px;  /* Slightly wider to accommodate larger text */     
+      background-color: white;       
+      border-left: 6px solid #ff9100;       
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);       
+      border-radius: 8px;       
+      padding: 20px;       
+      z-index: 9999; 
+      display: none;        
+      color: #333;
+      
+      /* --- Font Adjustments --- */
+      font-size: 16px;      /* Increased body text size */
+      line-height: 1.5;     /* Better spacing between lines */
+      font-family: Roboto, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif; /* Optional: Matches MkDocs default */
+    }     
+    
+    [data-md-color-scheme="slate"] #major-redesign-toast {       
+      background-color: #2e3240;       
+      color: white;     
+    }     
+    
+    #major-redesign-toast h4 { 
+      margin: 0 0 10px 0; 
+      color: #ff9100; 
+      font-size: 18px;      /* Increased header size */
+      font-weight: 700;
+    }     
+    
+    #major-redesign-toast button {       
+      background: #ff9100; 
+      color: white; 
+      border: none;       
+      padding: 10px 20px;   /* Larger button padding */
+      font-size: 14px;      /* Larger button text */
+      border-radius: 4px; 
+      cursor: pointer; 
+      float: right;     
+      margin-top: 5px;
+    }   
+  </style> 
+
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#modules" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            InSARHub
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="switch to dark mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="switch to dark mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="grey" data-md-color-accent="indigo" aria-label="switch to light mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="switch to light mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    jldz9/InSARHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+    
+      
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../.." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    
+    
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../install/" class="md-tabs__link">
+          
+  
+  
+  QuickStart
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../frontend/" class="md-tabs__link">
+          
+  
+  
+  Web UI
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../advanced/downloader/" class="md-tabs__link">
+          
+  
+  
+  Advanced
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+    
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    InSARHub
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    jldz9/InSARHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    QuickStart
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    QuickStart
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../install/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Installation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api_setup/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Setup
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+          
+          
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_3" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Running
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Running
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set-aoi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set AOI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Set AOI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bounding-box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounding box
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shapefiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shapefiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wkt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WKT
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#searching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Searching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#result-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interferogram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interferogram
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interferogram">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hyp3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyp3
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#time-series-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time-series Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Time-series Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mintpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mintpy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Web UI
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Web UI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Search &amp; Download
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/processor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results Viewer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Advanced
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Advanced
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/downloader/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Downloader
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/processor/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Processor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/utilities/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Frontend Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#modules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Modules
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Workflow
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Workflow">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#set-aoi" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Set AOI
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Set AOI">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bounding-box" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounding box
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#shapefiles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Shapefiles
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wkt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        WKT
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#searching" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Searching
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#result-filtering" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Result Filtering
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interferogram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interferogram
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Interferogram">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#hyp3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hyp3
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#time-series-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Time-series Analysis
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Time-series Analysis">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#mintpy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mintpy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Post-Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+  <h1>API</h1>
+
+<p>This section provides an overview of the complete InSAR time-series processing workflow using Python API, guiding you through each stage of the analysis pipeline.</p>
+<p><a href="https://colab.research.google.com/github/jldz9/InSARHub/blob/tutorial/InSARHub_Tutorial_V110.ipynb"><img alt="Try Live Demo" src="https://colab.research.google.com/assets/colab-badge.svg"></a></p>
+<h2 id="modules">Modules</h2>
+<p>The InSAR script is designed with three config-based main modules to cover the entire InSAR processing workflow:</p>
+<p><a class="md-button md-button--lg" href="../../advanced/downloader/">Downloader</a> <a class="md-button md-button--lg" href="../../advanced/processor/">Processor</a> <a class="md-button md-button--lg" href="../../advanced/analyzer/">Analyzer</a></p>
+<p>You can click on each module to view detailed information later. For now, let's begin by running the program using the basic example.</p>
+<h2 id="workflow">Workflow</h2>
+<p>The basic workflow of InSARHub can be briefly described as:</p>
+<div style="text-align: center;">
+<pre class="mermaid"><code>graph
+    A[Set AOI] --&gt; B[Searching];
+    B --&gt; C[Result Filtering];
+    C --&gt; D[Interferogram];
+    D --&gt; F[Time-series Analysis];
+    F --&gt; H[Post-Processing];
+    click A "#set-aoi" "Go to Set AOI section"
+    click B "#searching" "Go to the Searching section"
+    click C "#result-filtering" " Go to the Result Filtering section"
+    click D "#interferogram"
+    click F "#time-series-analysis"
+    click H "#post-processing"
+
+</code></pre>
+</div>
+
+<h3 id="set-aoi">Set <abbr title="Area of interest">AOI</abbr></h3>
+<p>InSARHub allows to define the <abbr title="Area of interest">AOI</abbr> using <strong>bounding box</strong>, <strong>shapefiles</strong>, or <strong><abbr title="Well-known text representation of geometry">WKT</abbr></strong>:</p>
+<h4 id="bounding-box">Bounding box</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">AOI</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="mf">37.74</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">]</span>
+</span></code></pre></div>
+<details class="note">
+<summary>Note</summary>
+<p>The <abbr title="Area of interest">AOI</abbr> should be specified as <strong><em>[min_long, min_lat, max_long, max_lat]</em></strong> under <abbr title="Coordinate Reference System">CRS</abbr>: EPSG:4326 (WGS84)</p>
+</details>
+<h4 id="shapefiles">Shapefiles</h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">AOI</span> <span class="o">=</span> <span class="s1">'path/to/your/shapefile.shp'</span>
+</span></code></pre></div>
+<h4 id="wkt"><abbr title="Well-known text representation of geometry">WKT</abbr></h4>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">AOI</span> <span class="o">=</span> <span class="s1">'POLYGON((-113.05 37.74, -113.05 38.00, -112.68 38.00, -112.68 37.74, -113.05 37.74))'</span>
+</span></code></pre></div>
+<h3 id="searching">Searching</h3>
+<p>Once the <abbr title="Area of interest">AOI</abbr> is defined, you can perform searches using the Downloader.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Downloader</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">AOI</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="mf">37.74</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">]</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">s1</span> <span class="o">=</span> <span class="n">Downloader</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'S1_SLC'</span><span class="p">,</span> <span class="n">intersectsWith</span><span class="o">=</span><span class="n">AOI</span><span class="p">)</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">results</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">search</span><span class="p">()</span>
+</span></code></pre></div>
+<details class="output">
+<summary>Output</summary>
+<div class="language-py highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">Searching</span> <span class="k">for</span> <span class="n">SLCs</span><span class="o">....</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="o">--</span> <span class="n">A</span> <span class="n">total</span> <span class="n">of</span> <span class="mi">991</span> <span class="n">results</span> <span class="n">found</span><span class="o">.</span> 
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">The</span> <span class="n">AOI</span> <span class="n">crosses</span> <span class="mi">18</span> <span class="n">stacks</span><span class="p">,</span> <span class="n">you</span> <span class="n">can</span> <span class="n">use</span> <span class="o">.</span><span class="n">summary</span><span class="p">()</span> <span class="ow">or</span> <span class="o">.</span><span class="n">footprint</span><span class="p">()</span> <span class="n">to</span> <span class="n">check</span> <span class="n">footprints</span> <span class="ow">and</span> <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">path_frame</span><span class="o">=</span><span class="p">(</span><span class="o">...</span><span class="p">))</span> <span class="n">to</span> <span class="n">select</span> <span class="n">the</span> <span class="n">stack</span> <span class="n">of</span> <span class="n">scenes</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">you</span> <span class="n">would</span> <span class="n">like</span> <span class="n">to</span> <span class="n">download</span><span class="o">.</span> <span class="n">If</span> <span class="n">use</span> <span class="o">.</span><span class="n">download</span><span class="p">()</span> <span class="n">directly</span> <span class="n">will</span> <span class="n">create</span> <span class="n">subfolders</span> <span class="n">under</span> <span class="o">/</span><span class="n">home</span><span class="o">/</span><span class="n">jldz9</span><span class="o">/</span><span class="n">dev</span><span class="o">/</span><span class="n">InSARHub</span> <span class="k">for</span> <span class="n">each</span> <span class="n">stack</span>
+</span></code></pre></div>
+</details>
+<h3 id="result-filtering">Result Filtering</h3>
+<p>Your <abbr title="Area of interest">AOI</abbr> probably spans multiple scenes. To view the search result footprints, you can use:
+</p><div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">footprint</span><span class="p">()</span>
+</span></code></pre></div>
+This will display a footprint map of the available Sentinel-1 scenes that covers the <abbr title="Area of interest">AOI</abbr>. The stack indicates the number of SAR scenes in that footprint. Because we have multiple stacks the graph will be a bit messy:<p></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/footprint.png" data-desc-position="bottom"><img alt="footprint" src="../fig/footprint.png" style="width:500px; display: block; margin: auto;"></a></p>
+<p>Let's check details of our SAR scene stacks and figure out which stack(s) we want to keep:
+</p><div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</span></code></pre></div>
+This will output the summary of available Sentinel-1 scenes that cover the <abbr title="Area of interest">AOI</abbr>.<p></p>
+<details class="output">
+<summary>Output</summary>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="o">===</span><span class="w"> </span>ASCENDING<span class="w"> </span>ORBITS<span class="w"> </span><span class="o">(</span><span class="m">14</span><span class="w"> </span>Stacks<span class="o">)</span><span class="w"> </span><span class="o">===</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">117</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-04-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2016</span>-11-19
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">118</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">156</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-12-13<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-24
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">2</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-03-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2015</span>-12-25
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">120</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">12</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-10-31<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2016</span>-09-14
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">121</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">6</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-04-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2015</span>-08-27
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">122</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">4</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-05-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2016</span>-11-19
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>relativeOrbit<span class="w"> </span><span class="m">20</span><span class="w"> </span>frame<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">151</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-12-13<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-24
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">116</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">85</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-11-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2021</span>-12-16
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">117</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">25</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-03-29<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-03-01
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">118</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2016</span>-10-07<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2017</span>-01-11
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2017</span>-02-10<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2017</span>-02-10
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">120</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">14</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-12<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2025</span>-07-04
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">121</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">85</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-11-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2021</span>-12-16
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>relativeOrbit<span class="w"> </span><span class="m">93</span><span class="w"> </span>frame<span class="w"> </span><span class="m">122</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">22</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2025</span>-05-05<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-03-01
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="o">===</span><span class="w"> </span>DESCENDING<span class="w"> </span>ORBITS<span class="w"> </span><span class="o">(</span><span class="m">4</span><span class="w"> </span>Stacks<span class="o">)</span><span class="w"> </span><span class="o">===</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">464</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-23
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">465</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">20</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2014</span>-11-29<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2017</span>-01-05
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">466</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">161</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2017</span>-02-22<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2022</span>-07-02
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">469</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-23
+</span></code></pre></div>
+</details>
+<p>The program identified 18 potential stacks (14 ascending, 4 descending). We can narrowed the dataset to the descending track Path 100, Frame 466 in year 2020 by:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">filter_results</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">path_frame</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">466</span><span class="p">),</span> <span class="n">start</span><span class="o">=</span><span class="s1">'2020-01-01'</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">'2020-12-31'</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Check back the footprint and summary:
+</p><div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">footprint</span><span class="p">()</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">s1</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
+</span></code></pre></div>
+would return: <p></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/footprint_picked.png" data-desc-position="bottom"><img alt="filtered_results_footprint" src="../fig/footprint_picked.png" style="width:500px; display: block; margin: auto;"></a>
+</p><div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="o">===</span> <span class="n">DESCENDING</span> <span class="n">ORBITS</span> <span class="p">(</span><span class="mi">1</span> <span class="n">Stacks</span><span class="p">)</span> <span class="o">===</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="n">Path</span> <span class="mi">100</span> <span class="n">Frame</span> <span class="mi">466</span> <span class="o">|</span> <span class="n">Count</span><span class="p">:</span> <span class="mi">30</span> <span class="o">|</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">01</span><span class="o">-</span><span class="mi">02</span> <span class="o">--&gt;</span> <span class="mi">2020</span><span class="o">-</span><span class="mi">12</span><span class="o">-</span><span class="mi">27</span>
+</span></code></pre></div><p></p>
+<p>Use <code>download</code> to download searched <abbr title="Single Look Complex">SLC</abbr> data
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>s1.download()
+</span></code></pre></div><p></p>
+<p>Use <code>reset</code> to restore original search results. 
+</p><div class="language-text highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>s1.reset()
+</span></code></pre></div><p></p>
+<h3 id="interferogram">Interferogram</h3>
+<p>After locating SAR scene stack(s), the next step is to generate unwrapped interferograms in preparation for the time-series analysis. InSARHub currently support:</p>
+<ul>
+<li><strong>HyP3</strong>: Use the <a href="https://hyp3-docs.asf.alaska.edu/">HyP3 platform</a>
+ provided by <abbr title="Alaska Satellite Facility">ASF</abbr> to run the interferometric processing in the cloud and download the resulting interferograms.</li>
+</ul>
+<h4 id="hyp3">Hyp3</h4>
+<p>HyP3 is an online processing platform provided by <abbr title="Alaska Satellite Facility">ASF</abbr>. InSARHub has wrapped <a href="https://github.com/ASFHyP3/hyp3-sdk">hyp3_sdk</a> as a <code>Processor</code>:</p>
+<p>Hyp3 InSAR Processor takes a pair of <code>reference_granule_id</code> and a <code>secondary_granule_id</code> to generate an interferogram. To automate the pair selection process: </p>
+<p></p><div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">select_pairs</span><span class="p">,</span> <span class="n">plot_pair_network</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span> <span class="o">=</span> <span class="n">select_pairs</span><span class="p">(</span><span class="n">filter_results</span><span class="p">,</span> <span class="n">max_degree</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span> <span class="c1"># We set the maximum connections to 5 to limit interferograms</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_pair_network</span><span class="p">(</span><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">)</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</span></code></pre></div>
+If the network is healthy without any disconnections, you are ready to submit your pairs: 
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/ifgs_network.png" data-desc-position="bottom"><img alt="networks" auto_="auto;&quot;" margin:="margin:" src="../fig/ifgs_network.png"></a><p></p>
+<p>To submit your pairs to Hyp3 server for online interferogram processing:</p>
+<p></p><div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>   
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_InSAR'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>    <span class="n">batch</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</span></code></pre></div>
+This process will generate <code>hyp3_jobs.json</code> under your work directory, which contains the jobID submitted to the hyp3 server, the processing will take roughly 30 mins for 100 interferograms depends on the <abbr title="Alaska Satellite Facility">ASF</abbr> server load<p></p>
+<p>The job script will looks like: </p>
+<details class="hyp3_jobs">
+<summary>Hyp3_jobs</summary>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="p">{</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nt">"job_ids"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="nt">"Your_ASF_UserName"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="s2">"28a7f5e7-d8d4-4958-854f-a7e625a0a09e"</span><span class="p">,</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="w">    </span><span class="s2">"61d48bb8-f86d-4b2a-b933-2709b653b86b"</span><span class="p">,</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="s2">"c10cc297-2008-491d-a76c-c38958830d87"</span><span class="p">,</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">    </span><span class="s2">"68b2be08-2ad7-4cad-9bbb-3d33e8468300"</span><span class="p">,</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="w">    </span><span class="s2">"be57c44f-9514-4b92-8e7b-9e1c9c0d9d08"</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span><span class="err">...</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">    </span><span class="p">]</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="p">},</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/Your/Project/Save/Path"</span>
+</span><span id="__span-15-13"><a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a><span class="p">}</span>
+</span></code></pre></div>
+</details>
+<p>To check the job processing status: </p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">processor_reload</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_InSAR'</span><span class="p">,</span> <span class="n">saved_job_path</span><span class="o">=</span><span class="s1">'your/directory/p*_f*/hyp3_jobs.json'</span><span class="p">)</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="n">batchs</span> <span class="o">=</span> <span class="n">processor_reload</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+</span></code></pre></div>
+<details class="output">
+<summary>Output</summary>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>User: jldz9asf (65 jobs)
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>    JOB NAME                            JOB ID                                 STATUS
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>- ifg_20201016T133502_20201109T133501 961b4d1c-df15-4272-843f-390c98f14f50 | SUCCEEDED
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>- ifg_20200829T133500_20200910T133501 a449ebf8-1dbc-4a41-a1ae-a6d30deb1fd2 | SUCCEEDED
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>- ifg_20200126T133452_20200207T133452 dfef59ce-9e0f-4987-a1fb-84626d58e5a5 | SUCCEEDED
+</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>- ifg_20200606T133455_20200630T133456 1864b4a9-0ae7-4c8f-94e0-eebc334b7bc3 | SUCCEEDED
+</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>- ifg_20201203T133501_20201215T133500 f1f4e7ff-0ed6-46e7-82c2-7e6ba873cdc7 | SUCCEEDED
+</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>- ifg_20200314T133452_20200407T133452 fcd2d9fe-ed0b-4f0c-93dd-d20810b3e15d | SUCCEEDED
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>- ifg_20201028T133501_20201121T133501 af6c695b-0cdb-475d-bda1-828723f4dd0b | SUCCEEDED
+</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>- ifg_20200102T133453_20200114T133453 93200c49-6979-482f-8701-8fe6d3f29c08 | SUCCEEDED
+</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>- ifg_20201203T133501_20201227T133500 b749ccdf-1c11-4b0d-8d9a-a962241c624e | SUCCEEDED
+</span><span id="__span-17-13"><a id="__codelineno-17-13" name="__codelineno-17-13" href="#__codelineno-17-13"></a>- ifg_20200805T133459_20200817T133459 dbc9ff2f-6d97-4981-b074-25f57838c4aa | SUCCEEDED
+</span><span id="__span-17-14"><a id="__codelineno-17-14" name="__codelineno-17-14" href="#__codelineno-17-14"></a>- ifg_20200724T133458_20200817T133459 71f2e751-3302-4504-aab9-bbcec4b9c6eb | SUCCEEDED
+</span><span id="__span-17-15"><a id="__codelineno-17-15" name="__codelineno-17-15" href="#__codelineno-17-15"></a>- ifg_20200630T133456_20200712T133457 c10a276e-c575-4162-b00e-7515ff19345c | SUCCEEDED
+</span><span id="__span-17-16"><a id="__codelineno-17-16" name="__codelineno-17-16" href="#__codelineno-17-16"></a>- ifg_20200501T133453_20200513T133454 d20fadc7-7d28-4067-ab55-f87d9a4d5063 | SUCCEEDED
+</span><span id="__span-17-17"><a id="__codelineno-17-17" name="__codelineno-17-17" href="#__codelineno-17-17"></a>- ifg_20200326T133452_20200407T133452 52985d6c-aae1-4d0e-8c49-8c6aca17dea6 | SUCCEEDED
+</span><span id="__span-17-18"><a id="__codelineno-17-18" name="__codelineno-17-18" href="#__codelineno-17-18"></a>- ifg_20200219T133452_20200314T133452 aa233b3b-5476-43c5-8af0-a1ccf0e9233f | SUCCEEDED
+</span><span id="__span-17-19"><a id="__codelineno-17-19" name="__codelineno-17-19" href="#__codelineno-17-19"></a>- ifg_20200407T133452_20200419T133453 3e476e94-e2b4-4edc-97bb-0ae07ec13e12 | SUCCEEDED
+</span><span id="__span-17-20"><a id="__codelineno-17-20" name="__codelineno-17-20" href="#__codelineno-17-20"></a>- ifg_20200630T133456_20200724T133458 7f6a56f1-b9da-4564-bc95-e5baa1352a22 | SUCCEEDED
+</span><span id="__span-17-21"><a id="__codelineno-17-21" name="__codelineno-17-21" href="#__codelineno-17-21"></a>- ifg_20200326T133452_20200501T133453 b5e9aa32-377d-4a2a-8ca1-4035bee888f4 | SUCCEEDED
+</span><span id="__span-17-22"><a id="__codelineno-17-22" name="__codelineno-17-22" href="#__codelineno-17-22"></a>- ifg_20201109T133501_20201121T133501 63593204-d6d6-4196-9a30-57b3569e75d1 | SUCCEEDED
+</span><span id="__span-17-23"><a id="__codelineno-17-23" name="__codelineno-17-23" href="#__codelineno-17-23"></a>- ifg_20201016T133502_20201028T133501 96d75b89-7198-4436-a3b9-f68e5683e6bc | SUCCEEDED
+</span><span id="__span-17-24"><a id="__codelineno-17-24" name="__codelineno-17-24" href="#__codelineno-17-24"></a>- ifg_20200102T133453_20200207T133452 a66bf72a-edf7-47bf-96e4-3bf6ccad874f | SUCCEEDED
+</span><span id="__span-17-25"><a id="__codelineno-17-25" name="__codelineno-17-25" href="#__codelineno-17-25"></a>- ifg_20200724T133458_20200805T133459 34cae102-aba2-4d4e-8191-f0f119e53a8a | SUCCEEDED
+</span><span id="__span-17-26"><a id="__codelineno-17-26" name="__codelineno-17-26" href="#__codelineno-17-26"></a>- ifg_20201004T133501_20201028T133501 ef81d0e8-45e6-4708-ab59-7658f0488200 | SUCCEEDED
+</span><span id="__span-17-27"><a id="__codelineno-17-27" name="__codelineno-17-27" href="#__codelineno-17-27"></a>- ifg_20200219T133452_20200302T133452 5a755364-2e4e-421c-b3c1-6ae46f42b1ac | SUCCEEDED
+</span><span id="__span-17-28"><a id="__codelineno-17-28" name="__codelineno-17-28" href="#__codelineno-17-28"></a>- ifg_20200102T133453_20200126T133452 ab2b13eb-0bc3-4ffa-bebb-c7d54cc7b49e | SUCCEEDED
+</span><span id="__span-17-29"><a id="__codelineno-17-29" name="__codelineno-17-29" href="#__codelineno-17-29"></a>- ifg_20201109T133501_20201215T133500 1d9cff3f-298f-4ec5-85cc-cbd95df2085a | SUCCEEDED
+</span><span id="__span-17-30"><a id="__codelineno-17-30" name="__codelineno-17-30" href="#__codelineno-17-30"></a>- ifg_20201028T133501_20201109T133501 d15552b5-420b-4fd8-99db-b0ac22bb939d | SUCCEEDED
+</span><span id="__span-17-31"><a id="__codelineno-17-31" name="__codelineno-17-31" href="#__codelineno-17-31"></a>- ifg_20201109T133501_20201203T133501 2e812368-aea3-4d90-b949-ff7292d548ff | SUCCEEDED
+</span><span id="__span-17-32"><a id="__codelineno-17-32" name="__codelineno-17-32" href="#__codelineno-17-32"></a>- ifg_20200910T133501_20201004T133501 a1e25a7a-6dbd-4d75-8672-f4dba2cf973c | SUCCEEDED
+</span><span id="__span-17-33"><a id="__codelineno-17-33" name="__codelineno-17-33" href="#__codelineno-17-33"></a>- ifg_20201004T133501_20201016T133502 41085b9b-eeee-4f69-9b1c-834789aaf09b | SUCCEEDED
+</span><span id="__span-17-34"><a id="__codelineno-17-34" name="__codelineno-17-34" href="#__codelineno-17-34"></a>- ifg_20200922T133501_20201004T133501 e312e00c-7396-4ab4-a7fe-eaf01cf398f2 | SUCCEEDED
+</span><span id="__span-17-35"><a id="__codelineno-17-35" name="__codelineno-17-35" href="#__codelineno-17-35"></a>- ifg_20200817T133459_20200829T133500 7e40a7a8-128a-4b22-a378-7b7099227845 | SUCCEEDED
+</span><span id="__span-17-36"><a id="__codelineno-17-36" name="__codelineno-17-36" href="#__codelineno-17-36"></a>- ifg_20200114T133453_20200126T133452 17720d01-9dc7-4ae8-b2b4-68b1aa2cfb5e | SUCCEEDED
+</span><span id="__span-17-37"><a id="__codelineno-17-37" name="__codelineno-17-37" href="#__codelineno-17-37"></a>- ifg_20200207T133452_20200219T133452 1760b870-9851-47d5-9d7e-eb4a6c2e3c17 | SUCCEEDED
+</span><span id="__span-17-38"><a id="__codelineno-17-38" name="__codelineno-17-38" href="#__codelineno-17-38"></a>- ifg_20200606T133455_20200712T133457 1ed432ff-ece0-451f-8b07-3e14dac2dbf3 | SUCCEEDED
+</span><span id="__span-17-39"><a id="__codelineno-17-39" name="__codelineno-17-39" href="#__codelineno-17-39"></a>- ifg_20201121T133501_20201203T133501 d522ba90-2a54-49df-a5ec-d4c47e74854e | SUCCEEDED
+</span><span id="__span-17-40"><a id="__codelineno-17-40" name="__codelineno-17-40" href="#__codelineno-17-40"></a>- ifg_20200314T133452_20200419T133453 f0d74aaf-2d0e-45c5-a598-3f59128fd3a4 | SUCCEEDED
+</span><span id="__span-17-41"><a id="__codelineno-17-41" name="__codelineno-17-41" href="#__codelineno-17-41"></a>- ifg_20200513T133454_20200606T133455 65ca5370-703f-4382-8358-58602852f4b6 | SUCCEEDED
+</span><span id="__span-17-42"><a id="__codelineno-17-42" name="__codelineno-17-42" href="#__codelineno-17-42"></a>- ifg_20200910T133501_20200922T133501 8e21d9a1-7690-4fd5-9e42-b7732556e64f | SUCCEEDED
+</span><span id="__span-17-43"><a id="__codelineno-17-43" name="__codelineno-17-43" href="#__codelineno-17-43"></a>- ifg_20200302T133452_20200314T133452 913f582b-7050-4140-912c-1bcd677ed4d0 | SUCCEEDED
+</span><span id="__span-17-44"><a id="__codelineno-17-44" name="__codelineno-17-44" href="#__codelineno-17-44"></a>- ifg_20201121T133501_20201215T133500 1b46ebd8-f934-436f-b234-6151bb419f9b | SUCCEEDED
+</span><span id="__span-17-45"><a id="__codelineno-17-45" name="__codelineno-17-45" href="#__codelineno-17-45"></a>- ifg_20200407T133452_20200501T133453 86dd0cfd-973f-4453-bd04-a880d14aa3e8 | SUCCEEDED
+</span><span id="__span-17-46"><a id="__codelineno-17-46" name="__codelineno-17-46" href="#__codelineno-17-46"></a>- ifg_20200817T133459_20200910T133501 fde1155a-15d9-484d-aead-3594baba5a5b | SUCCEEDED
+</span><span id="__span-17-47"><a id="__codelineno-17-47" name="__codelineno-17-47" href="#__codelineno-17-47"></a>- ifg_20200114T133453_20200207T133452 27c88970-ad96-4855-9fdc-55ce865df692 | SUCCEEDED
+</span><span id="__span-17-48"><a id="__codelineno-17-48" name="__codelineno-17-48" href="#__codelineno-17-48"></a>- ifg_20200513T133454_20200525T133455 5790c8ab-2186-4ac9-96d6-2015dd36c158 | SUCCEEDED
+</span><span id="__span-17-49"><a id="__codelineno-17-49" name="__codelineno-17-49" href="#__codelineno-17-49"></a>- ifg_20201121T133501_20201227T133500 4193ed07-a701-4ebf-9d54-02d635b4fb52 | SUCCEEDED
+</span><span id="__span-17-50"><a id="__codelineno-17-50" name="__codelineno-17-50" href="#__codelineno-17-50"></a>- ifg_20200712T133457_20200724T133458 2585422e-9a61-4214-a39b-6af633170074 | SUCCEEDED
+</span><span id="__span-17-51"><a id="__codelineno-17-51" name="__codelineno-17-51" href="#__codelineno-17-51"></a>- ifg_20200207T133452_20200302T133452 a8a3e128-4e32-4216-ab6e-5df810fe7b8f | SUCCEEDED
+</span><span id="__span-17-52"><a id="__codelineno-17-52" name="__codelineno-17-52" href="#__codelineno-17-52"></a>- ifg_20200419T133453_20200513T133454 f4683c12-2d35-463c-a4a7-d9d19dccd10f | SUCCEEDED
+</span><span id="__span-17-53"><a id="__codelineno-17-53" name="__codelineno-17-53" href="#__codelineno-17-53"></a>- ifg_20200805T133459_20200829T133500 2e104b8e-f58c-4a7f-8762-bc5e19c6a588 | SUCCEEDED
+</span><span id="__span-17-54"><a id="__codelineno-17-54" name="__codelineno-17-54" href="#__codelineno-17-54"></a>- ifg_20200302T133452_20200326T133452 5909b68d-e171-439a-9337-f5ea8b05bb32 | SUCCEEDED
+</span><span id="__span-17-55"><a id="__codelineno-17-55" name="__codelineno-17-55" href="#__codelineno-17-55"></a>- ifg_20200501T133453_20200525T133455 42ff579b-630b-493b-9749-20d89d7b9864 | SUCCEEDED
+</span><span id="__span-17-56"><a id="__codelineno-17-56" name="__codelineno-17-56" href="#__codelineno-17-56"></a>- ifg_20200712T133457_20200805T133459 dc8d82b9-930b-4e43-8d4e-91ceb952b5ab | SUCCEEDED
+</span><span id="__span-17-57"><a id="__codelineno-17-57" name="__codelineno-17-57" href="#__codelineno-17-57"></a>- ifg_20200525T133455_20200606T133455 863a6c29-6909-4a72-86d1-3da183f6e97a | SUCCEEDED
+</span><span id="__span-17-58"><a id="__codelineno-17-58" name="__codelineno-17-58" href="#__codelineno-17-58"></a>- ifg_20200525T133455_20200630T133456 70b7a263-3888-4780-88fc-2f3cdd176bbb | SUCCEEDED
+</span><span id="__span-17-59"><a id="__codelineno-17-59" name="__codelineno-17-59" href="#__codelineno-17-59"></a>- ifg_20200326T133452_20200419T133453 46ca5dc1-ec65-42b8-ad6c-63c860be7f61 | SUCCEEDED
+</span><span id="__span-17-60"><a id="__codelineno-17-60" name="__codelineno-17-60" href="#__codelineno-17-60"></a>- ifg_20200922T133501_20201016T133502 8ca82ac5-3a8a-4f8d-85b1-49bbe1cbbd1d | SUCCEEDED
+</span><span id="__span-17-61"><a id="__codelineno-17-61" name="__codelineno-17-61" href="#__codelineno-17-61"></a>- ifg_20200922T133501_20201028T133501 1e6bc45c-4ce2-4fb9-9179-2818196b801b | SUCCEEDED
+</span><span id="__span-17-62"><a id="__codelineno-17-62" name="__codelineno-17-62" href="#__codelineno-17-62"></a>- ifg_20201215T133500_20201227T133500 b5aae0e8-99de-4ec3-ad85-40e45a5e1b69 | SUCCEEDED
+</span><span id="__span-17-63"><a id="__codelineno-17-63" name="__codelineno-17-63" href="#__codelineno-17-63"></a>- ifg_20200114T133453_20200219T133452 5b18c065-d74b-4ee4-87a8-acce835252b1 | SUCCEEDED
+</span><span id="__span-17-64"><a id="__codelineno-17-64" name="__codelineno-17-64" href="#__codelineno-17-64"></a>- ifg_20200314T133452_20200326T133452 6c17f1e6-0b43-45fe-83cd-297d4cb64f2a | SUCCEEDED
+</span><span id="__span-17-65"><a id="__codelineno-17-65" name="__codelineno-17-65" href="#__codelineno-17-65"></a>- ifg_20200829T133500_20200922T133501 2259ce4a-d21f-4dc0-8da6-38d991086111 | SUCCEEDED
+</span><span id="__span-17-66"><a id="__codelineno-17-66" name="__codelineno-17-66" href="#__codelineno-17-66"></a>- ifg_20200302T133452_20200407T133452 5bf4a092-ad5a-48e2-9095-855b3604be9b | SUCCEEDED
+</span><span id="__span-17-67"><a id="__codelineno-17-67" name="__codelineno-17-67" href="#__codelineno-17-67"></a>- ifg_20200419T133453_20200501T133453 37c7bf39-4634-484f-a177-ae8bf314d1ba | SUCCEEDED
+</span><span id="__span-17-68"><a id="__codelineno-17-68" name="__codelineno-17-68" href="#__codelineno-17-68"></a>- ifg_20200126T133452_20200219T133452 7c5d6fb2-4bf4-44c9-adbd-777ed3e13dc3 | SUCCEEDED
+</span></code></pre></div>
+</details>
+<p>Seems all interferograms are ready! <a href="">(I have failed jobs?)</a></p>
+<p>Processed interferograms can be downloaded by: </p>
+<p></p><div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">processor_reload</span><span class="o">.</span><span class="n">download</span><span class="p">()</span>
+</span></code></pre></div>
+Once all downloads are complete, we are ready to move to time-series analysis!<p></p>
+<h3 id="time-series-analysis">Time-series Analysis</h3>
+<p>After generated all unwrapped interferograms, time-series analysis is recommended for long term deformation monitoring. InSARHub currently support:</p>
+<ul>
+<li><a href="https://github.com/insarlab/MintPy"><strong>Mintpy</strong></a>: an open-source Python package for InSAR time-series analysis.</li>
+</ul>
+<h4 id="mintpy">Mintpy</h4>
+<p>InSARHub has wrapped MintPy's <code>SmallbaselineApp</code> as an analyzer, to connect MintPy with HyP3 products:</p>
+<p></p><div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p*_f*'</span>
+</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">hyp3_sbas</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">hyp3_sbas</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>
+</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">hyp3_sbas</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</span></code></pre></div>
+The <abbr title="Small Baseline Subset">SBAS</abbr> analysis will be up and running.<p></p>
+<h3 id="post-processing">Post-Processing</h3>
+<p>Normally Analyzer like Mintpy will handle postprocessing automatically.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+  
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+    <a href="jiaweiliwork@outlook.com" target="_blank" rel="noopener" title="Email me" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4l208 156a48 48 0 0 0 57.6 0l208-156c12.1-9.1 19.2-23.3 19.2-38.4 0-26.5-21.5-48-48-48zM0 196v188c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64V196L313.6 344.8c-34.1 25.6-81.1 25.6-115.2 0z"></path></svg>
+    </a>
+  
+    
+    
+    
+    
+    <a href="https://discord.gg/RJJM42MBUU" target="_blank" rel="noopener" title="Discord" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M492.5 69.8c-.2-.3-.4-.6-.8-.7-38.1-17.5-78.4-30-119.7-37.1-.4-.1-.8 0-1.1.1s-.6.4-.8.8c-5.5 9.9-10.5 20.2-14.9 30.6-44.6-6.8-89.9-6.8-134.4 0-4.5-10.5-9.5-20.7-15.1-30.6-.2-.3-.5-.6-.8-.8s-.7-.2-1.1-.2C162.5 39 122.2 51.5 84.1 69c-.3.1-.6.4-.8.7C7.1 183.5-13.8 294.6-3.6 404.2c0 .3.1.5.2.8s.3.4.5.6c44.4 32.9 94 58 146.8 74.2.4.1.8.1 1.1 0s.7-.4.9-.7c11.3-15.4 21.4-31.8 30-48.8.1-.2.2-.5.2-.8s0-.5-.1-.8-.2-.5-.4-.6-.4-.3-.7-.4c-15.8-6.1-31.2-13.4-45.9-21.9-.3-.2-.5-.4-.7-.6s-.3-.6-.3-.9 0-.6.2-.9.3-.5.6-.7c3.1-2.3 6.2-4.7 9.1-7.1.3-.2.6-.4.9-.4s.7 0 1 .1c96.2 43.9 200.4 43.9 295.5 0 .3-.1.7-.2 1-.2s.7.2.9.4c2.9 2.4 6 4.9 9.1 7.2.2.2.4.4.6.7s.2.6.2.9-.1.6-.3.9-.4.5-.6.6c-14.7 8.6-30 15.9-45.9 21.8-.2.1-.5.2-.7.4s-.3.4-.4.7-.1.5-.1.8.1.5.2.8c8.8 17 18.8 33.3 30 48.8.2.3.6.6.9.7s.8.1 1.1 0c52.9-16.2 102.6-41.3 147.1-74.2.2-.2.4-.4.5-.6s.2-.5.2-.8c12.3-126.8-20.5-236.9-86.9-334.5zm-302 267.7c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.4 59.2-52.8 59.2m195.4 0c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.2 59.2-52.8 59.2"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+       
+
+  <div id="major-redesign-toast">     
+    <h4>⚠️ Major Redesign</h4>     
+    <p>InSARScript v1.1.0 has change of APIs, this documentation is <b>not compatible</b> with version v1.0.0.</p>     
+    <button onclick="dismissToast()">OK</button>   
+  </div>    
+
+  <script>     
+    document.addEventListener("DOMContentLoaded", function() {       
+      const toast = document.getElementById('major-redesign-toast');       
+      const storageKey = 'dismissed_redesign_notice_v110';              
+      const isDismissed = localStorage.getItem(storageKey);        
+      
+      if (!isDismissed) {         
+        toast.style.display = 'block';       
+      }     
+    });      
+    
+    function dismissToast() {       
+      const toast = document.getElementById('major-redesign-toast');       
+      toast.style.display = 'none';       
+      localStorage.setItem('dismissed_redesign_notice_v110', 'true');     
+    }   
+  </script> 
+
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

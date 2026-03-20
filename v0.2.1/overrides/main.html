@@ -1,0 +1,78 @@
+{% extends "base.html" %} 
+
+{% block extrahead %} 
+  {{ super() }} 
+  <style>     
+    #major-redesign-toast {       
+      position: fixed;       
+      bottom: 30px;       
+      right: 30px;       
+      width: 340px;  /* Slightly wider to accommodate larger text */     
+      background-color: white;       
+      border-left: 6px solid #ff9100;       
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);       
+      border-radius: 8px;       
+      padding: 20px;       
+      z-index: 9999; 
+      display: none;        
+      color: #333;
+      
+      /* --- Font Adjustments --- */
+      font-size: 16px;      /* Increased body text size */
+      line-height: 1.5;     /* Better spacing between lines */
+      font-family: Roboto, -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif; /* Optional: Matches MkDocs default */
+    }     
+    
+    [data-md-color-scheme="slate"] #major-redesign-toast {       
+      background-color: #2e3240;       
+      color: white;     
+    }     
+    
+    #major-redesign-toast h4 { 
+      margin: 0 0 10px 0; 
+      color: #ff9100; 
+      font-size: 18px;      /* Increased header size */
+      font-weight: 700;
+    }     
+    
+    #major-redesign-toast button {       
+      background: #ff9100; 
+      color: white; 
+      border: none;       
+      padding: 10px 20px;   /* Larger button padding */
+      font-size: 14px;      /* Larger button text */
+      border-radius: 4px; 
+      cursor: pointer; 
+      float: right;     
+      margin-top: 5px;
+    }   
+  </style> 
+{% endblock %} 
+
+{% block footer %}
+  {{ super() }} 
+
+  <div id="major-redesign-toast">     
+    <h4>⚠️ Major Redesign</h4>     
+    <p>InSARScript v1.1.0 has change of APIs, this documentation is <b>not compatible</b> with version v1.0.0.</p>     
+    <button onclick="dismissToast()">OK</button>   
+  </div>    
+
+  <script>     
+    document.addEventListener("DOMContentLoaded", function() {       
+      const toast = document.getElementById('major-redesign-toast');       
+      const storageKey = 'dismissed_redesign_notice_v110';              
+      const isDismissed = localStorage.getItem(storageKey);        
+      
+      if (!isDismissed) {         
+        toast.style.display = 'block';       
+      }     
+    });      
+    
+    function dismissToast() {       
+      const toast = document.getElementById('major-redesign-toast');       
+      toast.style.display = 'none';       
+      localStorage.setItem('dismissed_redesign_notice_v110', 'true');     
+    }   
+  </script> 
+{% endblock %}

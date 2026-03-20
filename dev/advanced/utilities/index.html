@@ -1,7 +1,4 @@
-
-<!doctype html>
-<html lang="en" class="no-js">
-  <head>
+<!DOCTYPE html><html lang="en" class="no-js"><head>
     
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -45,8 +42,8 @@
       
         
         
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=sans-serif:300,300i,400,400i,700,700i%7CSource+Code+Pro:400,400i,700,700i&display=fallback">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=sans-serif:300,300i,400,400i,700,700i%7CSource+Code+Pro:400,400i,700,700i&amp;display=fallback">
         <style>:root{--md-text-font:"sans-serif";--md-code-font:"Source Code Pro"}</style>
       
     
@@ -108,7 +105,17 @@
     }   
   </style> 
 
-  </head>
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
   
   
     
@@ -136,7 +143,7 @@
       
     </div>
     
-      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
         
       </div>
     
@@ -150,12 +157,12 @@
     <a href="../.." title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
 
     </a>
     <label class="md-header__button md-icon" for="__drawer">
       
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
     </label>
     <div class="md-header__title" data-md-component="header-title">
       <div class="md-header__ellipsis">
@@ -180,20 +187,20 @@
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: light)" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo" aria-label="switch to dark mode" type="radio" name="__palette" id="__palette_0">
     
-      <label class="md-header__button md-icon" title="switch to dark mode" for="__palette_1" hidden>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      <label class="md-header__button md-icon" title="switch to dark mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"></path></svg>
       </label>
     
   
     
     
     
-    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="grey" data-md-color-accent="indigo"  aria-label="switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    <input class="md-option" data-md-color-media="(prefers-color-scheme: dark)" data-md-color-scheme="slate" data-md-color-primary="grey" data-md-color-accent="indigo" aria-label="switch to light mode" type="radio" name="__palette" id="__palette_1">
     
-      <label class="md-header__button md-icon" title="switch to light mode" for="__palette_0" hidden>
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      <label class="md-header__button md-icon" title="switch to light mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"></path></svg>
       </label>
     
   
@@ -209,24 +216,24 @@
       
         <label class="md-header__button md-icon" for="__search">
           
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
         </label>
         <div class="md-search" data-md-component="search" role="dialog">
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
       <label class="md-search__icon md-icon" for="__search">
         
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
         
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
       </label>
       <nav class="md-search__options" aria-label="Search">
         
         <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
           
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
         </button>
       </nav>
       
@@ -234,7 +241,7 @@
       
     </form>
     <div class="md-search__output">
-      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
             Initializing search
@@ -252,7 +259,7 @@
         <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
   </div>
   <div class="md-source__repository">
     jldz9/InSARHub
@@ -366,7 +373,7 @@
           
             
               
-              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
                 <div class="md-sidebar__scrollwrap">
                   <div class="md-sidebar__inner">
                     
@@ -380,7 +387,7 @@
     <a href="../.." title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
 
     </a>
     InSARHub
@@ -390,7 +397,7 @@
       <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"/></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
   </div>
   <div class="md-source__repository">
     jldz9/InSARHub
@@ -398,7 +405,7 @@
 </a>
     </div>
   
-  <ul class="md-nav__list" data-md-scrollfix>
+  <ul class="md-nav__list" data-md-scrollfix="">
     
       
       
@@ -449,7 +456,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2">
         
           
           <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
@@ -479,7 +486,7 @@
   
 
           </label>
-          <ul class="md-nav__list" data-md-scrollfix>
+          <ul class="md-nav__list" data-md-scrollfix="">
             
               
                 
@@ -559,7 +566,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3">
         
           
           <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
@@ -589,7 +596,7 @@
   
 
           </label>
-          <ul class="md-nav__list" data-md-scrollfix>
+          <ul class="md-nav__list" data-md-scrollfix="">
             
               
                 
@@ -684,7 +691,7 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
@@ -714,7 +721,7 @@
   
 
           </label>
-          <ul class="md-nav__list" data-md-scrollfix>
+          <ul class="md-nav__list" data-md-scrollfix="">
             
               
                 
@@ -758,7 +765,7 @@
   <span class="md-ellipsis">
     
   
-    Search & Download
+    Search &amp; Download
   
 
     
@@ -888,7 +895,7 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked>
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -918,7 +925,7 @@
   
 
           </label>
-          <ul class="md-nav__list" data-md-scrollfix>
+          <ul class="md-nav__list" data-md-scrollfix="">
             
               
                 
@@ -1064,7 +1071,7 @@
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
   <a href="#select-pairs" class="md-nav__link">
@@ -1162,7 +1169,7 @@
             
             
               
-              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
                 <div class="md-sidebar__scrollwrap">
                   <div class="md-sidebar__inner">
                     
@@ -1176,7 +1183,7 @@
       <span class="md-nav__icon md-icon"></span>
       Table of contents
     </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
   <a href="#select-pairs" class="md-nav__link">
@@ -1250,13 +1257,13 @@
     perpendicular baseline criteria.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Downloader</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">select_pairs</span> 
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">s1</span> <span class="o">=</span> <span class="n">Downloader</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;S1_SLC&#39;</span><span class="p">,</span> 
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">s1</span> <span class="o">=</span> <span class="n">Downloader</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'S1_SLC'</span><span class="p">,</span> 
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                    <span class="n">intersectsWith</span><span class="o">=</span><span class="p">[</span><span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="mf">37.74</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">],</span>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                    <span class="n">start</span><span class="o">=</span><span class="s1">&#39;2020-01-01&#39;</span><span class="p">,</span> 
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                    <span class="n">end</span><span class="o">=</span><span class="s1">&#39;2020-12-31&#39;</span><span class="p">,</span>  
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                    <span class="n">start</span><span class="o">=</span><span class="s1">'2020-01-01'</span><span class="p">,</span> 
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                    <span class="n">end</span><span class="o">=</span><span class="s1">'2020-12-31'</span><span class="p">,</span>  
 </span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>                    <span class="n">relativeOrbit</span><span class="o">=</span><span class="mi">100</span><span class="p">,</span> 
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>                    <span class="n">frame</span><span class="o">=</span><span class="mi">466</span><span class="p">,</span> 
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                    <span class="n">workdir</span><span class="o">=</span><span class="s1">&#39;path/to/dir&#39;</span><span class="p">)</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>                    <span class="n">workdir</span><span class="o">=</span><span class="s1">'path/to/dir'</span><span class="p">)</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="n">results</span> <span class="o">=</span> <span class="n">dl</span><span class="o">.</span><span class="n">search</span><span class="p">()</span>
 </span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>
 </span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="n">pairs</span><span class="p">,</span> <span class="n">baselines</span> <span class="o">=</span> <span class="n">select_pairs</span><span class="p">(</span><span class="n">search_results</span><span class="o">=</span><span class="n">results</span><span class="p">)</span>
@@ -1436,7 +1443,7 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/insarhub/utils/tool.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-529">529</a></span>
+              <div class="language-python highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-529">529</a></span>
 <span class="normal"><a href="#__codelineno-0-530">530</a></span>
 <span class="normal"><a href="#__codelineno-0-531">531</a></span>
 <span class="normal"><a href="#__codelineno-0-532">532</a></span>
@@ -1601,7 +1608,7 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 </span><span id="__span-0-538"><a id="__codelineno-0-538" name="__codelineno-0-538"></a>    <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">8</span>
 </span><span id="__span-0-539"><a id="__codelineno-0-539" name="__codelineno-0-539"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Union</span><span class="p">[</span><span class="n">PairGroup</span><span class="p">,</span> <span class="nb">list</span><span class="p">[</span><span class="n">Pair</span><span class="p">]]:</span>
 </span><span id="__span-0-540"><a id="__codelineno-0-540" name="__codelineno-0-540"></a>
-</span><span id="__span-0-541"><a id="__codelineno-0-541" name="__codelineno-0-541"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-0-541"><a id="__codelineno-0-541" name="__codelineno-0-541"></a><span class="w">    </span><span class="sd">"""</span>
 </span><span id="__span-0-542"><a id="__codelineno-0-542" name="__codelineno-0-542"></a><span class="sd">    Select interferogram pairs based on temporal and perpendicular baseline.</span>
 </span><span id="__span-0-543"><a id="__codelineno-0-543" name="__codelineno-0-543"></a>
 </span><span id="__span-0-544"><a id="__codelineno-0-544" name="__codelineno-0-544"></a><span class="sd">    This function selects interferogram pairs according to temporal spacing </span>
@@ -1656,7 +1663,7 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 </span><span id="__span-0-593"><a id="__codelineno-0-593" name="__codelineno-0-593"></a><span class="sd">            positive. Use this for network plots to reproduce the MintPy-style</span>
 </span><span id="__span-0-594"><a id="__codelineno-0-594" name="__codelineno-0-594"></a><span class="sd">            y-axis (negative/positive spread around zero). Mirrors the</span>
 </span><span id="__span-0-595"><a id="__codelineno-0-595" name="__codelineno-0-595"></a><span class="sd">            structure of *pairs* (flat or grouped).</span>
-</span><span id="__span-0-596"><a id="__codelineno-0-596" name="__codelineno-0-596"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-596"><a id="__codelineno-0-596" name="__codelineno-0-596"></a><span class="sd">    """</span>
 </span><span id="__span-0-597"><a id="__codelineno-0-597" name="__codelineno-0-597"></a>
 </span><span id="__span-0-598"><a id="__codelineno-0-598" name="__codelineno-0-598"></a>    <span class="c1"># ── normalise input ───────────────────────────────────────────────────</span>
 </span><span id="__span-0-599"><a id="__codelineno-0-599" name="__codelineno-0-599"></a>    <span class="n">input_is_list</span> <span class="o">=</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">search_results</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
@@ -1668,8 +1675,8 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 </span><span id="__span-0-605"><a id="__codelineno-0-605" name="__codelineno-0-605"></a>        <span class="n">working_dict</span> <span class="o">=</span> <span class="n">search_results</span>
 </span><span id="__span-0-606"><a id="__codelineno-0-606" name="__codelineno-0-606"></a>    <span class="k">else</span><span class="p">:</span>
 </span><span id="__span-0-607"><a id="__codelineno-0-607" name="__codelineno-0-607"></a>        <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-</span><span id="__span-0-608"><a id="__codelineno-0-608" name="__codelineno-0-608"></a>            <span class="sa">f</span><span class="s2">&quot;search_results must be a list or dict of ASFProducts, &quot;</span>
-</span><span id="__span-0-609"><a id="__codelineno-0-609" name="__codelineno-0-609"></a>            <span class="sa">f</span><span class="s2">&quot;got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">search_results</span><span class="p">)</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-0-608"><a id="__codelineno-0-608" name="__codelineno-0-608"></a>            <span class="sa">f</span><span class="s2">"search_results must be a list or dict of ASFProducts, "</span>
+</span><span id="__span-0-609"><a id="__codelineno-0-609" name="__codelineno-0-609"></a>            <span class="sa">f</span><span class="s2">"got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">search_results</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
 </span><span id="__span-0-610"><a id="__codelineno-0-610" name="__codelineno-0-610"></a>        <span class="p">)</span>
 </span><span id="__span-0-611"><a id="__codelineno-0-611" name="__codelineno-0-611"></a>
 </span><span id="__span-0-612"><a id="__codelineno-0-612" name="__codelineno-0-612"></a>    <span class="c1"># ── primary filter helpers (defined once, closed over threshold args) ─</span>
@@ -1687,27 +1694,27 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 </span><span id="__span-0-624"><a id="__codelineno-0-624" name="__codelineno-0-624"></a>    <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">search_result</span> <span class="ow">in</span> <span class="n">working_dict</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
 </span><span id="__span-0-625"><a id="__codelineno-0-625" name="__codelineno-0-625"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">input_is_list</span><span class="p">:</span>
 </span><span id="__span-0-626"><a id="__codelineno-0-626" name="__codelineno-0-626"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-</span><span id="__span-0-627"><a id="__codelineno-0-627" name="__codelineno-0-627"></a>                <span class="s2">&quot;</span><span class="si">%s</span><span class="s2">Searching pairs for path </span><span class="si">%d</span><span class="s2"> frame </span><span class="si">%d</span><span class="s2"> …&quot;</span><span class="p">,</span>
+</span><span id="__span-0-627"><a id="__codelineno-0-627" name="__codelineno-0-627"></a>                <span class="s2">"</span><span class="si">%s</span><span class="s2">Searching pairs for path </span><span class="si">%d</span><span class="s2"> frame </span><span class="si">%d</span><span class="s2"> …"</span><span class="p">,</span>
 </span><span id="__span-0-628"><a id="__codelineno-0-628" name="__codelineno-0-628"></a>                <span class="n">Fore</span><span class="o">.</span><span class="n">GREEN</span><span class="p">,</span> <span class="n">key</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">key</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span>
 </span><span id="__span-0-629"><a id="__codelineno-0-629" name="__codelineno-0-629"></a>            <span class="p">)</span>
 </span><span id="__span-0-630"><a id="__codelineno-0-630" name="__codelineno-0-630"></a>
 </span><span id="__span-0-631"><a id="__codelineno-0-631" name="__codelineno-0-631"></a>        <span class="c1"># Sort by acquisition time so `names` is chronologically ordered</span>
-</span><span id="__span-0-632"><a id="__codelineno-0-632" name="__codelineno-0-632"></a>        <span class="n">prods</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">search_result</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;startTime&quot;</span><span class="p">])</span>
+</span><span id="__span-0-632"><a id="__codelineno-0-632" name="__codelineno-0-632"></a>        <span class="n">prods</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">search_result</span><span class="p">,</span> <span class="n">key</span><span class="o">=</span><span class="k">lambda</span> <span class="n">p</span><span class="p">:</span> <span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">"startTime"</span><span class="p">])</span>
 </span><span id="__span-0-633"><a id="__codelineno-0-633" name="__codelineno-0-633"></a>
 </span><span id="__span-0-634"><a id="__codelineno-0-634" name="__codelineno-0-634"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="n">prods</span><span class="p">:</span>
-</span><span id="__span-0-635"><a id="__codelineno-0-635" name="__codelineno-0-635"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">&quot;No products for key </span><span class="si">%s</span><span class="s2"> — skipping.&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
+</span><span id="__span-0-635"><a id="__codelineno-0-635" name="__codelineno-0-635"></a>            <span class="n">logger</span><span class="o">.</span><span class="n">warning</span><span class="p">(</span><span class="s2">"No products for key </span><span class="si">%s</span><span class="s2"> — skipping."</span><span class="p">,</span> <span class="n">key</span><span class="p">)</span>
 </span><span id="__span-0-636"><a id="__codelineno-0-636" name="__codelineno-0-636"></a>            <span class="k">continue</span>
 </span><span id="__span-0-637"><a id="__codelineno-0-637" name="__codelineno-0-637"></a>
 </span><span id="__span-0-638"><a id="__codelineno-0-638" name="__codelineno-0-638"></a>        <span class="c1"># Pre-parse acquisition datetimes to Unix timestamps (done once;</span>
 </span><span id="__span-0-639"><a id="__codelineno-0-639" name="__codelineno-0-639"></a>        <span class="c1"># reused in sort keys, dt calculations, and pair ordering)</span>
 </span><span id="__span-0-640"><a id="__codelineno-0-640" name="__codelineno-0-640"></a>        <span class="n">id_time_raw</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">SceneID</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
-</span><span id="__span-0-641"><a id="__codelineno-0-641" name="__codelineno-0-641"></a>            <span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;sceneName&quot;</span><span class="p">]:</span> <span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;startTime&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">prods</span>
+</span><span id="__span-0-641"><a id="__codelineno-0-641" name="__codelineno-0-641"></a>            <span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">"sceneName"</span><span class="p">]:</span> <span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">"startTime"</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">prods</span>
 </span><span id="__span-0-642"><a id="__codelineno-0-642" name="__codelineno-0-642"></a>        <span class="p">}</span>
 </span><span id="__span-0-643"><a id="__codelineno-0-643" name="__codelineno-0-643"></a>        <span class="n">id_time_dt</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">SceneID</span><span class="p">,</span> <span class="n">DateFloat</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
 </span><span id="__span-0-644"><a id="__codelineno-0-644" name="__codelineno-0-644"></a>            <span class="n">sid</span><span class="p">:</span> <span class="n">isoparse</span><span class="p">(</span><span class="n">t</span><span class="p">)</span><span class="o">.</span><span class="n">timestamp</span><span class="p">()</span> <span class="k">for</span> <span class="n">sid</span><span class="p">,</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">id_time_raw</span><span class="o">.</span><span class="n">items</span><span class="p">()</span>
 </span><span id="__span-0-645"><a id="__codelineno-0-645" name="__codelineno-0-645"></a>        <span class="p">}</span>
 </span><span id="__span-0-646"><a id="__codelineno-0-646" name="__codelineno-0-646"></a>        <span class="n">ids</span><span class="p">:</span> <span class="nb">set</span><span class="p">[</span><span class="n">SceneID</span><span class="p">]</span> <span class="o">=</span> <span class="nb">set</span><span class="p">(</span><span class="n">id_time_raw</span><span class="p">)</span>
-</span><span id="__span-0-647"><a id="__codelineno-0-647" name="__codelineno-0-647"></a>        <span class="n">names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SceneID</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">&quot;sceneName&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">prods</span><span class="p">]</span>
+</span><span id="__span-0-647"><a id="__codelineno-0-647" name="__codelineno-0-647"></a>        <span class="n">names</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">SceneID</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="n">p</span><span class="o">.</span><span class="n">properties</span><span class="p">[</span><span class="s2">"sceneName"</span><span class="p">]</span> <span class="k">for</span> <span class="n">p</span> <span class="ow">in</span> <span class="n">prods</span><span class="p">]</span>
 </span><span id="__span-0-648"><a id="__codelineno-0-648" name="__codelineno-0-648"></a>
 </span><span id="__span-0-649"><a id="__codelineno-0-649" name="__codelineno-0-649"></a>        <span class="c1"># ── 1. Build pairwise baseline table ─────────────────────────────</span>
 </span><span id="__span-0-650"><a id="__codelineno-0-650" name="__codelineno-0-650"></a>        <span class="n">B</span><span class="p">,</span> <span class="n">scene_bp</span> <span class="o">=</span> <span class="n">_build_baseline_table</span><span class="p">(</span><span class="n">prods</span><span class="p">,</span> <span class="n">ids</span><span class="p">,</span> <span class="n">id_time_dt</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">)</span>
@@ -1718,7 +1725,7 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 </span><span id="__span-0-655"><a id="__codelineno-0-655" name="__codelineno-0-655"></a>            <span class="n">e</span> <span class="k">for</span> <span class="n">e</span><span class="p">,</span> <span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">bp</span><span class="p">)</span> <span class="ow">in</span> <span class="n">B</span><span class="o">.</span><span class="n">items</span><span class="p">()</span> <span class="k">if</span> <span class="n">_passes_primary</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">bp</span><span class="p">)</span>
 </span><span id="__span-0-656"><a id="__codelineno-0-656" name="__codelineno-0-656"></a>        <span class="p">}</span>
 </span><span id="__span-0-657"><a id="__codelineno-0-657" name="__codelineno-0-657"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-</span><span id="__span-0-658"><a id="__codelineno-0-658" name="__codelineno-0-658"></a>            <span class="s2">&quot;Key </span><span class="si">%s</span><span class="s2"> — primary selection: </span><span class="si">%d</span><span class="s2"> / </span><span class="si">%d</span><span class="s2"> candidate pairs.&quot;</span><span class="p">,</span>
+</span><span id="__span-0-658"><a id="__codelineno-0-658" name="__codelineno-0-658"></a>            <span class="s2">"Key </span><span class="si">%s</span><span class="s2"> — primary selection: </span><span class="si">%d</span><span class="s2"> / </span><span class="si">%d</span><span class="s2"> candidate pairs."</span><span class="p">,</span>
 </span><span id="__span-0-659"><a id="__codelineno-0-659" name="__codelineno-0-659"></a>            <span class="n">key</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pairs</span><span class="p">),</span> <span class="nb">len</span><span class="p">(</span><span class="n">B</span><span class="p">),</span>
 </span><span id="__span-0-660"><a id="__codelineno-0-660" name="__codelineno-0-660"></a>        <span class="p">)</span>
 </span><span id="__span-0-661"><a id="__codelineno-0-661" name="__codelineno-0-661"></a>
@@ -1737,13 +1744,13 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 </span><span id="__span-0-674"><a id="__codelineno-0-674" name="__codelineno-0-674"></a>
 </span><span id="__span-0-675"><a id="__codelineno-0-675" name="__codelineno-0-675"></a>        <span class="n">pairs_group</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">pairs</span><span class="p">)</span>
 </span><span id="__span-0-676"><a id="__codelineno-0-676" name="__codelineno-0-676"></a>        <span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span>
-</span><span id="__span-0-677"><a id="__codelineno-0-677" name="__codelineno-0-677"></a>            <span class="s2">&quot;Key </span><span class="si">%s</span><span class="s2"> — final pair count: </span><span class="si">%d</span><span class="s2">.&quot;</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pairs_group</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
+</span><span id="__span-0-677"><a id="__codelineno-0-677" name="__codelineno-0-677"></a>            <span class="s2">"Key </span><span class="si">%s</span><span class="s2"> — final pair count: </span><span class="si">%d</span><span class="s2">."</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">pairs_group</span><span class="p">[</span><span class="n">key</span><span class="p">])</span>
 </span><span id="__span-0-678"><a id="__codelineno-0-678" name="__codelineno-0-678"></a>        <span class="p">)</span>
 </span><span id="__span-0-679"><a id="__codelineno-0-679" name="__codelineno-0-679"></a>    <span class="n">pairs</span> <span class="o">=</span> <span class="n">pairs_group</span><span class="p">[(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)]</span> <span class="k">if</span> <span class="n">input_is_list</span> <span class="k">else</span> <span class="n">pairs_group</span>
 </span><span id="__span-0-680"><a id="__codelineno-0-680" name="__codelineno-0-680"></a>    <span class="n">scene_bperp</span> <span class="o">=</span> <span class="n">scene_bperp_group</span><span class="o">.</span><span class="n">get</span><span class="p">((</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">),</span> <span class="p">{})</span> <span class="k">if</span> <span class="n">input_is_list</span> <span class="k">else</span> <span class="n">scene_bperp_group</span>
 </span><span id="__span-0-681"><a id="__codelineno-0-681" name="__codelineno-0-681"></a>
 </span><span id="__span-0-682"><a id="__codelineno-0-682" name="__codelineno-0-682"></a>    <span class="k">return</span> <span class="n">pairs</span><span class="p">,</span> <span class="n">baseline_group</span><span class="p">,</span> <span class="n">scene_bperp</span>
-</span></code></pre></div></td></tr></table></div>
+</span></code></pre></div></td></tr></tbody></table></div>
             </details>
     </div>
 
@@ -1755,7 +1762,7 @@ data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_pair_network</span><span class="p">(</span><span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">baselines</span><span class="o">=</span><span class="n">baselines</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Example: </p>
-<p><img alt="networks" auto_="auto;&quot;" margin:="margin:" src="../../quickstart/fig/ifgs_network.png" /></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../quickstart/fig/ifgs_network.png" data-desc-position="bottom"><img alt="networks" auto_="auto;&quot;" margin:="margin:" src="../../quickstart/fig/ifgs_network.png"></a></p>
 
 
 <div class="doc doc-object doc-function">
@@ -1825,7 +1832,7 @@ information for each interferogram pair.</p>
               </div>
             </td>
             <td>
-                  <code>&#39;Interferogram Network&#39;</code>
+                  <code>'Interferogram Network'</code>
             </td>
           </tr>
           <tr class="doc-section-item">
@@ -1900,7 +1907,7 @@ Defaults to None.</p>
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/insarhub/utils/tool.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-702"> 702</a></span>
+              <div class="language-python highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-702"> 702</a></span>
 <span class="normal"><a href="#__codelineno-0-703"> 703</a></span>
 <span class="normal"><a href="#__codelineno-0-704"> 704</a></span>
 <span class="normal"><a href="#__codelineno-0-705"> 705</a></span>
@@ -2255,12 +2262,12 @@ Defaults to None.</p>
 </span><span id="__span-0-703"><a id="__codelineno-0-703" name="__codelineno-0-703"></a>    <span class="n">pairs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Pair</span><span class="p">]</span> <span class="o">|</span> <span class="n">PairGroup</span><span class="p">,</span>
 </span><span id="__span-0-704"><a id="__codelineno-0-704" name="__codelineno-0-704"></a>    <span class="n">baselines</span><span class="p">:</span> <span class="n">BaselineTable</span><span class="p">,</span>
 </span><span id="__span-0-705"><a id="__codelineno-0-705" name="__codelineno-0-705"></a>    <span class="n">scene_baselines</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
-</span><span id="__span-0-706"><a id="__codelineno-0-706" name="__codelineno-0-706"></a>    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Interferogram Network&quot;</span><span class="p">,</span>
+</span><span id="__span-0-706"><a id="__codelineno-0-706" name="__codelineno-0-706"></a>    <span class="n">title</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Interferogram Network"</span><span class="p">,</span>
 </span><span id="__span-0-707"><a id="__codelineno-0-707" name="__codelineno-0-707"></a>    <span class="n">figsize</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="nb">int</span><span class="p">]</span> <span class="o">=</span> <span class="p">(</span><span class="mi">18</span><span class="p">,</span> <span class="mi">7</span><span class="p">),</span>
 </span><span id="__span-0-708"><a id="__codelineno-0-708" name="__codelineno-0-708"></a>    <span class="n">save_path</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span><span class="n">Path</span><span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 </span><span id="__span-0-709"><a id="__codelineno-0-709" name="__codelineno-0-709"></a><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="o">|</span> <span class="nb">dict</span><span class="p">:</span>
 </span><span id="__span-0-710"><a id="__codelineno-0-710" name="__codelineno-0-710"></a>
-</span><span id="__span-0-711"><a id="__codelineno-0-711" name="__codelineno-0-711"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+</span><span id="__span-0-711"><a id="__codelineno-0-711" name="__codelineno-0-711"></a><span class="w">    </span><span class="sd">"""</span>
 </span><span id="__span-0-712"><a id="__codelineno-0-712" name="__codelineno-0-712"></a><span class="sd">    Plot an interferogram network along with per-scene connection statistics.</span>
 </span><span id="__span-0-713"><a id="__codelineno-0-713" name="__codelineno-0-713"></a>
 </span><span id="__span-0-714"><a id="__codelineno-0-714" name="__codelineno-0-714"></a><span class="sd">    This function visualizes the relationships between SAR acquisitions in</span>
@@ -2281,7 +2288,7 @@ Defaults to None.</p>
 </span><span id="__span-0-729"><a id="__codelineno-0-729" name="__codelineno-0-729"></a><span class="sd">            Table or mapping containing temporal and perpendicular baseline</span>
 </span><span id="__span-0-730"><a id="__codelineno-0-730" name="__codelineno-0-730"></a><span class="sd">            information for each interferogram pair.</span>
 </span><span id="__span-0-731"><a id="__codelineno-0-731" name="__codelineno-0-731"></a><span class="sd">        title (str, optional):</span>
-</span><span id="__span-0-732"><a id="__codelineno-0-732" name="__codelineno-0-732"></a><span class="sd">            Main title of the network plot. Defaults to &quot;Interferogram Network&quot;.</span>
+</span><span id="__span-0-732"><a id="__codelineno-0-732" name="__codelineno-0-732"></a><span class="sd">            Main title of the network plot. Defaults to "Interferogram Network".</span>
 </span><span id="__span-0-733"><a id="__codelineno-0-733" name="__codelineno-0-733"></a><span class="sd">        figsize (tuple[int, int], optional):</span>
 </span><span id="__span-0-734"><a id="__codelineno-0-734" name="__codelineno-0-734"></a><span class="sd">            Figure size (width, height) in inches. Defaults to (18, 7).</span>
 </span><span id="__span-0-735"><a id="__codelineno-0-735" name="__codelineno-0-735"></a><span class="sd">        save_path (str | Path | None, optional):</span>
@@ -2306,7 +2313,7 @@ Defaults to None.</p>
 </span><span id="__span-0-754"><a id="__codelineno-0-754" name="__codelineno-0-754"></a><span class="sd">        - Scenes with fewer than 2 connections are highlighted in red in the histogram.</span>
 </span><span id="__span-0-755"><a id="__codelineno-0-755" name="__codelineno-0-755"></a><span class="sd">        - Legends show node degree, temporal baseline, and path/frame grouping.</span>
 </span><span id="__span-0-756"><a id="__codelineno-0-756" name="__codelineno-0-756"></a><span class="sd">        - The top axis of the network plot shows real acquisition dates for reference.</span>
-</span><span id="__span-0-757"><a id="__codelineno-0-757" name="__codelineno-0-757"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-757"><a id="__codelineno-0-757" name="__codelineno-0-757"></a><span class="sd">    """</span>
 </span><span id="__span-0-758"><a id="__codelineno-0-758" name="__codelineno-0-758"></a>
 </span><span id="__span-0-759"><a id="__codelineno-0-759" name="__codelineno-0-759"></a>    <span class="c1"># ── 0. Normalise input ────────────────────────────────────────────────</span>
 </span><span id="__span-0-760"><a id="__codelineno-0-760" name="__codelineno-0-760"></a>
@@ -2319,7 +2326,7 @@ Defaults to None.</p>
 </span><span id="__span-0-767"><a id="__codelineno-0-767" name="__codelineno-0-767"></a>        <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="__span-0-768"><a id="__codelineno-0-768" name="__codelineno-0-768"></a>            <span class="n">save_path_obj</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span>
 </span><span id="__span-0-769"><a id="__codelineno-0-769" name="__codelineno-0-769"></a>
-</span><span id="__span-0-770"><a id="__codelineno-0-770" name="__codelineno-0-770"></a>            <span class="k">if</span> <span class="n">save_path_obj</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">&quot;&quot;</span><span class="p">:</span>
+</span><span id="__span-0-770"><a id="__codelineno-0-770" name="__codelineno-0-770"></a>            <span class="k">if</span> <span class="n">save_path_obj</span><span class="o">.</span><span class="n">suffix</span> <span class="o">==</span> <span class="s2">""</span><span class="p">:</span>
 </span><span id="__span-0-771"><a id="__codelineno-0-771" name="__codelineno-0-771"></a>                <span class="n">save_is_dir</span> <span class="o">=</span> <span class="kc">True</span>
 </span><span id="__span-0-772"><a id="__codelineno-0-772" name="__codelineno-0-772"></a>                <span class="n">save_path_obj</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="__span-0-773"><a id="__codelineno-0-773" name="__codelineno-0-773"></a>            <span class="k">else</span><span class="p">:</span>
@@ -2327,20 +2334,20 @@ Defaults to None.</p>
 </span><span id="__span-0-775"><a id="__codelineno-0-775" name="__codelineno-0-775"></a>                <span class="n">save_path_obj</span><span class="o">.</span><span class="n">parent</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="__span-0-776"><a id="__codelineno-0-776" name="__codelineno-0-776"></a>
 </span><span id="__span-0-777"><a id="__codelineno-0-777" name="__codelineno-0-777"></a>        <span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">group_pairs</span> <span class="ow">in</span> <span class="n">pairs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="__span-0-778"><a id="__codelineno-0-778" name="__codelineno-0-778"></a>            <span class="n">group_title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2"> — P</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">/F</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-0-778"><a id="__codelineno-0-778" name="__codelineno-0-778"></a>            <span class="n">group_title</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="s2"> — P</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">/F</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s2">"</span>
 </span><span id="__span-0-779"><a id="__codelineno-0-779" name="__codelineno-0-779"></a>            <span class="n">group_save_path</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span id="__span-0-780"><a id="__codelineno-0-780" name="__codelineno-0-780"></a>
 </span><span id="__span-0-781"><a id="__codelineno-0-781" name="__codelineno-0-781"></a>            <span class="k">if</span> <span class="n">save_path_obj</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="__span-0-782"><a id="__codelineno-0-782" name="__codelineno-0-782"></a>                <span class="k">if</span> <span class="n">save_is_dir</span><span class="p">:</span>
 </span><span id="__span-0-783"><a id="__codelineno-0-783" name="__codelineno-0-783"></a>                    <span class="c1"># Case 1: directory given</span>
 </span><span id="__span-0-784"><a id="__codelineno-0-784" name="__codelineno-0-784"></a>                    <span class="n">group_save_path</span> <span class="o">=</span> <span class="p">(</span>
-</span><span id="__span-0-785"><a id="__codelineno-0-785" name="__codelineno-0-785"></a>                        <span class="n">save_path_obj</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;network_P</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_F</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s2">.png&quot;</span><span class="p">)</span>
+</span><span id="__span-0-785"><a id="__codelineno-0-785" name="__codelineno-0-785"></a>                        <span class="n">save_path_obj</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="sa">f</span><span class="s2">"network_P</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_F</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s2">.png"</span><span class="p">)</span>
 </span><span id="__span-0-786"><a id="__codelineno-0-786" name="__codelineno-0-786"></a>                    <span class="p">)</span>
 </span><span id="__span-0-787"><a id="__codelineno-0-787" name="__codelineno-0-787"></a>                <span class="k">else</span><span class="p">:</span>
 </span><span id="__span-0-788"><a id="__codelineno-0-788" name="__codelineno-0-788"></a>                    <span class="c1"># Case 2: file with suffix given</span>
 </span><span id="__span-0-789"><a id="__codelineno-0-789" name="__codelineno-0-789"></a>                    <span class="n">group_save_path</span> <span class="o">=</span> <span class="p">(</span>
 </span><span id="__span-0-790"><a id="__codelineno-0-790" name="__codelineno-0-790"></a>                        <span class="n">save_path_obj</span><span class="o">.</span><span class="n">parent</span>
-</span><span id="__span-0-791"><a id="__codelineno-0-791" name="__codelineno-0-791"></a>                        <span class="o">/</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">save_path_obj</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">_P</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_F</span><span class="si">{</span><span class="n">frame</span><span class="si">}{</span><span class="n">save_path_obj</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">&quot;</span>
+</span><span id="__span-0-791"><a id="__codelineno-0-791" name="__codelineno-0-791"></a>                        <span class="o">/</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">save_path_obj</span><span class="o">.</span><span class="n">stem</span><span class="si">}</span><span class="s2">_P</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s2">_F</span><span class="si">{</span><span class="n">frame</span><span class="si">}{</span><span class="n">save_path_obj</span><span class="o">.</span><span class="n">suffix</span><span class="si">}</span><span class="s2">"</span>
 </span><span id="__span-0-792"><a id="__codelineno-0-792" name="__codelineno-0-792"></a>                    <span class="p">)</span>
 </span><span id="__span-0-793"><a id="__codelineno-0-793" name="__codelineno-0-793"></a>
 </span><span id="__span-0-794"><a id="__codelineno-0-794" name="__codelineno-0-794"></a>            <span class="n">fig</span> <span class="o">=</span> <span class="n">plot_pair_network</span><span class="p">(</span>
@@ -2359,7 +2366,7 @@ Defaults to None.</p>
 </span><span id="__span-0-807"><a id="__codelineno-0-807" name="__codelineno-0-807"></a>
 </span><span id="__span-0-808"><a id="__codelineno-0-808" name="__codelineno-0-808"></a>
 </span><span id="__span-0-809"><a id="__codelineno-0-809" name="__codelineno-0-809"></a>    <span class="n">flat_pairs</span> <span class="o">=</span> <span class="n">pairs</span>
-</span><span id="__span-0-810"><a id="__codelineno-0-810" name="__codelineno-0-810"></a>    <span class="n">subtitle</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">flat_pairs</span><span class="p">)</span><span class="si">}</span><span class="s2"> pairs&quot;</span>
+</span><span id="__span-0-810"><a id="__codelineno-0-810" name="__codelineno-0-810"></a>    <span class="n">subtitle</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">flat_pairs</span><span class="p">)</span><span class="si">}</span><span class="s2"> pairs"</span>
 </span><span id="__span-0-811"><a id="__codelineno-0-811" name="__codelineno-0-811"></a>    <span class="k">if</span> <span class="n">save_path</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
 </span><span id="__span-0-812"><a id="__codelineno-0-812" name="__codelineno-0-812"></a>        <span class="n">save_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">save_path</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span>
 </span><span id="__span-0-813"><a id="__codelineno-0-813" name="__codelineno-0-813"></a>    <span class="c1"># ── 1. Parse dates ────────────────────────────────────────────────────</span>
@@ -2370,15 +2377,15 @@ Defaults to None.</p>
 </span><span id="__span-0-818"><a id="__codelineno-0-818" name="__codelineno-0-818"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">_parse_date</span><span class="p">(</span><span class="n">scene_name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">datetime</span><span class="p">:</span>
 </span><span id="__span-0-819"><a id="__codelineno-0-819" name="__codelineno-0-819"></a>        <span class="k">if</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">scene_name</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
 </span><span id="__span-0-820"><a id="__codelineno-0-820" name="__codelineno-0-820"></a>            <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span>
-</span><span id="__span-0-821"><a id="__codelineno-0-821" name="__codelineno-0-821"></a>                <span class="sa">f</span><span class="s2">&quot;Expected str, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">scene_name</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">scene_name</span><span class="si">!r}</span><span class="s2">.&quot;</span>
+</span><span id="__span-0-821"><a id="__codelineno-0-821" name="__codelineno-0-821"></a>                <span class="sa">f</span><span class="s2">"Expected str, got </span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">scene_name</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">scene_name</span><span class="si">!r}</span><span class="s2">."</span>
 </span><span id="__span-0-822"><a id="__codelineno-0-822" name="__codelineno-0-822"></a>            <span class="p">)</span>
-</span><span id="__span-0-823"><a id="__codelineno-0-823" name="__codelineno-0-823"></a>        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(\d</span><span class="si">{8}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">scene_name</span><span class="p">)</span>
+</span><span id="__span-0-823"><a id="__codelineno-0-823" name="__codelineno-0-823"></a>        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">"(\d</span><span class="si">{8}</span><span class="s2">)"</span><span class="p">,</span> <span class="n">scene_name</span><span class="p">)</span>
 </span><span id="__span-0-824"><a id="__codelineno-0-824" name="__codelineno-0-824"></a>        <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
-</span><span id="__span-0-825"><a id="__codelineno-0-825" name="__codelineno-0-825"></a>            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;%Y%m</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-826"><a id="__codelineno-0-826" name="__codelineno-0-826"></a>        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">&quot;(\d</span><span class="si">{4}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">)&quot;</span><span class="p">,</span> <span class="n">scene_name</span><span class="p">)</span>
+</span><span id="__span-0-825"><a id="__codelineno-0-825" name="__codelineno-0-825"></a>            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s2">"%Y%m</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-0-826"><a id="__codelineno-0-826" name="__codelineno-0-826"></a>        <span class="n">m</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="sa">r</span><span class="s2">"(\d</span><span class="si">{4}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">-\d</span><span class="si">{2}</span><span class="s2">)"</span><span class="p">,</span> <span class="n">scene_name</span><span class="p">)</span>
 </span><span id="__span-0-827"><a id="__codelineno-0-827" name="__codelineno-0-827"></a>        <span class="k">if</span> <span class="n">m</span><span class="p">:</span>
-</span><span id="__span-0-828"><a id="__codelineno-0-828" name="__codelineno-0-828"></a>            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-829"><a id="__codelineno-0-829" name="__codelineno-0-829"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Cannot parse date from scene name: </span><span class="si">{</span><span class="n">scene_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-828"><a id="__codelineno-0-828" name="__codelineno-0-828"></a>            <span class="k">return</span> <span class="n">datetime</span><span class="o">.</span><span class="n">strptime</span><span class="p">(</span><span class="n">m</span><span class="o">.</span><span class="n">group</span><span class="p">(</span><span class="mi">1</span><span class="p">),</span> <span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-0-829"><a id="__codelineno-0-829" name="__codelineno-0-829"></a>        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Cannot parse date from scene name: </span><span class="si">{</span><span class="n">scene_name</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-830"><a id="__codelineno-0-830" name="__codelineno-0-830"></a>
 </span><span id="__span-0-831"><a id="__codelineno-0-831" name="__codelineno-0-831"></a>    <span class="n">id_time</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="n">SceneID</span><span class="p">,</span> <span class="n">datetime</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span><span class="n">s</span><span class="p">:</span> <span class="n">_parse_date</span><span class="p">(</span><span class="n">s</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">scenes</span><span class="p">}</span>
 </span><span id="__span-0-832"><a id="__codelineno-0-832" name="__codelineno-0-832"></a>    <span class="n">t0</span>      <span class="o">=</span> <span class="nb">min</span><span class="p">(</span><span class="n">id_time</span><span class="o">.</span><span class="n">values</span><span class="p">())</span>
@@ -2432,20 +2439,20 @@ Defaults to None.</p>
 </span><span id="__span-0-880"><a id="__codelineno-0-880" name="__codelineno-0-880"></a>    <span class="n">max_deg</span>      <span class="o">=</span> <span class="nb">max</span><span class="p">(</span><span class="n">degrees</span><span class="o">.</span><span class="n">values</span><span class="p">(),</span> <span class="n">default</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 </span><span id="__span-0-881"><a id="__codelineno-0-881" name="__codelineno-0-881"></a>    <span class="n">node_colours</span> <span class="o">=</span> <span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">RdYlGn</span><span class="p">(</span><span class="n">degrees</span><span class="p">[</span><span class="n">n</span><span class="p">]</span> <span class="o">/</span> <span class="n">max_deg</span><span class="p">)</span> <span class="k">for</span> <span class="n">n</span> <span class="ow">in</span> <span class="n">G</span><span class="o">.</span><span class="n">nodes</span><span class="p">()]</span>
 </span><span id="__span-0-882"><a id="__codelineno-0-882" name="__codelineno-0-882"></a>
-</span><span id="__span-0-883"><a id="__codelineno-0-883" name="__codelineno-0-883"></a>    <span class="n">edge_dts</span>     <span class="o">=</span> <span class="p">[</span><span class="n">G</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="n">b</span><span class="p">][</span><span class="s2">&quot;dt&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">G</span><span class="o">.</span><span class="n">edges</span><span class="p">()]</span>
+</span><span id="__span-0-883"><a id="__codelineno-0-883" name="__codelineno-0-883"></a>    <span class="n">edge_dts</span>     <span class="o">=</span> <span class="p">[</span><span class="n">G</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="n">b</span><span class="p">][</span><span class="s2">"dt"</span><span class="p">]</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">G</span><span class="o">.</span><span class="n">edges</span><span class="p">()]</span>
 </span><span id="__span-0-884"><a id="__codelineno-0-884" name="__codelineno-0-884"></a>    <span class="n">max_dt</span>       <span class="o">=</span> <span class="nb">max</span><span class="p">((</span><span class="n">d</span> <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">edge_dts</span> <span class="k">if</span> <span class="n">d</span> <span class="o">&lt;</span> <span class="n">_MISSING</span><span class="p">),</span> <span class="n">default</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span>
 </span><span id="__span-0-885"><a id="__codelineno-0-885" name="__codelineno-0-885"></a>    <span class="n">edge_colours</span> <span class="o">=</span> <span class="p">[</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">RdYlGn_r</span><span class="p">(</span><span class="nb">min</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">max_dt</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_dt</span><span class="p">)</span> <span class="k">for</span> <span class="n">dt</span> <span class="ow">in</span> <span class="n">edge_dts</span><span class="p">]</span>
 </span><span id="__span-0-886"><a id="__codelineno-0-886" name="__codelineno-0-886"></a>    <span class="n">edge_widths</span>  <span class="o">=</span> <span class="p">[</span><span class="mf">0.5</span> <span class="o">+</span> <span class="mf">2.5</span> <span class="o">*</span> <span class="p">(</span><span class="mf">1.0</span> <span class="o">-</span> <span class="nb">min</span><span class="p">(</span><span class="n">dt</span><span class="p">,</span> <span class="n">max_dt</span><span class="p">)</span> <span class="o">/</span> <span class="n">max_dt</span><span class="p">)</span> <span class="k">for</span> <span class="n">dt</span> <span class="ow">in</span> <span class="n">edge_dts</span><span class="p">]</span>
 </span><span id="__span-0-887"><a id="__codelineno-0-887" name="__codelineno-0-887"></a>
 </span><span id="__span-0-888"><a id="__codelineno-0-888" name="__codelineno-0-888"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
 </span><span id="__span-0-889"><a id="__codelineno-0-889" name="__codelineno-0-889"></a>        <span class="n">group_keys</span>  <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">pairs</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span>
-</span><span id="__span-0-890"><a id="__codelineno-0-890" name="__codelineno-0-890"></a>        <span class="n">linestyles</span>  <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-&quot;</span><span class="p">,</span> <span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="s2">&quot;-.&quot;</span><span class="p">,</span> <span class="s2">&quot;:&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">group_keys</span><span class="p">)</span> <span class="o">//</span> <span class="mi">4</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
+</span><span id="__span-0-890"><a id="__codelineno-0-890" name="__codelineno-0-890"></a>        <span class="n">linestyles</span>  <span class="o">=</span> <span class="p">[</span><span class="s2">"-"</span><span class="p">,</span> <span class="s2">"--"</span><span class="p">,</span> <span class="s2">"-."</span><span class="p">,</span> <span class="s2">":"</span><span class="p">]</span> <span class="o">*</span> <span class="p">(</span><span class="nb">len</span><span class="p">(</span><span class="n">group_keys</span><span class="p">)</span> <span class="o">//</span> <span class="mi">4</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span>
 </span><span id="__span-0-891"><a id="__codelineno-0-891" name="__codelineno-0-891"></a>        <span class="n">key_style</span>   <span class="o">=</span> <span class="p">{</span><span class="n">k</span><span class="p">:</span> <span class="n">linestyles</span><span class="p">[</span><span class="n">i</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">k</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">group_keys</span><span class="p">)}</span>
 </span><span id="__span-0-892"><a id="__codelineno-0-892" name="__codelineno-0-892"></a>        <span class="n">edge_styles</span> <span class="o">=</span> <span class="p">[</span>
-</span><span id="__span-0-893"><a id="__codelineno-0-893" name="__codelineno-0-893"></a>            <span class="n">key_style</span><span class="p">[(</span><span class="n">G</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="n">b</span><span class="p">][</span><span class="s2">&quot;path&quot;</span><span class="p">],</span> <span class="n">G</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="n">b</span><span class="p">][</span><span class="s2">&quot;frame&quot;</span><span class="p">])]</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">G</span><span class="o">.</span><span class="n">edges</span><span class="p">()</span>
+</span><span id="__span-0-893"><a id="__codelineno-0-893" name="__codelineno-0-893"></a>            <span class="n">key_style</span><span class="p">[(</span><span class="n">G</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="n">b</span><span class="p">][</span><span class="s2">"path"</span><span class="p">],</span> <span class="n">G</span><span class="p">[</span><span class="n">a</span><span class="p">][</span><span class="n">b</span><span class="p">][</span><span class="s2">"frame"</span><span class="p">])]</span> <span class="k">for</span> <span class="n">a</span><span class="p">,</span> <span class="n">b</span> <span class="ow">in</span> <span class="n">G</span><span class="o">.</span><span class="n">edges</span><span class="p">()</span>
 </span><span id="__span-0-894"><a id="__codelineno-0-894" name="__codelineno-0-894"></a>        <span class="p">]</span>
 </span><span id="__span-0-895"><a id="__codelineno-0-895" name="__codelineno-0-895"></a>    <span class="k">else</span><span class="p">:</span>
-</span><span id="__span-0-896"><a id="__codelineno-0-896" name="__codelineno-0-896"></a>        <span class="n">edge_styles</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;-&quot;</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">G</span><span class="o">.</span><span class="n">edges</span><span class="p">())</span>
+</span><span id="__span-0-896"><a id="__codelineno-0-896" name="__codelineno-0-896"></a>        <span class="n">edge_styles</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"-"</span><span class="p">]</span> <span class="o">*</span> <span class="nb">len</span><span class="p">(</span><span class="n">G</span><span class="o">.</span><span class="n">edges</span><span class="p">())</span>
 </span><span id="__span-0-897"><a id="__codelineno-0-897" name="__codelineno-0-897"></a>
 </span><span id="__span-0-898"><a id="__codelineno-0-898" name="__codelineno-0-898"></a>    <span class="c1"># ── 5. Figure layout ──────────────────────────────────────────────────</span>
 </span><span id="__span-0-899"><a id="__codelineno-0-899" name="__codelineno-0-899"></a>    <span class="n">fig</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">figure</span><span class="p">(</span><span class="n">figsize</span><span class="o">=</span><span class="n">figsize</span><span class="p">)</span>
@@ -2475,7 +2482,7 @@ Defaults to None.</p>
 </span><span id="__span-0-923"><a id="__codelineno-0-923" name="__codelineno-0-923"></a>        <span class="n">node_color</span><span class="o">=</span><span class="n">node_colours</span><span class="p">,</span>
 </span><span id="__span-0-924"><a id="__codelineno-0-924" name="__codelineno-0-924"></a>        <span class="n">node_size</span><span class="o">=</span><span class="mi">80</span><span class="p">,</span>
 </span><span id="__span-0-925"><a id="__codelineno-0-925" name="__codelineno-0-925"></a>        <span class="n">linewidths</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
-</span><span id="__span-0-926"><a id="__codelineno-0-926" name="__codelineno-0-926"></a>        <span class="n">edgecolors</span><span class="o">=</span><span class="s2">&quot;black&quot;</span><span class="p">,</span>
+</span><span id="__span-0-926"><a id="__codelineno-0-926" name="__codelineno-0-926"></a>        <span class="n">edgecolors</span><span class="o">=</span><span class="s2">"black"</span><span class="p">,</span>
 </span><span id="__span-0-927"><a id="__codelineno-0-927" name="__codelineno-0-927"></a>    <span class="p">)</span>
 </span><span id="__span-0-928"><a id="__codelineno-0-928" name="__codelineno-0-928"></a>    <span class="n">nx</span><span class="o">.</span><span class="n">draw_networkx_labels</span><span class="p">(</span>
 </span><span id="__span-0-929"><a id="__codelineno-0-929" name="__codelineno-0-929"></a>        <span class="n">G</span><span class="p">,</span> <span class="n">pos</span><span class="p">,</span>
@@ -2485,12 +2492,12 @@ Defaults to None.</p>
 </span><span id="__span-0-933"><a id="__codelineno-0-933" name="__codelineno-0-933"></a>    <span class="p">)</span>
 </span><span id="__span-0-934"><a id="__codelineno-0-934" name="__codelineno-0-934"></a>
 </span><span id="__span-0-935"><a id="__codelineno-0-935" name="__codelineno-0-935"></a>    <span class="c1"># ── 7. Network axes ───────────────────────────────────────────────────</span>
-</span><span id="__span-0-936"><a id="__codelineno-0-936" name="__codelineno-0-936"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Days since first acquisition&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
-</span><span id="__span-0-937"><a id="__codelineno-0-937" name="__codelineno-0-937"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">&quot;Perpendicular baseline [m]&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>    <span class="c1"># ✅ real unit</span>
+</span><span id="__span-0-936"><a id="__codelineno-0-936" name="__codelineno-0-936"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Days since first acquisition"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+</span><span id="__span-0-937"><a id="__codelineno-0-937" name="__codelineno-0-937"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">set_ylabel</span><span class="p">(</span><span class="s2">"Perpendicular baseline [m]"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>    <span class="c1"># ✅ real unit</span>
 </span><span id="__span-0-938"><a id="__codelineno-0-938" name="__codelineno-0-938"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span>
-</span><span id="__span-0-939"><a id="__codelineno-0-939" name="__codelineno-0-939"></a>        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">subtitle</span><span class="si">}</span><span class="se">\n</span><span class="s2">&quot;</span>
-</span><span id="__span-0-940"><a id="__codelineno-0-940" name="__codelineno-0-940"></a>        <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">scenes</span><span class="p">)</span><span class="si">}</span><span class="s2"> scenes · </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">flat_pairs</span><span class="p">)</span><span class="si">}</span><span class="s2"> pairs · &quot;</span>
-</span><span id="__span-0-941"><a id="__codelineno-0-941" name="__codelineno-0-941"></a>        <span class="sa">f</span><span class="s2">&quot;mean degree </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">degrees</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+</span><span id="__span-0-939"><a id="__codelineno-0-939" name="__codelineno-0-939"></a>        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">title</span><span class="si">}</span><span class="se">\n</span><span class="si">{</span><span class="n">subtitle</span><span class="si">}</span><span class="se">\n</span><span class="s2">"</span>
+</span><span id="__span-0-940"><a id="__codelineno-0-940" name="__codelineno-0-940"></a>        <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">scenes</span><span class="p">)</span><span class="si">}</span><span class="s2"> scenes · </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">flat_pairs</span><span class="p">)</span><span class="si">}</span><span class="s2"> pairs · "</span>
+</span><span id="__span-0-941"><a id="__codelineno-0-941" name="__codelineno-0-941"></a>        <span class="sa">f</span><span class="s2">"mean degree </span><span class="si">{</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">degrees</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
 </span><span id="__span-0-942"><a id="__codelineno-0-942" name="__codelineno-0-942"></a>        <span class="n">fontsize</span><span class="o">=</span><span class="mi">11</span><span class="p">,</span>
 </span><span id="__span-0-943"><a id="__codelineno-0-943" name="__codelineno-0-943"></a>    <span class="p">)</span>
 </span><span id="__span-0-944"><a id="__codelineno-0-944" name="__codelineno-0-944"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">tick_params</span><span class="p">(</span><span class="n">left</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">bottom</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labelleft</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">labelbottom</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -2504,12 +2511,12 @@ Defaults to None.</p>
 </span><span id="__span-0-952"><a id="__codelineno-0-952" name="__codelineno-0-952"></a>    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xticks</span><span class="p">(</span><span class="n">x_ticks</span><span class="p">)</span>
 </span><span id="__span-0-953"><a id="__codelineno-0-953" name="__codelineno-0-953"></a>    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xticklabels</span><span class="p">(</span>
 </span><span id="__span-0-954"><a id="__codelineno-0-954" name="__codelineno-0-954"></a>        <span class="p">[</span>
-</span><span id="__span-0-955"><a id="__codelineno-0-955" name="__codelineno-0-955"></a>            <span class="p">(</span><span class="n">t0</span> <span class="o">+</span> <span class="nb">__import__</span><span class="p">(</span><span class="s2">&quot;datetime&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">d</span><span class="p">))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">&quot;%Y-%m-</span><span class="si">%d</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-955"><a id="__codelineno-0-955" name="__codelineno-0-955"></a>            <span class="p">(</span><span class="n">t0</span> <span class="o">+</span> <span class="nb">__import__</span><span class="p">(</span><span class="s2">"datetime"</span><span class="p">)</span><span class="o">.</span><span class="n">timedelta</span><span class="p">(</span><span class="n">days</span><span class="o">=</span><span class="n">d</span><span class="p">))</span><span class="o">.</span><span class="n">strftime</span><span class="p">(</span><span class="s2">"%Y-%m-</span><span class="si">%d</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-956"><a id="__codelineno-0-956" name="__codelineno-0-956"></a>            <span class="k">for</span> <span class="n">d</span> <span class="ow">in</span> <span class="n">x_ticks</span>
 </span><span id="__span-0-957"><a id="__codelineno-0-957" name="__codelineno-0-957"></a>        <span class="p">],</span>
-</span><span id="__span-0-958"><a id="__codelineno-0-958" name="__codelineno-0-958"></a>        <span class="n">rotation</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+</span><span id="__span-0-958"><a id="__codelineno-0-958" name="__codelineno-0-958"></a>        <span class="n">rotation</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">ha</span><span class="o">=</span><span class="s2">"left"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
 </span><span id="__span-0-959"><a id="__codelineno-0-959" name="__codelineno-0-959"></a>    <span class="p">)</span>
-</span><span id="__span-0-960"><a id="__codelineno-0-960" name="__codelineno-0-960"></a>    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Acquisition date (UTC)&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span>
+</span><span id="__span-0-960"><a id="__codelineno-0-960" name="__codelineno-0-960"></a>    <span class="n">ax2</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Acquisition date (UTC)"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span>
 </span><span id="__span-0-961"><a id="__codelineno-0-961" name="__codelineno-0-961"></a>
 </span><span id="__span-0-962"><a id="__codelineno-0-962" name="__codelineno-0-962"></a>    <span class="c1"># ── 8. Per-scene connection histogram ─────────────────────────────────</span>
 </span><span id="__span-0-963"><a id="__codelineno-0-963" name="__codelineno-0-963"></a>    <span class="c1"># Sort scenes by date so the histogram reads chronologically top→bottom</span>
@@ -2524,7 +2531,7 @@ Defaults to None.</p>
 </span><span id="__span-0-972"><a id="__codelineno-0-972" name="__codelineno-0-972"></a>        <span class="n">y_positions</span><span class="p">,</span>
 </span><span id="__span-0-973"><a id="__codelineno-0-973" name="__codelineno-0-973"></a>        <span class="n">scene_degrees</span><span class="p">,</span>
 </span><span id="__span-0-974"><a id="__codelineno-0-974" name="__codelineno-0-974"></a>        <span class="n">color</span><span class="o">=</span><span class="n">bar_colours</span><span class="p">,</span>
-</span><span id="__span-0-975"><a id="__codelineno-0-975" name="__codelineno-0-975"></a>        <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;white&quot;</span><span class="p">,</span>
+</span><span id="__span-0-975"><a id="__codelineno-0-975" name="__codelineno-0-975"></a>        <span class="n">edgecolor</span><span class="o">=</span><span class="s2">"white"</span><span class="p">,</span>
 </span><span id="__span-0-976"><a id="__codelineno-0-976" name="__codelineno-0-976"></a>        <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.4</span><span class="p">,</span>
 </span><span id="__span-0-977"><a id="__codelineno-0-977" name="__codelineno-0-977"></a>        <span class="n">height</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
 </span><span id="__span-0-978"><a id="__codelineno-0-978" name="__codelineno-0-978"></a>    <span class="p">)</span>
@@ -2535,30 +2542,30 @@ Defaults to None.</p>
 </span><span id="__span-0-983"><a id="__codelineno-0-983" name="__codelineno-0-983"></a>            <span class="n">bar</span><span class="o">.</span><span class="n">get_width</span><span class="p">()</span> <span class="o">+</span> <span class="mf">0.1</span><span class="p">,</span>
 </span><span id="__span-0-984"><a id="__codelineno-0-984" name="__codelineno-0-984"></a>            <span class="n">bar</span><span class="o">.</span><span class="n">get_y</span><span class="p">()</span> <span class="o">+</span> <span class="n">bar</span><span class="o">.</span><span class="n">get_height</span><span class="p">()</span> <span class="o">/</span> <span class="mi">2</span><span class="p">,</span>
 </span><span id="__span-0-985"><a id="__codelineno-0-985" name="__codelineno-0-985"></a>            <span class="nb">str</span><span class="p">(</span><span class="n">count</span><span class="p">),</span>
-</span><span id="__span-0-986"><a id="__codelineno-0-986" name="__codelineno-0-986"></a>            <span class="n">va</span><span class="o">=</span><span class="s2">&quot;center&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+</span><span id="__span-0-986"><a id="__codelineno-0-986" name="__codelineno-0-986"></a>            <span class="n">va</span><span class="o">=</span><span class="s2">"center"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
 </span><span id="__span-0-987"><a id="__codelineno-0-987" name="__codelineno-0-987"></a>        <span class="p">)</span>
 </span><span id="__span-0-988"><a id="__codelineno-0-988" name="__codelineno-0-988"></a>
 </span><span id="__span-0-989"><a id="__codelineno-0-989" name="__codelineno-0-989"></a>    <span class="c1"># vertical line at mean degree</span>
 </span><span id="__span-0-990"><a id="__codelineno-0-990" name="__codelineno-0-990"></a>    <span class="n">mean_deg</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">scene_degrees</span><span class="p">)</span>
 </span><span id="__span-0-991"><a id="__codelineno-0-991" name="__codelineno-0-991"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">axvline</span><span class="p">(</span>
-</span><span id="__span-0-992"><a id="__codelineno-0-992" name="__codelineno-0-992"></a>        <span class="n">mean_deg</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">&quot;steelblue&quot;</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span>
+</span><span id="__span-0-992"><a id="__codelineno-0-992" name="__codelineno-0-992"></a>        <span class="n">mean_deg</span><span class="p">,</span> <span class="n">color</span><span class="o">=</span><span class="s2">"steelblue"</span><span class="p">,</span> <span class="n">linestyle</span><span class="o">=</span><span class="s2">"--"</span><span class="p">,</span> <span class="n">linewidth</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span> <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span>
 </span><span id="__span-0-993"><a id="__codelineno-0-993" name="__codelineno-0-993"></a>    <span class="p">)</span>
 </span><span id="__span-0-994"><a id="__codelineno-0-994" name="__codelineno-0-994"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">text</span><span class="p">(</span>
 </span><span id="__span-0-995"><a id="__codelineno-0-995" name="__codelineno-0-995"></a>        <span class="n">mean_deg</span> <span class="o">+</span> <span class="mf">0.1</span><span class="p">,</span> <span class="nb">len</span><span class="p">(</span><span class="n">sorted_scene_names</span><span class="p">)</span> <span class="o">-</span> <span class="mf">0.5</span><span class="p">,</span>
-</span><span id="__span-0-996"><a id="__codelineno-0-996" name="__codelineno-0-996"></a>        <span class="sa">f</span><span class="s2">&quot;mean</span><span class="se">\n</span><span class="si">{</span><span class="n">mean_deg</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-997"><a id="__codelineno-0-997" name="__codelineno-0-997"></a>        <span class="n">color</span><span class="o">=</span><span class="s2">&quot;steelblue&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">&quot;top&quot;</span><span class="p">,</span>
+</span><span id="__span-0-996"><a id="__codelineno-0-996" name="__codelineno-0-996"></a>        <span class="sa">f</span><span class="s2">"mean</span><span class="se">\n</span><span class="si">{</span><span class="n">mean_deg</span><span class="si">:</span><span class="s2">.1f</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-997"><a id="__codelineno-0-997" name="__codelineno-0-997"></a>        <span class="n">color</span><span class="o">=</span><span class="s2">"steelblue"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">va</span><span class="o">=</span><span class="s2">"top"</span><span class="p">,</span>
 </span><span id="__span-0-998"><a id="__codelineno-0-998" name="__codelineno-0-998"></a>    <span class="p">)</span>
 </span><span id="__span-0-999"><a id="__codelineno-0-999" name="__codelineno-0-999"></a>
 </span><span id="__span-0-1000"><a id="__codelineno-0-1000" name="__codelineno-0-1000"></a>    <span class="c1"># mark scenes below min connectivity in red</span>
 </span><span id="__span-0-1001"><a id="__codelineno-0-1001" name="__codelineno-0-1001"></a>    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="p">(</span><span class="n">s</span><span class="p">,</span> <span class="n">deg</span><span class="p">)</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="nb">zip</span><span class="p">(</span><span class="n">sorted_scene_names</span><span class="p">,</span> <span class="n">scene_degrees</span><span class="p">)):</span>
 </span><span id="__span-0-1002"><a id="__codelineno-0-1002" name="__codelineno-0-1002"></a>        <span class="k">if</span> <span class="n">deg</span> <span class="o">&lt;</span> <span class="mi">2</span><span class="p">:</span>
-</span><span id="__span-0-1003"><a id="__codelineno-0-1003" name="__codelineno-0-1003"></a>            <span class="n">ax_hist</span><span class="o">.</span><span class="n">get_children</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_edgecolor</span><span class="p">(</span><span class="s2">&quot;red&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1003"><a id="__codelineno-0-1003" name="__codelineno-0-1003"></a>            <span class="n">ax_hist</span><span class="o">.</span><span class="n">get_children</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_edgecolor</span><span class="p">(</span><span class="s2">"red"</span><span class="p">)</span>
 </span><span id="__span-0-1004"><a id="__codelineno-0-1004" name="__codelineno-0-1004"></a>            <span class="n">ax_hist</span><span class="o">.</span><span class="n">get_children</span><span class="p">()[</span><span class="n">i</span><span class="p">]</span><span class="o">.</span><span class="n">set_linewidth</span><span class="p">(</span><span class="mf">1.5</span><span class="p">)</span>
 </span><span id="__span-0-1005"><a id="__codelineno-0-1005" name="__codelineno-0-1005"></a>
 </span><span id="__span-0-1006"><a id="__codelineno-0-1006" name="__codelineno-0-1006"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">set_yticks</span><span class="p">(</span><span class="n">y_positions</span><span class="p">)</span>
 </span><span id="__span-0-1007"><a id="__codelineno-0-1007" name="__codelineno-0-1007"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">set_yticklabels</span><span class="p">(</span><span class="n">short_names</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">6</span><span class="p">)</span>
-</span><span id="__span-0-1008"><a id="__codelineno-0-1008" name="__codelineno-0-1008"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">&quot;Number of connections&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span>
-</span><span id="__span-0-1009"><a id="__codelineno-0-1009" name="__codelineno-0-1009"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">&quot;Connections</span><span class="se">\n</span><span class="s2">per scene&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+</span><span id="__span-0-1008"><a id="__codelineno-0-1008" name="__codelineno-0-1008"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">set_xlabel</span><span class="p">(</span><span class="s2">"Number of connections"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">9</span><span class="p">)</span>
+</span><span id="__span-0-1009"><a id="__codelineno-0-1009" name="__codelineno-0-1009"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s2">"Connections</span><span class="se">\n</span><span class="s2">per scene"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 </span><span id="__span-0-1010"><a id="__codelineno-0-1010" name="__codelineno-0-1010"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">xaxis</span><span class="o">.</span><span class="n">set_major_locator</span><span class="p">(</span><span class="n">plt</span><span class="o">.</span><span class="n">MaxNLocator</span><span class="p">(</span><span class="n">integer</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
 </span><span id="__span-0-1011"><a id="__codelineno-0-1011" name="__codelineno-0-1011"></a>    <span class="n">ax_hist</span><span class="o">.</span><span class="n">set_frame_on</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 </span><span id="__span-0-1012"><a id="__codelineno-0-1012" name="__codelineno-0-1012"></a>    <span class="c1"># match vertical order to network: earliest at top</span>
@@ -2567,21 +2574,21 @@ Defaults to None.</p>
 </span><span id="__span-0-1015"><a id="__codelineno-0-1015" name="__codelineno-0-1015"></a>    <span class="c1"># ── 9. Legends ────────────────────────────────────────────────────────</span>
 </span><span id="__span-0-1016"><a id="__codelineno-0-1016" name="__codelineno-0-1016"></a>    <span class="n">deg_legend</span> <span class="o">=</span> <span class="n">ax_net</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
 </span><span id="__span-0-1017"><a id="__codelineno-0-1017" name="__codelineno-0-1017"></a>        <span class="n">handles</span><span class="o">=</span><span class="p">[</span>
-</span><span id="__span-0-1018"><a id="__codelineno-0-1018" name="__codelineno-0-1018"></a>            <span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">RdYlGn</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="n">max_deg</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;degree </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1018"><a id="__codelineno-0-1018" name="__codelineno-0-1018"></a>            <span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span><span class="n">color</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">RdYlGn</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="n">max_deg</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">"degree </span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1019"><a id="__codelineno-0-1019" name="__codelineno-0-1019"></a>            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="nb">sorted</span><span class="p">(</span><span class="nb">set</span><span class="p">(</span><span class="n">degrees</span><span class="o">.</span><span class="n">values</span><span class="p">()))</span>
 </span><span id="__span-0-1020"><a id="__codelineno-0-1020" name="__codelineno-0-1020"></a>        <span class="p">],</span>
-</span><span id="__span-0-1021"><a id="__codelineno-0-1021" name="__codelineno-0-1021"></a>        <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Node degree&quot;</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper left&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">title_fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+</span><span id="__span-0-1021"><a id="__codelineno-0-1021" name="__codelineno-0-1021"></a>        <span class="n">title</span><span class="o">=</span><span class="s2">"Node degree"</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">"upper left"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">title_fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
 </span><span id="__span-0-1022"><a id="__codelineno-0-1022" name="__codelineno-0-1022"></a>    <span class="p">)</span>
 </span><span id="__span-0-1023"><a id="__codelineno-0-1023" name="__codelineno-0-1023"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">add_artist</span><span class="p">(</span><span class="n">deg_legend</span><span class="p">)</span>
 </span><span id="__span-0-1024"><a id="__codelineno-0-1024" name="__codelineno-0-1024"></a>
 </span><span id="__span-0-1025"><a id="__codelineno-0-1025" name="__codelineno-0-1025"></a>    <span class="n">ax_net</span><span class="o">.</span><span class="n">legend</span><span class="p">(</span>
 </span><span id="__span-0-1026"><a id="__codelineno-0-1026" name="__codelineno-0-1026"></a>        <span class="n">handles</span><span class="o">=</span><span class="p">[</span>
 </span><span id="__span-0-1027"><a id="__codelineno-0-1027" name="__codelineno-0-1027"></a>            <span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span>
-</span><span id="__span-0-1028"><a id="__codelineno-0-1028" name="__codelineno-0-1028"></a>                <span class="n">color</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">RdYlGn_r</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="n">max_dt</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> days&quot;</span>
+</span><span id="__span-0-1028"><a id="__codelineno-0-1028" name="__codelineno-0-1028"></a>                <span class="n">color</span><span class="o">=</span><span class="n">plt</span><span class="o">.</span><span class="n">cm</span><span class="o">.</span><span class="n">RdYlGn_r</span><span class="p">(</span><span class="n">v</span> <span class="o">/</span> <span class="n">max_dt</span><span class="p">),</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">v</span><span class="si">:</span><span class="s2">.0f</span><span class="si">}</span><span class="s2"> days"</span>
 </span><span id="__span-0-1029"><a id="__codelineno-0-1029" name="__codelineno-0-1029"></a>            <span class="p">)</span>
 </span><span id="__span-0-1030"><a id="__codelineno-0-1030" name="__codelineno-0-1030"></a>            <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="n">max_dt</span> <span class="o">*</span> <span class="mf">0.33</span><span class="p">,</span> <span class="n">max_dt</span> <span class="o">*</span> <span class="mf">0.66</span><span class="p">,</span> <span class="n">max_dt</span><span class="p">]</span>
 </span><span id="__span-0-1031"><a id="__codelineno-0-1031" name="__codelineno-0-1031"></a>        <span class="p">],</span>
-</span><span id="__span-0-1032"><a id="__codelineno-0-1032" name="__codelineno-0-1032"></a>        <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Temporal baseline&quot;</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;lower right&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">title_fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+</span><span id="__span-0-1032"><a id="__codelineno-0-1032" name="__codelineno-0-1032"></a>        <span class="n">title</span><span class="o">=</span><span class="s2">"Temporal baseline"</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">"lower right"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">title_fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
 </span><span id="__span-0-1033"><a id="__codelineno-0-1033" name="__codelineno-0-1033"></a>    <span class="p">)</span>
 </span><span id="__span-0-1034"><a id="__codelineno-0-1034" name="__codelineno-0-1034"></a>
 </span><span id="__span-0-1035"><a id="__codelineno-0-1035" name="__codelineno-0-1035"></a>    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">pairs</span><span class="p">,</span> <span class="nb">dict</span><span class="p">):</span>
@@ -2590,35 +2597,35 @@ Defaults to None.</p>
 </span><span id="__span-0-1038"><a id="__codelineno-0-1038" name="__codelineno-0-1038"></a>                <span class="n">handles</span><span class="o">=</span><span class="p">[</span>
 </span><span id="__span-0-1039"><a id="__codelineno-0-1039" name="__codelineno-0-1039"></a>                    <span class="n">mpatches</span><span class="o">.</span><span class="n">Patch</span><span class="p">(</span>
 </span><span id="__span-0-1040"><a id="__codelineno-0-1040" name="__codelineno-0-1040"></a>                        <span class="n">linestyle</span><span class="o">=</span><span class="n">key_style</span><span class="p">[</span><span class="n">k</span><span class="p">],</span> <span class="n">fill</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-</span><span id="__span-0-1041"><a id="__codelineno-0-1041" name="__codelineno-0-1041"></a>                        <span class="n">edgecolor</span><span class="o">=</span><span class="s2">&quot;grey&quot;</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;P</span><span class="si">{</span><span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">/F</span><span class="si">{</span><span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+</span><span id="__span-0-1041"><a id="__codelineno-0-1041" name="__codelineno-0-1041"></a>                        <span class="n">edgecolor</span><span class="o">=</span><span class="s2">"grey"</span><span class="p">,</span> <span class="n">label</span><span class="o">=</span><span class="sa">f</span><span class="s2">"P</span><span class="si">{</span><span class="n">k</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="si">}</span><span class="s2">/F</span><span class="si">{</span><span class="n">k</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
 </span><span id="__span-0-1042"><a id="__codelineno-0-1042" name="__codelineno-0-1042"></a>                    <span class="p">)</span>
 </span><span id="__span-0-1043"><a id="__codelineno-0-1043" name="__codelineno-0-1043"></a>                    <span class="k">for</span> <span class="n">k</span> <span class="ow">in</span> <span class="n">group_keys</span>
 </span><span id="__span-0-1044"><a id="__codelineno-0-1044" name="__codelineno-0-1044"></a>                <span class="p">],</span>
-</span><span id="__span-0-1045"><a id="__codelineno-0-1045" name="__codelineno-0-1045"></a>                <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Path / Frame&quot;</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">&quot;upper right&quot;</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">title_fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
+</span><span id="__span-0-1045"><a id="__codelineno-0-1045" name="__codelineno-0-1045"></a>                <span class="n">title</span><span class="o">=</span><span class="s2">"Path / Frame"</span><span class="p">,</span> <span class="n">loc</span><span class="o">=</span><span class="s2">"upper right"</span><span class="p">,</span> <span class="n">fontsize</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span> <span class="n">title_fontsize</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span>
 </span><span id="__span-0-1046"><a id="__codelineno-0-1046" name="__codelineno-0-1046"></a>            <span class="p">)</span>
 </span><span id="__span-0-1047"><a id="__codelineno-0-1047" name="__codelineno-0-1047"></a>        <span class="p">)</span>
 </span><span id="__span-0-1048"><a id="__codelineno-0-1048" name="__codelineno-0-1048"></a>
 </span><span id="__span-0-1049"><a id="__codelineno-0-1049" name="__codelineno-0-1049"></a>    <span class="k">if</span> <span class="n">save_path</span><span class="p">:</span>
-</span><span id="__span-0-1050"><a id="__codelineno-0-1050" name="__codelineno-0-1050"></a>        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">(),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">&quot;tight&quot;</span><span class="p">)</span>
-</span><span id="__span-0-1051"><a id="__codelineno-0-1051" name="__codelineno-0-1051"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Saved → </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1050"><a id="__codelineno-0-1050" name="__codelineno-0-1050"></a>        <span class="n">fig</span><span class="o">.</span><span class="n">savefig</span><span class="p">(</span><span class="n">save_path</span><span class="o">.</span><span class="n">as_posix</span><span class="p">(),</span> <span class="n">dpi</span><span class="o">=</span><span class="mi">300</span><span class="p">,</span> <span class="n">bbox_inches</span><span class="o">=</span><span class="s2">"tight"</span><span class="p">)</span>
+</span><span id="__span-0-1051"><a id="__codelineno-0-1051" name="__codelineno-0-1051"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Saved → </span><span class="si">{</span><span class="n">save_path</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1052"><a id="__codelineno-0-1052" name="__codelineno-0-1052"></a>
 </span><span id="__span-0-1053"><a id="__codelineno-0-1053" name="__codelineno-0-1053"></a>    <span class="k">return</span> <span class="n">fig</span>
-</span></code></pre></div></td></tr></table></div>
+</span></code></pre></div></td></tr></tbody></table></div>
             </details>
     </div>
 
 </div><h3 id="earth-credit-pool">Earth Credit Pool</h3>
 <p>If user have multiple Earthdata credentials, user may storage it under ~/.credit_pool with format 
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>username1:password1
+</p><div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>username1:password1
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>username2:password2
 </span></code></pre></div>
 then read use:
 <div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">isnarscript.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">earth_credit_pool</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">ec_pool</span> <span class="o">=</span> <span class="n">earth_credit_pool</span><span class="p">()</span>
 </span></code></pre></div>
-You may then pass this into processor for seameless switch across multiple Earthdata credentials</p>
+You may then pass this into processor for seameless switch across multiple Earthdata credentials<p></p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">processor</span><span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">&#39;Hyp3_InSAR&#39;</span><span class="p">,</span> <span class="n">earthdata_credentials_pool</span><span class="o">=</span><span class="n">ec_pool</span><span class="p">,</span> <span class="o">....</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">processor</span><span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_InSAR'</span><span class="p">,</span> <span class="n">earthdata_credentials_pool</span><span class="o">=</span><span class="n">ec_pool</span><span class="p">,</span> <span class="o">....</span><span class="p">)</span>
 </span></code></pre></div>
 
 
@@ -2656,7 +2663,7 @@ You may then pass this into processor for seameless switch across multiple Earth
               </div>
             </td>
             <td>
-                  <code><span title="joinpath">joinpath</span>(&#39;.credit_pool&#39;)</code>
+                  <code><span title="joinpath">joinpath</span>('.credit_pool')</code>
             </td>
           </tr>
       </tbody>
@@ -2708,7 +2715,7 @@ You may then pass this into processor for seameless switch across multiple Earth
 
             <details class="mkdocstrings-source">
               <summary>Source code in <code>src/insarhub/utils/tool.py</code></summary>
-              <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1055">1055</a></span>
+              <div class="language-python highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1055">1055</a></span>
 <span class="normal"><a href="#__codelineno-0-1056">1056</a></span>
 <span class="normal"><a href="#__codelineno-0-1057">1057</a></span>
 <span class="normal"><a href="#__codelineno-0-1058">1058</a></span>
@@ -2750,8 +2757,8 @@ You may then pass this into processor for seameless switch across multiple Earth
 <span class="normal"><a href="#__codelineno-0-1094">1094</a></span>
 <span class="normal"><a href="#__codelineno-0-1095">1095</a></span>
 <span class="normal"><a href="#__codelineno-0-1096">1096</a></span>
-<span class="normal"><a href="#__codelineno-0-1097">1097</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1055"><a id="__codelineno-0-1055" name="__codelineno-0-1055"></a><span class="k">def</span><span class="w"> </span><span class="nf">earth_credit_pool</span><span class="p">(</span><span class="n">earthdata_credentials_pool_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">&#39;.credit_pool&#39;</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
-</span><span id="__span-0-1056"><a id="__codelineno-0-1056" name="__codelineno-0-1056"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
+<span class="normal"><a href="#__codelineno-0-1097">1097</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1055"><a id="__codelineno-0-1055" name="__codelineno-0-1055"></a><span class="k">def</span><span class="w"> </span><span class="nf">earth_credit_pool</span><span class="p">(</span><span class="n">earthdata_credentials_pool_path</span> <span class="o">=</span> <span class="n">Path</span><span class="o">.</span><span class="n">home</span><span class="p">()</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">'.credit_pool'</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">:</span>
+</span><span id="__span-0-1056"><a id="__codelineno-0-1056" name="__codelineno-0-1056"></a><span class="w">    </span><span class="sd">"""</span>
 </span><span id="__span-0-1057"><a id="__codelineno-0-1057" name="__codelineno-0-1057"></a><span class="sd">    Load Earthdata credentials from a local credit pool file.</span>
 </span><span id="__span-0-1058"><a id="__codelineno-0-1058" name="__codelineno-0-1058"></a>
 </span><span id="__span-0-1059"><a id="__codelineno-0-1059" name="__codelineno-0-1059"></a><span class="sd">    The function reads a simple key-value file where each line contains</span>
@@ -2768,8 +2775,8 @@ You may then pass this into processor for seameless switch across multiple Earth
 </span><span id="__span-0-1070"><a id="__codelineno-0-1070" name="__codelineno-0-1070"></a><span class="sd">            Example:</span>
 </span><span id="__span-0-1071"><a id="__codelineno-0-1071" name="__codelineno-0-1071"></a><span class="sd">            ```</span>
 </span><span id="__span-0-1072"><a id="__codelineno-0-1072" name="__codelineno-0-1072"></a><span class="sd">            {</span>
-</span><span id="__span-0-1073"><a id="__codelineno-0-1073" name="__codelineno-0-1073"></a><span class="sd">                &quot;username1&quot;: &quot;password1&quot;,</span>
-</span><span id="__span-0-1074"><a id="__codelineno-0-1074" name="__codelineno-0-1074"></a><span class="sd">                &quot;username2&quot;: &quot;password2&quot;,</span>
+</span><span id="__span-0-1073"><a id="__codelineno-0-1073" name="__codelineno-0-1073"></a><span class="sd">                "username1": "password1",</span>
+</span><span id="__span-0-1074"><a id="__codelineno-0-1074" name="__codelineno-0-1074"></a><span class="sd">                "username2": "password2",</span>
 </span><span id="__span-0-1075"><a id="__codelineno-0-1075" name="__codelineno-0-1075"></a><span class="sd">            }</span>
 </span><span id="__span-0-1076"><a id="__codelineno-0-1076" name="__codelineno-0-1076"></a><span class="sd">            ```</span>
 </span><span id="__span-0-1077"><a id="__codelineno-0-1077" name="__codelineno-0-1077"></a>
@@ -2777,7 +2784,7 @@ You may then pass this into processor for seameless switch across multiple Earth
 </span><span id="__span-0-1079"><a id="__codelineno-0-1079" name="__codelineno-0-1079"></a><span class="sd">        FileNotFoundError:</span>
 </span><span id="__span-0-1080"><a id="__codelineno-0-1080" name="__codelineno-0-1080"></a><span class="sd">            If the specified credentials file does not exist.</span>
 </span><span id="__span-0-1081"><a id="__codelineno-0-1081" name="__codelineno-0-1081"></a><span class="sd">        ValueError:</span>
-</span><span id="__span-0-1082"><a id="__codelineno-0-1082" name="__codelineno-0-1082"></a><span class="sd">            If any line in the file does not contain a single &#39;:&#39; separating key and value.</span>
+</span><span id="__span-0-1082"><a id="__codelineno-0-1082" name="__codelineno-0-1082"></a><span class="sd">            If any line in the file does not contain a single ':' separating key and value.</span>
 </span><span id="__span-0-1083"><a id="__codelineno-0-1083" name="__codelineno-0-1083"></a><span class="sd">        OSError:</span>
 </span><span id="__span-0-1084"><a id="__codelineno-0-1084" name="__codelineno-0-1084"></a><span class="sd">            For any other I/O related errors while reading the file.</span>
 </span><span id="__span-0-1085"><a id="__codelineno-0-1085" name="__codelineno-0-1085"></a>
@@ -2785,15 +2792,15 @@ You may then pass this into processor for seameless switch across multiple Earth
 </span><span id="__span-0-1087"><a id="__codelineno-0-1087" name="__codelineno-0-1087"></a><span class="sd">        - Each line of the file must be formatted as `key:value`.</span>
 </span><span id="__span-0-1088"><a id="__codelineno-0-1088" name="__codelineno-0-1088"></a><span class="sd">        - Leading/trailing whitespace is stripped from both key and value.</span>
 </span><span id="__span-0-1089"><a id="__codelineno-0-1089" name="__codelineno-0-1089"></a><span class="sd">        - Useful for managing multiple Earthdata credentials for automated downloads.</span>
-</span><span id="__span-0-1090"><a id="__codelineno-0-1090" name="__codelineno-0-1090"></a><span class="sd">    &quot;&quot;&quot;</span>
+</span><span id="__span-0-1090"><a id="__codelineno-0-1090" name="__codelineno-0-1090"></a><span class="sd">    """</span>
 </span><span id="__span-0-1091"><a id="__codelineno-0-1091" name="__codelineno-0-1091"></a>    <span class="n">earthdata_credentials_pool_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">earthdata_credentials_pool_path</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
 </span><span id="__span-0-1092"><a id="__codelineno-0-1092" name="__codelineno-0-1092"></a>    <span class="n">earthdata_credentials_pool</span> <span class="o">=</span> <span class="p">{}</span>
-</span><span id="__span-0-1093"><a id="__codelineno-0-1093" name="__codelineno-0-1093"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">earthdata_credentials_pool_path</span><span class="p">,</span> <span class="s1">&#39;r&#39;</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
+</span><span id="__span-0-1093"><a id="__codelineno-0-1093" name="__codelineno-0-1093"></a>    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">earthdata_credentials_pool_path</span><span class="p">,</span> <span class="s1">'r'</span><span class="p">)</span> <span class="k">as</span> <span class="n">f</span><span class="p">:</span>
 </span><span id="__span-0-1094"><a id="__codelineno-0-1094" name="__codelineno-0-1094"></a>        <span class="k">for</span> <span class="n">line</span> <span class="ow">in</span> <span class="n">f</span><span class="p">:</span>
-</span><span id="__span-0-1095"><a id="__codelineno-0-1095" name="__codelineno-0-1095"></a>            <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">&#39;:&#39;</span><span class="p">)</span>
+</span><span id="__span-0-1095"><a id="__codelineno-0-1095" name="__codelineno-0-1095"></a>            <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="o">=</span> <span class="n">line</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s1">':'</span><span class="p">)</span>
 </span><span id="__span-0-1096"><a id="__codelineno-0-1096" name="__codelineno-0-1096"></a>            <span class="n">earthdata_credentials_pool</span><span class="p">[</span><span class="n">key</span><span class="p">]</span> <span class="o">=</span> <span class="n">value</span>
 </span><span id="__span-0-1097"><a id="__codelineno-0-1097" name="__codelineno-0-1097"></a>    <span class="k">return</span> <span class="n">earthdata_credentials_pool</span>
-</span></code></pre></div></td></tr></table></div>
+</span></code></pre></div></td></tr></tbody></table></div>
             </details>
     </div>
 
@@ -2803,11 +2810,11 @@ You may then pass this into processor for seameless switch across multiple Earth
     execution commands.</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">Slurmjob_Config</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">config</span> <span class="o">=</span> <span class="n">SlurmJobConfig</span><span class="p">(</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>            <span class="n">job_name</span><span class="o">=</span><span class="s2">&quot;my_analysis&quot;</span><span class="p">,</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>            <span class="n">time</span><span class="o">=</span><span class="s2">&quot;02:00:00&quot;</span><span class="p">,</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>            <span class="n">command</span><span class="o">=</span><span class="s2">&quot;python analyze.py&quot;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>            <span class="n">job_name</span><span class="o">=</span><span class="s2">"my_analysis"</span><span class="p">,</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>            <span class="n">time</span><span class="o">=</span><span class="s2">"02:00:00"</span><span class="p">,</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>            <span class="n">command</span><span class="o">=</span><span class="s2">"python analyze.py"</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>        <span class="p">)</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">config</span><span class="o">.</span><span class="n">to_script</span><span class="p">(</span><span class="s2">&quot;analysis.slurm&quot;</span><span class="p">)</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">config</span><span class="o">.</span><span class="n">to_script</span><span class="p">(</span><span class="s2">"analysis.slurm"</span><span class="p">)</span>
 </span></code></pre></div>
 
 
@@ -3075,7 +3082,7 @@ You may then pass this into processor for seameless switch across multiple Earth
 
               <details class="mkdocstrings-source">
                 <summary>Source code in <code>src/insarhub/utils/tool.py</code></summary>
-                <div class="language-python highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1209">1209</a></span>
+                <div class="language-python highlight"><table class="highlighttable"><tbody><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"><a href="#__codelineno-0-1209">1209</a></span>
 <span class="normal"><a href="#__codelineno-0-1210">1210</a></span>
 <span class="normal"><a href="#__codelineno-0-1211">1211</a></span>
 <span class="normal"><a href="#__codelineno-0-1212">1212</a></span>
@@ -3226,7 +3233,7 @@ You may then pass this into processor for seameless switch across multiple Earth
 <span class="normal"><a href="#__codelineno-0-1357">1357</a></span>
 <span class="normal"><a href="#__codelineno-0-1358">1358</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-1209"><a id="__codelineno-0-1209" name="__codelineno-0-1209"></a><span class="nd">@dataclass</span>
 </span><span id="__span-0-1210"><a id="__codelineno-0-1210" name="__codelineno-0-1210"></a><span class="k">class</span><span class="w"> </span><span class="nc">Slurmjob_Config</span><span class="p">:</span>
-</span><span id="__span-0-1211"><a id="__codelineno-0-1211" name="__codelineno-0-1211"></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;Configuration for a SLURM job submission script.</span>
+</span><span id="__span-0-1211"><a id="__codelineno-0-1211" name="__codelineno-0-1211"></a><span class="w">    </span><span class="sd">"""Configuration for a SLURM job submission script.</span>
 </span><span id="__span-0-1212"><a id="__codelineno-0-1212" name="__codelineno-0-1212"></a>
 </span><span id="__span-0-1213"><a id="__codelineno-0-1213" name="__codelineno-0-1213"></a><span class="sd">    This class encapsulates all parameters needed to generate a SLURM batch script,</span>
 </span><span id="__span-0-1214"><a id="__codelineno-0-1214" name="__codelineno-0-1214"></a><span class="sd">    including resource allocation, job settings, environment configuration, and</span>
@@ -3241,11 +3248,11 @@ You may then pass this into processor for seameless switch across multiple Earth
 </span><span id="__span-0-1223"><a id="__codelineno-0-1223" name="__codelineno-0-1223"></a><span class="sd">        nodes: Number of nodes to allocate.</span>
 </span><span id="__span-0-1224"><a id="__codelineno-0-1224" name="__codelineno-0-1224"></a><span class="sd">        ntasks: Number of tasks to run.</span>
 </span><span id="__span-0-1225"><a id="__codelineno-0-1225" name="__codelineno-0-1225"></a><span class="sd">        cpus_per_task: CPUs per task.</span>
-</span><span id="__span-0-1226"><a id="__codelineno-0-1226" name="__codelineno-0-1226"></a><span class="sd">        mem: Memory allocation per node (e.g., &quot;4G&quot;, &quot;500M&quot;).</span>
-</span><span id="__span-0-1227"><a id="__codelineno-0-1227" name="__codelineno-0-1227"></a><span class="sd">        nodelist: Specific nodes to use (e.g., &quot;node[01-05]&quot;).</span>
-</span><span id="__span-0-1228"><a id="__codelineno-0-1228" name="__codelineno-0-1228"></a><span class="sd">        gpus: GPU allocation (e.g., &quot;1&quot;, &quot;2&quot;, &quot;1g&quot;).</span>
-</span><span id="__span-0-1229"><a id="__codelineno-0-1229" name="__codelineno-0-1229"></a><span class="sd">        array: Array job specification (e.g., &quot;0-9&quot;, &quot;1-100%10&quot;).</span>
-</span><span id="__span-0-1230"><a id="__codelineno-0-1230" name="__codelineno-0-1230"></a><span class="sd">        dependency: Job dependency condition (e.g., &quot;afterok:123456&quot;).</span>
+</span><span id="__span-0-1226"><a id="__codelineno-0-1226" name="__codelineno-0-1226"></a><span class="sd">        mem: Memory allocation per node (e.g., "4G", "500M").</span>
+</span><span id="__span-0-1227"><a id="__codelineno-0-1227" name="__codelineno-0-1227"></a><span class="sd">        nodelist: Specific nodes to use (e.g., "node[01-05]").</span>
+</span><span id="__span-0-1228"><a id="__codelineno-0-1228" name="__codelineno-0-1228"></a><span class="sd">        gpus: GPU allocation (e.g., "1", "2", "1g").</span>
+</span><span id="__span-0-1229"><a id="__codelineno-0-1229" name="__codelineno-0-1229"></a><span class="sd">        array: Array job specification (e.g., "0-9", "1-100%10").</span>
+</span><span id="__span-0-1230"><a id="__codelineno-0-1230" name="__codelineno-0-1230"></a><span class="sd">        dependency: Job dependency condition (e.g., "afterok:123456").</span>
 </span><span id="__span-0-1231"><a id="__codelineno-0-1231" name="__codelineno-0-1231"></a><span class="sd">        mail_user: Email address for job notifications.</span>
 </span><span id="__span-0-1232"><a id="__codelineno-0-1232" name="__codelineno-0-1232"></a><span class="sd">        mail_type: When to send email notifications (BEGIN, END, FAIL, ALL).</span>
 </span><span id="__span-0-1233"><a id="__codelineno-0-1233" name="__codelineno-0-1233"></a><span class="sd">        account: Account to charge resources to.</span>
@@ -3259,47 +3266,47 @@ You may then pass this into processor for seameless switch across multiple Earth
 </span><span id="__span-0-1241"><a id="__codelineno-0-1241" name="__codelineno-0-1241"></a><span class="sd">        Basic job configuration:</span>
 </span><span id="__span-0-1242"><a id="__codelineno-0-1242" name="__codelineno-0-1242"></a>
 </span><span id="__span-0-1243"><a id="__codelineno-0-1243" name="__codelineno-0-1243"></a><span class="sd">        &gt;&gt;&gt; config = SlurmJobConfig(</span>
-</span><span id="__span-0-1244"><a id="__codelineno-0-1244" name="__codelineno-0-1244"></a><span class="sd">        ...     job_name=&quot;my_analysis&quot;,</span>
-</span><span id="__span-0-1245"><a id="__codelineno-0-1245" name="__codelineno-0-1245"></a><span class="sd">        ...     time=&quot;02:00:00&quot;,</span>
-</span><span id="__span-0-1246"><a id="__codelineno-0-1246" name="__codelineno-0-1246"></a><span class="sd">        ...     command=&quot;python analyze.py&quot;</span>
+</span><span id="__span-0-1244"><a id="__codelineno-0-1244" name="__codelineno-0-1244"></a><span class="sd">        ...     job_name="my_analysis",</span>
+</span><span id="__span-0-1245"><a id="__codelineno-0-1245" name="__codelineno-0-1245"></a><span class="sd">        ...     time="02:00:00",</span>
+</span><span id="__span-0-1246"><a id="__codelineno-0-1246" name="__codelineno-0-1246"></a><span class="sd">        ...     command="python analyze.py"</span>
 </span><span id="__span-0-1247"><a id="__codelineno-0-1247" name="__codelineno-0-1247"></a><span class="sd">        ... )</span>
-</span><span id="__span-0-1248"><a id="__codelineno-0-1248" name="__codelineno-0-1248"></a><span class="sd">        &gt;&gt;&gt; config.to_script(&quot;analysis.slurm&quot;)</span>
-</span><span id="__span-0-1249"><a id="__codelineno-0-1249" name="__codelineno-0-1249"></a><span class="sd">        PosixPath(&#39;analysis.slurm&#39;)</span>
+</span><span id="__span-0-1248"><a id="__codelineno-0-1248" name="__codelineno-0-1248"></a><span class="sd">        &gt;&gt;&gt; config.to_script("analysis.slurm")</span>
+</span><span id="__span-0-1249"><a id="__codelineno-0-1249" name="__codelineno-0-1249"></a><span class="sd">        PosixPath('analysis.slurm')</span>
 </span><span id="__span-0-1250"><a id="__codelineno-0-1250" name="__codelineno-0-1250"></a>
 </span><span id="__span-0-1251"><a id="__codelineno-0-1251" name="__codelineno-0-1251"></a><span class="sd">        GPU job with conda environment:</span>
 </span><span id="__span-0-1252"><a id="__codelineno-0-1252" name="__codelineno-0-1252"></a>
 </span><span id="__span-0-1253"><a id="__codelineno-0-1253" name="__codelineno-0-1253"></a><span class="sd">        &gt;&gt;&gt; config = SlurmJobConfig(</span>
-</span><span id="__span-0-1254"><a id="__codelineno-0-1254" name="__codelineno-0-1254"></a><span class="sd">        ...     job_name=&quot;training&quot;,</span>
-</span><span id="__span-0-1255"><a id="__codelineno-0-1255" name="__codelineno-0-1255"></a><span class="sd">        ...     time=&quot;12:00:00&quot;,</span>
-</span><span id="__span-0-1256"><a id="__codelineno-0-1256" name="__codelineno-0-1256"></a><span class="sd">        ...     mem=&quot;32G&quot;,</span>
-</span><span id="__span-0-1257"><a id="__codelineno-0-1257" name="__codelineno-0-1257"></a><span class="sd">        ...     gpus=&quot;2&quot;,</span>
-</span><span id="__span-0-1258"><a id="__codelineno-0-1258" name="__codelineno-0-1258"></a><span class="sd">        ...     conda_env=&quot;pytorch&quot;,</span>
-</span><span id="__span-0-1259"><a id="__codelineno-0-1259" name="__codelineno-0-1259"></a><span class="sd">        ...     modules=[&quot;cuda/11.8&quot;],</span>
-</span><span id="__span-0-1260"><a id="__codelineno-0-1260" name="__codelineno-0-1260"></a><span class="sd">        ...     command=&quot;python train.py --epochs 100&quot;</span>
+</span><span id="__span-0-1254"><a id="__codelineno-0-1254" name="__codelineno-0-1254"></a><span class="sd">        ...     job_name="training",</span>
+</span><span id="__span-0-1255"><a id="__codelineno-0-1255" name="__codelineno-0-1255"></a><span class="sd">        ...     time="12:00:00",</span>
+</span><span id="__span-0-1256"><a id="__codelineno-0-1256" name="__codelineno-0-1256"></a><span class="sd">        ...     mem="32G",</span>
+</span><span id="__span-0-1257"><a id="__codelineno-0-1257" name="__codelineno-0-1257"></a><span class="sd">        ...     gpus="2",</span>
+</span><span id="__span-0-1258"><a id="__codelineno-0-1258" name="__codelineno-0-1258"></a><span class="sd">        ...     conda_env="pytorch",</span>
+</span><span id="__span-0-1259"><a id="__codelineno-0-1259" name="__codelineno-0-1259"></a><span class="sd">        ...     modules=["cuda/11.8"],</span>
+</span><span id="__span-0-1260"><a id="__codelineno-0-1260" name="__codelineno-0-1260"></a><span class="sd">        ...     command="python train.py --epochs 100"</span>
 </span><span id="__span-0-1261"><a id="__codelineno-0-1261" name="__codelineno-0-1261"></a><span class="sd">        ... )</span>
-</span><span id="__span-0-1262"><a id="__codelineno-0-1262" name="__codelineno-0-1262"></a><span class="sd">        &gt;&gt;&gt; config.to_script(&quot;train.slurm&quot;)</span>
-</span><span id="__span-0-1263"><a id="__codelineno-0-1263" name="__codelineno-0-1263"></a><span class="sd">        PosixPath(&#39;train.slurm&#39;)</span>
+</span><span id="__span-0-1262"><a id="__codelineno-0-1262" name="__codelineno-0-1262"></a><span class="sd">        &gt;&gt;&gt; config.to_script("train.slurm")</span>
+</span><span id="__span-0-1263"><a id="__codelineno-0-1263" name="__codelineno-0-1263"></a><span class="sd">        PosixPath('train.slurm')</span>
 </span><span id="__span-0-1264"><a id="__codelineno-0-1264" name="__codelineno-0-1264"></a>
 </span><span id="__span-0-1265"><a id="__codelineno-0-1265" name="__codelineno-0-1265"></a><span class="sd">        Array job with environment variables:</span>
 </span><span id="__span-0-1266"><a id="__codelineno-0-1266" name="__codelineno-0-1266"></a>
 </span><span id="__span-0-1267"><a id="__codelineno-0-1267" name="__codelineno-0-1267"></a><span class="sd">        &gt;&gt;&gt; config = SlurmJobConfig(</span>
-</span><span id="__span-0-1268"><a id="__codelineno-0-1268" name="__codelineno-0-1268"></a><span class="sd">        ...     job_name=&quot;param_sweep&quot;,</span>
-</span><span id="__span-0-1269"><a id="__codelineno-0-1269" name="__codelineno-0-1269"></a><span class="sd">        ...     array=&quot;0-99&quot;,</span>
-</span><span id="__span-0-1270"><a id="__codelineno-0-1270" name="__codelineno-0-1270"></a><span class="sd">        ...     export_env={&quot;PARAM_ID&quot;: &quot;$SLURM_ARRAY_TASK_ID&quot;},</span>
-</span><span id="__span-0-1271"><a id="__codelineno-0-1271" name="__codelineno-0-1271"></a><span class="sd">        ...     command=&quot;python run_experiment.py $PARAM_ID&quot;</span>
+</span><span id="__span-0-1268"><a id="__codelineno-0-1268" name="__codelineno-0-1268"></a><span class="sd">        ...     job_name="param_sweep",</span>
+</span><span id="__span-0-1269"><a id="__codelineno-0-1269" name="__codelineno-0-1269"></a><span class="sd">        ...     array="0-99",</span>
+</span><span id="__span-0-1270"><a id="__codelineno-0-1270" name="__codelineno-0-1270"></a><span class="sd">        ...     export_env={"PARAM_ID": "$SLURM_ARRAY_TASK_ID"},</span>
+</span><span id="__span-0-1271"><a id="__codelineno-0-1271" name="__codelineno-0-1271"></a><span class="sd">        ...     command="python run_experiment.py $PARAM_ID"</span>
 </span><span id="__span-0-1272"><a id="__codelineno-0-1272" name="__codelineno-0-1272"></a><span class="sd">        ... )</span>
 </span><span id="__span-0-1273"><a id="__codelineno-0-1273" name="__codelineno-0-1273"></a><span class="sd">        &gt;&gt;&gt; config.to_script()</span>
-</span><span id="__span-0-1274"><a id="__codelineno-0-1274" name="__codelineno-0-1274"></a><span class="sd">        PosixPath(&#39;job.slurm&#39;)</span>
-</span><span id="__span-0-1275"><a id="__codelineno-0-1275" name="__codelineno-0-1275"></a><span class="sd">    &quot;&quot;&quot;</span>
-</span><span id="__span-0-1276"><a id="__codelineno-0-1276" name="__codelineno-0-1276"></a>    <span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;my_job&quot;</span>
-</span><span id="__span-0-1277"><a id="__codelineno-0-1277" name="__codelineno-0-1277"></a>    <span class="n">output_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;job_%j.out&quot;</span>
-</span><span id="__span-0-1278"><a id="__codelineno-0-1278" name="__codelineno-0-1278"></a>    <span class="n">error_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;job_%j.err&quot;</span>
-</span><span id="__span-0-1279"><a id="__codelineno-0-1279" name="__codelineno-0-1279"></a>    <span class="n">time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;04:00:00&quot;</span>
-</span><span id="__span-0-1280"><a id="__codelineno-0-1280" name="__codelineno-0-1280"></a>    <span class="n">partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;all&quot;</span>
+</span><span id="__span-0-1274"><a id="__codelineno-0-1274" name="__codelineno-0-1274"></a><span class="sd">        PosixPath('job.slurm')</span>
+</span><span id="__span-0-1275"><a id="__codelineno-0-1275" name="__codelineno-0-1275"></a><span class="sd">    """</span>
+</span><span id="__span-0-1276"><a id="__codelineno-0-1276" name="__codelineno-0-1276"></a>    <span class="n">job_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"my_job"</span>
+</span><span id="__span-0-1277"><a id="__codelineno-0-1277" name="__codelineno-0-1277"></a>    <span class="n">output_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"job_%j.out"</span>
+</span><span id="__span-0-1278"><a id="__codelineno-0-1278" name="__codelineno-0-1278"></a>    <span class="n">error_file</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"job_%j.err"</span>
+</span><span id="__span-0-1279"><a id="__codelineno-0-1279" name="__codelineno-0-1279"></a>    <span class="n">time</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"04:00:00"</span>
+</span><span id="__span-0-1280"><a id="__codelineno-0-1280" name="__codelineno-0-1280"></a>    <span class="n">partition</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"all"</span>
 </span><span id="__span-0-1281"><a id="__codelineno-0-1281" name="__codelineno-0-1281"></a>    <span class="n">nodes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
 </span><span id="__span-0-1282"><a id="__codelineno-0-1282" name="__codelineno-0-1282"></a>    <span class="n">ntasks</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
 </span><span id="__span-0-1283"><a id="__codelineno-0-1283" name="__codelineno-0-1283"></a>    <span class="n">cpus_per_task</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span>
-</span><span id="__span-0-1284"><a id="__codelineno-0-1284" name="__codelineno-0-1284"></a>    <span class="n">mem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;4G&quot;</span>
+</span><span id="__span-0-1284"><a id="__codelineno-0-1284" name="__codelineno-0-1284"></a>    <span class="n">mem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"4G"</span>
 </span><span id="__span-0-1285"><a id="__codelineno-0-1285" name="__codelineno-0-1285"></a>
 </span><span id="__span-0-1286"><a id="__codelineno-0-1286" name="__codelineno-0-1286"></a>    <span class="c1"># Optional parameters</span>
 </span><span id="__span-0-1287"><a id="__codelineno-0-1287" name="__codelineno-0-1287"></a>    <span class="n">nodelist</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
@@ -3307,7 +3314,7 @@ You may then pass this into processor for seameless switch across multiple Earth
 </span><span id="__span-0-1289"><a id="__codelineno-0-1289" name="__codelineno-0-1289"></a>    <span class="n">array</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span id="__span-0-1290"><a id="__codelineno-0-1290" name="__codelineno-0-1290"></a>    <span class="n">dependency</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span id="__span-0-1291"><a id="__codelineno-0-1291" name="__codelineno-0-1291"></a>    <span class="n">mail_user</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span id="__span-0-1292"><a id="__codelineno-0-1292" name="__codelineno-0-1292"></a>    <span class="n">mail_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;ALL&quot;</span>
+</span><span id="__span-0-1292"><a id="__codelineno-0-1292" name="__codelineno-0-1292"></a>    <span class="n">mail_type</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"ALL"</span>
 </span><span id="__span-0-1293"><a id="__codelineno-0-1293" name="__codelineno-0-1293"></a>    <span class="n">account</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span id="__span-0-1294"><a id="__codelineno-0-1294" name="__codelineno-0-1294"></a>    <span class="n">qos</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
 </span><span id="__span-0-1295"><a id="__codelineno-0-1295" name="__codelineno-0-1295"></a>
@@ -3317,64 +3324,64 @@ You may then pass this into processor for seameless switch across multiple Earth
 </span><span id="__span-0-1299"><a id="__codelineno-0-1299" name="__codelineno-0-1299"></a>    <span class="n">export_env</span><span class="p">:</span> <span class="n">Dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="n">field</span><span class="p">(</span><span class="n">default_factory</span><span class="o">=</span><span class="nb">dict</span><span class="p">)</span>
 </span><span id="__span-0-1300"><a id="__codelineno-0-1300" name="__codelineno-0-1300"></a>
 </span><span id="__span-0-1301"><a id="__codelineno-0-1301" name="__codelineno-0-1301"></a>    <span class="c1"># Execution</span>
-</span><span id="__span-0-1302"><a id="__codelineno-0-1302" name="__codelineno-0-1302"></a>    <span class="n">command</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;echo Hello SLURM!&quot;</span>
+</span><span id="__span-0-1302"><a id="__codelineno-0-1302" name="__codelineno-0-1302"></a>    <span class="n">command</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"echo Hello SLURM!"</span>
 </span><span id="__span-0-1303"><a id="__codelineno-0-1303" name="__codelineno-0-1303"></a>
-</span><span id="__span-0-1304"><a id="__codelineno-0-1304" name="__codelineno-0-1304"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">to_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;job.slurm&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
-</span><span id="__span-0-1305"><a id="__codelineno-0-1305" name="__codelineno-0-1305"></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;Generate the SLURM script file.&quot;&quot;&quot;</span>
-</span><span id="__span-0-1306"><a id="__codelineno-0-1306" name="__codelineno-0-1306"></a>        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;#!/bin/bash&quot;</span><span class="p">]</span>
+</span><span id="__span-0-1304"><a id="__codelineno-0-1304" name="__codelineno-0-1304"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">to_script</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">filename</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"job.slurm"</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+</span><span id="__span-0-1305"><a id="__codelineno-0-1305" name="__codelineno-0-1305"></a><span class="w">        </span><span class="sd">"""Generate the SLURM script file."""</span>
+</span><span id="__span-0-1306"><a id="__codelineno-0-1306" name="__codelineno-0-1306"></a>        <span class="n">lines</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"#!/bin/bash"</span><span class="p">]</span>
 </span><span id="__span-0-1307"><a id="__codelineno-0-1307" name="__codelineno-0-1307"></a>
 </span><span id="__span-0-1308"><a id="__codelineno-0-1308" name="__codelineno-0-1308"></a>        <span class="c1"># Required directives</span>
 </span><span id="__span-0-1309"><a id="__codelineno-0-1309" name="__codelineno-0-1309"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
-</span><span id="__span-0-1310"><a id="__codelineno-0-1310" name="__codelineno-0-1310"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --job-name=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1311"><a id="__codelineno-0-1311" name="__codelineno-0-1311"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --output=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1312"><a id="__codelineno-0-1312" name="__codelineno-0-1312"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --error=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">error_file</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1313"><a id="__codelineno-0-1313" name="__codelineno-0-1313"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --time=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1314"><a id="__codelineno-0-1314" name="__codelineno-0-1314"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --partition=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">partition</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1315"><a id="__codelineno-0-1315" name="__codelineno-0-1315"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --nodes=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1316"><a id="__codelineno-0-1316" name="__codelineno-0-1316"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --ntasks=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ntasks</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1317"><a id="__codelineno-0-1317" name="__codelineno-0-1317"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --cpus-per-task=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cpus_per_task</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
-</span><span id="__span-0-1318"><a id="__codelineno-0-1318" name="__codelineno-0-1318"></a>            <span class="sa">f</span><span class="s2">&quot;#SBATCH --mem=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mem</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+</span><span id="__span-0-1310"><a id="__codelineno-0-1310" name="__codelineno-0-1310"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --job-name=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_name</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1311"><a id="__codelineno-0-1311" name="__codelineno-0-1311"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --output=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">output_file</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1312"><a id="__codelineno-0-1312" name="__codelineno-0-1312"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --error=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">error_file</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1313"><a id="__codelineno-0-1313" name="__codelineno-0-1313"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --time=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">time</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1314"><a id="__codelineno-0-1314" name="__codelineno-0-1314"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --partition=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">partition</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1315"><a id="__codelineno-0-1315" name="__codelineno-0-1315"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --nodes=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nodes</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1316"><a id="__codelineno-0-1316" name="__codelineno-0-1316"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --ntasks=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">ntasks</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1317"><a id="__codelineno-0-1317" name="__codelineno-0-1317"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --cpus-per-task=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cpus_per_task</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-0-1318"><a id="__codelineno-0-1318" name="__codelineno-0-1318"></a>            <span class="sa">f</span><span class="s2">"#SBATCH --mem=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mem</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
 </span><span id="__span-0-1319"><a id="__codelineno-0-1319" name="__codelineno-0-1319"></a>        <span class="p">])</span>
 </span><span id="__span-0-1320"><a id="__codelineno-0-1320" name="__codelineno-0-1320"></a>
 </span><span id="__span-0-1321"><a id="__codelineno-0-1321" name="__codelineno-0-1321"></a>        <span class="c1"># Optional directives</span>
 </span><span id="__span-0-1322"><a id="__codelineno-0-1322" name="__codelineno-0-1322"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gpus</span><span class="p">:</span>
-</span><span id="__span-0-1323"><a id="__codelineno-0-1323" name="__codelineno-0-1323"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --gres=gpu:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">gpus</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1323"><a id="__codelineno-0-1323" name="__codelineno-0-1323"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --gres=gpu:</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">gpus</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1324"><a id="__codelineno-0-1324" name="__codelineno-0-1324"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">array</span><span class="p">:</span>
-</span><span id="__span-0-1325"><a id="__codelineno-0-1325" name="__codelineno-0-1325"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --array=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">array</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1325"><a id="__codelineno-0-1325" name="__codelineno-0-1325"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --array=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">array</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1326"><a id="__codelineno-0-1326" name="__codelineno-0-1326"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">dependency</span><span class="p">:</span>
-</span><span id="__span-0-1327"><a id="__codelineno-0-1327" name="__codelineno-0-1327"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --dependency=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dependency</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1327"><a id="__codelineno-0-1327" name="__codelineno-0-1327"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --dependency=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">dependency</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1328"><a id="__codelineno-0-1328" name="__codelineno-0-1328"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mail_user</span><span class="p">:</span>
-</span><span id="__span-0-1329"><a id="__codelineno-0-1329" name="__codelineno-0-1329"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --mail-user=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_user</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-1330"><a id="__codelineno-0-1330" name="__codelineno-0-1330"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --mail-type=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_type</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1329"><a id="__codelineno-0-1329" name="__codelineno-0-1329"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --mail-user=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_user</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-0-1330"><a id="__codelineno-0-1330" name="__codelineno-0-1330"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --mail-type=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">mail_type</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1331"><a id="__codelineno-0-1331" name="__codelineno-0-1331"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="p">:</span>
-</span><span id="__span-0-1332"><a id="__codelineno-0-1332" name="__codelineno-0-1332"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --account=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1332"><a id="__codelineno-0-1332" name="__codelineno-0-1332"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --account=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">account</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1333"><a id="__codelineno-0-1333" name="__codelineno-0-1333"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="p">:</span>
-</span><span id="__span-0-1334"><a id="__codelineno-0-1334" name="__codelineno-0-1334"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --qos=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1334"><a id="__codelineno-0-1334" name="__codelineno-0-1334"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --qos=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">qos</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1335"><a id="__codelineno-0-1335" name="__codelineno-0-1335"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span><span class="p">:</span>
-</span><span id="__span-0-1336"><a id="__codelineno-0-1336" name="__codelineno-0-1336"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;#SBATCH --nodelist=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1336"><a id="__codelineno-0-1336" name="__codelineno-0-1336"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"#SBATCH --nodelist=</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">nodelist</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
 </span><span id="__span-0-1337"><a id="__codelineno-0-1337" name="__codelineno-0-1337"></a>
-</span><span id="__span-0-1338"><a id="__codelineno-0-1338" name="__codelineno-0-1338"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1338"><a id="__codelineno-0-1338" name="__codelineno-0-1338"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
 </span><span id="__span-0-1339"><a id="__codelineno-0-1339" name="__codelineno-0-1339"></a>
 </span><span id="__span-0-1340"><a id="__codelineno-0-1340" name="__codelineno-0-1340"></a>        <span class="c1"># Environment setup</span>
-</span><span id="__span-0-1341"><a id="__codelineno-0-1341" name="__codelineno-0-1341"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;module load </span><span class="si">{</span><span class="n">mod</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">])</span>
+</span><span id="__span-0-1341"><a id="__codelineno-0-1341" name="__codelineno-0-1341"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s2">"module load </span><span class="si">{</span><span class="n">mod</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">mod</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">modules</span><span class="p">])</span>
 </span><span id="__span-0-1342"><a id="__codelineno-0-1342" name="__codelineno-0-1342"></a>        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">conda_env</span><span class="p">:</span>
-</span><span id="__span-0-1343"><a id="__codelineno-0-1343" name="__codelineno-0-1343"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;source activate </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">conda_env</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
-</span><span id="__span-0-1344"><a id="__codelineno-0-1344" name="__codelineno-0-1344"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s2">&quot;export </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">export_env</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
+</span><span id="__span-0-1343"><a id="__codelineno-0-1343" name="__codelineno-0-1343"></a>            <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">"source activate </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">conda_env</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
+</span><span id="__span-0-1344"><a id="__codelineno-0-1344" name="__codelineno-0-1344"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span><span class="sa">f</span><span class="s2">"export </span><span class="si">{</span><span class="n">k</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">v</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">k</span><span class="p">,</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">export_env</span><span class="o">.</span><span class="n">items</span><span class="p">()])</span>
 </span><span id="__span-0-1345"><a id="__codelineno-0-1345" name="__codelineno-0-1345"></a>
-</span><span id="__span-0-1346"><a id="__codelineno-0-1346" name="__codelineno-0-1346"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+</span><span id="__span-0-1346"><a id="__codelineno-0-1346" name="__codelineno-0-1346"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="s2">""</span><span class="p">)</span>
 </span><span id="__span-0-1347"><a id="__codelineno-0-1347" name="__codelineno-0-1347"></a>
 </span><span id="__span-0-1348"><a id="__codelineno-0-1348" name="__codelineno-0-1348"></a>        <span class="c1"># Execution</span>
 </span><span id="__span-0-1349"><a id="__codelineno-0-1349" name="__codelineno-0-1349"></a>        <span class="n">lines</span><span class="o">.</span><span class="n">extend</span><span class="p">([</span>
-</span><span id="__span-0-1350"><a id="__codelineno-0-1350" name="__codelineno-0-1350"></a>            <span class="s1">&#39;echo &quot;Starting job on $(date)&quot;&#39;</span><span class="p">,</span>
+</span><span id="__span-0-1350"><a id="__codelineno-0-1350" name="__codelineno-0-1350"></a>            <span class="s1">'echo "Starting job on $(date)"'</span><span class="p">,</span>
 </span><span id="__span-0-1351"><a id="__codelineno-0-1351" name="__codelineno-0-1351"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">command</span><span class="p">,</span>
-</span><span id="__span-0-1352"><a id="__codelineno-0-1352" name="__codelineno-0-1352"></a>            <span class="s1">&#39;echo &quot;Job finished on $(date)&quot;&#39;</span>
+</span><span id="__span-0-1352"><a id="__codelineno-0-1352" name="__codelineno-0-1352"></a>            <span class="s1">'echo "Job finished on $(date)"'</span>
 </span><span id="__span-0-1353"><a id="__codelineno-0-1353" name="__codelineno-0-1353"></a>        <span class="p">])</span>
 </span><span id="__span-0-1354"><a id="__codelineno-0-1354" name="__codelineno-0-1354"></a>
 </span><span id="__span-0-1355"><a id="__codelineno-0-1355" name="__codelineno-0-1355"></a>        <span class="n">filepath</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">filename</span><span class="p">)</span><span class="o">.</span><span class="n">expanduser</span><span class="p">()</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span>
-</span><span id="__span-0-1356"><a id="__codelineno-0-1356" name="__codelineno-0-1356"></a>        <span class="n">filepath</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
+</span><span id="__span-0-1356"><a id="__codelineno-0-1356" name="__codelineno-0-1356"></a>        <span class="n">filepath</span><span class="o">.</span><span class="n">write_text</span><span class="p">(</span><span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">lines</span><span class="p">))</span>
 </span><span id="__span-0-1357"><a id="__codelineno-0-1357" name="__codelineno-0-1357"></a>
 </span><span id="__span-0-1358"><a id="__codelineno-0-1358" name="__codelineno-0-1358"></a>        <span class="k">return</span> <span class="n">filepath</span>
-</span></code></pre></div></td></tr></table></div>
+</span></code></pre></div></td></tr></tbody></table></div>
               </details>
 
 
@@ -3417,9 +3424,9 @@ You may then pass this into processor for seameless switch across multiple Earth
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
         </div>
         
-          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
   
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
   Back to top
 </button>
         
@@ -3448,7 +3455,7 @@ You may then pass this into processor for seameless switch across multiple Earth
     
     
     <a href="jiaweiliwork@outlook.com" target="_blank" rel="noopener" title="Email me" class="md-social__link">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4l208 156a48 48 0 0 0 57.6 0l208-156c12.1-9.1 19.2-23.3 19.2-38.4 0-26.5-21.5-48-48-48zM0 196v188c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64V196L313.6 344.8c-34.1 25.6-81.1 25.6-115.2 0z"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4l208 156a48 48 0 0 0 57.6 0l208-156c12.1-9.1 19.2-23.3 19.2-38.4 0-26.5-21.5-48-48-48zM0 196v188c0 35.3 28.7 64 64 64h384c35.3 0 64-28.7 64-64V196L313.6 344.8c-34.1 25.6-81.1 25.6-115.2 0z"></path></svg>
     </a>
   
     
@@ -3456,7 +3463,7 @@ You may then pass this into processor for seameless switch across multiple Earth
     
     
     <a href="https://discord.gg/RJJM42MBUU" target="_blank" rel="noopener" title="Discord" class="md-social__link">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M492.5 69.8c-.2-.3-.4-.6-.8-.7-38.1-17.5-78.4-30-119.7-37.1-.4-.1-.8 0-1.1.1s-.6.4-.8.8c-5.5 9.9-10.5 20.2-14.9 30.6-44.6-6.8-89.9-6.8-134.4 0-4.5-10.5-9.5-20.7-15.1-30.6-.2-.3-.5-.6-.8-.8s-.7-.2-1.1-.2C162.5 39 122.2 51.5 84.1 69c-.3.1-.6.4-.8.7C7.1 183.5-13.8 294.6-3.6 404.2c0 .3.1.5.2.8s.3.4.5.6c44.4 32.9 94 58 146.8 74.2.4.1.8.1 1.1 0s.7-.4.9-.7c11.3-15.4 21.4-31.8 30-48.8.1-.2.2-.5.2-.8s0-.5-.1-.8-.2-.5-.4-.6-.4-.3-.7-.4c-15.8-6.1-31.2-13.4-45.9-21.9-.3-.2-.5-.4-.7-.6s-.3-.6-.3-.9 0-.6.2-.9.3-.5.6-.7c3.1-2.3 6.2-4.7 9.1-7.1.3-.2.6-.4.9-.4s.7 0 1 .1c96.2 43.9 200.4 43.9 295.5 0 .3-.1.7-.2 1-.2s.7.2.9.4c2.9 2.4 6 4.9 9.1 7.2.2.2.4.4.6.7s.2.6.2.9-.1.6-.3.9-.4.5-.6.6c-14.7 8.6-30 15.9-45.9 21.8-.2.1-.5.2-.7.4s-.3.4-.4.7-.1.5-.1.8.1.5.2.8c8.8 17 18.8 33.3 30 48.8.2.3.6.6.9.7s.8.1 1.1 0c52.9-16.2 102.6-41.3 147.1-74.2.2-.2.4-.4.5-.6s.2-.5.2-.8c12.3-126.8-20.5-236.9-86.9-334.5zm-302 267.7c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.4 59.2-52.8 59.2m195.4 0c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.2 59.2-52.8 59.2"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 576 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M492.5 69.8c-.2-.3-.4-.6-.8-.7-38.1-17.5-78.4-30-119.7-37.1-.4-.1-.8 0-1.1.1s-.6.4-.8.8c-5.5 9.9-10.5 20.2-14.9 30.6-44.6-6.8-89.9-6.8-134.4 0-4.5-10.5-9.5-20.7-15.1-30.6-.2-.3-.5-.6-.8-.8s-.7-.2-1.1-.2C162.5 39 122.2 51.5 84.1 69c-.3.1-.6.4-.8.7C7.1 183.5-13.8 294.6-3.6 404.2c0 .3.1.5.2.8s.3.4.5.6c44.4 32.9 94 58 146.8 74.2.4.1.8.1 1.1 0s.7-.4.9-.7c11.3-15.4 21.4-31.8 30-48.8.1-.2.2-.5.2-.8s0-.5-.1-.8-.2-.5-.4-.6-.4-.3-.7-.4c-15.8-6.1-31.2-13.4-45.9-21.9-.3-.2-.5-.4-.7-.6s-.3-.6-.3-.9 0-.6.2-.9.3-.5.6-.7c3.1-2.3 6.2-4.7 9.1-7.1.3-.2.6-.4.9-.4s.7 0 1 .1c96.2 43.9 200.4 43.9 295.5 0 .3-.1.7-.2 1-.2s.7.2.9.4c2.9 2.4 6 4.9 9.1 7.2.2.2.4.4.6.7s.2.6.2.9-.1.6-.3.9-.4.5-.6.6c-14.7 8.6-30 15.9-45.9 21.8-.2.1-.5.2-.7.4s-.3.4-.4.7-.1.5-.1.8.1.5.2.8c8.8 17 18.8 33.3 30 48.8.2.3.6.6.9.7s.8.1 1.1 0c52.9-16.2 102.6-41.3 147.1-74.2.2-.2.4-.4.5-.6s.2-.5.2-.8c12.3-126.8-20.5-236.9-86.9-334.5zm-302 267.7c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.4 59.2-52.8 59.2m195.4 0c-29 0-52.8-26.6-52.8-59.2s23.4-59.2 52.8-59.2c29.7 0 53.3 26.8 52.8 59.2 0 32.7-23.2 59.2-52.8 59.2"></path></svg>
     </a>
   
 </div>
@@ -3505,5 +3512,7 @@ You may then pass this into processor for seameless switch across multiple Earth
       <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
-  </body>
-</html>
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>

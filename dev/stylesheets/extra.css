@@ -5,6 +5,17 @@
 /* Move palette toggle to the right of the repo (git) button */
 .md-header__source {
     order: 1;
+    margin-left: 0;
+    min-width: 0;
+    width: auto;
+}
+.md-header__source .md-source {
+    padding: 0 0.4rem;
+    min-width: 0;
+    width: auto;
+}
+.md-header__source .md-source__repository {
+    max-width: none;
 }
 [data-md-component="palette"] {
     order: 2;

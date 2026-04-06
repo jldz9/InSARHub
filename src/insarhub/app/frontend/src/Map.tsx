@@ -19,6 +19,7 @@ interface Props {
   onFootprintClick?:  (feature: GeoJSON.Feature) => void
   onRasterPixel?:     (val: number | null) => void
   onMapClick?:        (lat: number, lng: number) => void
+  onMapClickAny?:     () => void   // fires on every non-draw-mode click, including over footprints
 }
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
@@ -40,7 +41,7 @@ const BASEMAP_TILES: Record<Basemap, { tiles: string[]; overlay?: string[]; attr
 
 export default function Map({
   footprints, aoi, aoiGeojson, drawMode, basemap,
-  footprintOpacity, rasterOverlay, tsClickPoint, onAoiDrawn, onMouseMove, onFootprintClick, onRasterPixel, onMapClick,
+  footprintOpacity, rasterOverlay, tsClickPoint, onAoiDrawn, onMouseMove, onFootprintClick, onRasterPixel, onMapClick, onMapClickAny,
 }: Props) {
   const containerRef        = useRef<HTMLDivElement>(null)
   const mapRef              = useRef<maplibregl.Map | null>(null)
@@ -50,6 +51,7 @@ export default function Map({
   const rasterOverlayRef    = useRef(rasterOverlay ?? null)
   const onRasterPixelRef    = useRef(onRasterPixel)
   const onMapClickRef       = useRef(onMapClick)
+  const onMapClickAnyRef    = useRef(onMapClickAny)
   const boxStartRef    = useRef<[number, number] | null>(null)
   const polyPointsRef  = useRef<[number, number][]>([])
   const mousePosRef    = useRef<[number, number]>([0, 0])
@@ -60,6 +62,7 @@ export default function Map({
   useEffect(() => { rasterOverlayRef.current = rasterOverlay ?? null }, [rasterOverlay])
   useEffect(() => { onRasterPixelRef.current = onRasterPixel }, [onRasterPixel])
   useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
+  useEffect(() => { onMapClickAnyRef.current = onMapClickAny }, [onMapClickAny])
 
   // ── Init map ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -229,11 +232,14 @@ export default function Map({
       map.on('click',      'footprints-fill', onFootprintClick)
       map.on('click',      'footprints-line', onFootprintClick)
 
-      // General map click — fires when not drawing and not on a footprint
+      // General map click
       map.on('click', (e) => {
         if (drawModeRef.current) return
+        // Always fire for close-all-panels (fires even over footprints)
+        onMapClickAnyRef.current?.()
         const hits = map.queryRenderedFeatures(e.point, { layers: ['footprints-fill'] })
         if (hits.length > 0) return
+        // Only fire timeseries / other empty-map actions when no footprint hit
         onMapClickRef.current?.(e.lngLat.lat, e.lngLat.lng)
       })
     })

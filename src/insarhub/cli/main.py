@@ -372,6 +372,7 @@ def create_parser() -> argparse.ArgumentParser:
             "  clip           Clip HyP3 zip contents to an AOI\n"
             "  h5-to-raster   Convert MintPy HDF5 output to GeoTIFF\n"
             "  save-footprint Extract footprint polygon from a raster\n"
+            "  plot-network   Plot interferogram network from a pairs JSON file\n"
             "  slurm          Generate a SLURM batch script\n"
             "  era5-download  Download ERA5 weather data for MintPy tropospheric correction\n"
         ),
@@ -452,6 +453,20 @@ def create_parser() -> argparse.ArgumentParser:
                          help="Command(s) to execute inside the job")
     p_slurm.add_argument("-o", "--output", metavar="PATH", default="job.slurm",
                          help="Output script path (default: job.slurm)")
+
+    # --- plot-network -------------------------------------------------- #
+    p_pn = ut_sub.add_parser(
+        "plot-network",
+        help="Plot interferogram network from a pairs JSON file",
+    )
+    p_pn.add_argument("-i", "--input", metavar="PATH", required=True,
+                      help="Pairs JSON file (plain list produced by downloader --select-pairs)")
+    p_pn.add_argument("--baselines", metavar="PATH", default=None,
+                      help="Baselines JSON file (default: auto-detect beside the pairs file)")
+    p_pn.add_argument("-o", "--output", metavar="PATH", default=None,
+                      help="Output PNG path (default: network.png beside the pairs file)")
+    p_pn.add_argument("--title", metavar="STR", default="Interferogram Network",
+                      help="Plot title (default: 'Interferogram Network')")
 
     # --- era5-download ------------------------------------------------- #
     p_era5 = ut_sub.add_parser(
@@ -1081,7 +1096,22 @@ def cmd_downloader(args, extra_args: list[str]):
             max_workers=args.sp_workers,
         )
 
+        from insarhub.utils import PairQuality
+
+        from insarhub.utils.pair_quality._db import PairQualityDB
+
         dl_workdir = downloader.config.workdir
+
+        # Build scenes_by_stack and bperp_by_stack for DB precompute
+        active = downloader.active_results
+        scenes_by_stack: dict[tuple, list[str]] = {}
+        bperp_by_stack:  dict[tuple, dict[str, float]] = {}
+        if isinstance(active, dict):
+            for k, prods in active.items():
+                scenes_by_stack[k] = [p.properties["sceneName"] for p in prods]
+        else:
+            scenes_by_stack[(0, 0)] = [p.properties["sceneName"] for p in active]
+
         if isinstance(pairs, dict):
             for (path, frame), group_pairs in pairs.items():
                 subdir = dl_workdir / f"p{path}_f{frame}"
@@ -1093,11 +1123,48 @@ def cmd_downloader(args, extra_args: list[str]):
                 (subdir / "downloader_config.json").write_text(json.dumps(cfg, indent=2, default=str))
                 pjson = subdir / f"pairs_p{path}_f{frame}.json"
                 pjson.write_text(json.dumps([list(p) for p in group_pairs], indent=2))
+                sp = scene_bperp.get((path, frame)) or {}
+                (subdir / f"baselines_p{path}_f{frame}.json").write_text(
+                    json.dumps({k: float(v) for k, v in sp.items()}, indent=2)
+                )
+                # Save all scene names so DB can rebuild from folder later
+                stack_scenes = scenes_by_stack.get((path, frame), [])
+                (subdir / f"scenes_p{path}_f{frame}.json").write_text(
+                    json.dumps(stack_scenes, indent=2)
+                )
+                bperp_by_stack[(path, frame)] = {k: float(v) for k, v in sp.items()}
+                print(f"[quality] Scoring all possible pairs — P{path}/F{frame}…")
+                try:
+                    db = PairQualityDB(subdir)
+                    db.build(
+                        {(path, frame): stack_scenes},
+                        {(path, frame): bperp_by_stack.get((path, frame), {})},
+                    )
+                    db_data = json.loads((subdir / ".insarhub_pair_quality_db.json").read_text())
+                    all_scores  = db_data.get("scores", {})
+                    all_factors = db_data.get("factors", {})
+                    # Filter to selected pairs for the network plot and pair_quality JSON
+                    quality_scores = {}
+                    quality_factors = {}
+                    for pair in group_pairs:
+                        for k in [f"{pair[0]}:{pair[1]}", f"{pair[1]}:{pair[0]}"]:
+                            if k in all_scores:
+                                quality_scores[k]  = all_scores[k]
+                                quality_factors[k] = all_factors.get(k, {})
+                    key = f"p{path}_f{frame}"
+                    (subdir / f"pair_quality_{key}.json").write_text(
+                        json.dumps({"scores": quality_scores, "factors": quality_factors, "ndvi_source": db_data.get("_ndvi_source", "n/a")}, indent=2)
+                    )
+                    print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored, {len(quality_scores)} selected")
+                except Exception as exc:
+                    print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
+                    quality_scores = None
                 _plot_pair_network(
                     group_pairs, baselines[(path, frame)],
                     scene_baselines=scene_bperp.get((path, frame)),
                     title=f"Interferogram Network — P{path}/F{frame}",
                     save_path=subdir / f"network_p{path}_f{frame}.png",
+                    quality_scores=quality_scores,
                 )
                 print(f"[pairs] p{path}_f{frame}: {len(group_pairs)} pairs → {pjson}")
         else:
@@ -1108,8 +1175,33 @@ def cmd_downloader(args, extra_args: list[str]):
             cfg = {k: v for k, v in asdict(downloader.config).items() if k != 'workdir'}
             (pairs_path.parent / "downloader_config.json").write_text(json.dumps(cfg, indent=2, default=str))
             pairs_path.write_text(json.dumps([list(p) for p in pairs], indent=2))
+            sp = scene_bperp if isinstance(scene_bperp, dict) else {}
+            stack_scenes = scenes_by_stack.get((0, 0), [])
+            (dl_workdir / "scenes_p0_f0.json").write_text(json.dumps(stack_scenes, indent=2))
+            print("[quality] Scoring all possible pairs…")
+            try:
+                db = PairQualityDB(dl_workdir)
+                db.build({(0, 0): stack_scenes}, {(0, 0): {k: float(v) for k, v in sp.items()}})
+                db_data = json.loads((dl_workdir / ".insarhub_pair_quality_db.json").read_text())
+                all_scores  = db_data.get("scores", {})
+                all_factors = db_data.get("factors", {})
+                quality_scores  = {}
+                quality_factors = {}
+                for pair in pairs:
+                    for k in [f"{pair[0]}:{pair[1]}", f"{pair[1]}:{pair[0]}"]:
+                        if k in all_scores:
+                            quality_scores[k]  = all_scores[k]
+                            quality_factors[k] = all_factors.get(k, {})
+                (dl_workdir / "pair_quality.json").write_text(
+                    json.dumps({"scores": quality_scores, "factors": quality_factors, "ndvi_source": db_data.get("_ndvi_source", "n/a")}, indent=2)
+                )
+                print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored")
+            except Exception as exc:
+                print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
+                quality_scores = None
             _plot_pair_network(pairs, baselines, scene_baselines=scene_bperp,
-                               save_path=dl_workdir / "network.png")
+                               save_path=dl_workdir / "network.png",
+                               quality_scores=quality_scores)
             print(f"[pairs] Saved {len(pairs)} pairs → {pairs_path}")
 
     if args.download:
@@ -1736,6 +1828,29 @@ def cmd_utils(args, extra_args: list[str]):
         )
         out_path = cfg.to_script(args.output)
         print(f"SLURM script written → {out_path}")
+
+    elif action == "plot-network":
+        import json
+        from insarhub.utils import plot_pair_network as _plot_pair_network
+
+        in_path = Path(args.input).expanduser().resolve()
+        pairs = [tuple(p) for p in json.loads(in_path.read_text())]
+
+        # Auto-detect baselines file beside the pairs file
+        bl_path = Path(args.baselines).expanduser().resolve() if args.baselines else None
+        if bl_path is None:
+            stem = in_path.stem.replace("pairs", "baselines")
+            candidate = in_path.parent / f"{stem}.json"
+            if candidate.exists():
+                bl_path = candidate
+        baselines = {}
+        if bl_path and bl_path.exists():
+            raw_bl = json.loads(bl_path.read_text())
+            baselines = {tuple(k.split("|||")): float(v) for k, v in raw_bl.items()}
+
+        out_path = Path(args.output).expanduser().resolve() if args.output else in_path.parent / "network.png"
+        _plot_pair_network(pairs, baselines, save_path=out_path, title=args.title)
+        print(f"Network plot saved → {out_path}")
 
     elif action == "era5-download":
         from insarhub.utils.batch import ERA5Downloader

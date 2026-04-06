@@ -25,8 +25,8 @@ function colormapGradient(type: string): string {
     return 'linear-gradient(to top, #000, #fff)'
   }
   if (type === 'velocity') {
-    // RdBu_r diverging: blue → white → red
-    return 'linear-gradient(to top, #2166ac, #f7f7f7, #b2182b)'
+    // matches render.py: rgb(0,0,220) → rgb(255,255,255) → rgb(220,0,0)
+    return 'linear-gradient(to top, #0000dc, #ffffff, #dc0000)'
   }
   return 'linear-gradient(to top, #440154, #31688e, #35b779, #fde725)'
 }
@@ -198,6 +198,7 @@ export default function App() {
   const [downloaderOptions, setDownloaderOptions] = useState<string[]>(['S1_SLC'])
   const [tsData,            setTsData]            = useState<TsData | null>(null)
   const [tsClickPoint,      setTsClickPoint]      = useState<[number, number] | null>(null)
+  const [mapClickSignal,    setMapClickSignal]    = useState(0)
 
   // Revoke previous blob URL when raster overlay is replaced or cleared
   useEffect(() => {
@@ -255,8 +256,25 @@ export default function App() {
     }, 1500)
   }, [])
 
-  // ── MintPy time series click ──────────────────────────────────────────────
+  // ── Universal close-all — fires on EVERY non-draw-mode map click ────────────
+  // Intentionally does NOT touch selectedFeature/stackOpen/detailScene:
+  // Maplibre fires layer-specific handlers (footprint click → setSelectedFeature)
+  // BEFORE the general handler, so clearing selectedFeature here would race with
+  // a footprint selection. Scene-panel clearing is handled in handleMapClick below.
+  function handleMapClickAny() {
+    setJobsOpen(false)
+    setSettingsOpen(false)
+    setFiltersOpen(false)
+    setMapClickSignal(n => n + 1)
+  }
+
+  // ── Empty-map click (no footprint hit) ────────────────────────────────────
   async function handleMapClick(lat: number, lng: number) {
+    // Clear scene panels only on bare map click (no footprint under cursor)
+    setSelectedFeature(null)
+    setStackOpen(false)
+    setDetailScene(null)
+
     if (rasterOverlay?.source?.kind !== 'mintpy') return
     try {
       const tsParam = rasterOverlay.source.tsFile
@@ -423,6 +441,7 @@ export default function App() {
           onFootprintClick={setSelectedFeature}
           onRasterPixel={setRasterPixelVal}
           onMapClick={handleMapClick}
+          onMapClickAny={handleMapClickAny}
         />
         <BasemapSwitcher
           basemap={basemap}
@@ -478,6 +497,7 @@ export default function App() {
         <JobQueueDrawer
           theme={theme}
           workdir={workdir}
+          mapClickSignal={mapClickSignal}
           onClose={() => setJobsOpen(false)}
           onRasterSelect={setRasterOverlay}
           onSettingsOpen={(analyzerType) => {

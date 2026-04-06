@@ -706,6 +706,7 @@ def plot_pair_network(
     title: str = "Interferogram Network",
     figsize: tuple[int, int] = (18, 7),
     save_path: str |Path| None = None,
+    quality_scores: dict[str, float] | None = None,
 ) -> plt.Figure| dict:
 
     """
@@ -798,6 +799,7 @@ def plot_pair_network(
                     title=group_title,
                     figsize=figsize,
                     save_path=group_save_path,
+                    quality_scores=quality_scores,
                 )
 
             figures[(path, frame)] = fig
@@ -876,14 +878,36 @@ def plot_pair_network(
     }
 
     # ── 4. Visual attributes ──────────────────────────────────────────────
+    # 3-category quality colours matching the GUI
+    _Q_GOOD  = '#4caf50'
+    _Q_RISKY = '#ffc107'
+    _Q_BAD   = '#f44336'
+    _Q_NONE  = '#888888'  # unscored
+
+    def _quality_colour(sc: float | None) -> str:
+        if sc is None:  return _Q_NONE
+        if sc >= 0.65:  return _Q_GOOD
+        if sc >= 0.35:  return _Q_RISKY
+        return _Q_BAD
+
     degrees      = dict(G.degree())
     max_deg      = max(degrees.values(), default=1)
     node_colours = [plt.cm.RdYlGn(degrees[n] / max_deg) for n in G.nodes()]
 
     edge_dts     = [G[a][b]["dt"] for a, b in G.edges()]
     max_dt       = max((d for d in edge_dts if d < _MISSING), default=1.0)
-    edge_colours = [plt.cm.RdYlGn_r(min(dt, max_dt) / max_dt) for dt in edge_dts]
-    edge_widths  = [0.5 + 2.5 * (1.0 - min(dt, max_dt) / max_dt) for dt in edge_dts]
+
+    if quality_scores:
+        edge_colours = []
+        edge_widths  = []
+        for a, b in G.edges():
+            sc = quality_scores.get(f"{a}:{b}") or quality_scores.get(f"{b}:{a}")
+            edge_colours.append(_quality_colour(sc))
+            edge_widths.append(2.0 if sc is not None and sc >= 0.65 else
+                               1.2 if sc is not None and sc >= 0.35 else 0.7)
+    else:
+        edge_colours = [plt.cm.RdYlGn_r(min(dt, max_dt) / max_dt) for dt in edge_dts]
+        edge_widths  = [0.5 + 2.5 * (1.0 - min(dt, max_dt) / max_dt) for dt in edge_dts]
 
     if isinstance(pairs, dict):
         group_keys  = list(pairs.keys())
@@ -1022,15 +1046,26 @@ def plot_pair_network(
     )
     ax_net.add_artist(deg_legend)
 
-    ax_net.legend(
-        handles=[
-            mpatches.Patch(
-                color=plt.cm.RdYlGn_r(v / max_dt), label=f"{v:.0f} days"
-            )
-            for v in [0, max_dt * 0.33, max_dt * 0.66, max_dt]
-        ],
-        title="Temporal baseline", loc="lower right", fontsize=7, title_fontsize=8,
-    )
+    if quality_scores:
+        ax_net.legend(
+            handles=[
+                mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.65)"),
+                mpatches.Patch(color=_Q_RISKY, label="Risky (0.35–0.65)"),
+                mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.35)"),
+                mpatches.Patch(color=_Q_NONE,  label="Unscored"),
+            ],
+            title="Pair quality", loc="lower right", fontsize=7, title_fontsize=8,
+        )
+    else:
+        ax_net.legend(
+            handles=[
+                mpatches.Patch(
+                    color=plt.cm.RdYlGn_r(v / max_dt), label=f"{v:.0f} days"
+                )
+                for v in [0, max_dt * 0.33, max_dt * 0.66, max_dt]
+            ],
+            title="Temporal baseline", loc="lower right", fontsize=7, title_fontsize=8,
+        )
 
     if isinstance(pairs, dict):
         ax_net.add_artist(

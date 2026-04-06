@@ -148,9 +148,14 @@ class Hyp3Base(Hyp3Processor):
                 username = self._username_pool[self._user_index]
                 
                 # Ensure client matches current pool user
-                if  self._current_client_user != username:
-                    self.client = HyP3(username=username, password=self._password_pool[self._user_index])
-                    self._current_client_user = username
+                if self._current_client_user != username:
+                    try:
+                        self.client = HyP3(username=username, password=self._password_pool[self._user_index])
+                        self._current_client_user = username
+                    except AuthenticationError as e:
+                        pbar.write(f"{Fore.RED}Auth failed for {username}: {e}. Skipping...")
+                        credits = 0
+                        max_jobs_allowed = 0
 
                 try:
                     credits = self.client.check_credits()
@@ -180,23 +185,23 @@ class Hyp3Base(Hyp3Processor):
 
                 # If queue still exists but user is out of credits/failed
                 if job_queue and max_jobs_allowed <= 0:
-                    if self._auth_pool and (self._user_index + 1 < len(self._username_pool)):
-                        pbar.write(f"{Fore.YELLOW}User {username} exhausted. Switching account...")
+                    # Advance through remaining pool accounts until one authenticates
+                    switched = False
+                    while self._auth_pool and (self._user_index + 1 < len(self._username_pool)):
                         self._user_index += 1
-                        # Retry auth for next user
-                        for _ in range(3):
-                            try:
-                                _u_next = self._username_pool[self._user_index]
-                                _p_next = self._password_pool[self._user_index]
-                                self.client = HyP3(username=_u_next, password=_p_next)
-                                self._current_client_user = _u_next
-                                break
-                            except AuthenticationError:
-                                pbar.write(f"{Fore.RED}Auth failed for {self._username_pool[self._user_index]}, retrying...")
-                                continue
-                    else:
+                        _u_next = self._username_pool[self._user_index]
+                        _p_next = self._password_pool[self._user_index]
+                        pbar.write(f"{Fore.YELLOW}User {username} exhausted. Switching to {_u_next}...")
+                        try:
+                            self.client = HyP3(username=_u_next, password=_p_next)
+                            self._current_client_user = _u_next
+                            switched = True
+                            break
+                        except AuthenticationError:
+                            pbar.write(f"{Fore.RED}Auth failed for {_u_next}, trying next account...")
+                            continue
+                    if not switched:
                         pbar.write(f"{Fore.RED}All accounts exhausted. {len(job_queue)} jobs remain.")
-                        # Save remaining to avoid total loss?
                         sys.exit(1)
              
         print(f"{Fore.GREEN}All jobs submitted successfully.")

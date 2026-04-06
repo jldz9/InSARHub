@@ -12,7 +12,9 @@ def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False, workd
     import uvicorn
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
-    from .api import app, _settings
+    from .api import app
+    from insarhub.app import state
+    _settings = state._settings
 
     if workdir is not None:
         resolved = Path(workdir).expanduser().resolve()

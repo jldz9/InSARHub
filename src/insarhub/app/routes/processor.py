@@ -1,0 +1,237 @@
+# -*- coding: utf-8 -*-
+"""Processor and HyP3 job management endpoints."""
+
+import asyncio
+import dataclasses
+import json
+import threading as _threading
+from pathlib import Path
+
+from fastapi import APIRouter, BackgroundTasks, HTTPException
+
+import insarhub.app.state as state
+from insarhub.app.models import ProcessRequest, Hyp3ActionRequest
+from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
+from insarhub.core.registry import Processor
+
+router = APIRouter()
+
+
+@router.post("/api/folder-process")
+async def folder_process(req: ProcessRequest, background_tasks: BackgroundTasks):
+    """Read pairs from folder, submit to processor, save job IDs."""
+    import uuid
+    folder = Path(req.folder_path).expanduser().resolve()
+    pairs_files = sorted(folder.glob("pairs_p*_f*.json"))
+    if not pairs_files:
+        raise HTTPException(status_code=404, detail="No pairs file found in folder")
+    job_id = str(uuid.uuid4())
+    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting…", "data": None}
+    background_tasks.add_task(_run_folder_process, job_id, req)
+    return {"job_id": job_id}
+
+
+async def _run_folder_process(job_id: str, req: ProcessRequest):
+    def run():
+        try:
+            from insarhub.utils.tool import write_workflow_marker
+
+            folder = Path(req.folder_path).expanduser().resolve()
+            pairs_files = sorted(folder.glob("pairs_p*_f*.json"))
+            if not pairs_files:
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "No pairs file found", "data": None}
+                return
+
+            raw = json.loads(pairs_files[0].read_text())
+            pairs: list[tuple[str, str]] = [tuple(p) for p in raw]
+
+            proc_cls = Processor._registry.get(req.processor_type)
+            if proc_cls is None:
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"Unknown processor: {req.processor_type}", "data": None}
+                return
+            cfg_cls = getattr(proc_cls, "default_config", None)
+            if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "Processor has no config", "data": None}
+                return
+
+            cfg = cfg_cls(workdir=folder)
+            valid_fields = {f.name for f in dataclasses.fields(cfg)}
+            for key, val in req.processor_config.items():
+                if key in valid_fields and key not in ("workdir", "pairs") and val is not None:
+                    try:
+                        setattr(cfg, key, val)
+                    except Exception:
+                        pass
+            cfg.pairs = pairs
+
+            if req.dry_run:
+                n = len(pairs)
+                msgs = []
+                try:
+                    proc_cfg_path = folder / "processor_config.json"
+                    proc_cfg_path.write_text(json.dumps({
+                        "name": req.processor_type,
+                        "processor_config": req.processor_config,
+                    }, indent=2))
+                    msgs.append("wrote  processor_config.json")
+                except Exception as e:
+                    msgs.append(f"could not write processor_config.json: {e}")
+                try:
+                    write_workflow_marker(folder, processor=req.processor_type)
+                    msgs.append(f"marked insarhub_workflow.json  processor={req.processor_type}")
+                except Exception as e:
+                    msgs.append(f"could not update insarhub_workflow.json: {e}")
+                state._jobs[job_id] = {
+                    "status": "done", "progress": 100,
+                    "message": (
+                        f"[Dry run] Would submit {n} pair{'s' if n != 1 else ''} "
+                        f"via {req.processor_type} from {folder.name}\n"
+                        + "\n".join(msgs)
+                    ),
+                    "data": None,
+                }
+                return
+
+            state._jobs[job_id]["message"] = "Submitting jobs…"
+            processor = Processor.create(req.processor_type, cfg)
+            submit_result = SubmitCommand(processor, progress_callback=state._make_progress(job_id)).run()
+            if not submit_result.success:
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": submit_result.message, "data": None}
+                return
+
+            state._jobs[job_id]["message"] = "Saving job IDs…"
+            SaveJobsCommand(processor, progress_callback=state._make_progress(job_id)).run()
+
+            write_workflow_marker(folder, processor=req.processor_type)
+            proc_cfg_path = folder / "processor_config.json"
+            proc_cfg_path.write_text(json.dumps({
+                "name": req.processor_type,
+                "processor_config": req.processor_config,
+            }, indent=2))
+            state._jobs[job_id] = {"status": "done", "progress": 100, "message": submit_result.message, "data": None}
+        except Exception as e:
+            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+
+    await asyncio.to_thread(run)
+
+
+@router.get("/api/folder-hyp3-jobs")
+async def get_folder_hyp3_jobs(path: str):
+    """List hyp3*.json job files in a folder with stored job counts."""
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    files = []
+    for f in sorted(folder.glob("hyp3*.json")):
+        try:
+            data = json.loads(f.read_text())
+            job_ids = data.get("job_ids", {})
+            total = sum(len(v) for v in job_ids.values())
+            users = list(job_ids.keys())
+        except Exception:
+            total = 0
+            users = []
+        files.append({"name": f.name, "total": total, "users": users})
+    proc_type = None
+    proc_cfg_path = folder / "processor_config.json"
+    if proc_cfg_path.exists():
+        try:
+            pc = json.loads(proc_cfg_path.read_text())
+            proc_type = pc.get("name") or pc.get("processor_type")
+        except Exception:
+            pass
+    return {"files": files, "processor_type": proc_type}
+
+
+@router.post("/api/folder-hyp3-action")
+async def folder_hyp3_action(req: Hyp3ActionRequest, background_tasks: BackgroundTasks):
+    import uuid
+    job_id = str(uuid.uuid4())
+    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting…", "data": None}
+    background_tasks.add_task(_run_hyp3_action, job_id, req)
+    return {"job_id": job_id}
+
+
+async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
+    def run():
+        try:
+            folder = Path(req.folder_path).expanduser().resolve()
+            job_file = folder / req.job_file
+            if not job_file.exists():
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"{req.job_file} not found", "data": None}
+                return
+
+            proc_cls = Processor._registry.get(req.processor_type)
+            if proc_cls is None:
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"Unknown processor: {req.processor_type}", "data": None}
+                return
+            cfg_cls = getattr(proc_cls, "default_config", None)
+            if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "Processor has no config", "data": None}
+                return
+
+            cfg = cfg_cls(workdir=folder)
+            cfg.saved_job_path = str(job_file)
+            state._jobs[job_id]["message"] = "Initializing processor…"
+            processor = Processor.create(req.processor_type, cfg)
+
+            if req.action == "refresh":
+                state._jobs[job_id]["message"] = "Refreshing job statuses…"
+                batchs = processor.refresh()
+                lines = []
+                counts: dict[str, int] = {}
+                filenames: list[str] = []
+                for user, batch in batchs.items():
+                    lines.append(f"[{user}]")
+                    for j in batch.jobs:
+                        sc = j.status_code
+                        counts[sc] = counts.get(sc, 0) + 1
+                        lines.append(f"  {j.name:<35} {j.job_id:<12} | {sc}")
+                        if sc == "SUCCEEDED" and j.files:
+                            for fm in j.files:
+                                fn = fm.get("filename") or fm.get("s3", {}).get("key", "").split("/")[-1]
+                                if fn and fn.endswith(".zip"):
+                                    filenames.append(fn)
+                try:
+                    cache = {"filenames": filenames, "out_dir": processor.output_dir.as_posix()}
+                    cache_path = folder / ".insarhub_cache.json"
+                    cache_path.write_text(json.dumps(cache, indent=2))
+                except Exception:
+                    pass
+                total = sum(counts.values())
+                summary = f"{total} jobs — " + ", ".join(
+                    f"{v} {k.lower()}" for k, v in sorted(counts.items())
+                )
+                lines.insert(0, summary)
+                state._jobs[job_id] = {"status": "done", "progress": 100, "message": "\n".join(lines), "data": None}
+
+            elif req.action == "retry":
+                state._jobs[job_id]["message"] = "Retrying failed jobs…"
+                processor.retry()
+                state._jobs[job_id] = {"status": "done", "progress": 100, "message": "Retry submitted. New job file saved.", "data": None}
+
+            elif req.action == "download":
+                dl_stop = _threading.Event()
+                state._stop_events[job_id] = dl_stop
+                state._jobs[job_id]["message"] = "Downloading succeeded jobs…"
+
+                def _dl_progress(msg: str, pct: int):
+                    state._jobs[job_id]["progress"] = pct
+                    state._jobs[job_id]["message"]  = msg
+
+                _, dl_results = processor.download(progress_callback=_dl_progress, stop_event=dl_stop)
+                state._stop_events.pop(job_id, None)
+                r = dl_results
+                summary = (f"{r['downloaded']} downloaded, {r['skipped']} existing, {r['failed']} failed")
+                if dl_stop.is_set():
+                    summary = f"Stopped. {summary}"
+                pct = 100 if not dl_stop.is_set() else state._jobs[job_id].get("progress", 0)
+                state._jobs[job_id] = {"status": "done", "progress": pct, "message": summary, "data": None}
+
+            else:
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"Unknown action: {req.action}", "data": None}
+
+        except Exception as e:
+            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+
+    await asyncio.to_thread(run)

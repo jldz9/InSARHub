@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Theme } from './theme'
+import { NetworkEditor } from './NetworkEditor'
 
 // ── Raster overlay passed up to the map ──────────────────────────────────────
 
@@ -71,6 +72,7 @@ interface FolderDetails {
 interface Props {
   theme:          Theme
   workdir:        string
+  mapClickSignal: number
   onClose:        () => void
   onRasterSelect: (overlay: RasterOverlay | null) => void
   onSettingsOpen: (analyzerType: string) => void
@@ -107,133 +109,6 @@ function fmtVal(key: string, val: any): string {
   return String(val)
 }
 
-// ── Network image lightbox modal ──────────────────────────────────────────────
-
-interface LightboxProps { theme: Theme; imagePath: string; onClose: () => void }
-
-function NetworkLightbox({ theme: t, imagePath, onClose }: LightboxProps) {
-  const src = `${API}/api/folder-image?path=${encodeURIComponent(imagePath)}`
-  const [zoom, setZoom] = useState(1)
-  const [pan,  setPan]  = useState({ x: 0, y: 0 })
-  const dragging   = useRef(false)
-  const lastPos    = useRef({ x: 0, y: 0 })
-  const canvasRef  = useRef<HTMLDivElement>(null)
-  const fitZoomRef = useRef(1)
-
-  function calcFitZoom(imgW: number, imgH: number) {
-    const el = canvasRef.current
-    if (!el || !imgW || !imgH) return 1
-    return Math.min(el.clientWidth / imgW, el.clientHeight / imgH)
-  }
-
-  function onImgLoad(e: React.SyntheticEvent<HTMLImageElement>) {
-    const img = e.currentTarget
-    const fit = calcFitZoom(img.naturalWidth, img.naturalHeight)
-    fitZoomRef.current = fit
-    setZoom(fit)
-  }
-
-  function onWheel(e: React.WheelEvent) {
-    e.preventDefault()
-    setZoom(z => Math.min(10, Math.max(0.2, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12))))
-  }
-
-  function onMouseDown(e: React.MouseEvent) {
-    dragging.current = true
-    lastPos.current = { x: e.clientX, y: e.clientY }
-  }
-
-  function onMouseMove(e: React.MouseEvent) {
-    if (!dragging.current) return
-    const dx = e.clientX - lastPos.current.x
-    const dy = e.clientY - lastPos.current.y
-    lastPos.current = { x: e.clientX, y: e.clientY }
-    setPan(p => ({ x: p.x + dx, y: p.y + dy }))
-  }
-
-  function onMouseUp() { dragging.current = false }
-
-  function resetView() { setZoom(fitZoomRef.current); setPan({ x: 0, y: 0 }) }
-
-  return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.82)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          position: 'relative', width: '88vw', height: '86vh',
-          background: t.bg, borderRadius: 6,
-          border: `1px solid ${t.border}`,
-          boxShadow: '0 8px 48px rgba(0,0,0,0.6)',
-          display: 'flex', flexDirection: 'column',
-        }}
-      >
-        {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '8px 14px', borderBottom: `1px solid ${t.border}`,
-          background: t.bg2, borderRadius: '6px 6px 0 0', flexShrink: 0,
-        }}>
-          <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>Pair Network</span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ color: t.textMuted, fontSize: 11 }}>{Math.round(zoom * 100)}%</span>
-            <button onClick={resetView} title="Reset zoom" style={{
-              background: 'none', border: `1px solid ${t.border}`, borderRadius: 4,
-              cursor: 'pointer', color: t.textMuted, fontSize: 11, padding: '2px 7px',
-            }}>Reset</button>
-            <button onClick={onClose} style={{ background: 'none', border: 'none',
-              cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
-          </div>
-        </div>
-
-        {/* Zoom/pan canvas */}
-        <div
-          ref={canvasRef}
-          onWheel={onWheel}
-          onMouseDown={onMouseDown}
-          onMouseMove={onMouseMove}
-          onMouseUp={onMouseUp}
-          onMouseLeave={onMouseUp}
-          style={{
-            flex: 1, overflow: 'hidden', position: 'relative',
-            cursor: dragging.current ? 'grabbing' : 'grab',
-            userSelect: 'none',
-          }}
-        >
-          <img
-            src={src}
-            alt="Pair network"
-            draggable={false}
-            onLoad={onImgLoad}
-            style={{
-              position: 'absolute', top: '50%', left: '50%',
-              transform: `translate(calc(-50% + ${pan.x}px), calc(-50% + ${pan.y}px)) scale(${zoom})`,
-              transformOrigin: 'center',
-              maxWidth: 'none',
-              borderRadius: 4,
-              transition: dragging.current ? 'none' : 'transform 0.05s',
-            }}
-          />
-        </div>
-
-        {/* Hint */}
-        <div style={{
-          padding: '4px 14px', borderTop: `1px solid ${t.border}`,
-          background: t.bg2, borderRadius: '0 0 6px 6px',
-          color: t.textMuted, fontSize: 10, flexShrink: 0,
-        }}>
-          Scroll to zoom · Drag to pan
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ── L4: Pair detail drawer ────────────────────────────────────────────────────
 
@@ -415,152 +290,6 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
               </button>
             )
           })}
-        </div>
-      </div>
-    </>
-  )
-}
-
-// ── Select Pairs Modal ────────────────────────────────────────────────────────
-
-interface SelectPairsModalProps { theme: Theme; folderPath: string; onClose: () => void; onDone: () => void }
-
-function SelectPairsModal({ theme: t, folderPath, onClose, onDone }: SelectPairsModalProps) {
-  const [dtTargets,    setDtTargets]    = useState('6, 12, 24, 36, 48, 72, 96')
-  const [dtTol,        setDtTol]        = useState(3)
-  const [dtMax,        setDtMax]        = useState(120)
-  const [pbMax,        setPbMax]        = useState(150)
-  const [minDegree,    setMinDegree]    = useState(3)
-  const [maxDegree,    setMaxDegree]    = useState(999)
-  const [forceConnect, setForceConnect] = useState(true)
-  const [status,  setStatus]  = useState<'idle' | 'running' | 'done' | 'error'>('idle')
-  const [message, setMessage] = useState('')
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
-
-  async function handleRun() {
-    const dtArr = dtTargets.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
-    setStatus('running'); setMessage('Starting…')
-    try {
-      const res = await fetch(`${API}/api/folder-select-pairs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          folder_path: folderPath, dt_targets: dtArr,
-          dt_tol: dtTol, dt_max: dtMax, pb_max: pbMax,
-          min_degree: minDegree, max_degree: maxDegree, force_connect: forceConnect,
-        }),
-      })
-      const { job_id } = await res.json()
-      pollRef.current = setInterval(async () => {
-        const r = await fetch(`${API}/api/jobs/${job_id}`)
-        const job = await r.json()
-        setMessage(job.message ?? '')
-        if (job.status === 'done') {
-          clearInterval(pollRef.current!); setStatus('done'); onDone()
-        } else if (job.status === 'error') {
-          clearInterval(pollRef.current!); setStatus('error')
-        }
-      }, 1500)
-    } catch (e) { setStatus('error'); setMessage(String(e)) }
-  }
-
-  const inp: React.CSSProperties = {
-    background: t.inputBg, border: `1px solid ${t.inputBorder}`,
-    color: t.text, borderRadius: 4, padding: '4px 8px',
-    fontSize: 12, width: '100%', boxSizing: 'border-box',
-  }
-  const lbl: React.CSSProperties = {
-    color: t.textMuted, fontSize: 10, marginBottom: 3, display: 'block',
-    textTransform: 'uppercase', letterSpacing: '0.04em',
-  }
-
-  return (
-    <>
-      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 210 }} />
-      <div style={{
-        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
-        width: 460, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8,
-        display: 'flex', flexDirection: 'column',
-        boxShadow: '0 8px 40px rgba(0,0,0,0.5)', zIndex: 211, overflow: 'hidden',
-      }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '11px 18px', borderBottom: `1px solid ${t.border}`, background: t.bg2,
-        }}>
-          <span style={{ color: t.text, fontWeight: 700, fontSize: 14 }}>Select Pairs</span>
-          <button onClick={onClose} style={{ background: 'none', border: 'none',
-            cursor: 'pointer', color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}>×</button>
-        </div>
-
-        {/* Params */}
-        <div style={{ padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
-            <label style={lbl}>Target temporal baselines (days, comma-separated)</label>
-            <input style={inp} value={dtTargets} onChange={e => setDtTargets(e.target.value)} />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={lbl}>Tolerance (days)</label>
-              <input type="number" style={inp} value={dtTol} min={0}
-                onChange={e => setDtTol(parseInt(e.target.value) || 0)} />
-            </div>
-            <div>
-              <label style={lbl}>Max temporal (days)</label>
-              <input type="number" style={inp} value={dtMax} min={1}
-                onChange={e => setDtMax(parseInt(e.target.value) || 1)} />
-            </div>
-            <div>
-              <label style={lbl}>Max perp. baseline (m)</label>
-              <input type="number" style={inp} value={pbMax} min={0} step={10}
-                onChange={e => setPbMax(parseFloat(e.target.value) || 0)} />
-            </div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={lbl}>Min connections</label>
-              <input type="number" style={inp} value={minDegree} min={1}
-                onChange={e => setMinDegree(parseInt(e.target.value) || 1)} />
-            </div>
-            <div>
-              <label style={lbl}>Max connections</label>
-              <input type="number" style={inp} value={maxDegree} min={1}
-                onChange={e => setMaxDegree(parseInt(e.target.value) || 1)} />
-            </div>
-          </div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-            <input type="checkbox" checked={forceConnect} onChange={e => setForceConnect(e.target.checked)}
-              style={{ accentColor: t.accent, width: 14, height: 14 }} />
-            <span style={{ color: t.text, fontSize: 12 }}>Force connected network</span>
-          </label>
-          {message && (
-            <div style={{
-              color: status === 'done' ? '#4caf50' : status === 'error' ? '#e53935' : t.textMuted,
-              fontSize: 11, fontFamily: 'monospace',
-            }}>{message}</div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div style={{
-          display: 'flex', justifyContent: 'flex-end', gap: 8,
-          padding: '10px 18px', borderTop: `1px solid ${t.border}`, background: t.bg2,
-        }}>
-          <button onClick={onClose} style={{
-            padding: '5px 16px', background: 'transparent', color: t.textMuted,
-            border: `1px solid ${t.border}`, borderRadius: 6, fontSize: 12, cursor: 'pointer',
-          }}>{status === 'done' ? 'Close' : 'Cancel'}</button>
-          <button onClick={handleRun} disabled={status === 'running' || status === 'done'} style={{
-            padding: '5px 20px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-            background: status === 'done' ? '#1b3a2a' : status === 'error' ? '#b71c1c' : '#0d3b6e',
-            color:      status === 'done' ? '#a5d6a7' : status === 'error' ? '#ef9a9a' : '#90caf9',
-            border: `1px solid ${status === 'done' ? '#2e7d32' : status === 'error' ? '#c62828' : '#1565c0'}`,
-            cursor: status === 'running' || status === 'done' ? 'default' : 'pointer',
-          }}>
-            {status === 'running' ? '⟳ Running…' : status === 'done' ? '✓ Done' : status === 'error' ? '✕ Retry' : 'Run'}
-          </button>
         </div>
       </div>
     </>
@@ -1552,6 +1281,7 @@ interface L2Props {
   role:              string
   cls:               string
   hidden:            boolean
+  mapClickSignal:    number
   onClose:           () => void
   onFolderRefresh:   () => void
   onRasterSelect:    (overlay: RasterOverlay | null) => void
@@ -1559,16 +1289,15 @@ interface L2Props {
   rightOffset:       number
 }
 
-function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefresh, onRasterSelect, onSettingsOpen, rightOffset }: L2Props) {
+function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, onClose, onFolderRefresh, onRasterSelect, onSettingsOpen, rightOffset }: L2Props) {
   const { width, onHandleMouseDown } = useResizable(240)
   const rc = ROLE_COLORS[role] ?? ROLE_FALLBACK
 
   // Downloader-specific state
   const [details,      setDetails]      = useState<FolderDetails | null>(null)
   const [detLoading,   setDetLoading]   = useState(false)
-  const [lightboxOpen, setLightboxOpen] = useState(false)
+  const [netEditorOpen, setNetEditorOpen] = useState(false)
   const [pairsOpen,    setPairsOpen]    = useState(false)
-  const [spOpen,       setSpOpen]       = useState(false)
   const [procOpen,     setProcOpen]     = useState(false)
   const [dlJobId,      setDlJobId]      = useState<string | null>(() => _dlJobs.get(job.path) ?? null)
   const [dlStatus,     setDlStatus]     = useState<string>('')
@@ -1579,6 +1308,17 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefr
   const [mintpyViewerEverOpen, setMintpyViewerEverOpen] = useState(false)
   const [mintpyHasData,     setMintpyHasData]     = useState(false)
   const [mintpyTsList,      setMintpyTsList]      = useState<string[]>([])
+
+  // Close all L3/L4 sub-panels when the map is clicked
+  useEffect(() => {
+    if (mapClickSignal === 0) return
+    setPairsOpen(false)
+
+    setProcOpen(false)
+    setIfgViewerOpen(false)
+    setMintpyViewerOpen(false)
+    setNetEditorOpen(false)
+  }, [mapClickSignal])
 
   function loadDetails() {
     setDetLoading(true)
@@ -1703,13 +1443,20 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefr
 
   return (
     <>
-      {/* Network lightbox modal */}
-      {lightboxOpen && details?.network_image && (
-        <NetworkLightbox theme={t} imagePath={details.network_image} onClose={() => setLightboxOpen(false)} />
+
+      {/* Interactive network editor */}
+      {!hidden && netEditorOpen && (
+        <NetworkEditor
+          theme={t}
+          folderPath={job.path}
+          onClose={() => setNetEditorOpen(false)}
+          onSaved={() => { setNetEditorOpen(false); loadDetails() }}
+          initParamsOpen={!details?.has_pairs}
+        />
       )}
 
-      {/* L3 pairs drawer — kept mounted once opened so state survives hide/show */}
-      {pairsOpen && (
+      {/* L3 pairs drawer */}
+      {!hidden && pairsOpen && (
         <PairsDrawer
           theme={t}
           folderPath={job.path}
@@ -1732,7 +1479,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefr
       )}
 
       {/* L3 interferogram viewer */}
-      {ifgViewerOpen && (
+      {!hidden && ifgViewerOpen && (
         <IfgViewerDrawer
           theme={t}
           folderPath={job.path}
@@ -1742,18 +1489,8 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefr
         />
       )}
 
-      {/* Select Pairs modal */}
-      {spOpen && (
-        <SelectPairsModal
-          theme={t}
-          folderPath={job.path}
-          onClose={() => setSpOpen(false)}
-          onDone={() => { setSpOpen(false); loadDetails() }}
-        />
-      )}
-
       {/* Process modal */}
-      {procOpen && (
+      {!hidden && procOpen && (
         <ProcessModal
           theme={t}
           folderPath={job.path}
@@ -1831,24 +1568,24 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefr
             ) : null
           )}
 
-          {/* ── Downloader: view network (lightbox) ── */}
-          {role === 'downloader' && details?.network_image && (
+          {/* ── Downloader: edit network (always visible for downloader jobs) ── */}
+          {role === 'downloader' && (
             <button
-              onClick={() => setLightboxOpen(o => !o)}
+              onClick={() => setNetEditorOpen(true)}
               style={{
                 width: '100%', padding: '7px 12px', fontSize: 11, textAlign: 'left',
-                background: lightboxOpen ? rc.bg : 'transparent',
-                color: lightboxOpen ? rc.color : t.text,
-                border: `1px solid ${lightboxOpen ? rc.border : t.border}`,
+                background: netEditorOpen ? '#1a2e1a' : 'transparent',
+                color: netEditorOpen ? '#a5d6a7' : t.text,
+                border: `1px solid ${netEditorOpen ? '#2e7d32' : t.border}`,
                 borderRadius: 4, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 8,
               }}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
-                <polyline points="21 15 16 10 5 21"/>
+                <circle cx="5" cy="12" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="19" cy="19" r="2"/>
+                <line x1="7" y1="11" x2="17" y2="6"/><line x1="7" y1="13" x2="17" y2="18"/>
               </svg>
-              {lightboxOpen ? 'Hide Network' : 'View Network'}
+              Edit Network
             </button>
           )}
 
@@ -1874,26 +1611,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefr
             </button>
           )}
 
-          {/* ── Downloader: select pairs ── */}
-          {role === 'downloader' && (
-            <button
-              onClick={() => setSpOpen(o => !o)}
-              style={{
-                width: '100%', padding: '7px 12px', fontSize: 11, textAlign: 'left',
-                background: spOpen ? rc.bg : 'transparent',
-                color: spOpen ? rc.color : t.text,
-                border: `1px solid ${spOpen ? rc.border : t.border}`,
-                borderRadius: 4, cursor: 'pointer',
-                display: 'flex', alignItems: 'center', gap: 8,
-              }}
-            >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 2L2 7l10 5 10-5-10-5z"/>
-                <path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
-              </svg>
-              Select Pairs
-            </button>
-          )}
+          {/* Select Pairs is now inside Edit Network (⚙ Parameters panel) */}
 
           {/* ── Downloader: process ── */}
           {role === 'downloader' && (
@@ -2050,7 +1768,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, onClose, onFolderRefr
 
 // ── Main Drawer ───────────────────────────────────────────────────────────────
 
-export default function JobQueueDrawer({ theme: t, workdir, onClose, onRasterSelect, onSettingsOpen }: Props) {
+export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, onClose, onRasterSelect, onSettingsOpen }: Props) {
   const { width: l1Width, onHandleMouseDown: onL1Handle } = useResizable(260)
   const [jobs,    setJobs]    = useState<JobFolder[]>([])
   const [loading, setLoading] = useState(true)
@@ -2106,6 +1824,7 @@ export default function JobQueueDrawer({ theme: t, workdir, onClose, onRasterSel
           role={l2.role}
           cls={l2.cls}
           hidden={!l2Visible || minimized}
+          mapClickSignal={mapClickSignal}
           rightOffset={l1Width}
           onClose={() => { setL2(null); setL2Visible(false) }}
           onFolderRefresh={loadJobs}

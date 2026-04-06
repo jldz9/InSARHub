@@ -140,7 +140,9 @@ Check documentation for how to setup .netrc file.\n""")
             return (props.get('pathNumber'), props.get('burstID'))
         
         if self.config.asfFrame is not None:
-            return (props.get('pathNumber'), props.get('asfFrame'))
+            # 'asfFrame' is a search filter parameter, not a scene property name.
+            # Use 'frameNumber' (the actual returned property) for consistent grouping.
+            return (props.get('pathNumber'), props.get('frameNumber'))
         
         if self.config.frame is not None:
             return (props.get('pathNumber'), props.get('frameNumber'))

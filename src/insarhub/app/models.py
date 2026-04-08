@@ -99,7 +99,7 @@ class SelectPairsRequest(BaseModel):
     dt_max:        int   = 120
     pb_max:        float = 150.0
     min_degree:    int   = 3
-    max_degree:    int   = 999
+    max_degree:    int   = 5
     force_connect: bool  = True
     max_workers:   int   = 4
 

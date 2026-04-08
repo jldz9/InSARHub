@@ -679,7 +679,7 @@ Check documentation for how to setup .netrc file.\n""")
         dt_max: int = 120,
         pb_max: float = 150.0,
         min_degree: int = 3,
-        max_degree: int = 999,
+        max_degree: int = 5,
         force_connect: bool = True,
         max_workers: int = 4,
     ) -> tuple:
@@ -691,7 +691,7 @@ Check documentation for how to setup .netrc file.\n""")
             dt_max (int, optional): Maximum temporal baseline in days. Defaults to 120.
             pb_max (float, optional): Maximum perpendicular baseline in meters. Defaults to 150.0.
             min_degree (int, optional): Minimum number of connections per scene. Defaults to 3.
-            max_degree (int, optional): Maximum number of connections per scene. Defaults to 999.
+            max_degree (int, optional): Maximum number of connections per scene. Defaults to 5.
             force_connect (bool, optional): Force connectivity for isolated scenes. Defaults to True.
             max_workers (int, optional): Threads for API baseline fallback. Defaults to 4.
 

@@ -19,6 +19,8 @@ from typing import Optional, Union, List, Dict
 from threading import Lock
 
 import geopandas as gpd
+import matplotlib
+matplotlib.use('Agg')   # non-interactive backend — required for background-thread plotting
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import networkx as nx
@@ -173,6 +175,12 @@ def _build_baseline_table_local(
             p.properties["sceneName"]: p.properties.get("perpendicularBaseline")
             for p in anchored
         }
+        # The reference scene itself is not returned with a self-baseline by
+        # calculate_perpendicular_baselines; inject it as 0.0 so pairs
+        # involving the anchor are not discarded.
+        ref_name = prods[0].properties["sceneName"]
+        if ref_name not in bp_vector:
+            bp_vector[ref_name] = 0.0
     except Exception as exc:
         logger.warning(
             "Local baseline calculation failed (%s); table will be empty.", exc
@@ -533,7 +541,7 @@ def select_pairs(
     dt_max: int = 120,
     pb_max: float = 150.0,
     min_degree: int = 3,
-    max_degree: int = 999,
+    max_degree: int = 5,
     force_connect: bool = True,
     max_workers: int = 8
 ) -> Union[PairGroup, list[Pair]]:
@@ -705,9 +713,10 @@ def plot_pair_network(
     scene_baselines: dict | None = None,
     title: str = "Interferogram Network",
     figsize: tuple[int, int] = (18, 7),
-    save_path: str |Path| None = None,
+    save_path: str | Path | None = None,
     quality_scores: dict[str, float] | None = None,
-) -> plt.Figure| dict:
+    quality_factors: dict[str, dict] | None = None,
+) -> plt.Figure | dict:
 
     """
     Plot an interferogram network along with per-scene connection statistics.
@@ -800,6 +809,7 @@ def plot_pair_network(
                     figsize=figsize,
                     save_path=group_save_path,
                     quality_scores=quality_scores,
+                    quality_factors=quality_factors,
                 )
 
             figures[(path, frame)] = fig
@@ -878,7 +888,7 @@ def plot_pair_network(
     }
 
     # ── 4. Visual attributes ──────────────────────────────────────────────
-    # 3-category quality colours matching the GUI
+    # 3-category quality colours matching the GUI thresholds (Hanssen 2001)
     _Q_GOOD  = '#4caf50'
     _Q_RISKY = '#ffc107'
     _Q_BAD   = '#f44336'
@@ -886,9 +896,26 @@ def plot_pair_network(
 
     def _quality_colour(sc: float | None) -> str:
         if sc is None:  return _Q_NONE
-        if sc >= 0.65:  return _Q_GOOD
-        if sc >= 0.35:  return _Q_RISKY
+        if sc >= 0.60:  return _Q_GOOD
+        if sc >= 0.30:  return _Q_RISKY
         return _Q_BAD
+
+    # ── Extract per-class scores from quality_factors ─────────────────────
+    _LC_CLASSES = [
+        ("stable",     "🏗 Stable"),
+        ("vegetation", "🌾 Vegetation"),
+        ("forest",     "🌲 Forest"),
+    ]
+    _class_scores: dict[str, dict[str, float]] = {}   # {class: {pair_key: coh}}
+    if quality_factors:
+        for pair_key, fct in quality_factors.items():
+            by_cls = fct.get("coherence_by_class") or {}
+            for cls_name, coh_val in by_cls.items():
+                _class_scores.setdefault(cls_name, {})[pair_key] = float(coh_val)
+                # Also store reverse key
+                parts = pair_key.split(":", 1)
+                if len(parts) == 2:
+                    _class_scores[cls_name][f"{parts[1]}:{parts[0]}"] = float(coh_val)
 
     degrees      = dict(G.degree())
     max_deg      = max(degrees.values(), default=1)
@@ -903,8 +930,8 @@ def plot_pair_network(
         for a, b in G.edges():
             sc = quality_scores.get(f"{a}:{b}") or quality_scores.get(f"{b}:{a}")
             edge_colours.append(_quality_colour(sc))
-            edge_widths.append(2.0 if sc is not None and sc >= 0.65 else
-                               1.2 if sc is not None and sc >= 0.35 else 0.7)
+            edge_widths.append(2.0 if sc is not None and sc >= 0.60 else
+                               1.2 if sc is not None and sc >= 0.30 else 0.7)
     else:
         edge_colours = [plt.cm.RdYlGn_r(min(dt, max_dt) / max_dt) for dt in edge_dts]
         edge_widths  = [0.5 + 2.5 * (1.0 - min(dt, max_dt) / max_dt) for dt in edge_dts]
@@ -919,7 +946,10 @@ def plot_pair_network(
     else:
         edge_styles = ["-"] * len(G.edges())
 
-    # ── 5. Figure layout ──────────────────────────────────────────────────
+    # ── 5. Figure layout ─────────────────────────────────────────────────
+    # Main figure: network + histogram.
+    # Per-class figures are saved separately when class data is available.
+    _has_class_data = bool(_class_scores)
     fig = plt.figure(figsize=figsize)
     gs  = fig.add_gridspec(1, 2, width_ratios=[3, 1], wspace=0.35)
     ax_net  = fig.add_subplot(gs[0])
@@ -1049,9 +1079,9 @@ def plot_pair_network(
     if quality_scores:
         ax_net.legend(
             handles=[
-                mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.65)"),
-                mpatches.Patch(color=_Q_RISKY, label="Risky (0.35–0.65)"),
-                mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.35)"),
+                mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.60)"),
+                mpatches.Patch(color=_Q_RISKY, label="Risky (0.30–0.60)"),
+                mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.30)"),
                 mpatches.Patch(color=_Q_NONE,  label="Unscored"),
             ],
             title="Pair quality", loc="lower right", fontsize=7, title_fontsize=8,
@@ -1084,6 +1114,106 @@ def plot_pair_network(
     if save_path:
         fig.savefig(save_path.as_posix(), dpi=300, bbox_inches="tight")
         print(f"Saved → {save_path}")
+
+    # ── 10. Per-LC-class figures (separate PNGs) ──────────────────────────
+    if _has_class_data and save_path:
+        sp   = Path(save_path)
+        stem = sp.stem
+        ext  = sp.suffix
+
+        for cls_name, cls_label in _LC_CLASSES:
+            cls_map = _class_scores.get(cls_name, {})
+            if not cls_map:
+                continue
+
+            c_colours, c_widths = [], []
+            for a, b in G.edges():
+                sc = cls_map.get(f"{a}:{b}") or cls_map.get(f"{b}:{a}")
+                c_colours.append(_quality_colour(sc))
+                c_widths.append(2.0 if sc is not None and sc >= 0.60 else
+                                1.2 if sc is not None and sc >= 0.30 else 0.7)
+
+            fig_c = plt.figure(figsize=figsize)
+            gs_c  = fig_c.add_gridspec(1, 2, width_ratios=[3, 1], wspace=0.35)
+            ax_c  = fig_c.add_subplot(gs_c[0])
+            ax_h  = fig_c.add_subplot(gs_c[1])
+
+            # Network
+            nx.draw_networkx_edges(
+                G, pos, ax=ax_c,
+                edgelist=list(G.edges()),
+                edge_color=c_colours,
+                width=c_widths,
+                alpha=0.7,
+            )
+            nx.draw_networkx_nodes(
+                G, pos, ax=ax_c,
+                node_color=node_colours,
+                node_size=80,
+                linewidths=0.5,
+                edgecolors="black",
+            )
+            nx.draw_networkx_labels(
+                G, pos,
+                labels={s: s[-8:] for s in G.nodes()},
+                ax=ax_c,
+                font_size=5,
+            )
+
+            ax_c.set_xlabel("Days since first acquisition", fontsize=11)
+            ax_c.set_ylabel("Perpendicular baseline [m]", fontsize=11)
+            ax_c.set_title(
+                f"{title} — {cls_label}\n{subtitle}\n"
+                f"{len(scenes)} scenes · {len(flat_pairs)} pairs",
+                fontsize=11,
+            )
+            ax_c.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+            ax_c.set_frame_on(True)
+
+            ax2_c = ax_c.twiny()
+            ax2_c.set_xlim(ax_c.get_xlim())
+            ax2_c.set_xticks(x_ticks)
+            ax2_c.set_xticklabels(
+                [(t0 + __import__("datetime").timedelta(days=d)).strftime("%Y-%m-%d")
+                 for d in x_ticks],
+                rotation=30, ha="left", fontsize=7,
+            )
+            ax2_c.set_xlabel("Acquisition date (UTC)", fontsize=9)
+
+            ax_c.legend(
+                handles=[
+                    mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.60)"),
+                    mpatches.Patch(color=_Q_RISKY, label="Risky (0.30–0.60)"),
+                    mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.30)"),
+                    mpatches.Patch(color=_Q_NONE,  label="Unscored"),
+                ],
+                title=f"{cls_label} coherence", loc="lower right",
+                fontsize=7, title_fontsize=8,
+            )
+
+            # Histogram (same degree info — identical across class figures)
+            ax_h.barh(
+                y_positions, scene_degrees,
+                color=bar_colours, edgecolor="white", linewidth=0.4, height=0.7,
+            )
+            for bar, count in zip(ax_h.patches, scene_degrees):
+                ax_h.text(bar.get_width() + 0.1,
+                          bar.get_y() + bar.get_height() / 2,
+                          str(count), va="center", fontsize=7)
+            ax_h.axvline(mean_deg, color="steelblue", linestyle="--",
+                         linewidth=1.0, alpha=0.8)
+            ax_h.set_yticks(y_positions)
+            ax_h.set_yticklabels(short_names, fontsize=6)
+            ax_h.set_xlabel("Number of connections", fontsize=9)
+            ax_h.set_title("Connections\nper scene", fontsize=10)
+            ax_h.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+            ax_h.set_frame_on(True)
+            ax_h.invert_yaxis()
+
+            cls_path = sp.parent / f"{stem}_{cls_name}{ext}"
+            fig_c.savefig(cls_path.as_posix(), dpi=300, bbox_inches="tight")
+            plt.close(fig_c)
+            print(f"Saved → {cls_path}")
 
     return fig
 

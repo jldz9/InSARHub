@@ -95,6 +95,33 @@ def _wkt_bbox(wkt: str) -> tuple[float, float, float, float]:
     return min(lons), min(lats), max(lons), max(lats)
 
 
+def read_pixels(aoi_wkt: str) -> tuple:
+    """Return (pixel_array, window_transform, crs) for WorldCover over the AOI.
+
+    Used by coherence per-class separation — returns the raw uint8 class array
+    so callers can reproject it to the coherence grid and group pixel values.
+    Returns (None, None, None) on any failure.
+    """
+    try:
+        import rasterio
+        from rasterio.windows import from_bounds
+
+        west, south, east, north = _wkt_bbox(aoi_wkt)
+        tile = _tile_name(west, south)
+        url  = "/vsicurl/" + _BASE_URL.format(tile=tile)
+
+        with rasterio.open(url) as src:
+            window       = from_bounds(west, south, east, north, src.transform)
+            data         = src.read(1, window=window)
+            win_transform = src.window_transform(window)
+            crs          = src.crs
+
+        return data, win_transform, crs
+    except Exception as exc:
+        logger.debug("WorldCover pixel read failed: %s", exc)
+        return None, None, None
+
+
 def extract(aoi_wkt: str) -> dict:
     """Return land cover feature dict for the given AOI WKT.
 

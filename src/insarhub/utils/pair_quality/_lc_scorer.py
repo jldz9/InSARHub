@@ -102,7 +102,7 @@ _FOREST_CAP = 0.25   # forest branch score is capped here
 # ── Feature resolver (same as _classifier._resolve) ──────────────────────────
 
 def _norm_precip(v: float) -> float:
-    return min(v / 50.0, 1.0)
+    return min(v / 80.0, 1.0)
 
 _NORMALISE = {
     "precip_7day_d1": _norm_precip,
@@ -231,6 +231,26 @@ def score(fv: dict) -> tuple[float, dict]:
     precip2 = fv.get("precip_d2") or 0.0
     if max(precip1, precip2) > _RAIN_KILL_MM:
         hard_kills.append("heavy_rain")
+
+    # Wet snow: temp > 0°C AND significant snow cover on either acquisition day.
+    # C-band penetration drops to ~5–10 cm at ≥1% liquid water content.
+    snow_frac_d1 = fv.get("snow_cover_frac_d1") or 0.0
+    snow_frac_d2 = fv.get("snow_cover_frac_d2") or 0.0
+    temp_d1      = fv.get("temp_max_d1")
+    temp_d2      = fv.get("temp_max_d2")
+    if ((temp_d1 is not None and temp_d1 > 0 and snow_frac_d1 > 0.30) or
+            (temp_d2 is not None and temp_d2 > 0 and snow_frac_d2 > 0.30)):
+        hard_kills.append("wet_snow")
+
+    # Fresh snowfall: sudden large surface change decorrelates via elevation change.
+    # ~11 cm accumulation causes complete C-band decorrelation (Guneriussen 2001).
+    delta_snow_cover = fv.get("delta_snow_cover") or 0.0
+    if delta_snow_cover > 0.50:
+        hard_kills.append("fresh_snowfall")
+
+    # Near-total snow cover on either date (extreme event not in seasonal COH maps)
+    if max(snow_frac_d1, snow_frac_d2) > 0.90:
+        hard_kills.append("heavy_snow_cover")
 
     # Fire (optional, requires FIRMS_MAP_KEY)
     if _fire_kill(fv):

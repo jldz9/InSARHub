@@ -2,7 +2,7 @@
 // X-axis = acquisition date, Y-axis = perpendicular baseline.
 // Click an edge to toggle it active / removed. Scroll to zoom. Drag to pan.
 
-import { useEffect, useRef, useState, useCallback } from 'react'
+import React, { useEffect, useRef, useState, useCallback } from 'react'
 import {
   Application, Container, Graphics, Text, TextStyle, Point, Rectangle,
 } from 'pixi.js'
@@ -116,10 +116,13 @@ function computeLayout(rawNodes: RawNode[], W: number, H: number): LayoutNode[] 
  */
 // Score convention: 1 = good coherence, 0 = bad coherence.
 // Raw DB/classifier scores are inverted (classifier: 0=good → display 1=good).
-// 3-category quality: Good (≥0.65) → green, Risky (0.35–0.65) → yellow, Bad (<0.35) → red
+// 3-category quality based on InSAR literature (Hanssen 2001, StaMPS, ESA guidelines):
+//   Good  ≥ 0.6  — phase σ < ~40° (1-look), reliable unwrapping
+//   Risky  0.3–0.6 — marginal; phase σ 40°–87°, application-dependent
+//   Bad   < 0.3  — noise dominated; StaMPS lower rejection bound
 function qualityCategory(score: number): 'good' | 'risky' | 'bad' {
-  if (score >= 0.65) return 'good'
-  if (score >= 0.35) return 'risky'
+  if (score >= 0.6) return 'good'
+  if (score >= 0.3) return 'risky'
   return 'bad'
 }
 
@@ -191,13 +194,19 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const [dtMax,        setDtMax]        = useState(120)
   const [pbMax,        setPbMax]        = useState(150)
   const [minDegree,    setMinDegree]    = useState(3)
-  const [maxDegree,    setMaxDegree]    = useState(999)
+  const [maxDegree,    setMaxDegree]    = useState(5)
   const [forceConnect, setForceConnect] = useState(true)
   const [updating,     setUpdating]     = useState(false)
   const [updateMsg,    setUpdateMsg]    = useState('')
   const [qualityScores,    setQualityScores]     = useState<Record<string, number> | null>(null)
   const [qualityFactors,   setQualityFactors]    = useState<Record<string, any> | null>(null)
   const qualityFactorsRef  = useRef<Record<string, any> | null>(null)
+  // Which coherence class to display on edges. 'overall' = combined score.
+  const [cohClass,    setCohClass]    = useState<'stable' | 'vegetation' | 'forest'>('stable')
+  const cohClassRef = useRef<'stable' | 'vegetation' | 'forest'>('stable')
+  // Scores/factors for manually drawn edges — persisted across quality re-fetches
+  const manualScoresRef  = useRef<Record<string, number>>({})
+  const manualFactorsRef = useRef<Record<string, any>>({})
 
   // Refs — mutated without re-renders
   const nodesRef      = useRef<LayoutNode[]>([])
@@ -210,6 +219,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const containerRef  = useRef<HTMLDivElement>(null)
   const layoutMetaRef = useRef<LayoutMeta | null>(null)
   const themeRef      = useRef(t)
+
   useEffect(() => {
     themeRef.current = t
     const ps = pixiRef.current
@@ -236,6 +246,21 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     const edges  = edgesRef.current
     const hov    = hoveredRef.current
     const nodeMap = new Map(nodes.map(n => [n.id, n]))
+
+    // Class-aware edge score: when per-class data is present, show only the selected class.
+    // Falls back to overall score only when no per-class data exists for the edge.
+    const _edgeScore = (e: Edge): number | null => {
+      const fct = qualityFactorsRef.current?.[`${e.ref}:${e.sec}`]
+               ?? qualityFactorsRef.current?.[`${e.sec}:${e.ref}`]
+      const byClass = fct?.coherence_by_class as Record<string, number> | undefined
+      if (byClass && Object.keys(byClass).length > 0) {
+        // Class data available — show selected class only (null → grey if not present)
+        const v = byClass[cohClassRef.current]
+        return typeof v === 'number' ? v : null
+      }
+      // No class data — fall back to overall quality score
+      return edgeScore(e, qualityRef.current)
+    }
 
     // s = current zoom scale; divide all screen-space sizes by s so they stay
     // constant in CSS pixels regardless of zoom level.
@@ -290,11 +315,11 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       } else if (hasNodeHov && connectedEdgeSet.has(i)) {
         // Connected to hovered node — brighter and thicker
         edgeGfx.moveTo(n1.x, n1.y).lineTo(n2.x, n2.y)
-        edgeGfx.stroke({ width: 2.5 / s, color: (() => { const sc = edgeScore(e, qualityRef.current); return sc === null ? _UNSCORED_HEX : qualityHex(sc) })(), alpha: 1 })
+        edgeGfx.stroke({ width: 2.5 / s, color: (() => { const sc = _edgeScore(e); return sc === null ? _UNSCORED_HEX : qualityHex(sc) })(), alpha: 1 })
       } else if (e.active) {
         edgeGfx.moveTo(n1.x, n1.y).lineTo(n2.x, n2.y)
         // Dim unrelated edges when a node is hovered
-        edgeGfx.stroke({ width: 1.5 / s, color: (() => { const sc = edgeScore(e, qualityRef.current); return sc === null ? _UNSCORED_HEX : qualityHex(sc) })(), alpha: hasNodeHov ? 0.15 : 0.75 })
+        edgeGfx.stroke({ width: 1.5 / s, color: (() => { const sc = _edgeScore(e); return sc === null ? _UNSCORED_HEX : qualityHex(sc) })(), alpha: hasNodeHov ? 0.15 : 0.75 })
       } else {
         removedPaths.push([n1.x, n1.y, n2.x, n2.y])
       }
@@ -356,6 +381,9 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     }
   }, [])
 
+  // Sync cohClass state → ref and trigger redraw whenever the class selector changes.
+  useEffect(() => { cohClassRef.current = cohClass; redraw() }, [cohClass, redraw])
+
   // ── Build node labels ────────────────────────────────────────────────────────
 
   const buildLabels = useCallback(() => {
@@ -374,6 +402,29 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       labelCtr.addChild(lbl)
     }
   }, [])
+
+  // ── Lookup DB scores for edges missing from qualityRef ───────────────────────
+
+  function lookupMissingScores() {
+    const edges = edgesRef.current
+    const existing = qualityRef.current ?? {}
+    const missing = edges.filter(e =>
+      !((`${e.ref}:${e.sec}` in existing) || (`${e.sec}:${e.ref}` in existing))
+    )
+    if (missing.length === 0) return
+    const keys = missing.flatMap(e => [`${e.ref}:${e.sec}`, `${e.sec}:${e.ref}`]).join(',')
+    fetch(`${API}/api/pair-quality-db/lookup?path=${encodeURIComponent(folderPathRef.current)}&pairs=${encodeURIComponent(keys)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d?.scores || Object.keys(d.scores).length === 0) return
+        qualityRef.current = { ...(qualityRef.current ?? {}), ...d.scores }
+        qualityFactorsRef.current = { ...(qualityFactorsRef.current ?? {}), ...(d.factors ?? {}) }
+        setQualityScores(prev => ({ ...(prev ?? {}), ...d.scores }))
+        setQualityFactors(prev => ({ ...(prev ?? {}), ...(d.factors ?? {}) }))
+        redraw()
+      })
+      .catch(() => {})
+  }
 
   // ── Layout ──────────────────────────────────────────────────────────────────
 
@@ -408,6 +459,8 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     setTotalCount(edges.length)
     hoveredRef.current = -1
     setHovEdge(null)
+    // After edges are set, look up DB scores for any pairs not in the quality JSON
+    setTimeout(() => lookupMissingScores(), 0)
 
     // Reset view
     ps.world.position.set(0, 0)
@@ -720,8 +773,12 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                   .then(r => r.ok ? r.json() : null)
                   .then(d => {
                     if (d?.scores && Object.keys(d.scores).length > 0) {
+                      manualScoresRef.current  = { ...manualScoresRef.current,  ...d.scores }
+                      manualFactorsRef.current = { ...manualFactorsRef.current, ...(d.factors ?? {}) }
                       qualityRef.current = { ...(qualityRef.current ?? {}), ...d.scores }
+                      qualityFactorsRef.current = { ...(qualityFactorsRef.current ?? {}), ...(d.factors ?? {}) }
                       setQualityScores(prev => ({ ...(prev ?? {}), ...d.scores }))
+                      setQualityFactors(prev => ({ ...(prev ?? {}), ...(d.factors ?? {}) }))
                       redraw()
                     }
                   })
@@ -855,11 +912,12 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     fetch(`${API}/api/pair-quality?path=${encodeURIComponent(folderPath)}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(d => {
-        qualityRef.current = d.scores ?? {}
-        qualityFactorsRef.current = d.factors ?? {}
-        setQualityScores(d.scores ?? {})
-        setQualityFactors(d.factors ?? {})
+        qualityRef.current = { ...(d.scores ?? {}), ...manualScoresRef.current }
+        qualityFactorsRef.current = { ...(d.factors ?? {}), ...manualFactorsRef.current }
+        setQualityScores({ ...(d.scores ?? {}), ...manualScoresRef.current })
+        setQualityFactors({ ...(d.factors ?? {}), ...manualFactorsRef.current })
         redraw()
+        lookupMissingScores()
       })
       .catch(() => {})
 
@@ -1176,28 +1234,72 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             }}>{error}</div>
           )}
 
-          {/* Edge quality-risk legend */}
+          {/* Edge quality-risk legend + class selector */}
           <div style={{
             position: 'absolute', top: 10, right: 10, zIndex: 10,
             background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 6,
             padding: '6px 10px', fontSize: 12, color: t.textMuted,
-            display: 'flex', flexDirection: 'column', gap: 4, pointerEvents: 'none',
+            display: 'flex', flexDirection: 'column', gap: 4,
           }}>
             <span style={{ color: t.text, fontWeight: 600, marginBottom: 2 }}>Pair quality</span>
             {([
-              { score: 1.0, label: 'Good' },
-              { score: 0.5, label: 'Risky' },
-              { score: 0.0, label: 'Bad' },
-            ] as const).map(({ score, label }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              { score: 1.0, label: 'Good',  thresh: '≥0.6'      },
+              { score: 0.5, label: 'Risky', thresh: '0.3 – 0.6' },
+              { score: 0.0, label: 'Bad',   thresh: '<0.3'       },
+            ] as const).map(({ score, label, thresh }) => (
+              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
                 <div style={{ width: 28, height: 3, background: qualityCSS(score, 0.9), borderRadius: 1 }} />
                 <span>{label}</span>
+                <span style={{ color: t.textMuted, fontSize: 10 }}>{thresh}</span>
               </div>
             ))}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, pointerEvents: 'none' }}>
               <div style={{ width: 28, height: 0, borderTop: `2px dashed #e57373` }} />
               <span style={{ color: '#e57373' }}>removed</span>
             </div>
+
+            {/* Coherence class selector — only visible when factors have per-class data */}
+            {qualityFactors && Object.values(qualityFactors).some(f => f?.coherence_by_class && Object.keys(f.coherence_by_class).length > 0) && (() => {
+              // Pick LC fractions from the first factor that has them (AOI-level, same for all pairs)
+              const lcFracs = (() => {
+                for (const f of Object.values(qualityFactors)) {
+                  if (f?.lc_class_fractions) return f.lc_class_fractions as Record<string, number>
+                }
+                return null
+              })()
+              return (
+                <>
+                  <div style={{ borderTop: `1px solid ${t.border}`, margin: '4px -10px', opacity: 0.4 }} />
+                  <span style={{ color: t.text, fontWeight: 600, fontSize: 11 }}>Classes</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                    {([
+                      ['stable',     '🏗 Stable'],
+                      ['vegetation', '🌾 Vegetation'],
+                      ['forest',     '🌲 Forest'],
+                    ] as const).map(([cls, label]) => {
+                      const pct = lcFracs?.[cls]
+                      return (
+                        <button
+                          key={cls}
+                          onClick={() => setCohClass(cls)}
+                          style={{
+                            background: cohClass === cls ? t.accent : 'transparent',
+                            color:      cohClass === cls ? '#fff'    : t.textMuted,
+                            border: `1px solid ${cohClass === cls ? t.accent : t.border}`,
+                            borderRadius: 4, padding: '2px 6px',
+                            cursor: 'pointer', fontSize: 11, textAlign: 'left',
+                            display: 'flex', justifyContent: 'space-between', gap: 8,
+                          }}
+                        >
+                          <span>{label}</span>
+                          {pct != null && <span style={{ opacity: 0.75, fontSize: 10 }}>{(pct * 100).toFixed(0)}%</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )
+            })()}
           </div>
 
           {/* Floating SLC tooltip on node hover */}
@@ -1246,23 +1348,65 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
           {/* Floating edge tooltip on edge hover */}
           {hovEdge && !hovNode && mousePos && (() => {
-            const sc  = edgeScore(hovEdge, qualityScores)
-            const cat = sc !== null ? qualityCategory(sc) : null
             const fct = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
                      ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
-            const kills: string[]                    = fct?.hard_kills  ?? []
-            const warnings: string[]                 = fct?.warnings    ?? []
-            const contribs: Record<string, number>  = fct?.contributions ?? {}
+            const byClass = fct?.coherence_by_class as Record<string, number> | undefined
+            // Show selected class score if available, otherwise overall
+            const sc  = (byClass && Object.keys(byClass).length > 0)
+              ? (typeof byClass[cohClass] === 'number' ? byClass[cohClass] : null)
+              : edgeScore(hovEdge, qualityScores)
+            const cat = sc !== null ? qualityCategory(sc) : null
+
+            // Detect scoring mode from factor keys
+            const isCohMode = fct && 'coherence_source' in fct
+            const isLcMode  = fct && 'contributions' in fct
+
+            // Normalise hard kills: coherence_score uses singular string, lc_score uses array
+            const _KILL_LABEL: Record<string, string> = {
+              water_dominant:   'Water dominant (>50%)',
+              snow_ice_dominant:'Snow/ice dominant (>40%)',
+              heavy_rain:       'Heavy rain (>30 mm/day)',
+              wet_snow:         'Wet snow (temp >0°C + snow >30%)',
+              fresh_snowfall:   'Fresh snowfall (Δcover >50%)',
+              heavy_snow_cover: 'Heavy snow cover (>90%)',
+              fire:             'Fire detected (FIRMS)',
+            }
+            const _killLabel = (k: string) => _KILL_LABEL[k] ?? k.replace(/_/g, ' ')
+            const kills: string[] = isCohMode
+              ? (fct?.hard_kill ? [_killLabel(String(fct.hard_kill))] : [])
+              : (fct?.hard_kills ?? [])
+            const warnings: string[] = fct?.warnings ?? []
+
+            // Coherence source badge
+            const cohSrc     = fct?.coherence_source as string | undefined
+            const cohSrcLabel = cohSrc === 's3' ? 'Global S1 coherence' : cohSrc === 'failed' ? 'NDVI/LC' : cohSrc === 'climatology' ? 'Climatology' : undefined
+            const cohSrcColor = cohSrc === 's3' ? '#4caf50' : cohSrc === 'failed' ? '#90caf9' : '#ffc107'
+
+            // Coherence segments from _coherence.py: [(dt, season, coh), ...]
+            const segments: [number, string, number][] = fct?.coherence_segments ?? []
+
+            // Penalty breakdown: coherence mode uses individual fields; lc mode uses contributions dict
+            const cohPenalties: [string, number][] = isCohMode ? [
+              ['snow d1',   (fct?.snow_d1        ?? 0) * 0.12],
+              ['snow d2',   (fct?.snow_d2        ?? 0) * 0.12],
+              ['freeze/thaw', (fct?.freeze_thaw  ?? 0) * 0.06],
+              ['precip d1', (fct?.precip_7day_d1 != null ? Math.min(fct.precip_7day_d1 / 50, 1) : 0) * 0.04],
+              ['precip d2', (fct?.precip_7day_d2 != null ? Math.min(fct.precip_7day_d2 / 50, 1) : 0) * 0.04],
+              ['⊥ baseline', (fct?.bperp_normalized ?? 0) * 0.06],
+            ].filter(([, v]) => (v as number) > 0.001) as [string, number][] : []
+
+            const lcContribs: Record<string, number> = isLcMode ? (fct?.contributions ?? {}) : {}
+
             const container = containerRef.current
             const cw = container?.clientWidth  ?? 800
             const ch = container?.clientHeight ?? 600
-            const flip_x = mousePos.x + 260 > cw
-            const flip_y = mousePos.y + 220 > ch
+            const flip_x = mousePos.x + 270 > cw
+            const flip_y = mousePos.y + 280 > ch
             return (
               <div style={{
                 position: 'absolute',
-                left: flip_x ? mousePos.x - 258 : mousePos.x + 14,
-                top:  flip_y ? mousePos.y - 210 : mousePos.y + 10,
+                left: flip_x ? mousePos.x - 268 : mousePos.x + 14,
+                top:  flip_y ? mousePos.y - 270 : mousePos.y + 10,
                 zIndex: 30, pointerEvents: 'none',
                 background: t.bg2, border: `1px solid ${t.border}`,
                 borderRadius: 6, padding: '8px 12px',
@@ -1285,7 +1429,46 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                       {_CAT_LABEL[cat]} ({sc.toFixed(2)})
                     </span>
                   </>}
+                  {/* Coherence mode: show source + expected coherence */}
+                  {isCohMode && cohSrcLabel && <>
+                    <span style={{ color: t.textMuted }}>Source</span>
+                    <span style={{ color: cohSrcColor, fontSize: 10 }}>{cohSrcLabel}</span>
+                  </>}
+                  {/* Selected class coherence */}
+                  {isCohMode && byClass && Object.keys(byClass).length > 0 && (() => {
+                    const _CLS_LABEL: Record<string, string> = {
+                      stable: '🏗 Stable', vegetation: '🌾 Vegetation',
+                      forest: '🌲 Forest',
+                    }
+                    const v = byClass[cohClass]
+                    return typeof v === 'number' ? (
+                      <React.Fragment>
+                        <span style={{ color: t.textMuted }}>{_CLS_LABEL[cohClass] ?? cohClass}</span>
+                        <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{v.toFixed(3)}</span>
+                      </React.Fragment>
+                    ) : null
+                  })()}
+                  {isCohMode && fct?.coherence_same_season === false && <>
+                    <span style={{ color: t.textMuted }}>Seasons</span>
+                    <span style={{ color: '#ffc107', fontSize: 10 }}>
+                      {fct?.coherence_season_d1} → {fct?.coherence_season_d2}
+                    </span>
+                  </>}
                 </div>
+
+                {/* Cross-season segments */}
+                {isCohMode && segments.length > 1 && (
+                  <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 6 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 2, color: t.text }}>Segments:</div>
+                    {segments.map(([dt, season, coh], i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <span>{dt}d {season}</span>
+                        <span style={{ fontFamily: 'monospace' }}>coh {Number(coh).toFixed(3)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 {kills.length > 0 && (
                   <div style={{ color: '#f44336', fontSize: 10, marginBottom: 6 }}>
                     <div style={{ fontWeight: 600, marginBottom: 2 }}>Hard kills:</div>
@@ -1298,10 +1481,25 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                     {warnings.map(w => <div key={w}>⚠ {w.replace(/_/g, ' ')}</div>)}
                   </div>
                 )}
-                {Object.keys(contribs).length > 0 && (
+
+                {/* Coherence mode: environmental penalties */}
+                {isCohMode && cohPenalties.length > 0 && (
                   <div style={{ fontSize: 10, color: t.textMuted }}>
                     <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>Penalties:</div>
-                    {Object.entries(contribs)
+                    {cohPenalties.sort((a, b) => b[1] - a[1]).map(([k, v]) => (
+                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <span>{k}</span>
+                        <span style={{ color: '#f44336', fontFamily: 'monospace' }}>-{v.toFixed(3)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* LC mode: contributions dict */}
+                {isLcMode && Object.keys(lcContribs).length > 0 && (
+                  <div style={{ fontSize: 10, color: t.textMuted }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>Penalties:</div>
+                    {Object.entries(lcContribs)
                       .filter(([, v]) => Math.abs(v) > 0.001)
                       .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
                       .map(([k, v]) => (
@@ -1342,19 +1540,46 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               <span>Δt {Math.round(hovEdge.dt)} d</span>
               <span>⊥ {Math.round(hovEdge.bperpDiff)} m</span>
               {(() => {
-                const sc  = edgeScore(hovEdge, qualityScores)
+                const fct2 = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
+                          ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
+                const byClass2 = fct2?.coherence_by_class as Record<string, number> | undefined
+                const sc = (byClass2 && Object.keys(byClass2).length > 0)
+                  ? (typeof byClass2[cohClass] === 'number' ? byClass2[cohClass] : null)
+                  : edgeScore(hovEdge, qualityScores)
                 if (sc === null) return <span style={{ color: _UNSCORED_CSS }}>● Unscored</span>
                 const cat = qualityCategory(sc)
-                const fct = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
-                         ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
-                const kills: string[]    = fct?.hard_kills ?? []
-                const warnings: string[] = fct?.warnings   ?? []
-                const contribs: Record<string, number> = fct?.contributions ?? {}
+                const fct = fct2
+                const isCohMode = fct && 'coherence_source' in fct
+                const _KILL_LABEL: Record<string, string> = {
+                  water_dominant:   'Water dominant',
+                  heavy_rain:       'Heavy rain (>30 mm)',
+                  heavy_snow_cover: 'Heavy snow cover (>90%)',
+                  deep_snow:        'Deep snow (>50 cm)',
+                }
+                const _killLabel = (k: string) => _KILL_LABEL[k] ?? k.replace(/_/g, ' ')
+                const kills: string[] = isCohMode
+                  ? (fct?.hard_kill ? [_killLabel(String(fct.hard_kill))] : [])
+                  : (fct?.hard_kills ?? [])
+                const warnings: string[] = fct?.warnings ?? []
+                const contribs: Record<string, number> = (!isCohMode && fct?.contributions) ? fct.contributions : {}
+                // Coherence mode footer: show source badge + expected coh
+                const cohSrc = fct?.coherence_source as string | undefined
+                const cohSrcLabel = cohSrc === 's3' ? 'S1 Global' : cohSrc === 'failed' ? 'NDVI/LC' : cohSrc === 'climatology' ? 'Clim' : undefined
+                const cohSrcColor = cohSrc === 's3' ? '#4caf50' : '#ffc107'
+                const sameSeason  = fct?.coherence_same_season as boolean | undefined
                 return (
                   <>
                     <span style={{ color: _CAT_CSS[cat], fontWeight: 600 }}>
                       ● {_CAT_LABEL[cat]} ({sc.toFixed(2)})
                     </span>
+                    {isCohMode && cohSrcLabel && (
+                      <span style={{ color: cohSrcColor, fontSize: 10 }}>[{cohSrcLabel}]</span>
+                    )}
+                    {isCohMode && sameSeason === false && (
+                      <span style={{ color: '#ffc107', fontSize: 10 }}>
+                        ⚠ cross-season
+                      </span>
+                    )}
                     {kills.length > 0 && (
                       <span style={{ color: '#f44336', fontSize: 10 }}>
                         ✕ {kills.join(', ')}
@@ -1365,7 +1590,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                         ⚠ {warnings.join(', ')}
                       </span>
                     )}
-                    {kills.length === 0 && Object.keys(contribs).length > 0 && (
+                    {!isCohMode && kills.length === 0 && Object.keys(contribs).length > 0 && (
                       <span style={{ color: t.textMuted, fontSize: 10 }}>
                         {Object.entries(contribs)
                           .filter(([, v]) => Math.abs(v) > 0.001)

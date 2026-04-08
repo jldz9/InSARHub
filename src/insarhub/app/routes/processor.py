@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
 from insarhub.app.models import ProcessRequest, Hyp3ActionRequest
+from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
 
@@ -20,13 +21,11 @@ router = APIRouter()
 @router.post("/api/folder-process")
 async def folder_process(req: ProcessRequest, background_tasks: BackgroundTasks):
     """Read pairs from folder, submit to processor, save job IDs."""
-    import uuid
     folder = Path(req.folder_path).expanduser().resolve()
     pairs_files = sorted(folder.glob("pairs_p*_f*.json"))
     if not pairs_files:
         raise HTTPException(status_code=404, detail="No pairs file found in folder")
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting…", "data": None}
+    job_id, _ = _new_job("Starting…")
     background_tasks.add_task(_run_folder_process, job_id, req)
     return {"job_id": job_id}
 
@@ -47,21 +46,15 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
 
             proc_cls = Processor._registry.get(req.processor_type)
             if proc_cls is None:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"Unknown processor: {req.processor_type}", "data": None}
+                _finish_job(job_id, status="error", progress=0, message=f"Unknown processor: {req.processor_type}")
                 return
             cfg_cls = getattr(proc_cls, "default_config", None)
             if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "Processor has no config", "data": None}
+                _finish_job(job_id, status="error", progress=0, message="Processor has no config")
                 return
 
             cfg = cfg_cls(workdir=folder)
-            valid_fields = {f.name for f in dataclasses.fields(cfg)}
-            for key, val in req.processor_config.items():
-                if key in valid_fields and key not in ("workdir", "pairs") and val is not None:
-                    try:
-                        setattr(cfg, key, val)
-                    except Exception:
-                        pass
+            _apply_config_from_dict(cfg, req.processor_config, skip_keys={"workdir", "pairs"})
             cfg.pairs = pairs
 
             if req.dry_run:
@@ -108,9 +101,9 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                 "name": req.processor_type,
                 "processor_config": req.processor_config,
             }, indent=2))
-            state._jobs[job_id] = {"status": "done", "progress": 100, "message": submit_result.message, "data": None}
+            _finish_job(job_id, status="done", message=submit_result.message)
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)
 
@@ -145,9 +138,7 @@ async def get_folder_hyp3_jobs(path: str):
 
 @router.post("/api/folder-hyp3-action")
 async def folder_hyp3_action(req: Hyp3ActionRequest, background_tasks: BackgroundTasks):
-    import uuid
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting…", "data": None}
+    job_id, _ = _new_job("Starting…")
     background_tasks.add_task(_run_hyp3_action, job_id, req)
     return {"job_id": job_id}
 
@@ -163,11 +154,11 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
 
             proc_cls = Processor._registry.get(req.processor_type)
             if proc_cls is None:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"Unknown processor: {req.processor_type}", "data": None}
+                _finish_job(job_id, status="error", progress=0, message=f"Unknown processor: {req.processor_type}")
                 return
             cfg_cls = getattr(proc_cls, "default_config", None)
             if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "Processor has no config", "data": None}
+                _finish_job(job_id, status="error", progress=0, message="Processor has no config")
                 return
 
             cfg = cfg_cls(workdir=folder)
@@ -203,12 +194,12 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
                     f"{v} {k.lower()}" for k, v in sorted(counts.items())
                 )
                 lines.insert(0, summary)
-                state._jobs[job_id] = {"status": "done", "progress": 100, "message": "\n".join(lines), "data": None}
+                _finish_job(job_id, status="done", message="\n".join(lines))
 
             elif req.action == "retry":
                 state._jobs[job_id]["message"] = "Retrying failed jobs…"
                 processor.retry()
-                state._jobs[job_id] = {"status": "done", "progress": 100, "message": "Retry submitted. New job file saved.", "data": None}
+                _finish_job(job_id, status="done", message="Retry submitted. New job file saved.")
 
             elif req.action == "download":
                 dl_stop = _threading.Event()
@@ -222,16 +213,16 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
                 _, dl_results = processor.download(progress_callback=_dl_progress, stop_event=dl_stop)
                 state._stop_events.pop(job_id, None)
                 r = dl_results
-                summary = (f"{r['downloaded']} downloaded, {r['skipped']} existing, {r['failed']} failed")
+                summary = f"{r['downloaded']} downloaded, {r['skipped']} existing, {r['failed']} failed"
                 if dl_stop.is_set():
                     summary = f"Stopped. {summary}"
                 pct = 100 if not dl_stop.is_set() else state._jobs[job_id].get("progress", 0)
-                state._jobs[job_id] = {"status": "done", "progress": pct, "message": summary, "data": None}
+                _finish_job(job_id, status="done", progress=pct, message=summary)
 
             else:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"Unknown action: {req.action}", "data": None}
+                _finish_job(job_id, status="error", progress=0, message=f"Unknown action: {req.action}")
 
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)

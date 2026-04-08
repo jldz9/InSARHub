@@ -11,8 +11,13 @@ For reassignable values (_auth_cache), route modules must access via the module:
 """
 
 import dataclasses
+import logging
+import re
+import time
 from pathlib import Path
 from typing import Any
+
+_log = logging.getLogger(__name__)
 
 # ── Trigger auto-registration of all components ──────────────────────────────
 import insarhub.downloader.s1_slc       # noqa: F401
@@ -143,3 +148,79 @@ def _make_progress(job_id: str):
         _jobs[job_id]["progress"] = percent
         _jobs[job_id]["message"]  = message
     return callback
+
+
+# ---------------------------------------------------------------------------
+# Shared config utility
+# ---------------------------------------------------------------------------
+
+def _apply_config_from_dict(cfg, raw: dict, *, skip_keys: set = frozenset()) -> None:
+    """Apply raw dict values to a config dataclass in-place.
+
+    Skips None values, non-existent fields, and keys in skip_keys.
+    Logs a warning (instead of silently passing) when setattr fails.
+    """
+    valid_fields = {f.name for f in dataclasses.fields(cfg)}
+    for key, val in raw.items():
+        if key not in valid_fields or key in skip_keys or val is None:
+            continue
+        try:
+            setattr(cfg, key, val)
+        except Exception as e:
+            _log.warning("Config field %r skipped (%s: %s)", key, type(e).__name__, e)
+
+
+# ---------------------------------------------------------------------------
+# Error message sanitizer
+# ---------------------------------------------------------------------------
+
+_HOME = str(Path.home())
+
+def _sanitize_error(msg: str) -> str:
+    """Remove home directory paths from error messages before sending to client."""
+    msg = msg.replace(_HOME, "~")
+    # Remove long absolute paths (keep only the last two parts)
+    msg = re.sub(r'(/[\w./\-_]+ ){0,}(/[\w./\-_]+){3,}',
+                 lambda m: str(Path(m.group(0).strip()).parts[-1]), msg)
+    return msg
+
+
+# ---------------------------------------------------------------------------
+# Job helpers
+# ---------------------------------------------------------------------------
+
+_JOB_TTL = 3600  # seconds — completed/errored jobs are pruned after this
+
+
+def _new_job(message: str = "Starting…") -> tuple[str, dict]:
+    """Create a new job entry, prune expired jobs, and return (job_id, job_dict)."""
+    import uuid
+    _prune_jobs()
+    job_id = str(uuid.uuid4())
+    job: dict[str, Any] = {
+        "status": "running", "progress": 0, "message": message,
+        "data": None, "_created_at": time.time(),
+    }
+    _jobs[job_id] = job
+    return job_id, job
+
+
+def _finish_job(job_id: str, *, status: str, message: str, progress: int = 100, data: Any = None) -> None:
+    _jobs[job_id] = {
+        "status": status, "progress": progress,
+        "message": message if status != "error" else _sanitize_error(message),
+        "data": data, "_created_at": _jobs[job_id].get("_created_at", time.time()),
+    }
+
+
+def _prune_jobs() -> None:
+    """Remove completed/errored jobs older than _JOB_TTL seconds."""
+    cutoff = time.time() - _JOB_TTL
+    to_delete = [
+        jid for jid, j in _jobs.items()
+        if j.get("status") in ("done", "error")
+        and j.get("_created_at", 0) < cutoff
+    ]
+    for jid in to_delete:
+        _jobs.pop(jid, None)
+        _stop_events.pop(jid, None)

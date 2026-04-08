@@ -133,7 +133,7 @@ def create_parser() -> argparse.ArgumentParser:
     g_pairs.add_argument("--dt-max",  type=int,   default=120,   metavar="DAYS", help="Max temporal baseline in days (default: 120)")
     g_pairs.add_argument("--pb-max",  type=float, default=150.0, metavar="M",    help="Max perpendicular baseline in metres (default: 150.0)")
     g_pairs.add_argument("--min-degree", type=int, default=3,   metavar="INT",   help="Min connections per scene (default: 3)")
-    g_pairs.add_argument("--max-degree", type=int, default=999, metavar="INT",   help="Max connections per scene (default: 999)")
+    g_pairs.add_argument("--max-degree", type=int, default=5,   metavar="INT",   help="Max connections per scene (default: 5)")
     g_pairs.add_argument("--force-connect", action=argparse.BooleanOptionalAction, default=True,
                          help="Force connectivity for isolated scenes (default: True)")
     g_pairs.add_argument("--sp-workers", type=int, default=8, metavar="INT",
@@ -1158,13 +1158,15 @@ def cmd_downloader(args, extra_args: list[str]):
                     print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored, {len(quality_scores)} selected")
                 except Exception as exc:
                     print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
-                    quality_scores = None
+                    quality_scores  = None
+                    quality_factors = None
                 _plot_pair_network(
                     group_pairs, baselines[(path, frame)],
                     scene_baselines=scene_bperp.get((path, frame)),
                     title=f"Interferogram Network — P{path}/F{frame}",
                     save_path=subdir / f"network_p{path}_f{frame}.png",
                     quality_scores=quality_scores,
+                    quality_factors=quality_factors,
                 )
                 print(f"[pairs] p{path}_f{frame}: {len(group_pairs)} pairs → {pjson}")
         else:
@@ -1198,10 +1200,12 @@ def cmd_downloader(args, extra_args: list[str]):
                 print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored")
             except Exception as exc:
                 print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
-                quality_scores = None
+                quality_scores  = None
+                quality_factors = None
             _plot_pair_network(pairs, baselines, scene_baselines=scene_bperp,
                                save_path=dl_workdir / "network.png",
-                               quality_scores=quality_scores)
+                               quality_scores=quality_scores,
+                               quality_factors=quality_factors)
             print(f"[pairs] Saved {len(pairs)} pairs → {pairs_path}")
 
     if args.download:

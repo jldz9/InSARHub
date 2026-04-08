@@ -16,6 +16,7 @@ from insarhub.app.models import FolderDownloadRequest, SelectPairsRequest, SaveP
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
+from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job
 
 router = APIRouter()
 
@@ -73,13 +74,11 @@ async def get_folder_image(path: str):
 @router.post("/api/folder-download")
 async def folder_download(req: FolderDownloadRequest, background_tasks: BackgroundTasks):
     """Re-search and download using the downloader_config.json saved in the job folder."""
-    import uuid
     folder = Path(req.folder_path).expanduser().resolve()
     cfg_file = folder / "downloader_config.json"
     if not cfg_file.exists():
         raise HTTPException(status_code=404, detail="downloader_config.json not found in folder")
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting search…", "data": None}
+    job_id, _ = _new_job("Starting search…")
     background_tasks.add_task(_run_folder_download, job_id, req.folder_path)
     return {"job_id": job_id}
 
@@ -94,22 +93,16 @@ async def _run_folder_download(job_id: str, folder_path: str):
             raw: dict[str, Any] = json.loads((folder / "downloader_config.json").read_text())
 
             cfg = S1_SLC_Config(workdir=folder)
-            valid_fields = {f.name for f in dataclasses.fields(cfg)}
-            for key, val in raw.items():
-                if key in valid_fields and key != "workdir" and val is not None:
-                    try:
-                        setattr(cfg, key, val)
-                    except Exception:
-                        pass
+            _apply_config_from_dict(cfg, raw, skip_keys={"workdir"})
 
             downloader = Downloader.create("S1_SLC", cfg)
             search_result = SearchCommand(downloader, progress_callback=state._make_progress(job_id)).run()
             if not search_result.success:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": search_result.message, "data": None}
+                _finish_job(job_id, status="error", progress=0, message=search_result.message)
                 return
 
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
                 return
 
             total = sum(len(v) for v in downloader.results.values())
@@ -128,17 +121,12 @@ async def _run_folder_download(job_id: str, folder_path: str):
             ).run()
 
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
                 return
 
-            state._jobs[job_id] = {
-                "status":   "done" if dl_result.success else "error",
-                "progress": 100,
-                "message":  dl_result.message,
-                "data":     None,
-            }
+            _finish_job(job_id, status="done" if dl_result.success else "error", message=dl_result.message)
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:
             state._stop_events.pop(job_id, None)
 
@@ -148,13 +136,11 @@ async def _run_folder_download(job_id: str, folder_path: str):
 @router.post("/api/folder-download-orbit")
 async def folder_download_orbit(req: FolderDownloadRequest, background_tasks: BackgroundTasks):
     """Download orbit files for scenes in a job folder."""
-    import uuid
     folder = Path(req.folder_path).expanduser().resolve()
     cfg_file = folder / "downloader_config.json"
     if not cfg_file.exists():
         raise HTTPException(status_code=404, detail="downloader_config.json not found in folder")
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting orbit download…", "data": None}
+    job_id, _ = _new_job("Starting orbit download…")
     background_tasks.add_task(_run_folder_download_orbit, job_id, req.folder_path)
     return {"job_id": job_id}
 
@@ -169,29 +155,23 @@ async def _run_folder_download_orbit(job_id: str, folder_path: str):
             raw: dict[str, Any] = json.loads((folder / "downloader_config.json").read_text())
 
             cfg = S1_SLC_Config(workdir=folder)
-            valid_fields = {f.name for f in dataclasses.fields(cfg)}
-            for key, val in raw.items():
-                if key in valid_fields and key != "workdir" and val is not None:
-                    try:
-                        setattr(cfg, key, val)
-                    except Exception:
-                        pass
+            _apply_config_from_dict(cfg, raw, skip_keys={"workdir"})
 
             downloader = Downloader.create("S1_SLC", cfg)
             state._jobs[job_id]["message"] = "Searching scenes…"
             search_result = SearchCommand(downloader, progress_callback=state._make_progress(job_id)).run()
             if not search_result.success:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": search_result.message, "data": None}
+                _finish_job(job_id, status="error", progress=0, message=search_result.message)
                 return
 
             state._jobs[job_id]["message"] = "Downloading orbit files…"
             downloader.download_orbit(save_dir=str(folder), stop_event=stop_ev)
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
             else:
-                state._jobs[job_id] = {"status": "done", "progress": 100, "message": "Orbit files downloaded.", "data": None}
+                _finish_job(job_id, status="done", message="Orbit files downloaded.")
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:
             state._stop_events.pop(job_id, None)
 
@@ -201,12 +181,10 @@ async def _run_folder_download_orbit(job_id: str, folder_path: str):
 @router.post("/api/folder-select-pairs")
 async def folder_select_pairs(req: SelectPairsRequest, background_tasks: BackgroundTasks):
     """Re-search using downloader_config.json and run select_pairs with given parameters."""
-    import uuid
     folder = Path(req.folder_path).expanduser().resolve()
     if not (folder / "downloader_config.json").exists():
         raise HTTPException(status_code=404, detail="downloader_config.json not found in folder")
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting search…", "data": None}
+    job_id, _ = _new_job("Starting search…")
     background_tasks.add_task(_run_folder_select_pairs, job_id, req)
     return {"job_id": job_id}
 
@@ -229,13 +207,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
             cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
 
             cfg = cfg_cls(workdir=folder.parent)
-            valid_fields = {f.name for f in dataclasses.fields(cfg)}
-            for key, val in raw.items():
-                if key in valid_fields and key != "workdir" and val is not None:
-                    try:
-                        setattr(cfg, key, val)
-                    except Exception:
-                        pass
+            _apply_config_from_dict(cfg, raw, skip_keys={"workdir"})
 
             downloader = Downloader.create(dl_type, cfg)
             state._jobs[job_id]["message"] = "Searching scenes…"
@@ -257,7 +229,6 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
             )
 
             from insarhub.utils.tool import write_workflow_marker
-            from insarhub.utils import plot_pair_network as _plot_pair_network
             from insarhub.utils.pair_quality._db import PairQualityDB
 
             # Build scenes_by_stack from search results for the DB
@@ -305,14 +276,8 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                             json.dumps({"scores": quality_scores, "factors": quality_factors}, indent=2)
                         )
                     except Exception:
-                        quality_scores = None
-                    _plot_pair_network(
-                        group_pairs, baselines[(path, frame)],
-                        scene_baselines=scene_bperp.get((path, frame)),
-                        title=f"Interferogram Network — P{path}/F{frame}",
-                        save_path=subdir / f"network_p{path}_f{frame}.png",
-                        quality_scores=quality_scores,
-                    )
+                        quality_scores  = None
+                        quality_factors = None
             else:
                 pjson = folder / "pairs.json"
                 pjson.write_text(json.dumps([list(p) for p in pairs], indent=2))
@@ -336,14 +301,12 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                                 quality_factors[k] = all_factors.get(k, {})
                     (folder / "pair_quality.json").write_text(json.dumps({"scores": quality_scores, "factors": quality_factors}, indent=2))
                 except Exception:
-                    quality_scores = None
-                _plot_pair_network(pairs, baselines, scene_baselines=scene_bperp,
-                                   save_path=folder / "network.png",
-                                   quality_scores=quality_scores)
+                    quality_scores  = None
+                    quality_factors = None
 
-            state._jobs[job_id] = {"status": "done", "progress": 100, "message": "Pairs selected", "data": None}
+            _finish_job(job_id, status="done", message="Pairs selected")
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)
 

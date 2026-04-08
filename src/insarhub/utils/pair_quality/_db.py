@@ -90,11 +90,13 @@ class PairQualityDB:
         weights: dict[str, float] | None = None,
         force_refresh: bool = False,
         lc_aware: bool = True,
+        coherence_aware: bool = True,
     ):
-        self.folder        = Path(folder_path).expanduser().resolve()
-        self.weights       = weights
-        self.force_refresh = force_refresh
-        self.lc_aware      = lc_aware
+        self.folder           = Path(folder_path).expanduser().resolve()
+        self.weights          = weights
+        self.force_refresh    = force_refresh
+        self.lc_aware         = lc_aware
+        self.coherence_aware  = coherence_aware
 
     # ── Static lookup API ─────────────────────────────────────────────────────
 
@@ -155,6 +157,7 @@ class PairQualityDB:
         scenes_by_stack: dict[tuple[int, int], list[str]],
         bperp_by_stack:  dict[tuple[int, int], dict[str, float]],
         progress_cb=None,
+        show_progress: bool = True,
     ) -> None:
         """Compute scores for all N*(N-1)/2 pairs and persist to disk.
 
@@ -162,12 +165,23 @@ class PairQualityDB:
         ----------
         scenes_by_stack : {(path, frame): [scene_name, ...]}
         bperp_by_stack  : {(path, frame): {scene_name: bperp_m}}
-        progress_cb     : optional callable(done: int, total: int)
+        progress_cb     : optional callable(done: int, total: int) — for API use
+        show_progress   : show tqdm progress bars on stderr (default True)
         """
         from insarhub.utils.pair_quality._cache import CacheManager
         from insarhub.utils.pair_quality._feature_assembler import FeatureAssembler
         from insarhub.utils.pair_quality import _classifier
         from insarhub.utils.pair_quality.pair_quality import _load_aoi, _wkt_centroid
+
+        try:
+            from tqdm import tqdm as _tqdm_cls
+        except ImportError:
+            _tqdm_cls = None
+
+        def _tqdm(iterable, **kw):
+            if _tqdm_cls and show_progress:
+                return _tqdm_cls(iterable, **kw)
+            return iterable
 
         try:
             lat, lon, wkt = _load_aoi(self.folder)
@@ -176,7 +190,10 @@ class PairQualityDB:
             lat, lon, wkt = 45.0, 0.0, "POLYGON ((0 45, 1 45, 1 46, 0 46, 0 45))"
 
         cache     = CacheManager(self.folder, force_refresh=self.force_refresh)
-        assembler = FeatureAssembler(cache=cache, aoi_wkt=wkt, lat=lat, lon=lon)
+        assembler = FeatureAssembler(
+            cache=cache, aoi_wkt=wkt, lat=lat, lon=lon,
+            skip_ndvi=self.coherence_aware,  # S3 COG is primary; skip slow NDVI fetch
+        )
 
         # Collect all unique scenes across all stacks
         all_scenes: list[str] = []
@@ -188,7 +205,26 @@ class PairQualityDB:
         unique_dates: list[str] = list({
             d for s in all_scenes for d in [_scene_date(s)] if d
         })
+        if _tqdm_cls and show_progress:
+            _tqdm_cls.write(f"Prefetching weather/snow for {len(unique_dates)} dates …")
         assembler.prefetch_dates(unique_dates)
+
+        # Prefetch S1 global coherence COH maps for all seasons in the pair set
+        if self.coherence_aware:
+            all_date_pairs = [
+                (_scene_date(r), _scene_date(s))
+                for r, s, _, _ in (
+                    (ref, sec, None, None)
+                    for key, scene_list in scenes_by_stack.items()
+                    for ref, sec in itertools.combinations(scene_list, 2)
+                )
+            ]
+            if _tqdm_cls and show_progress:
+                _tqdm_cls.write("Prefetching S1 coherence maps from S3 …")
+            assembler.prefetch_coherence(
+                [(d1, d2) for d1, d2 in all_date_pairs if d1 and d2]
+            )
+
         cache.save()
 
         # Build flat bperp lookup from all stacks
@@ -216,10 +252,18 @@ class PairQualityDB:
         total = len(all_pairs)
         logger.info("PairQualityDB: scoring %d pairs for %d scenes", total, len(all_scenes))
 
-        for i, (ref, sec, bperp_ref, bperp_sec) in enumerate(all_pairs):
+        mode = "S3 coherence" if self.coherence_aware else ("LC/NDVI" if self.lc_aware else "flat")
+        for i, (ref, sec, bperp_ref, bperp_sec) in enumerate(_tqdm(
+            all_pairs,
+            desc=f"Scoring pairs [{mode}]",
+            unit="pair",
+            total=total,
+        )):
             d1, d2 = _scene_date(ref), _scene_date(sec)
             fv = assembler.assemble(ref, sec, bperp_ref, bperp_sec, d1, d2)
-            if self.lc_aware:
+            if self.coherence_aware:
+                sc, fct = _classifier.coherence_score(fv)
+            elif self.lc_aware:
                 sc, fct = _classifier.lc_score(fv)
             else:
                 sc, fct = _classifier.score(fv, weights=self.weights)

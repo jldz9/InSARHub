@@ -70,16 +70,22 @@ async def get_pair_quality(path: str, force_refresh: bool = False):
         # Slow path: compute on demand (also updates cache)
         from insarhub.utils.pair_quality import PairQuality
         pq = PairQuality(folder, force_refresh=force_refresh)
-        return pq.compute()
+        return pq.compute(show_progress=False)
 
     try:
         result = await asyncio.to_thread(_run)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
 
+    # For large pair sets, omit factor details from the response to avoid
+    # sending tens of MB over HTTP.  The GUI fetches per-pair factors on
+    # demand via /api/pair-quality-db/lookup when the user hovers an edge.
+    _FACTOR_LIMIT = 2000
+    factors = result.factors if len(result.scores) <= _FACTOR_LIMIT else {}
+
     return PairQualityResponse(
         scores=result.scores,
-        factors=result.factors,
+        factors=factors,
         ndvi_source=result.ndvi_source,
         snow_fetched=result.snow_fetched,
         cached=result.cached,

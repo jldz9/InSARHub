@@ -112,14 +112,32 @@ class PairQuality:
         force_refresh: bool = False,
         weights: dict[str, float] | None = None,
         lc_aware: bool = True,
+        coherence_aware: bool = True,
     ):
-        self.folder        = Path(folder_path).expanduser().resolve()
-        self.force_refresh = force_refresh
-        self.weights       = weights   # only used when lc_aware=False
-        self.lc_aware      = lc_aware  # True = land-cover branching (recommended)
+        self.folder           = Path(folder_path).expanduser().resolve()
+        self.force_refresh    = force_refresh
+        self.weights          = weights         # only used when lc_aware=False
+        self.lc_aware         = lc_aware        # True = land-cover branching
+        self.coherence_aware  = coherence_aware # True = use S1 global coherence dataset
 
-    def compute(self) -> QualityResult:
-        """Run the full quality computation and return a QualityResult."""
+    def compute(self, show_progress: bool = True) -> QualityResult:
+        """Run the full quality computation and return a QualityResult.
+
+        Parameters
+        ----------
+        show_progress : show tqdm progress bars on stderr (default True).
+                        Set False when called from API/background threads.
+        """
+        try:
+            from tqdm import tqdm
+        except ImportError:
+            tqdm = None
+
+        def _tqdm(iterable, **kw):
+            if tqdm and show_progress:
+                return tqdm(iterable, **kw)
+            return iterable
+
         pairs = _load_pairs(self.folder)
         if not pairs:
             return QualityResult(
@@ -134,7 +152,10 @@ class PairQuality:
             lat, lon, wkt = 45.0, 0.0, "POLYGON ((0 45, 1 45, 1 46, 0 46, 0 45))"
 
         cache = CacheManager(self.folder, force_refresh=self.force_refresh)
-        assembler = FeatureAssembler(cache=cache, aoi_wkt=wkt, lat=lat, lon=lon)
+        assembler = FeatureAssembler(
+            cache=cache, aoi_wkt=wkt, lat=lat, lon=lon,
+            skip_ndvi=self.coherence_aware,  # S3 COG is primary; skip slow NDVI fetch
+        )
 
         # Batch-prefetch weather + snow for all unique acquisition dates upfront
         unique_dates: set[str] = set()
@@ -142,7 +163,21 @@ class PairQuality:
             d1, d2 = _scene_date(ref), _scene_date(sec)
             if d1: unique_dates.add(d1)
             if d2: unique_dates.add(d2)
+
+        if tqdm and show_progress:
+            tqdm.write(f"Prefetching weather/snow for {len(unique_dates)} dates …")
         assembler.prefetch_dates(list(unique_dates))
+
+        # Prefetch S1 global coherence COH maps for all unique seasons
+        if self.coherence_aware:
+            if tqdm and show_progress:
+                tqdm.write("Prefetching S1 coherence maps from S3 …")
+            assembler.prefetch_coherence([
+                (_scene_date(ref).replace("-", ""), _scene_date(sec).replace("-", ""))
+                for ref, sec, _, _ in pairs
+                if _scene_date(ref) and _scene_date(sec)
+            ])
+
         cache.save()  # persist batch results before the pair loop
 
         scores:  dict[str, float] = {}
@@ -150,7 +185,13 @@ class PairQuality:
         ndvi_sources: set[str]    = set()
         snow_fetched = 0
 
-        for ref, sec, bperp_ref, bperp_sec in pairs:
+        mode = "S3 coherence" if self.coherence_aware else ("LC/NDVI" if self.lc_aware else "flat")
+        for ref, sec, bperp_ref, bperp_sec in _tqdm(
+            pairs,
+            desc=f"Scoring pairs [{mode}]",
+            unit="pair",
+            total=len(pairs),
+        ):
             date1 = _scene_date(ref)
             date2 = _scene_date(sec)
             if not date1 or not date2:
@@ -158,7 +199,9 @@ class PairQuality:
 
             fv = assembler.assemble(ref, sec, bperp_ref, bperp_sec, date1, date2)
 
-            if self.lc_aware:
+            if self.coherence_aware:
+                sc, fct = _classifier.coherence_score(fv)
+            elif self.lc_aware:
                 sc, fct = _classifier.lc_score(fv)
             else:
                 sc, fct = _classifier.score(fv, weights=self.weights)

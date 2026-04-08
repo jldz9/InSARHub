@@ -69,43 +69,123 @@ def h5_to_raster(
         out_raster = h5_file.parent.joinpath(f"{h5_file.stem}.tif")
     else:
         out_raster = Path(out_raster).expanduser().resolve()
-    valid_name = ['ERA5','geomertryGeo', 'ifgramStack', 'velocity', 'velocityERA5', 'avgSpatialCoh', 
-                  'demErr', 'maskConnComp', 'maskTempCoh', 'numInvIfgram', 'temporalCoherence', 'timeseries',
-                  'timeseriesResidual']
-    with h5py.File(h5_file.as_posix(), 'r') as f:
-        NODATA = -9999.0
+
+    valid_names = {
+        'ERA5', 'geometryGeo', 'ifgramStack', 'velocity', 'velocityERA5',
+        'avgSpatialCoh', 'demErr', 'maskConnComp', 'maskTempCoh',
+        'numInvIfgram', 'temporalCoherence', 'timeseries', 'timeseriesResidual',
+    }
+    if h5_file.stem not in valid_names:
+        raise ValueError(f"HDF5 file name '{h5_file.stem}' not recognised. Valid names: {sorted(valid_names)}")
+
+    NODATA = -9999.0
+
+    def _write_band(data: np.ndarray, out_path: Path, crs, transform, dtype="float32",
+                    nodata=NODATA, tags: dict | None = None):
+        data = data.astype(dtype)
+        height, width = data.shape
+        profile = dict(
+            driver="GTiff", height=height, width=width, count=1,
+            dtype=dtype, crs=crs, transform=transform, nodata=nodata,
+            tiled=True, compress="deflate", predictor=2 if dtype in ("uint8", "int16") else 3,
+            blockxsize=256, blockysize=256, BIGTIFF="IF_SAFER",
+        )
+        with rasterio.open(out_path.as_posix(), "w", **profile) as dst:
+            dst.write(data, 1)
+            if tags:
+                dst.update_tags(**tags)
+        print(f"  → {out_path.name}")
+
+    def _write_multiband(data: np.ndarray, out_path: Path, crs, transform,
+                         dtype="float32", nodata=NODATA, band_names: list[str] | None = None,
+                         tags: dict | None = None):
+        """Write 3-D array (bands, height, width) as multi-band GeoTIFF."""
+        data = data.astype(dtype)
+        n, height, width = data.shape
+        profile = dict(
+            driver="GTiff", height=height, width=width, count=n,
+            dtype=dtype, crs=crs, transform=transform, nodata=nodata,
+            tiled=True, compress="deflate", predictor=3,
+            blockxsize=256, blockysize=256, BIGTIFF="IF_SAFER",
+        )
+        with rasterio.open(out_path.as_posix(), "w", **profile) as dst:
+            dst.write(data)
+            if band_names:
+                for i, name in enumerate(band_names, 1):
+                    dst.update_tags(i, date=name)
+            if tags:
+                dst.update_tags(**tags)
+        print(f"  → {out_path.name} ({n} bands)")
+
+    with h5py.File(h5_file.as_posix(), "r") as f:
         attrs = f.attrs
         transform = _transform_from_attrs(attrs)
         crs = _crs_from_attrs(attrs)
         unit = _unit_from_attrs(attrs)
         if crs is None or transform is None:
-            raise ValueError(f"Cannot extract CRS or Transform from HDF5 file attributes.") 
-        if h5_file.stem not in valid_name:
-            if all([h5_file.stem not in name for name in valid_name]):
-                raise ValueError(f"HDF5 file name {h5_file.stem} not in valid names: {valid_name}")
-        if h5_file.stem == 'velocity':
-            keys = ['velocity', 'velocityStd', 'residue']
-            for key in keys:
-                ref = f[key]
-                data = ref[()]
-                height, width = data.shape
-                data[data == float(attrs['NO_DATA_VALUE'])] = NODATA
-                bad = ~np.isfinite(data)
-                if bad.any():
-                    data[bad] = NODATA
-                profile = dict(driver="GTiff", height=height, width=width, count=1, dtype="float32",
-                           crs=crs, transform=transform, nodata=NODATA,
-                           tiled=True, compress="deflate", predictor=3,
-                           blockxsize=256, blockysize=256, BIGTIFF="IF_SAFER")
+            raise ValueError("Cannot extract CRS or Transform from HDF5 file attributes.")
+
+        no_data_val = float(attrs.get("NO_DATA_VALUE", np.nan))
+        base_tags = {"source": h5_file.name}
+        if unit:
+            base_tags["units"] = unit
+
+        def _clean(data: np.ndarray) -> np.ndarray:
+            data = data.copy().astype(np.float32)
+            if np.isfinite(no_data_val):
+                data[data == no_data_val] = NODATA
+            data[~np.isfinite(data)] = NODATA
+            return data
+
+        stem = h5_file.stem
+
+        # ── velocity / velocityERA5 ─────────────────────────────────────────
+        if stem in ("velocity", "velocityERA5"):
+            for key in ("velocity", "velocityStd", "residue"):
+                if key not in f:
+                    continue
+                data = _clean(f[key][()])
                 out_path = out_raster.with_name(f"{out_raster.stem}_{key}.tif")
-                with rasterio.Env(GDAL_TIFF_INTERNAL_MASK=True):
-                    with rasterio.open(out_path.as_posix(), 'w', **profile) as dst:
-                        dst.write(data, 1)
-                        tags = {"source": f"MintPy velocity.h5"}
-                        unit = unit
-                        if unit:
-                            tags["units"] = unit
-                        dst.update_tags(**tags)    
+                _write_band(data, out_path, crs, transform, tags={**base_tags, "dataset": key})
+
+        # ── timeseries / timeseriesResidual ─────────────────────────────────
+        elif stem in ("timeseries", "timeseriesResidual"):
+            key = stem
+            if key not in f:
+                raise ValueError(f"Dataset '{key}' not found in {h5_file.name}")
+            data = _clean(f[key][()])          # shape: (n_dates, height, width)
+            dates = [d.decode() if isinstance(d, bytes) else str(d)
+                     for d in f.get("date", [])]
+            _write_multiband(data, out_raster, crs, transform,
+                             band_names=dates or None, tags=base_tags)
+
+        # ── scalar 2-D float datasets ────────────────────────────────────────
+        elif stem in ("avgSpatialCoh", "temporalCoherence", "demErr", "numInvIfgram"):
+            key_map = {
+                "avgSpatialCoh":      "avgSpatialCoh",
+                "temporalCoherence":  "temporalCoherence",
+                "demErr":             "dem_error",
+                "numInvIfgram":       "numInvIfgram",
+            }
+            key = key_map[stem]
+            if key not in f:
+                # fall back: first dataset in file
+                key = next(iter(f))
+            data = _clean(f[key][()])
+            _write_band(data, out_raster, crs, transform, tags={**base_tags, "dataset": key})
+
+        # ── mask datasets (uint8) ────────────────────────────────────────────
+        elif stem in ("maskTempCoh", "maskConnComp"):
+            key = stem
+            if key not in f:
+                key = next(iter(f))
+            data = f[key][()].astype(np.uint8)
+            _write_band(data, out_raster, crs, transform,
+                        dtype="uint8", nodata=255, tags={**base_tags, "dataset": key})
+
+        # ── unknown / unimplemented ──────────────────────────────────────────
+        else:
+            raise ValueError(f"Conversion of '{stem}' is not yet supported.")
 
 
 def save_footprint(raster_file: str | Path, out_footprint: str | Path | None = None):

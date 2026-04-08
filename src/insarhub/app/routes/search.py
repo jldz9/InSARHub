@@ -20,6 +20,7 @@ from insarhub.app.models import (
     AddJobRequest, DownloadByNameRequest, DownloadRequest,
     DownloadSceneRequest, JobResponse, ParseAoiRequest, SearchRequest,
 )
+from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
@@ -70,9 +71,8 @@ async def parse_granule_file(file: UploadFile = File(...)):
 
 @router.post("/api/search", response_model=JobResponse)
 async def start_search(req: SearchRequest, background_tasks: BackgroundTasks):
-    job_id     = str(uuid.uuid4())
+    job_id, _ = _new_job("Starting search...")
     session_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting search...", "data": None}
     background_tasks.add_task(_run_search, job_id, session_id, req)
     return {"job_id": job_id}
 
@@ -123,18 +123,15 @@ async def _run_search(job_id: str, session_id: str, req: SearchRequest):
 
             if result.success:
                 state._sessions[session_id] = downloader
-                state._jobs[job_id] = {
-                    "status": "done", "progress": 100, "message": result.message,
-                    "data": {
-                        "session_id": session_id,
-                        "geojson":    _to_geojson(result.data),
-                        "summary":    result.message,
-                    },
-                }
+                _finish_job(job_id, status="done", message=result.message, data={
+                    "session_id": session_id,
+                    "geojson":    _to_geojson(result.data),
+                    "summary":    result.message,
+                })
             else:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": result.message, "data": None}
+                _finish_job(job_id, status="error", progress=0, message=result.message)
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)
 
@@ -143,8 +140,7 @@ async def _run_search(job_id: str, session_id: str, req: SearchRequest):
 async def start_download(req: DownloadRequest, background_tasks: BackgroundTasks):
     if req.session_id not in state._sessions:
         raise HTTPException(status_code=404, detail="Session not found — run /api/search first")
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting download...", "data": None}
+    job_id, _ = _new_job("Starting download...")
     background_tasks.add_task(_run_download, job_id, req)
     return {"job_id": job_id}
 
@@ -155,21 +151,16 @@ async def _run_download(job_id: str, req: DownloadRequest):
             downloader = state._sessions[req.session_id]
             cmd    = DownloadScenesCommand(downloader, progress_callback=state._make_progress(job_id))
             result = cmd.run()
-            state._jobs[job_id] = {
-                "status":   "done" if result.success else "error",
-                "progress": 100,
-                "message":  result.message,
-                "data":     str(result.data) if result.data else None,
-            }
+            _finish_job(job_id, status="done" if result.success else "error",
+                        message=result.message, data=str(result.data) if result.data else None)
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
     await asyncio.to_thread(run)
 
 
 @router.post("/api/download-scene", response_model=JobResponse)
 async def download_single_scene(req: DownloadSceneRequest, background_tasks: BackgroundTasks):
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting download...", "data": None}
+    job_id, _ = _new_job("Starting download...")
     background_tasks.add_task(_run_download_scene, job_id, req)
     return {"job_id": job_id}
 
@@ -199,7 +190,7 @@ async def _run_download_scene(job_id: str, req: DownloadSceneRequest):
                 for chunk in response.iter_content(chunk_size=65536):
                     if stop_ev.is_set():
                         response.close()
-                        state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                        _finish_job(job_id, status="done", progress=0, message="Stopped.")
                         return
                     if chunk:
                         f.write(chunk)
@@ -209,13 +200,13 @@ async def _run_download_scene(job_id: str, req: DownloadSceneRequest):
                             state._jobs[job_id]["progress"] = pct
                             state._jobs[job_id]["message"]  = f"Downloading {filename}… {pct}%"
 
-            state._jobs[job_id] = {"status": "done", "progress": 100, "message": f"Saved {filename}", "data": str(file_path)}
+            _finish_job(job_id, status="done", message=f"Saved {filename}", data=str(file_path))
         except InterruptedError:
-            state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+            _finish_job(job_id, status="done", progress=0, message="Stopped.")
         except Exception as e:
             if file_path and file_path.exists():
                 file_path.unlink(missing_ok=True)
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:
             state._stop_events.pop(job_id, None)
 
@@ -224,9 +215,8 @@ async def _run_download_scene(job_id: str, req: DownloadSceneRequest):
 
 @router.post("/api/download-stack", response_model=JobResponse)
 async def download_stack(req: AddJobRequest, background_tasks: BackgroundTasks):
-    job_id  = str(uuid.uuid4())
+    job_id, _ = _new_job("Starting…")
     stop_ev = _threading.Event()
-    state._jobs[job_id]        = {"status": "running", "progress": 0, "message": "Starting…", "data": None}
     state._stop_events[job_id] = stop_ev
     background_tasks.add_task(_run_download_stack, job_id, req, stop_ev)
     return {"job_id": job_id}
@@ -237,29 +227,23 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
         try:
             workdir = Path(req.workdir).expanduser().resolve()
             workdir.mkdir(parents=True, exist_ok=True)
-            cfg          = S1_SLC_Config(workdir=workdir)
-            valid_fields = {f.name for f in dataclasses.fields(cfg)}
-            for key, val in state._settings.get("downloader_config", {}).items():
-                if key in valid_fields and key != "workdir" and val is not None:
-                    try: setattr(cfg, key, val)
-                    except Exception: pass
-            for key, val in {
+            cfg = S1_SLC_Config(workdir=workdir)
+            _apply_config_from_dict(cfg, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
+            _apply_config_from_dict(cfg, {
                 "start": req.start, "end": req.end,
                 "relativeOrbit": req.relativeOrbit, "frame": req.frame,
                 "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
                 "platform": req.platform,
-            }.items():
-                if key in valid_fields and val is not None:
-                    setattr(cfg, key, val)
+            })
 
             downloader    = Downloader.create("S1_SLC", cfg)
             state._jobs[job_id]["message"] = "Searching scenes…"
             search_result = SearchCommand(downloader).run()
             if not search_result.success:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": search_result.message, "data": None}
+                _finish_job(job_id, status="error", progress=0, message=search_result.message)
                 return
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
                 return
 
             total = sum(len(v) for v in downloader.results.values())
@@ -273,14 +257,12 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
             dl_result = DownloadScenesCommand(downloader, stop_event=stop_ev, on_progress=_on_progress).run()
             save_dir  = workdir / f"p{req.relativeOrbit}_f{req.frame}"
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
             else:
-                state._jobs[job_id] = {
-                    "status": "done" if dl_result.success else "error",
-                    "progress": 100, "message": dl_result.message, "data": str(save_dir),
-                }
+                _finish_job(job_id, status="done" if dl_result.success else "error",
+                            message=dl_result.message, data=str(save_dir))
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:
             state._stop_events.pop(job_id, None)
 
@@ -297,19 +279,13 @@ async def add_job(req: AddJobRequest):
     dl_cls      = Downloader._registry.get(req.downloaderType)
     cfg_cls     = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
     cfg_instance = cfg_cls(workdir=subdir)
-    valid_fields = {f.name for f in dataclasses.fields(cfg_instance)}
-    for key, val in state._settings.get("downloader_config", {}).items():
-        if key in valid_fields and key != "workdir" and val is not None:
-            try: setattr(cfg_instance, key, val)
-            except Exception: pass
-    for key, val in {
+    _apply_config_from_dict(cfg_instance, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
+    _apply_config_from_dict(cfg_instance, {
         "start": req.start, "end": req.end,
         "relativeOrbit": req.relativeOrbit, "frame": req.frame,
         "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
         "platform": req.platform,
-    }.items():
-        if key in valid_fields and val is not None:
-            setattr(cfg_instance, key, val)
+    })
     cfg = {k: v for k, v in dataclasses.asdict(cfg_instance).items() if k != "workdir"}
     (subdir / "downloader_config.json").write_text(json.dumps(cfg, indent=2, default=str))
     write_workflow_marker(subdir, downloader=req.downloaderType)
@@ -318,8 +294,7 @@ async def add_job(req: AddJobRequest):
 
 @router.post("/api/download-orbit-stack", response_model=JobResponse)
 async def download_orbit_stack(req: AddJobRequest, background_tasks: BackgroundTasks):
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting orbit download…", "data": None}
+    job_id, _ = _new_job("Starting orbit download…")
     background_tasks.add_task(_run_download_orbit_stack, job_id, req)
     return {"job_id": job_id}
 
@@ -333,35 +308,29 @@ async def _run_download_orbit_stack(job_id: str, req: AddJobRequest):
             workdir  = Path(req.workdir).expanduser().resolve()
             save_dir = workdir / f"p{req.relativeOrbit}_f{req.frame}"
             save_dir.mkdir(parents=True, exist_ok=True)
-            cfg          = S1_SLC_Config(workdir=save_dir)
-            valid_fields = {f.name for f in dataclasses.fields(cfg)}
-            for key, val in state._settings.get("downloader_config", {}).items():
-                if key in valid_fields and key != "workdir" and val is not None:
-                    try: setattr(cfg, key, val)
-                    except Exception: pass
-            for key, val in {
+            cfg = S1_SLC_Config(workdir=save_dir)
+            _apply_config_from_dict(cfg, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
+            _apply_config_from_dict(cfg, {
                 "start": req.start, "end": req.end,
                 "relativeOrbit": req.relativeOrbit, "frame": req.frame,
                 "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
                 "platform": req.platform,
-            }.items():
-                if key in valid_fields and val is not None:
-                    setattr(cfg, key, val)
+            })
 
             downloader    = Downloader.create("S1_SLC", cfg)
             state._jobs[job_id]["message"] = "Searching scenes…"
             search_result = SearchCommand(downloader, progress_callback=state._make_progress(job_id)).run()
             if not search_result.success:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": search_result.message, "data": None}
+                _finish_job(job_id, status="error", progress=0, message=search_result.message)
                 return
             state._jobs[job_id]["message"] = "Downloading orbit files…"
             downloader.download_orbit(save_dir=str(save_dir), stop_event=stop_ev)
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
             else:
-                state._jobs[job_id] = {"status": "done", "progress": 100, "message": "Orbit files downloaded.", "data": None}
+                _finish_job(job_id, status="done", message="Orbit files downloaded.")
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:
             state._stop_events.pop(job_id, None)
 
@@ -372,9 +341,8 @@ async def _run_download_orbit_stack(job_id: str, req: AddJobRequest):
 async def download_by_name(req: DownloadByNameRequest, background_tasks: BackgroundTasks):
     if not req.scene_names and not req.scene_file:
         raise HTTPException(status_code=422, detail="Provide scene_names or scene_file")
-    job_id  = str(uuid.uuid4())
+    job_id, _ = _new_job("Starting…")
     stop_ev = _threading.Event()
-    state._jobs[job_id]        = {"status": "running", "progress": 0, "message": "Starting…", "data": None}
     state._stop_events[job_id] = stop_ev
     background_tasks.add_task(_run_download_by_name, job_id, req, stop_ev)
     return {"job_id": job_id}
@@ -399,7 +367,7 @@ async def _run_download_by_name(job_id: str, req: DownloadByNameRequest, stop_ev
             downloader.search()
 
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
                 return
 
             total = sum(len(v) for v in downloader.results.values())
@@ -412,14 +380,12 @@ async def _run_download_by_name(job_id: str, req: DownloadByNameRequest, stop_ev
 
             dl_result = DownloadScenesCommand(downloader, stop_event=stop_ev, on_progress=_on_progress).run()
             if stop_ev.is_set():
-                state._jobs[job_id] = {"status": "done", "progress": 0, "message": "Stopped.", "data": None}
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
             else:
-                state._jobs[job_id] = {
-                    "status": "done" if dl_result.success else "error",
-                    "progress": 100, "message": dl_result.message, "data": str(workdir),
-                }
+                _finish_job(job_id, status="done" if dl_result.success else "error",
+                            message=dl_result.message, data=str(workdir))
         except Exception as e:
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": str(e), "data": None}
+            _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:
             state._stop_events.pop(job_id, None)
 

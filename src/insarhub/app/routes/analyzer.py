@@ -10,6 +10,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
 from insarhub.app.models import InitAnalyzerRequest, RunAnalyzerRequest
+from insarhub.app.state import _new_job, _finish_job
 from insarhub.core.registry import Analyzer
 
 router = APIRouter()
@@ -52,9 +53,7 @@ async def get_analyzer_steps(analyzer_type: str):
 
 @router.post("/api/folder-run-analyzer")
 async def folder_run_analyzer(req: RunAnalyzerRequest, background_tasks: BackgroundTasks):
-    import uuid
-    job_id = str(uuid.uuid4())
-    state._jobs[job_id] = {"status": "running", "progress": 0, "message": "Starting analyzer…", "data": None}
+    job_id, _ = _new_job("Starting analyzer…")
     background_tasks.add_task(_run_analyzer, job_id, req)
     return {"job_id": job_id}
 
@@ -120,7 +119,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
         except Exception as e:
             state._stop_events.pop(job_id, None)
             log.append(f"FATAL: {e}")
-            state._jobs[job_id] = {"status": "error", "progress": 0, "message": "\n".join(log), "data": None}
+            _finish_job(job_id, status="error", progress=0, message="\n".join(log))
 
     await asyncio.to_thread(run)
 

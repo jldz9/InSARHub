@@ -19,9 +19,14 @@ from __future__ import annotations
 from datetime import datetime
 
 
-_DT_SATURATE    = 180.0   # days at which dt penalty maxes out
-_BPERP_SATURATE = 300.0   # metres at which bperp penalty maxes out
-_ANNUAL_TOL     = 20      # day tolerance for annual-repeat detection
+_DT_SATURATE       = 180.0   # days at which dt penalty maxes out
+_BPERP_DEAD_ZONE   = 150.0   # metres below which bperp penalty is zero
+                              # (pair selector already caps at pb_max=150 m,
+                              #  so pre-selected pairs are always zero here)
+_BPERP_SATURATE    = 800.0   # metres at which bperp penalty maxes out
+                              # (Sentinel-1 IW critical baseline ~1000–1100 m)
+_BPERP_RANGE       = _BPERP_SATURATE - _BPERP_DEAD_ZONE   # = 650 m
+_ANNUAL_TOL        = 20      # day tolerance for annual-repeat detection
 
 
 def _scene_date(name: str) -> datetime | None:
@@ -70,6 +75,6 @@ def extract(
         "dt_days":          dt_days,
         "bperp_diff":       round(bperp_diff, 1),
         "dt_normalized":    round(min(dt_days / _DT_SATURATE, 1.0), 4),
-        "bperp_normalized": round(min(bperp_diff / _BPERP_SATURATE, 1.0), 4),
+        "bperp_normalized": round(min(max(bperp_diff - _BPERP_DEAD_ZONE, 0.0) / _BPERP_RANGE, 1.0), 4),
         "is_annual_repeat": int(_is_annual_repeat(dt_days)),
     }

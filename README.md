@@ -26,8 +26,8 @@ Open `http://localhost:8000` to access the UI.
 | Panel | What it does |
 |-------|-------------|
 | **Search & Download** | Draw an AOI on the map, search Sentinel-1 SLC stacks, download scenes and precise orbit files |
-| **Processor** | Select interferogram pairs from a network graph, submit to HyP3, monitor job status, and download results |
-| **Analyzer** | Run time-series analysis with configurable steps; view progress live in the log |
+| **Processor** | Build and edit the interferogram pair network with quality scoring; view S1 coherence decay maps; submit to HyP3; monitor and download results |
+| **Analyzer** | Run MintPy time-series analysis step by step; edit the network post-ingest; inspect diagnostic overview layers |
 | **Results Viewer** | Overlay the velocity map on the basemap; click any pixel to plot its displacement time series |
 
 All data stays on your machine — InSARHub runs a local FastAPI server and delivers a modern React frontend directly in your browser.
@@ -38,6 +38,12 @@ See the [Web UI documentation](https://jldz9.github.io/InSARHub/) for a full wal
   <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/overview_dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/overview_light.png">
   <img alt="InSARHub Web UI" src="docs/frontend/fig/overview_light.png" width="100%">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/network_modify_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/network_modify_light.gif">
+  <img alt="Pair Network Editor" src="docs/frontend/fig/network_modify_light.gif" width="100%">
 </picture>
 
 ---
@@ -117,6 +123,14 @@ from insarhub import Downloader
 - Filter
     ```python
     filter_result = dl.filter(start='2020-02-01')
+    ```
+
+- Select interferogram pairs
+    ```python
+    from insarhub.utils import plot_pair_network
+    pairs, baselines, scene_bperp = dl.select_pairs(dt_max=96, pb_max=150)
+    fig = plot_pair_network(pairs, baselines, scene_bperp)
+    fig.show()
     ```
 
 - Download
@@ -203,11 +217,11 @@ insarhub downloader -N S1_SLC \
     -w /data/bryce \
     --select-pairs
 
-# Submit pairs to HyP3 (auto-reads pairs_p*_f*.json from workdir subfolders)
+# Submit pairs to HyP3 (auto-reads stack_p*_f*.json from workdir subfolders)
 insarhub processor -N Hyp3_InSAR  -w /data/bryce submit
 
 # Wait for jobs and download results automatically
-insarhub processor -N Hyp3_InSAR  -w /data/bryce watch
+insarhub processor -w /data/bryce watch
 
 # Run MintPy time-series analysis
 insarhub analyzer -N Hyp3_SBAS -w /data/bryce run

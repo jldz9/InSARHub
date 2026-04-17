@@ -91,25 +91,22 @@ _NEUTRAL: dict[str, float] = {
 
 # ── Per-feature normalisers: (raw_value) → [0, 1] ────────────────────────────
 
-def _norm_precip_7day(v: float) -> float:
-    """Saturate at 80 mm 7-day rolling precipitation.
+def _norm_precip_3day(v: float) -> float:
+    """Linear normalisation for 3-day accumulated precipitation.
 
-    50 mm/7 days is common in humid climates and doesn't necessarily
-    degrade coherence.  80 mm represents genuinely wet conditions
-    that significantly raise soil moisture / dielectric constant.
+    Saturates at 30 mm (returns 1.0).
+
+    Reference points:
+       5 mm  →  0.17   (drizzle, minor soil moisture change)
+      10 mm  →  0.33   (moderate shower, noticeable on bare soil)
+      20 mm  →  0.67   (significant, soil approaching saturation)
+      30 mm  →  1.00   (full decorrelation over bare soil / agriculture)
     """
-    return min(v / 80.0, 1.0)
+    return min(float(v) / 30.0, 1.0)
 
-def _norm_slope_p90(v: float) -> float:
-    """Saturate at 60° slope."""
-    return min(v / 60.0, 1.0)
-
-# Features that need explicit normalisation before weighting.
-# Features already in [0, 1] (fractions, normalised baselines, etc.) pass
-# through as-is.
 _NORMALISE: dict[str, Any] = {
-    "precip_7day_d1": _norm_precip_7day,
-    "precip_7day_d2": _norm_precip_7day,
+    "precip_3day_d1": _norm_precip_3day,
+    "precip_3day_d2": _norm_precip_3day,
 }
 
 
@@ -195,8 +192,11 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
     """Quality score with three-tier fallback chain.
 
     Tier 1 — AWS S3 coherence (``coherence_source == "s3"``)
-        Uses the measured seasonal coherence as the base signal.  Applies
-        date-specific environmental penalties (snow, precip, bperp) on top.
+        Coherence itself becomes a penalty component (weight 0.50).  Reference
+        point γ = 0.50 (urban/bare-soil 12-day average in the Kellndorfer global
+        dataset).  Pairs at or above 0.50 incur no coherence penalty.  Environmental penalties (snow 0.25, precip 0.10+0.10,
+        freeze-thaw 0.05) are added on top.  Score is returned as an integer
+        in [0, 100] to distinguish it from coherence values (0–1).
 
     Tier 2 — NDVI / land-cover scoring (``coherence_source == "failed"``)
         S3 was unreachable.  Delegates to lc_score() which uses WorldCover
@@ -209,8 +209,8 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
 
     Returns
     -------
-    score   : float in [0, 1]
-    factors : dict with coherence breakdown + environmental contributions
+    score   : int in [0, 100]  (100 = excellent, 0 = unusable)
+    factors : dict with coherence breakdown + penalty contributions
     """
     coh    = fv.get("coherence_expected")
     source = fv.get("coherence_source", "s3")
@@ -227,106 +227,100 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
             return score(fv)
         logger.debug("NDVI/landcover unavailable — scoring via climatology safeline")
 
-    base = float(coh)
+    base    = float(coh)
+    rho_inf = float(fv.get("coherence_rho_inf") or 0.0)
 
-    # Environmental penalties (all in [0, 1] after normalisation)
-    snow_d1    = _resolve(fv, "snow_cover_frac_d1")
-    snow_d2    = _resolve(fv, "snow_cover_frac_d2")
-    delta_snow = _resolve(fv, "delta_snow_cover")
-    ft         = _resolve(fv, "freeze_thaw")
-    pr_d1      = _resolve(fv, "precip_7day_d1")   # already normalised via _NORMALISE
-    pr_d2      = _resolve(fv, "precip_7day_d2")
-    bperp      = _resolve(fv, "bperp_normalized")
+    # ── Raw feature values ────────────────────────────────────────────────────
+    snow_frac_d1   = fv.get("snow_cover_frac_d1") or 0.0
+    snow_frac_d2   = fv.get("snow_cover_frac_d2") or 0.0
+    delta_snow_raw = fv.get("delta_snow_cover")    or 0.0
+    temp_d1        = fv.get("temp_max_d1")
+    temp_d2        = fv.get("temp_max_d2")
 
-    penalty = (
-        snow_d1    * 0.08 +   # reduced: S3 COH maps already encode seasonal snow baseline;
-        snow_d2    * 0.08 +   # soft penalty covers day-specific deviation above that average
-        delta_snow * 0.08 +   # increased: surface change from snowfall is a stronger signal
-        ft         * 0.06 +   # freeze-thaw without snow (soil moisture, frost heave)
-        pr_d1      * 0.04 +   # 7-day cumulative soil moisture (saturates at 80 mm)
-        pr_d2      * 0.04 +
-        bperp      * 0.06     # geometric: dead zone <150 m, saturates at 800 m
-    )
-
-    # Hard kills
-    lc_water   = fv.get("lc_water_fraction") or 0.0
-    precip_max = max(fv.get("precip_d1") or 0.0, fv.get("precip_d2") or 0.0)
-
-    snow_frac_d1  = fv.get("snow_cover_frac_d1") or 0.0
-    snow_frac_d2  = fv.get("snow_cover_frac_d2") or 0.0
-    snow_frac_max = max(snow_frac_d1, snow_frac_d2)
-    delta_snow    = fv.get("delta_snow_cover") or 0.0
-    temp_d1       = fv.get("temp_max_d1")
-    temp_d2       = fv.get("temp_max_d2")
-
-    # Wet snow: temp > 0°C on acquisition day AND significant snow cover.
-    # C-band penetration depth drops to ~5–10 cm at ≥1% volumetric liquid
-    # water content — essentially opaque.  Dry snow (temp < 0) penetrates
-    # ~20 m and does NOT kill coherence regardless of depth.
+    # ── Hard kill: wet snow → score = 0 ──────────────────────────────────────
+    # C-band penetration depth collapses to 5–10 cm at ≥1% liquid water
+    # content (Strozzi et al. 1999).  Dry snow (temp < 0) penetrates ~20 m
+    # and does NOT kill coherence — handled by the soft snow penalty below.
     wet_snow = (
         (temp_d1 is not None and temp_d1 > 0 and snow_frac_d1 > 0.30) or
         (temp_d2 is not None and temp_d2 > 0 and snow_frac_d2 > 0.30)
     )
+    hard_kill = "wet_snow" if wet_snow else None
 
-    # Fresh snowfall event: sudden large change in snow cover fraction between
-    # the two acquisitions.  ~11 cm accumulation causes complete C-band
-    # decorrelation via surface elevation change (Guneriussen et al. 2001).
-    # delta > 0.5 means ≥50% of the AOI changed from snow-free to snow-covered.
-    fresh_snowfall = delta_snow > 0.50
-
-    if lc_water > 0.50:
-        final = 0.0
-        hard_kill = "water_dominant"
-    elif precip_max > 30.0:
-        final = 0.0
-        hard_kill = "heavy_rain"
-    elif wet_snow:
-        final = 0.0
-        hard_kill = "wet_snow"
-    elif fresh_snowfall:
-        final = 0.0
-        hard_kill = "fresh_snowfall"
-    elif snow_frac_max > 0.90:
-        # Near-total dry snow cover: catches extreme events (summer blizzard,
-        # high-altitude snowpack) not captured by the S3 seasonal COH maps.
-        final = 0.0
-        hard_kill = "heavy_snow_cover"
+    if hard_kill:
+        coh_abs      = 0.0
+        final        = 0
+        coh_penalty  = snow_penalty = pr_penalty_d1 = pr_penalty_d2 = ft_penalty = 0.0
     else:
-        final = round(max(0.0, min(1.0, base - penalty)), 4)
-        hard_kill = None
+        # ── Coherence penalty (weight 0.40) ───────────────────────────────────
+        # Reference point: γ = 0.50 — pairs at or above this incur no coherence
+        # penalty (urban/bare soil 12-day pairs typically land here).  Below 0.50
+        # the penalty rises linearly to 1.0 at γ = 0 (water / tropical forest).
+        _COH_REF = 0.50
+        coh_penalty = max(0.0, (_COH_REF - base) / _COH_REF)   # 0 at γ≥0.50, 1.0 at γ=0
+
+        # ── Snow penalty (weight 0.25) ────────────────────────────────────────
+        # Use the worst single snow metric to avoid double-counting dates.
+        snow_metric  = max(snow_frac_d1, snow_frac_d2, delta_snow_raw)
+        snow_penalty = min(snow_metric, 1.0)
+
+        # ── Precipitation penalty (weight 0.80 per date) ─────────────────────
+        # Linear, saturates at 30 mm over 3 days.
+        pr_penalty_d1 = _resolve(fv, "precip_3day_d1")
+        pr_penalty_d2 = _resolve(fv, "precip_3day_d2")
+
+        # ── Freeze-thaw penalty (weight 0.05) ────────────────────────────────
+        ft        = float(fv.get("freeze_thaw") or 0.0)
+        ft_penalty = ft * 0.05
+
+        # ── Weighted sum → 0-100 score ────────────────────────────────────────
+        total_penalty = (
+            0.40 * coh_penalty   +
+            0.25 * snow_penalty  +
+            0.75 * pr_penalty_d1 +
+            0.75 * pr_penalty_d2 +
+            0.05 * ft_penalty
+        )
+        final = max(0, min(100, round((1.0 - total_penalty) * 100)))
+
+        # Absolute coherence from S1 decay model, floored at PS fraction.
+        # Kept for MintPy minimum-coherence threshold comparison.
+        coh_abs = round(max(rho_inf, base), 4)
 
     factors: dict = {
         # Coherence source
         "coherence_source":      source,
-        "coherence_expected":    coh,
-        "coherence_by_class":    fv.get("coherence_by_class", {}),
+        "coherence_expected":    base,
         "coherence_climatology": fv.get("coherence_climatology"),
         "coherence_same_season": fv.get("coherence_same_season"),
         "coherence_season_d1":   fv.get("coherence_season_d1"),
         "coherence_season_d2":   fv.get("coherence_season_d2"),
         "coherence_segments":    fv.get("coherence_segments"),
-        # Environmental penalty breakdown
-        "snow_d1":       round(snow_d1, 4),
-        "snow_d2":       round(snow_d2, 4),
-        "temp_max_d1":   fv.get("temp_max_d1"),
-        "temp_max_d2":   fv.get("temp_max_d2"),
-        "freeze_thaw":   int(ft),
-        "precip_7day_d1": fv.get("precip_7day_d1"),
-        "precip_7day_d2": fv.get("precip_7day_d2"),
-        "bperp_normalized": round(bperp, 4),
-        # Geometry
-        "dt_days":   fv.get("dt_days", 0),
-        "bperp_diff": fv.get("bperp_diff", 0.0),
-        # Per-class land cover fractions (AOI-level, same for all pairs)
-        "lc_class_fractions": {
-            "stable":     round((fv.get("lc_urban_fraction") or 0.0) + (fv.get("lc_bare_fraction") or 0.0), 3),
-            "vegetation": round((fv.get("lc_shrub_fraction") or 0.0) + (fv.get("lc_grass_fraction") or 0.0) + (fv.get("lc_crop_fraction") or 0.0), 3),
-            "forest":     round(fv.get("lc_forest_fraction") or 0.0, 3),
+        # Weighted penalty breakdown (each = weight × normalised feature)
+        "penalties": {
+            "coherence":   round(0.40 * coh_penalty,   4),
+            "snow":        round(0.25 * snow_penalty,   4),
+            "precip_d1":   round(0.75 * pr_penalty_d1, 4),
+            "precip_d2":   round(0.75 * pr_penalty_d2, 4),
+            "freeze_thaw": round(0.05 * ft_penalty,    4),
         },
+        # Raw sensor values for display
+        "snow_cover_d1":  round(snow_frac_d1,   4),
+        "snow_cover_d2":  round(snow_frac_d2,   4),
+        "delta_snow":     round(delta_snow_raw, 4),
+        "temp_max_d1":    fv.get("temp_max_d1"),
+        "temp_max_d2":    fv.get("temp_max_d2"),
+        "precip_3day_d1": fv.get("precip_3day_d1"),
+        "precip_3day_d2": fv.get("precip_3day_d2"),
+        # Geometry
+        "dt_days":    fv.get("dt_days", 0),
+        "bperp_diff": fv.get("bperp_diff", 0.0),
         # Meta
-        "hard_kill":   hard_kill,
-        "snow_source": fv.get("snow_source", "none"),
-        "score":       final,
+        "hard_kill":      hard_kill,
+        "snow_source":    fv.get("snow_source", "none"),
+        "rho_inf":        round(rho_inf, 4),
+        "coherence_abs":  round(coh_abs,  4),
+        "score":          final,   # 0–100 integer
     }
     return final, factors
 

@@ -134,6 +134,10 @@ class Hyp3ActionRequest(BaseModel):
     processor_type: str = "Hyp3_InSAR"
 
 
+class FolderConfigPatch(BaseModel):
+    analyzer_config: dict[str, Any]
+
+
 class ParseAoiRequest(BaseModel):
     filename: str
     data:     str   # base64-encoded file bytes

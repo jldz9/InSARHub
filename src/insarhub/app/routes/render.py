@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from fastapi.responses import Response as _Resp
 from pyproj import Transformer
 from rasterio.crs import CRS
@@ -180,6 +181,104 @@ def _mintpy_bounds(attrs) -> list:
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────────
+
+@router.get("/api/render-coh-map")
+async def render_coh_map(path: str, season: str, pol: str = "vv", band: int = 1):
+    """Render one band of a coherence decay map GeoTIFF as a map overlay.
+
+    Parameters
+    ----------
+    path   : absolute folder path (same as the quality pipeline folder)
+    season : "winter" | "spring" | "summer" | "fall"
+    pol    : "vv" (default) or "vh"
+    band   : 1 = γ∞ (PS floor, 0–1), 2 = γ0 (initial coherence, 0–1),
+             3 = τ (decorrelation time, days)
+
+    Returns
+    -------
+    JSON with keys: png_b64, pixel_b64, bounds, pixel_width, pixel_height,
+    nodata, type, vmin, vmax  (same format as /api/render-tif)
+    """
+    import base64
+
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail=f"Folder not found: {path}")
+
+    tif_path = folder / "decay_maps" / f"S1_coherence_decay_{season}_{pol}.tif"
+    if not tif_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Decay map not found: {tif_path.name}. Run pair-quality first.",
+        )
+
+    if band not in (1, 2, 3):
+        raise HTTPException(status_code=400, detail="band must be 1, 2, or 3")
+
+    _BAND_LABELS = {1: "γ∞ PS floor", 2: "γ0 initial coh", 3: "τ decay days"}
+    _BAND_TYPES  = {1: "corr",        2: "corr",          3: "default"}
+
+    try:
+        import rasterio
+        from rasterio.warp import transform_bounds
+
+        with rasterio.open(tif_path) as src:
+            data_raw = src.read(band).astype(np.float32)
+            nodata   = float(src.nodata) if src.nodata is not None else -9999.0
+            bounds_native = src.bounds
+            bounds_wgs84  = transform_bounds(src.crs, "EPSG:4326", *bounds_native)
+            H, W = src.height, src.width
+
+        mask = data_raw == nodata
+        valid = data_raw[~mask]
+        if valid.size == 0:
+            raise HTTPException(status_code=422, detail="No valid pixels in band")
+
+        # Robust vmin/vmax — clip at 2nd/98th percentile to remove outliers
+        vmin = float(np.percentile(valid, 2))
+        vmax = float(np.percentile(valid, 98))
+        if vmin >= vmax:
+            vmin, vmax = float(valid.min()), float(valid.max())
+
+        type_name = _BAND_TYPES[band]
+        rgba = _colormap_numpy(data_raw, mask, vmin, vmax, type_name)
+
+        # Upsample PNG for crisp display — native data is ~1km/pixel so a
+        # typical 100×100 tile needs 8-10× zoom before it fills the viewport.
+        # We upsample to at least 512px on the longest side using nearest-
+        # neighbor (np.repeat) so the raster looks sharp, not blurry.
+        _MIN_DIM = 512
+        up = max(1, _MIN_DIM // max(H, W))
+        if up > 1:
+            rgba_display = np.repeat(np.repeat(rgba, up, axis=0), up, axis=1)
+        else:
+            rgba_display = rgba
+
+        png_bytes = _rgba_to_png_bytes(rgba_display)
+        png_b64   = base64.b64encode(png_bytes).decode()
+
+        # Float32 pixel buffer at native resolution for accurate hover values
+        pixel_buf = data_raw.tobytes()
+        pixel_b64 = base64.b64encode(pixel_buf).decode()
+
+        return {
+            "png_b64":      png_b64,
+            "pixel_b64":    pixel_b64,
+            "bounds":       list(bounds_wgs84),
+            "pixel_width":  W,
+            "pixel_height": H,
+            "nodata":       nodata,
+            "type":         type_name,
+            "label":        _BAND_LABELS[band],
+            "vmin":         round(vmin, 4),
+            "vmax":         round(vmax, 4),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
 
 @router.get("/api/folder-ifg-list")
 async def folder_ifg_list(path: str):
@@ -382,7 +481,125 @@ async def mintpy_check(path: str):
     folder = Path(path).expanduser().resolve()
     has_velocity = (folder / 'velocity.h5').exists()
     ts_files = [n for n in _TS_PRIORITY if (folder / n).exists()]
-    return {"has_velocity": has_velocity, "timeseries_files": ts_files}
+    has_overview = (folder / 'numTriNonzeroIntAmbiguity.h5').exists()
+    has_network  = (folder / 'coherenceSpatialAvg.txt').exists()
+    return {"has_velocity": has_velocity, "timeseries_files": ts_files,
+            "has_overview": has_overview, "has_network": has_network}
+
+
+@router.get("/api/mintpy-network-data")
+async def mintpy_network_data(path: str):
+    """Read coherenceSpatialAvg.txt and return nodes+pairs in folder-network-data format."""
+    folder = Path(path).expanduser().resolve()
+    coh_txt = folder / 'coherenceSpatialAvg.txt'
+    if not coh_txt.exists():
+        raise HTTPException(status_code=404, detail='coherenceSpatialAvg.txt not found')
+
+    pairs, coherences, bperps = [], [], []
+    with coh_txt.open() as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            parts = line.split()
+            if len(parts) < 5:
+                continue
+            date12, coh, btemp, bperp = parts[0], float(parts[1]), float(parts[2]), float(parts[3])
+            ref_d, sec_d = date12.split('_')
+            pairs.append((ref_d, sec_d))
+            coherences.append(coh)
+            bperps.append(bperp)
+
+    # Derive per-scene bperp: set earliest scene = 0, propagate via pairs
+    all_dates = sorted({d for p in pairs for d in p})
+    scene_bperp: dict[str, float] = {all_dates[0]: 0.0}
+    # Simple iterative propagation (handles DAGs)
+    changed = True
+    while changed:
+        changed = False
+        for (ref_d, sec_d), bp in zip(pairs, bperps):
+            if ref_d in scene_bperp and sec_d not in scene_bperp:
+                scene_bperp[sec_d] = scene_bperp[ref_d] + bp
+                changed = True
+            elif sec_d in scene_bperp and ref_d not in scene_bperp:
+                scene_bperp[ref_d] = scene_bperp[sec_d] - bp
+                changed = True
+    # Fallback: any unresolved scenes get 0
+    for d in all_dates:
+        scene_bperp.setdefault(d, 0.0)
+
+    nodes = [{"id": d, "date": f"{d[:4]}-{d[4:6]}-{d[6:8]}", "bperp": round(scene_bperp[d], 2)}
+             for d in all_dates]
+    pair_list = [[ref_d, sec_d] for ref_d, sec_d in pairs]
+    coh_map = {f"{ref_d}_{sec_d}": round(coh, 4) for (ref_d, sec_d), coh in zip(pairs, coherences)}
+
+    # Read current dropIfgram state from ifgramStack.h5
+    dropped_pairs: list[str] = []
+    ifgram_h5 = folder / 'inputs' / 'ifgramStack.h5'
+    if ifgram_h5.exists():
+        try:
+            import h5py
+            with h5py.File(ifgram_h5, 'r') as hf:
+                drop_flags = hf['dropIfgram'][:]
+                dates_h5   = hf['date'][:]          # shape (N, 2), bytes
+            for flag, row in zip(drop_flags, dates_h5):
+                if not flag:  # False = dropped (True = keep)
+                    d12 = f"{row[0].decode()}_{row[1].decode()}"
+                    dropped_pairs.append(d12)
+        except Exception:
+            pass
+
+    return {"stacks": {"mintpy_network": {"nodes": nodes, "pairs": pair_list}},
+            "coherence": coh_map,
+            "dropped_pairs": dropped_pairs}
+
+
+class MintpySaveRequest(BaseModel):
+    folder_path: str
+    active_pairs: list[str]   # list of "YYYYMMDD_YYYYMMDD" that should be KEPT
+
+
+@router.post("/api/mintpy-save-network")
+async def mintpy_save_network(req: MintpySaveRequest):
+    """Persist network edits as modify_network config in insarhub_config.json.
+
+    Computes the dropped pairs (all pairs in ifgramStack.h5 minus active_pairs)
+    and writes them to network_excludeDate12 in the analyzer config so that the
+    next modify_network run re-applies the exclusions from config rather than
+    relying on a direct HDF5 edit.
+    """
+    from insarhub.app.state import read_insarhub_config, write_insarhub_config
+
+    folder = Path(req.folder_path).expanduser().resolve()
+    ifgram_h5 = folder / 'inputs' / 'ifgramStack.h5'
+    if not ifgram_h5.exists():
+        raise HTTPException(status_code=404, detail='inputs/ifgramStack.h5 not found')
+
+    try:
+        import h5py
+        with h5py.File(ifgram_h5, 'r') as hf:
+            dates_h5 = hf['date'][:]  # shape (N, 2), bytes
+        all_pairs = [f"{row[0].decode()}_{row[1].decode()}" for row in dates_h5]
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    active_set  = set(req.active_pairs)
+    dropped     = [d12 for d12 in all_pairs if d12 not in active_set]
+    excluded_str = " ".join(dropped) if dropped else "auto"
+
+    try:
+        cfg = read_insarhub_config(folder)
+        az_cfg = cfg.get("analyzer", {}).get("config", {})
+        az_cfg["network_excludeDate12"] = excluded_str
+        write_insarhub_config(folder, {"analyzer": {"config": az_cfg}})
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Config write failed: {exc}")
+
+    return {
+        "excluded": len(dropped),
+        "total":    len(all_pairs),
+        "network_excludeDate12": excluded_str,
+    }
 
 
 @router.get("/api/render-velocity")
@@ -467,7 +684,13 @@ async def render_velocity(path: str):
     data = dst_data
     mask = ~np.isfinite(data) | (data == 0)
 
-    vmin, vmax = -0.1, 0.1
+    valid_v = data[~mask]
+    if valid_v.size > 0:
+        abs_max = float(np.percentile(np.abs(valid_v), 98))
+        vmax =  max(abs_max, 1e-6)
+        vmin = -vmax
+    else:
+        vmin, vmax = -0.1, 0.1
     rgba = _colormap_numpy(data, mask, vmin, vmax, 'velocity')
     png_bytes = _rgba_to_png_bytes(rgba)
     png_b64 = base64.b64encode(png_bytes).decode()
@@ -492,6 +715,162 @@ async def render_velocity(path: str):
         'pixel_height': ph,
         'unit': unit,
         'label': f'Velocity ({unit})'
+    }
+
+
+# ── MintPy diagnostic file renderer ──────────────────────────────────────────
+
+_DIAG_META = {
+    'avgSpatialCoh': {
+        'file':  'avgSpatialCoh.h5',
+        'cmap':  'viridis',
+        'label': 'Avg Spatial Coherence',
+        'vmin':  0.0, 'vmax': 1.0,
+    },
+    'avgPhaseVelocity': {
+        'file':  'avgPhaseVelocity.h5',
+        'cmap':  'velocity',
+        'label': 'Avg Phase Velocity (rad/yr)',
+        'vmin':  None, 'vmax': None,
+    },
+    'numTriNonzeroIntAmbiguity': {
+        'file':  'numTriNonzeroIntAmbiguity.h5',
+        'cmap':  'viridis',
+        'label': 'Unwrapping Error Count',
+        'vmin':  0.0, 'vmax': None,
+    },
+    'maskConnComp': {
+        'file':  'maskConnComp.h5',
+        'cmap':  'viridis',
+        'label': 'Connected Component Mask',
+        'vmin':  0.0, 'vmax': 1.0,
+    },
+}
+
+
+@router.get("/api/render-mintpy-diag")
+async def render_mintpy_diag(path: str, name: str):
+    """Render a MintPy diagnostic HDF5 file to PNG + float32 pixel array."""
+    import base64
+
+    MAX_PIXEL = 1024
+
+    if name not in _DIAG_META:
+        raise HTTPException(status_code=400, detail=f"Unknown diagnostic: {name}. Choose from {list(_DIAG_META)}")
+
+    meta     = _DIAG_META[name]
+    h5_path  = Path(path).expanduser().resolve() / meta['file']
+    if not h5_path.exists():
+        raise HTTPException(status_code=404, detail=f"{meta['file']} not found")
+
+    try:
+        import h5py
+
+        with h5py.File(h5_path, 'r') as f:
+            # Auto-detect first 2-D dataset
+            ds_name = next(
+                (k for k in f.keys() if isinstance(f[k], h5py.Dataset) and f[k].ndim >= 2),
+                None
+            )
+            if ds_name is None:
+                raise ValueError(f"No 2-D dataset found in {h5_path.name}. Keys: {list(f.keys())}")
+            ds    = f[ds_name]
+            data  = ds[:].astype(np.float32)
+            attrs = {k: v for k, v in f.attrs.items()}
+            attrs.update({k: v for k, v in ds.attrs.items()})
+
+        if data.ndim == 3:
+            data = data[0]
+        orig_h, orig_w = data.shape
+
+        x_first = float(_mintpy_attr_val(attrs, 'X_FIRST'))
+        y_first = float(_mintpy_attr_val(attrs, 'Y_FIRST'))
+        x_step  = float(_mintpy_attr_val(attrs, 'X_STEP'))
+        y_step  = float(_mintpy_attr_val(attrs, 'Y_STEP'))
+
+        is_projected = abs(x_first) > 360 or abs(y_first) > 90
+        src_epsg = _mintpy_epsg(attrs) if is_projected else 4326
+        src_crs  = CRS.from_epsg(src_epsg)
+        dst_crs  = CRS.from_epsg(3857)
+
+        half_x    = 0.5 * abs(x_step)
+        half_y    = 0.5 * abs(y_step)
+        src_west  = x_first - half_x
+        src_east  = x_first + x_step  * (orig_w - 1) + half_x
+        src_north = y_first + half_y
+        src_south = y_first + y_step  * (orig_h - 1) - half_y
+
+        src_tf = from_bounds(src_west, src_south, src_east, src_north, orig_w, orig_h)
+
+        if is_projected:
+            tf_src_to_wgs = Transformer.from_crs(src_epsg, 4326, always_xy=True)
+            xs, ys = tf_src_to_wgs.transform(
+                [src_west, src_east, src_west, src_east],
+                [src_south, src_south, src_north, src_north],
+            )
+            west, south, east, north = min(xs), min(ys), max(xs), max(ys)
+        else:
+            west, south, east, north = src_west, src_south, src_east, src_north
+
+        tf_to_merc = Transformer.from_crs(4326, 3857, always_xy=True)
+        merc_w, merc_s = tf_to_merc.transform(west,  south)
+        merc_e, merc_n = tf_to_merc.transform(east,  north)
+
+        # Upsample to at least 1024px on the long side for a crisp map overlay
+        _TARGET = 1024
+        scale   = max(1.0, _TARGET / max(orig_w, orig_h))
+        dst_w, dst_h = int(orig_w * scale), int(orig_h * scale)
+        dst_tf = from_bounds(merc_w, merc_s, merc_e, merc_n, dst_w, dst_h)
+
+        mask_val = 0.0 if name == 'maskConnComp' else np.nan
+        src_data = np.where(np.isfinite(data), data, mask_val)
+        dst_data = np.full((dst_h, dst_w), np.nan, dtype=np.float32)
+        reproject(
+            source=src_data, destination=dst_data,
+            src_transform=src_tf, src_crs=src_crs,
+            dst_transform=dst_tf, dst_crs=dst_crs,
+            resampling=Resampling.nearest,
+            src_nodata=mask_val, dst_nodata=np.nan,
+        )
+
+        tf_to_wgs  = Transformer.from_crs(3857, 4326, always_xy=True)
+        wgs_w, wgs_s = tf_to_wgs.transform(merc_w, merc_s)
+        wgs_e, wgs_n = tf_to_wgs.transform(merc_e, merc_n)
+        bounds = [wgs_w, wgs_s, wgs_e, wgs_n]
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f'Processing error: {e}')
+
+    data = dst_data
+    mask = ~np.isfinite(data)
+
+    vmin = meta['vmin'] if meta['vmin'] is not None else float(np.nanmin(data)) if np.any(~mask) else 0.0
+    vmax = meta['vmax'] if meta['vmax'] is not None else float(np.nanmax(data)) if np.any(~mask) else 1.0
+
+    rgba      = _colormap_numpy(data, mask, vmin, vmax, meta['cmap'])
+    png_bytes = _rgba_to_png_bytes(rgba)
+    png_b64   = base64.b64encode(png_bytes).decode()
+
+    scale_p = min(1.0, MAX_PIXEL / max(dst_h, dst_w))
+    ph, pw  = max(1, int(dst_h * scale_p)), max(1, int(dst_w * scale_p))
+    row_idx = (np.arange(ph) * dst_h / ph).astype(int)
+    col_idx = (np.arange(pw) * dst_w / pw).astype(int)
+    pix_data   = data[np.ix_(row_idx, col_idx)]
+    pixel_b64  = base64.b64encode(pix_data.astype(np.float32).tobytes()).decode()
+
+    return {
+        'png_b64':      png_b64,
+        'pixel_b64':    pixel_b64,
+        'bounds':       bounds,
+        'vmin':         vmin,
+        'vmax':         vmax,
+        'width':        dst_w,
+        'height':       dst_h,
+        'pixel_width':  pw,
+        'pixel_height': ph,
+        'label':        meta['label'],
     }
 
 
@@ -530,7 +909,10 @@ async def timeseries_pixel(path: str, lat: float, lon: float, ts_file: str | Non
             s = d.decode() if isinstance(d, (bytes, bytearray)) else str(d)
             return s.strip()
         dates     = [_decode_date(d) for d in raw_dates]
-        iso_dates = [f'{d[:4]}-{d[4:6]}-{d[6:8]}' for d in dates if len(d) >= 8]
+        # Keep values and dates in sync — drop any entry whose date string is too short
+        date_value_pairs = [(d, v) for d, v in zip(dates, values) if len(d) >= 8]
+        iso_dates = [f'{d[:4]}-{d[4:6]}-{d[6:8]}' for d, _ in date_value_pairs]
+        values    = [v for _, v in date_value_pairs]
         unit      = str(_mintpy_attr_val(attrs, 'UNIT')) if 'UNIT' in attrs else 'm'
     except KeyError as e:
         raise HTTPException(status_code=400, detail=f'Missing geo-attribute: {e}')

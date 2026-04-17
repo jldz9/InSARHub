@@ -330,7 +330,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
         )}
         {f.type === 'number' && (
           <input type="number" value={val} min={f.min} max={f.max} step={f.step ?? 1}
-            onChange={e => setter(f.key, parseFloat(e.target.value))}
+            onChange={e => { const n = parseFloat(e.target.value); if (!isNaN(n)) setter(f.key, n) }}
             style={{ ...inputStyle, width: 100 }} />
         )}
         {f.type === 'auto_number' && (

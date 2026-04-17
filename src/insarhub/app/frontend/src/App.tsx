@@ -500,11 +500,6 @@ export default function App() {
           mapClickSignal={mapClickSignal}
           onClose={() => setJobsOpen(false)}
           onRasterSelect={setRasterOverlay}
-          onSettingsOpen={(analyzerType) => {
-            setSettingsInitialTab('analyzer')
-            setSettingsInitialAnalyzerType(analyzerType)
-            setSettingsOpen(true)
-          }}
         />
       )}
 

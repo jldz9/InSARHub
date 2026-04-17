@@ -10,7 +10,8 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 
 import insarhub.app.state as state
-from insarhub.app.models import SettingsUpdate
+from insarhub.app.models import SettingsUpdate, FolderConfigPatch
+from insarhub.app.state import read_insarhub_config, write_insarhub_config
 
 router = APIRouter()
 
@@ -98,22 +99,55 @@ async def get_job_folders():
     for subfolder in sorted(workdir.iterdir()):
         if not subfolder.is_dir():
             continue
+        cfg = read_insarhub_config(subfolder)
         tags: list[str] = []
         if (subfolder / "hyp3_jobs.json").exists() or list(subfolder.glob("hyp3_retry_jobs_*.json")):
             tags.append("HyP3")
-        if (subfolder / "mintpy.cfg").exists():
+        if (subfolder / ".mintpy.cfg").exists() or cfg.get("analyzer"):
             tags.append("MintPy")
-        if list(subfolder.glob("pairs_p*_f*.json")):
+        if list(subfolder.glob("stack_p*_f*.json")):
             tags.append("SBAS")
-        workflow: dict = {}
-        wf_file = subfolder / "insarhub_workflow.json"
-        if wf_file.exists():
-            try:
-                workflow = json.loads(wf_file.read_text())
-            except Exception:
-                pass
+        workflow = {
+            "downloader": cfg.get("downloader", {}).get("type", ""),
+            "processor":  cfg.get("processor",  {}).get("type", ""),
+            "analyzer":   cfg.get("analyzer",   {}).get("type", ""),
+        }
         jobs.append({"name": subfolder.name, "path": str(subfolder), "tags": tags, "workflow": workflow})
     return {"jobs": jobs}
+
+
+@router.get("/api/folder-config")
+async def get_folder_config(path: str):
+    """Return insarhub_config.json for a folder, merged with in-memory defaults."""
+    folder = Path(path).expanduser().resolve()
+    cfg = read_insarhub_config(folder)
+    # Fill missing sections with in-memory defaults so GUI always has full config
+    if "downloader" not in cfg:
+        dl = state._settings["downloader"]
+        cfg["downloader"] = {"type": dl, "config": state._settings["downloader_config"]}
+    if "processor" not in cfg:
+        pr = state._settings["processor"]
+        cfg["processor"] = {"type": pr, "config": state._settings["processor_config"]}
+    if "analyzer" not in cfg:
+        az = state._settings["analyzer"]
+        cfg["analyzer"] = {"type": az, "config": state._settings["analyzer_configs"].get(az, {})}
+    return cfg
+
+
+@router.patch("/api/folder-config")
+async def patch_folder_config(path: str, body: FolderConfigPatch):
+    """Write analyzer config back to a folder's insarhub_config.json."""
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    az_cfg = body.analyzer_config
+    cfg = read_insarhub_config(folder)
+    az_section = cfg.get("analyzer", {})
+    existing = az_section.get("config", {})
+    existing.update(az_cfg)
+    az_section["config"] = existing
+    write_insarhub_config(folder, {"analyzer": az_section})
+    return {"ok": True}
 
 
 @router.delete("/api/job-folder")

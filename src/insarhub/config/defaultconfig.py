@@ -671,7 +671,7 @@ class Mintpy_SBAS_Base_Config:
     ## Load data
     load_processor: str = 'auto'
     load_autoPath: str = 'auto' 
-    load_updateMode: str = 'auto'
+    load_updateMode: str = 'no'
     load_compression: str = 'auto'
     ##---------for ISCE only:
     load_metaFile: str = 'auto'
@@ -877,6 +877,6 @@ class Hyp3_SBAS_Config(Mintpy_SBAS_Base_Config):
     networkInversion_maskThreshold: str | float = 0.5
     network_coherenceBased : str = 'yes'
     network_minCoherence : str| float = 0.7
-    plot : str = 'no'
+    plot : str = 'yes'
     save_kmz: str = 'no'
 

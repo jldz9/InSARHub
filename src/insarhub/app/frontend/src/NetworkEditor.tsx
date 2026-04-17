@@ -34,6 +34,10 @@ interface Props {
   onClose: () => void
   onSaved: () => void
   initParamsOpen?: boolean   // auto-open the Parameters dialog (e.g. no pairs yet)
+  overrideDataUrl?: string   // if set, fetch network data from this URL instead
+  readOnly?: boolean         // hide save/edit controls
+  saveUrl?: string           // if set, POST active pairs here instead of default save endpoint
+  analyzerType?: string      // if set with saveUrl, Parameters shows modify_network config
 }
 
 interface LayoutMeta {
@@ -114,15 +118,17 @@ function computeLayout(rawNodes: RawNode[], W: number, H: number): LayoutNode[] 
  * Quality-risk colour ramp: blue (0 = good) → yellow (0.5) → red (1 = bad).
  * Matches the Python _QUALITY_CMAP used in plot_pair_network.
  */
-// Score convention: 1 = good coherence, 0 = bad coherence.
-// Raw DB/classifier scores are inverted (classifier: 0=good → display 1=good).
-// 3-category quality based on InSAR literature (Hanssen 2001, StaMPS, ESA guidelines):
-//   Good  ≥ 0.6  — phase σ < ~40° (1-look), reliable unwrapping
-//   Risky  0.3–0.6 — marginal; phase σ 40°–87°, application-dependent
-//   Bad   < 0.3  — noise dominated; StaMPS lower rejection bound
+// Two score scales:
+//   Coherence mode (analyzer): 0–1 float  — Good ≥0.6, Risky 0.3–0.6, Bad <0.3
+//   Quality mode (pair quality): 0–100 int — Good ≥60,  Risky 30–59,   Bad <30
 function qualityCategory(score: number): 'good' | 'risky' | 'bad' {
-  if (score >= 0.6) return 'good'
-  if (score >= 0.3) return 'risky'
+  if (score <= 1) {
+    if (score >= 0.6) return 'good'
+    if (score >= 0.3) return 'risky'
+    return 'bad'
+  }
+  if (score >= 60) return 'good'
+  if (score >= 30) return 'risky'
   return 'bad'
 }
 
@@ -175,7 +181,7 @@ function dashLine(
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initParamsOpen = false }: Props) {
+export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initParamsOpen = false, overrideDataUrl, readOnly = false, saveUrl, analyzerType }: Props) {
   // React UI state
   const [stacks,      setStacks]      = useState<Record<string, StackData> | null>(null)
   const [activeKey,   setActiveKey]   = useState('')
@@ -198,12 +204,41 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const [forceConnect, setForceConnect] = useState(true)
   const [updating,     setUpdating]     = useState(false)
   const [updateMsg,    setUpdateMsg]    = useState('')
+
+  // modify_network parameters (MintPy mode — only used when saveUrl + analyzerType set)
+  const mintpyMode = !!(saveUrl && analyzerType)
+  const [mnTempBaseMax,    setMnTempBaseMax]    = useState('auto')
+  const [mnPerpBaseMax,    setMnPerpBaseMax]    = useState('auto')
+  const [mnStartDate,      setMnStartDate]      = useState('auto')
+  const [mnEndDate,        setMnEndDate]        = useState('auto')
+  const [mnExcludeDate,    setMnExcludeDate]    = useState('auto')
+  const [mnMinCoherence,   setMnMinCoherence]   = useState('auto')
+  const [mnCohBased,       setMnCohBased]       = useState('auto')
+  const [mnKeepMST,        setMnKeepMST]        = useState('auto')
+  const [mnRunning,        setMnRunning]        = useState(false)
+  const [mnMsg,            setMnMsg]            = useState('')
+
+  // Load current modify_network config from folder on open (MintPy mode)
+  useEffect(() => {
+    if (!mintpyMode) return
+    fetch(`${API}/api/folder-config?path=${encodeURIComponent(folderPath)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        const cfg = d?.analyzer?.config ?? {}
+        if (cfg.network_tempBaseMax !== undefined) setMnTempBaseMax(String(cfg.network_tempBaseMax))
+        if (cfg.network_perpBaseMax !== undefined) setMnPerpBaseMax(String(cfg.network_perpBaseMax))
+        if (cfg.network_startDate   !== undefined) setMnStartDate(String(cfg.network_startDate))
+        if (cfg.network_endDate     !== undefined) setMnEndDate(String(cfg.network_endDate))
+        if (cfg.network_excludeDate !== undefined) setMnExcludeDate(String(cfg.network_excludeDate))
+        if (cfg.network_minCoherence!== undefined) setMnMinCoherence(String(cfg.network_minCoherence))
+        if (cfg.network_coherenceBased !== undefined) setMnCohBased(String(cfg.network_coherenceBased))
+        if (cfg.network_keepMinSpanTree!== undefined) setMnKeepMST(String(cfg.network_keepMinSpanTree))
+      })
+      .catch(() => {})
+  }, [mintpyMode, folderPath])
   const [qualityScores,    setQualityScores]     = useState<Record<string, number> | null>(null)
   const [qualityFactors,   setQualityFactors]    = useState<Record<string, any> | null>(null)
   const qualityFactorsRef  = useRef<Record<string, any> | null>(null)
-  // Which coherence class to display on edges. 'overall' = combined score.
-  const [cohClass,    setCohClass]    = useState<'stable' | 'vegetation' | 'forest'>('stable')
-  const cohClassRef = useRef<'stable' | 'vegetation' | 'forest'>('stable')
   // Scores/factors for manually drawn edges — persisted across quality re-fetches
   const manualScoresRef  = useRef<Record<string, number>>({})
   const manualFactorsRef = useRef<Record<string, any>>({})
@@ -247,20 +282,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     const hov    = hoveredRef.current
     const nodeMap = new Map(nodes.map(n => [n.id, n]))
 
-    // Class-aware edge score: when per-class data is present, show only the selected class.
-    // Falls back to overall score only when no per-class data exists for the edge.
-    const _edgeScore = (e: Edge): number | null => {
-      const fct = qualityFactorsRef.current?.[`${e.ref}:${e.sec}`]
-               ?? qualityFactorsRef.current?.[`${e.sec}:${e.ref}`]
-      const byClass = fct?.coherence_by_class as Record<string, number> | undefined
-      if (byClass && Object.keys(byClass).length > 0) {
-        // Class data available — show selected class only (null → grey if not present)
-        const v = byClass[cohClassRef.current]
-        return typeof v === 'number' ? v : null
-      }
-      // No class data — fall back to overall quality score
-      return edgeScore(e, qualityRef.current)
-    }
+    const _edgeScore = (e: Edge): number | null => edgeScore(e, qualityRef.current)
 
     // s = current zoom scale; divide all screen-space sizes by s so they stay
     // constant in CSS pixels regardless of zoom level.
@@ -381,8 +403,6 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     }
   }, [])
 
-  // Sync cohClass state → ref and trigger redraw whenever the class selector changes.
-  useEffect(() => { cohClassRef.current = cohClass; redraw() }, [cohClass, redraw])
 
   // ── Build node labels ────────────────────────────────────────────────────────
 
@@ -448,19 +468,31 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
     const edges: Edge[] = stackData.pairs.map(([ref, sec]) => {
       const n1 = nodeMap.get(ref), n2 = nodeMap.get(sec)
+      const d12 = `${ref}_${sec}`
+      const dropped = droppedPairsRef.current.size > 0 && droppedPairsRef.current.has(d12)
       return {
-        ref, sec, active: true,
+        ref, sec, active: !dropped,
         dt:        daysBetween(n1?.date ?? '', n2?.date ?? ''),
         bperpDiff: Math.abs((n1?.bperp ?? 0) - (n2?.bperp ?? 0)),
       }
     })
     edgesRef.current = edges
-    setActiveCount(edges.length)
+    // Apply coherence override as quality scores so edges are coloured by coherence.
+    // API returns "YYYYMMDD_YYYYMMDD" keys; edgeScore() expects "YYYYMMDD:YYYYMMDD".
+    if (cohOverrideRef.current) {
+      const converted: Record<string, number> = {}
+      for (const [k, v] of Object.entries(cohOverrideRef.current)) {
+        converted[k.replace('_', ':')] = v
+      }
+      qualityRef.current = converted
+      setQualityScores(converted)
+    }
+    setActiveCount(edges.filter(e => e.active).length)
     setTotalCount(edges.length)
     hoveredRef.current = -1
     setHovEdge(null)
     // After edges are set, look up DB scores for any pairs not in the quality JSON
-    setTimeout(() => lookupMissingScores(), 0)
+    if (!saveUrlRef.current) setTimeout(() => lookupMissingScores(), 0)
 
     // Reset view
     ps.world.position.set(0, 0)
@@ -656,8 +688,8 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           canvas.style.cursor = 'grabbing'
           return
         }
-        if (ev.button === 0) {
-          // Left-click on a node: start drag-to-create
+        if (ev.button === 0 && !saveUrlRef.current) {
+          // Left-click on a node: start drag-to-create (disabled in mintpy mode)
           const wp  = world.toLocal(new Point(ev.globalX, ev.globalY))
           const thr = 8 / world.scale.x
           const nodes = nodesRef.current
@@ -868,6 +900,8 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const stacksRef       = useRef<Record<string, StackData> | null>(null)
   const activeKeyRef    = useRef('')
   const folderPathRef   = useRef(folderPath)
+  const saveUrlRef      = useRef(saveUrl)
+  useEffect(() => { saveUrlRef.current = saveUrl }, [saveUrl])
   // Quality scores keyed by "ref:sec" — null means not yet loaded
   const qualityRef      = useRef<Record<string, number> | null>(null)
   // Whether the precomputed full pair DB is available for this folder
@@ -878,11 +912,19 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
   // ── Load data ───────────────────────────────────────────────────────────────
 
+  const droppedPairsRef = useRef<Set<string>>(new Set())
+  const cohOverrideRef  = useRef<Record<string, number> | null>(null)
+  const [reloadTick, setReloadTick] = useState(0)
+
   useEffect(() => {
-    fetch(`${API}/api/folder-network-data?path=${encodeURIComponent(folderPath)}`)
+    const url = overrideDataUrl ?? `${API}/api/folder-network-data?path=${encodeURIComponent(folderPath)}`
+    fetch(url)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(d => {
         const data: Record<string, StackData> = d.stacks ?? {}
+        // Store dropped pairs and coherence from mintpy network response
+        droppedPairsRef.current = new Set<string>(d.dropped_pairs ?? [])
+        cohOverrideRef.current  = d.coherence ?? null
         // When opened in nodes-only mode, strip all pairs so canvas starts clean
         if (initParamsOpen) {
           for (const key of Object.keys(data)) data[key] = { ...data[key], pairs: [] }
@@ -893,7 +935,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
         if (first && pixiRef.current) buildLayout(data[first])
       })
       .catch(e => setError(String(e)))
-  }, [folderPath, buildLayout])
+  }, [folderPath, buildLayout, reloadTick])
 
   // ── Stack switch ─────────────────────────────────────────────────────────────
 
@@ -905,6 +947,8 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   // ── Fetch quality scores ──────────────────────────────────────────────────────
 
   useEffect(() => {
+    // In mintpy mode coherence values come from the override URL — skip pair-quality fetch
+    if (saveUrlRef.current) return
     qualityRef.current = null
     dbAvailableRef.current = false
 
@@ -1008,15 +1052,24 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
 
   async function handleSave() {
     setSaving(true); setError('')
-    const activePairs = edgesRef.current
-      .filter(e => e.active)
-      .map(e => [e.ref, e.sec])
+    const activePairs = edgesRef.current.filter(e => e.active).map(e => [e.ref, e.sec])
     try {
-      const res = await fetch(`${API}/api/folder-save-pairs`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ folder_path: folderPath, pairs: { [activeKey]: activePairs } }),
-      })
+      let res: Response
+      if (saveUrl) {
+        // Mintpy mode: send flat list of active date12 strings to update dropIfgram
+        const active_pairs = activePairs.map(([ref, sec]) => `${ref}_${sec}`)
+        res = await fetch(`${API}${saveUrl}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_path: folderPath, active_pairs }),
+        })
+      } else {
+        res = await fetch(`${API}/api/folder-save-pairs`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ folder_path: folderPath, pairs: { [activeKey]: activePairs } }),
+        })
+      }
       if (!res.ok) throw new Error(await res.text())
       onSaved(); onClose()
     } catch (e) {
@@ -1098,13 +1151,13 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             background: 'transparent', color: t.textMuted, border: `1px solid ${t.border}`,
           }}>Fit</button>
 
-          <button onClick={handleSave} disabled={saving} style={{
+          {!readOnly && <button onClick={handleSave} disabled={saving} style={{
             padding: '4px 14px', fontSize: 12, borderRadius: 4,
             fontWeight: 600, cursor: saving ? 'default' : 'pointer',
             background: saving ? '#1a2a40' : '#0d3b6e',
             color: saving ? t.textMuted : '#90caf9',
             border: '1px solid #1565c0',
-          }}>{saving ? 'Saving…' : 'Confirm & Save'}</button>
+          }}>{saving ? 'Saving…' : 'Confirm & Save'}</button>}
 
           <button onClick={onClose} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -1115,7 +1168,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
         {/* ── Canvas area ─────────────────────────────────────────────────────── */}
         <div ref={containerRef} style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
 
-          {/* ── Pair-selection parameters floating dialog ──────────────────────── */}
+          {/* ── Parameters floating dialog ─────────────────────────────────────── */}
           {paramsOpen && (() => {
             const inp: React.CSSProperties = {
               background: t.inputBg, border: `1px solid ${t.inputBorder}`,
@@ -1126,6 +1179,138 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               color: t.textMuted, fontSize: 10, marginBottom: 3, display: 'block',
               textTransform: 'uppercase', letterSpacing: '0.04em',
             }
+
+            // ── MintPy mode: modify_network config ──────────────────────────────
+            if (mintpyMode) {
+              const sel: React.CSSProperties = { ...inp, cursor: 'pointer' }
+              async function handleRunModifyNetwork() {
+                if (!analyzerType) return
+                setMnRunning(true)
+                setMnMsg('Saving config…')
+                try {
+                  // 1. Patch config
+                  const patch = {
+                    network_tempBaseMax:    mnTempBaseMax,
+                    network_perpBaseMax:    mnPerpBaseMax,
+                    network_startDate:      mnStartDate,
+                    network_endDate:        mnEndDate,
+                    network_excludeDate:    mnExcludeDate,
+                    network_minCoherence:   mnMinCoherence,
+                    network_coherenceBased: mnCohBased,
+                    network_keepMinSpanTree: mnKeepMST,
+                  }
+                  const patchRes = await fetch(`${API}/api/folder-config?path=${encodeURIComponent(folderPath)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ analyzer_config: patch }),
+                  })
+                  if (!patchRes.ok) throw new Error('Config save failed')
+
+                  // 2. Run modify_network step
+                  setMnMsg('Running modify_network…')
+                  const runRes = await fetch(`${API}/api/folder-run-analyzer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ folder_path: folderPath, analyzer_type: analyzerType, steps: ['modify_network'] }),
+                  })
+                  if (!runRes.ok) throw new Error('Run failed')
+                  const { job_id } = await runRes.json()
+
+                  // 3. Poll until done
+                  await new Promise<void>((resolve, reject) => {
+                    const iv = setInterval(async () => {
+                      const s = await fetch(`${API}/api/jobs/${job_id}`).then(r => r.json())
+                      setMnMsg(s.message?.split('\n').pop() ?? 'Running…')
+                      if (s.status === 'done') { clearInterval(iv); resolve() }
+                      if (s.status === 'error') { clearInterval(iv); reject(new Error(s.message)) }
+                    }, 1500)
+                  })
+                  setMnMsg('Done')
+                  setReloadTick(n => n + 1)
+                } catch (e) {
+                  setMnMsg(`Error: ${e}`)
+                } finally {
+                  setMnRunning(false)
+                }
+              }
+
+              return (
+                <>
+                  <div onClick={() => setParamsOpen(false)} style={{ position: 'absolute', inset: 0, zIndex: 20 }} />
+                  <div style={{
+                    position: 'absolute', top: 12, right: 12, zIndex: 21, width: 420,
+                    background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8,
+                    boxShadow: '0 8px 40px rgba(0,0,0,0.55)',
+                    display: 'flex', flexDirection: 'column', overflow: 'hidden',
+                  }}>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '9px 14px', borderBottom: `1px solid ${t.border}`, background: t.bg2,
+                    }}>
+                      <span style={{ color: t.text, fontWeight: 700, fontSize: 13 }}>modify_network Parameters</span>
+                      <button onClick={() => setParamsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18, lineHeight: 1, padding: '0 2px' }}>×</button>
+                    </div>
+                    <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                        <div>
+                          <label style={lbl}>Max temporal baseline (days)</label>
+                          <input style={inp} value={mnTempBaseMax} onChange={e => setMnTempBaseMax(e.target.value)} placeholder="auto" />
+                        </div>
+                        <div>
+                          <label style={lbl}>Max ⊥ baseline (m)</label>
+                          <input style={inp} value={mnPerpBaseMax} onChange={e => setMnPerpBaseMax(e.target.value)} placeholder="auto" />
+                        </div>
+                        <div>
+                          <label style={lbl}>Start date (YYYYMMDD)</label>
+                          <input style={inp} value={mnStartDate} onChange={e => setMnStartDate(e.target.value)} placeholder="auto" />
+                        </div>
+                        <div>
+                          <label style={lbl}>End date (YYYYMMDD)</label>
+                          <input style={inp} value={mnEndDate} onChange={e => setMnEndDate(e.target.value)} placeholder="auto" />
+                        </div>
+                      </div>
+                      <div>
+                        <label style={lbl}>Exclude dates (space-separated YYYYMMDD)</label>
+                        <input style={inp} value={mnExcludeDate} onChange={e => setMnExcludeDate(e.target.value)} placeholder="auto" />
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                        <div>
+                          <label style={lbl}>Coherence-based</label>
+                          <select style={sel} value={mnCohBased} onChange={e => setMnCohBased(e.target.value)}>
+                            {['auto', 'yes', 'no'].map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={lbl}>Min coherence</label>
+                          <input style={inp} value={mnMinCoherence} onChange={e => setMnMinCoherence(e.target.value)} placeholder="auto" />
+                        </div>
+                        <div>
+                          <label style={lbl}>Keep min span tree</label>
+                          <select style={sel} value={mnKeepMST} onChange={e => setMnKeepMST(e.target.value)}>
+                            {['auto', 'yes', 'no'].map(o => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '10px 16px', borderTop: `1px solid ${t.border}`, background: t.bg2,
+                    }}>
+                      {mnMsg && <span style={{ fontSize: 11, fontFamily: 'monospace', flex: 1, color: mnMsg.startsWith('Error') ? '#e53935' : mnMsg === 'Done' ? '#4caf50' : t.textMuted }}>{mnMsg}</span>}
+                      <button onClick={handleRunModifyNetwork} disabled={mnRunning} style={{
+                        marginLeft: 'auto', padding: '5px 20px', fontSize: 12, borderRadius: 6, fontWeight: 600,
+                        cursor: mnRunning ? 'default' : 'pointer',
+                        background: mnRunning ? t.inputBg : '#1b5e20',
+                        color: mnRunning ? t.textMuted : '#a5d6a7',
+                        border: '1px solid #388e3c',
+                      }}>{mnRunning ? '⟳ Running…' : 'Run modify_network'}</button>
+                    </div>
+                  </div>
+                </>
+              )
+            }
+
+            // ── Default mode: pair selection parameters ─────────────────────────
             return (
               <>
                 {/* backdrop — click outside to close */}
@@ -1241,16 +1426,14 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             padding: '6px 10px', fontSize: 12, color: t.textMuted,
             display: 'flex', flexDirection: 'column', gap: 4,
           }}>
-            <span style={{ color: t.text, fontWeight: 600, marginBottom: 2 }}>Pair quality</span>
-            {([
-              { score: 1.0, label: 'Good',  thresh: '≥0.6'      },
-              { score: 0.5, label: 'Risky', thresh: '0.3 – 0.6' },
-              { score: 0.0, label: 'Bad',   thresh: '<0.3'       },
-            ] as const).map(({ score, label, thresh }) => (
+            <span style={{ color: t.text, fontWeight: 600, marginBottom: 2 }}>{saveUrl ? 'Coherence' : 'Pair quality'}</span>
+            {(saveUrl
+              ? [{ score: 0.8, label: 'Good' }, { score: 0.45, label: 'Risky' }, { score: 0.1, label: 'Bad' }]
+              : [{ score: 100, label: 'Good' }, { score: 50,   label: 'Risky' }, { score: 0,   label: 'Bad' }]
+            ).map(({ score, label }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
                 <div style={{ width: 28, height: 3, background: qualityCSS(score, 0.9), borderRadius: 1 }} />
                 <span>{label}</span>
-                <span style={{ color: t.textMuted, fontSize: 10 }}>{thresh}</span>
               </div>
             ))}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, pointerEvents: 'none' }}>
@@ -1258,48 +1441,6 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               <span style={{ color: '#e57373' }}>removed</span>
             </div>
 
-            {/* Coherence class selector — only visible when factors have per-class data */}
-            {qualityFactors && Object.values(qualityFactors).some(f => f?.coherence_by_class && Object.keys(f.coherence_by_class).length > 0) && (() => {
-              // Pick LC fractions from the first factor that has them (AOI-level, same for all pairs)
-              const lcFracs = (() => {
-                for (const f of Object.values(qualityFactors)) {
-                  if (f?.lc_class_fractions) return f.lc_class_fractions as Record<string, number>
-                }
-                return null
-              })()
-              return (
-                <>
-                  <div style={{ borderTop: `1px solid ${t.border}`, margin: '4px -10px', opacity: 0.4 }} />
-                  <span style={{ color: t.text, fontWeight: 600, fontSize: 11 }}>Classes</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    {([
-                      ['stable',     '🏗 Stable'],
-                      ['vegetation', '🌾 Vegetation'],
-                      ['forest',     '🌲 Forest'],
-                    ] as const).map(([cls, label]) => {
-                      const pct = lcFracs?.[cls]
-                      return (
-                        <button
-                          key={cls}
-                          onClick={() => setCohClass(cls)}
-                          style={{
-                            background: cohClass === cls ? t.accent : 'transparent',
-                            color:      cohClass === cls ? '#fff'    : t.textMuted,
-                            border: `1px solid ${cohClass === cls ? t.accent : t.border}`,
-                            borderRadius: 4, padding: '2px 6px',
-                            cursor: 'pointer', fontSize: 11, textAlign: 'left',
-                            display: 'flex', justifyContent: 'space-between', gap: 8,
-                          }}
-                        >
-                          <span>{label}</span>
-                          {pct != null && <span style={{ opacity: 0.75, fontSize: 10 }}>{(pct * 100).toFixed(0)}%</span>}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </>
-              )
-            })()}
           </div>
 
           {/* Floating SLC tooltip on node hover */}
@@ -1350,11 +1491,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           {hovEdge && !hovNode && mousePos && (() => {
             const fct = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
                      ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
-            const byClass = fct?.coherence_by_class as Record<string, number> | undefined
-            // Show selected class score if available, otherwise overall
-            const sc  = (byClass && Object.keys(byClass).length > 0)
-              ? (typeof byClass[cohClass] === 'number' ? byClass[cohClass] : null)
-              : edgeScore(hovEdge, qualityScores)
+            const sc  = edgeScore(hovEdge, qualityScores)
             const cat = sc !== null ? qualityCategory(sc) : null
 
             // Detect scoring mode from factor keys
@@ -1385,15 +1522,12 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             // Coherence segments from _coherence.py: [(dt, season, coh), ...]
             const segments: [number, string, number][] = fct?.coherence_segments ?? []
 
-            // Penalty breakdown: coherence mode uses individual fields; lc mode uses contributions dict
-            const cohPenalties: [string, number][] = isCohMode ? [
-              ['snow d1',   (fct?.snow_d1        ?? 0) * 0.12],
-              ['snow d2',   (fct?.snow_d2        ?? 0) * 0.12],
-              ['freeze/thaw', (fct?.freeze_thaw  ?? 0) * 0.06],
-              ['precip d1', (fct?.precip_7day_d1 != null ? Math.min(fct.precip_7day_d1 / 50, 1) : 0) * 0.04],
-              ['precip d2', (fct?.precip_7day_d2 != null ? Math.min(fct.precip_7day_d2 / 50, 1) : 0) * 0.04],
-              ['⊥ baseline', (fct?.bperp_normalized ?? 0) * 0.06],
-            ].filter(([, v]) => (v as number) > 0.001) as [string, number][] : []
+            // Penalty breakdown dict from backend (quality fraction lost per feature)
+            const cohPenalties: [string, number][] = isCohMode
+              ? Object.entries((fct?.penalties ?? {}) as Record<string, number>)
+                  .filter(([, v]) => v > 0.001)
+                  .sort((a, b) => b[1] - a[1])
+              : []
 
             const lcContribs: Record<string, number> = isLcMode ? (fct?.contributions ?? {}) : {}
 
@@ -1413,20 +1547,20 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
                 minWidth: 240, fontSize: 12, color: t.text,
               }}>
-                <div style={{ fontWeight: 700, marginBottom: 6, color: t.accent }}>Pair Quality</div>
+                <div style={{ fontWeight: 700, marginBottom: 6, color: t.accent }}>{saveUrl ? 'Interferogram' : 'Pair Quality'}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', marginBottom: 8 }}>
                   <span style={{ color: t.textMuted }}>Ref</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{hovEdge.ref.slice(17, 25)}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.ref : hovEdge.ref.slice(17, 25)}</span>
                   <span style={{ color: t.textMuted }}>Sec</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{hovEdge.sec.slice(17, 25)}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.sec : hovEdge.sec.slice(17, 25)}</span>
                   <span style={{ color: t.textMuted }}>Δt</span>
                   <span>{Math.round(hovEdge.dt)} days</span>
                   <span style={{ color: t.textMuted }}>⊥ baseline</span>
                   <span>{Math.round(hovEdge.bperpDiff)} m</span>
                   {sc !== null && cat && <>
-                    <span style={{ color: t.textMuted }}>Score</span>
+                    <span style={{ color: t.textMuted }}>{saveUrl ? 'Coherence' : 'Score'}</span>
                     <span style={{ color: _CAT_CSS[cat], fontWeight: 700 }}>
-                      {_CAT_LABEL[cat]} ({sc.toFixed(2)})
+                      {_CAT_LABEL[cat]} ({Number.isInteger(sc) ? sc : sc.toFixed(2)})
                     </span>
                   </>}
                   {/* Coherence mode: show source + expected coherence */}
@@ -1434,20 +1568,14 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                     <span style={{ color: t.textMuted }}>Source</span>
                     <span style={{ color: cohSrcColor, fontSize: 10 }}>{cohSrcLabel}</span>
                   </>}
-                  {/* Selected class coherence */}
-                  {isCohMode && byClass && Object.keys(byClass).length > 0 && (() => {
-                    const _CLS_LABEL: Record<string, string> = {
-                      stable: '🏗 Stable', vegetation: '🌾 Vegetation',
-                      forest: '🌲 Forest',
-                    }
-                    const v = byClass[cohClass]
-                    return typeof v === 'number' ? (
-                      <React.Fragment>
-                        <span style={{ color: t.textMuted }}>{_CLS_LABEL[cohClass] ?? cohClass}</span>
-                        <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{v.toFixed(3)}</span>
-                      </React.Fragment>
-                    ) : null
-                  })()}
+                  {isCohMode && fct?.coherence_abs != null && <>
+                    <span style={{ color: t.textMuted }}>Abs. coherence</span>
+                    <span style={{ fontFamily: 'monospace' }}>{Number(fct.coherence_abs).toFixed(3)}</span>
+                  </>}
+                  {isCohMode && (fct?.rho_inf ?? 0) > 0 && <>
+                    <span style={{ color: t.textMuted }}>PS floor (ρ∞)</span>
+                    <span style={{ fontFamily: 'monospace' }}>{Number(fct!.rho_inf).toFixed(3)}</span>
+                  </>}
                   {isCohMode && fct?.coherence_same_season === false && <>
                     <span style={{ color: t.textMuted }}>Seasons</span>
                     <span style={{ color: '#ffc107', fontSize: 10 }}>
@@ -1482,16 +1610,29 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                   </div>
                 )}
 
-                {/* Coherence mode: environmental penalties */}
+                {/* Coherence mode: environmental penalties (quality % lost per feature) */}
                 {isCohMode && cohPenalties.length > 0 && (
                   <div style={{ fontSize: 10, color: t.textMuted }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>Penalties:</div>
-                    {cohPenalties.sort((a, b) => b[1] - a[1]).map(([k, v]) => (
-                      <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                        <span>{k}</span>
-                        <span style={{ color: '#f44336', fontFamily: 'monospace' }}>-{v.toFixed(3)}</span>
-                      </div>
-                    ))}
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>Quality penalties:</div>
+                    {cohPenalties.map(([k, v]) => {
+                      // Show the raw sensor value alongside the quality loss
+                      const rawMap: Record<string, string> = {
+                        snow:        `max(d1=${((fct?.snow_cover_d1 ?? 0) * 100).toFixed(0)}%, d2=${((fct?.snow_cover_d2 ?? 0) * 100).toFixed(0)}%, Δ=${((fct?.delta_snow ?? 0) * 100).toFixed(0)}%)`,
+                        precip_d1:   fct?.precip_3day_d1 != null ? `${Number(fct.precip_3day_d1).toFixed(1)} mm/3d` : '',
+                        precip_d2:   fct?.precip_3day_d2 != null ? `${Number(fct.precip_3day_d2).toFixed(1)} mm/3d` : '',
+                        freeze_thaw: fct?.temp_max_d1 != null && fct?.temp_max_d2 != null
+                          ? `${Number(fct.temp_max_d1).toFixed(0)}°→${Number(fct.temp_max_d2).toFixed(0)}°C` : '',
+                      }
+                      return (
+                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                          <span>
+                            {k.replace(/_/g, ' ')}
+                            {rawMap[k] ? <span style={{ color: t.textMuted, marginLeft: 4 }}>({rawMap[k]})</span> : null}
+                          </span>
+                          <span style={{ color: '#f44336', fontFamily: 'monospace', flexShrink: 0 }}>−{(v * 100).toFixed(1)}%</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
@@ -1542,10 +1683,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               {(() => {
                 const fct2 = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
                           ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
-                const byClass2 = fct2?.coherence_by_class as Record<string, number> | undefined
-                const sc = (byClass2 && Object.keys(byClass2).length > 0)
-                  ? (typeof byClass2[cohClass] === 'number' ? byClass2[cohClass] : null)
-                  : edgeScore(hovEdge, qualityScores)
+                const sc = edgeScore(hovEdge, qualityScores)
                 if (sc === null) return <span style={{ color: _UNSCORED_CSS }}>● Unscored</span>
                 const cat = qualityCategory(sc)
                 const fct = fct2

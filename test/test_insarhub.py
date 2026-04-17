@@ -177,13 +177,13 @@ class TestAnalyzer:
 
 class TestUtils:
     def test_write_workflow_marker(self, tmp_path):
-        from insarhub.utils.tool import write_workflow_marker, _WORKFLOW_FILE
+        from insarhub.utils.tool import write_workflow_marker, _CONFIG_FILE
         write_workflow_marker(tmp_path, downloader="S1_SLC")
-        marker = tmp_path / _WORKFLOW_FILE
+        marker = tmp_path / _CONFIG_FILE
         assert marker.exists()
         import json
         data = json.loads(marker.read_text())
-        assert data.get("downloader") == "S1_SLC"
+        assert data.get("downloader", {}).get("type") == "S1_SLC"
 
     def test_plot_pair_network_importable(self):
         from insarhub.utils.tool import plot_pair_network

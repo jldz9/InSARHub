@@ -38,26 +38,29 @@ async def get_pair_quality(path: str, force_refresh: bool = False):
         import json
         from pathlib import Path as _Path
 
-        # Fast path: read pre-computed JSON written by select_pairs
+        # Fast path: read pre-computed JSON written by select_pairs (stored in stack_p*_f*.json)
         if not force_refresh:
             merged_scores: dict = {}
             merged_factors: dict = {}
             ndvi_sources: set = set()
             found_any = False
-            for qfile in sorted(folder.glob("pair_quality_*.json")) or [folder / "pair_quality.json"]:
-                if not qfile.exists():
-                    continue
+            for sfile in sorted(folder.glob("stack_p*_f*.json")):
                 try:
-                    data = json.loads(qfile.read_text())
-                    merged_scores.update(data.get("scores", {}))
-                    merged_factors.update(data.get("factors", {}))
-                    src = data.get("ndvi_source", "climatology")
+                    data = json.loads(sfile.read_text())
+                    pq = data.get("pair_quality", {})
+                    merged_scores.update(pq.get("scores", {}))
+                    merged_factors.update(pq.get("factors", {}))
+                    src = pq.get("ndvi_source", "climatology")
                     if src:
                         ndvi_sources.add(src)
-                    found_any = True
+                    if pq.get("scores"):
+                        found_any = True
                 except Exception:
                     pass
             if found_any:
+                # Normalise legacy 0-1 scores to 0-100
+                if merged_scores and max(merged_scores.values()) <= 1.5:
+                    merged_scores = {k: max(0, min(100, round(float(v) * 100))) for k, v in merged_scores.items()}
                 from insarhub.utils.pair_quality import QualityResult
                 return QualityResult(
                     scores=merged_scores,
@@ -142,14 +145,120 @@ async def lookup_pair_quality_db(path: str, pairs: str):
     scores_db  = db.get("scores", {})  if db else {}
     factors_db = db.get("factors", {}) if db else {}
 
+    legacy = scores_db and max(scores_db.values(), default=0) <= 1.5
     out_scores:  dict[str, float] = {}
     out_factors: dict[str, dict]  = {}
     for key in pair_keys:
         if key in scores_db:
-            out_scores[key]  = scores_db[key]
+            v = scores_db[key]
+            out_scores[key]  = max(0, min(100, round(float(v) * 100))) if legacy else v
             out_factors[key] = factors_db.get(key, {})
 
     return {"scores": out_scores, "factors": out_factors}
+
+
+@router.get("/api/coherence-maps")
+async def get_coherence_maps(path: str):
+    """Return summary statistics for saved pixel decay map GeoTIFFs.
+
+    Looks for ``{path}/decay_maps/S1_coherence_decay_*.tif`` files written by
+    the pair-quality pipeline and returns per-season/pol statistics.
+
+    Response
+    --------
+    {
+      "available": [
+        {
+          "season": "summer",
+          "pol":    "vv",
+          "shape":  [H, W],
+          "file":   "decay_maps/S1_coherence_decay_summer_vv.tif",
+          "stats": {
+            "gamma_inf": {"mean": 0.12, "min": 0.0,  "max": 0.48},
+            "gamma0":    {"mean": 0.65, "min": 0.02, "max": 1.0},
+            "tau":       {"mean": 28.4, "min": 3.1,  "max": 120.0}
+          }
+        },
+        ...
+      ]
+    }
+    """
+    import numpy as np
+    from pathlib import Path
+
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail=f"Folder not found: {path}")
+
+    decay_maps_dir = folder / "decay_maps"
+    if not decay_maps_dir.exists():
+        return {"available": []}
+
+    def _read_stats():
+        try:
+            import rasterio
+        except ImportError:
+            raise HTTPException(status_code=500, detail="rasterio not installed")
+
+        results = []
+        for tif in sorted(decay_maps_dir.glob("S1_coherence_decay_*.tif")):
+            try:
+                with rasterio.open(tif) as src:
+                    ginf = src.read(1).astype(float)
+                    g0   = src.read(2).astype(float)
+                    tau  = src.read(3).astype(float)
+                    nd   = float(src.nodata) if src.nodata is not None else -9999.0
+                    H, W = src.height, src.width
+                    tags = src.tags()
+
+                season = tags.get("season", "")
+                pol    = tags.get("pol",    "")
+
+                # Infer season/pol from filename if tags missing
+                if not season or not pol:
+                    stem = tif.stem  # S1_coherence_decay_summer_vv
+                    parts = stem.split("_")
+                    if len(parts) >= 5:
+                        season = parts[3]
+                        pol    = parts[4]
+
+                valid = (ginf != nd) & (g0 != nd) & (tau != nd)
+                if not valid.any():
+                    continue
+
+                def _s(arr: np.ndarray) -> dict:
+                    v = arr[valid]
+                    return {
+                        "mean": round(float(v.mean()), 4),
+                        "min":  round(float(v.min()),  4),
+                        "max":  round(float(v.max()),  4),
+                    }
+
+                results.append({
+                    "season": season,
+                    "pol":    pol,
+                    "shape":  [H, W],
+                    "n_valid_pixels": int(valid.sum()),
+                    "file":   str(tif.relative_to(folder)),
+                    "stats":  {
+                        "gamma_inf": _s(ginf),
+                        "gamma0":    _s(g0),
+                        "tau":       _s(tau),
+                    },
+                })
+
+            except Exception as exc:
+                results.append({"file": tif.name, "error": str(exc)})
+
+        return {"available": results}
+
+    try:
+        import asyncio
+        return await asyncio.to_thread(_read_stats)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 _building: set[str] = set()  # track folders currently being built

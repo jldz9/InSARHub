@@ -11,6 +11,7 @@ For reassignable values (_auth_cache), route modules must access via the module:
 """
 
 import dataclasses
+import json
 import logging
 import re
 import time
@@ -148,6 +149,55 @@ def _make_progress(job_id: str):
         _jobs[job_id]["progress"] = percent
         _jobs[job_id]["message"]  = message
     return callback
+
+
+# ---------------------------------------------------------------------------
+# Unified insarhub_config.json helpers
+# ---------------------------------------------------------------------------
+
+_CONFIG_FILE = "insarhub_config.json"
+
+_LEGACY_WORKFLOW_FILE = "insarhub_workflow.json"
+
+def read_insarhub_config(folder: Path) -> dict:
+    """Read insarhub_config.json from folder, with fallback to legacy insarhub_workflow.json.
+
+    Normalises old flat-string format ``{"downloader": "S1_SLC"}``
+    to the current nested format ``{"downloader": {"type": "S1_SLC"}}``.
+    """
+    path = Path(folder) / _CONFIG_FILE
+    legacy_path = Path(folder) / _LEGACY_WORKFLOW_FILE
+    try:
+        if path.exists():
+            data = json.loads(path.read_text())
+        elif legacy_path.exists():
+            data = json.loads(legacy_path.read_text())
+        else:
+            return {}
+    except Exception:
+        return {}
+
+    # Normalise flat string values: {"downloader": "S1_SLC"} → {"downloader": {"type": "S1_SLC"}}
+    for role in ("downloader", "processor", "analyzer"):
+        val = data.get(role)
+        if isinstance(val, str):
+            data[role] = {"type": val}
+
+    return data
+
+
+def write_insarhub_config(folder: Path, config: dict) -> None:
+    """Write insarhub_config.json to folder, merging with any existing content."""
+    import json as _json
+    from datetime import datetime
+    path = Path(folder) / _CONFIG_FILE
+    try:
+        existing: dict = _json.loads(path.read_text()) if path.exists() else {}
+    except Exception:
+        existing = {}
+    existing.update(config)
+    existing["updated_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    path.write_text(_json.dumps(existing, indent=2, default=str))
 
 
 # ---------------------------------------------------------------------------

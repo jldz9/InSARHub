@@ -55,16 +55,26 @@ def _wkt_centroid(wkt: str) -> tuple[float, float]:
 
 
 def _load_aoi(folder: Path) -> tuple[float, float, str]:
-    """Return (lat, lon, wkt) from downloader_config.json."""
+    """Return (lat, lon, wkt) from insarhub_config.json or downloader_config.json."""
+    # Primary: insarhub_config.json (current format)
+    insarhub_cfg = folder / "insarhub_config.json"
+    if insarhub_cfg.exists():
+        cfg = json.loads(insarhub_cfg.read_text())
+        wkt = cfg.get("downloader", {}).get("config", {}).get("intersectsWith")
+        if wkt:
+            lat, lon = _wkt_centroid(wkt)
+            return lat, lon, wkt
+
+    # Fallback: legacy downloader_config.json
     cfg_file = folder / "downloader_config.json"
-    if not cfg_file.exists():
-        raise FileNotFoundError(f"downloader_config.json not found in {folder}")
-    cfg = json.loads(cfg_file.read_text())
-    wkt = cfg.get("intersectsWith")
-    if not wkt:
-        raise ValueError("intersectsWith not set in downloader_config.json")
-    lat, lon = _wkt_centroid(wkt)
-    return lat, lon, wkt
+    if cfg_file.exists():
+        cfg = json.loads(cfg_file.read_text())
+        wkt = cfg.get("intersectsWith")
+        if wkt:
+            lat, lon = _wkt_centroid(wkt)
+            return lat, lon, wkt
+
+    raise FileNotFoundError(f"No AOI found in insarhub_config.json or downloader_config.json in {folder}")
 
 
 # ── Pair / baseline loading ───────────────────────────────────────────────────
@@ -80,11 +90,30 @@ def _scene_date(name: str) -> str:
 def _load_pairs(folder: Path) -> list[tuple[str, str, float, float]]:
     """Return list of (ref, sec, bperp_ref, bperp_sec) for the folder."""
     records: list[tuple[str, str, float, float]] = []
+
+    # Primary: unified stack_p*_f*.json (current format)
+    for stack_file in sorted(folder.glob("stack_p*_f*.json")):
+        data = json.loads(stack_file.read_text())
+        pairs: list = data.get("pairs", [])
+        bperp_map: dict[str, float] = data.get("baselines", {})
+        for pair in pairs:
+            if len(pair) < 2:
+                continue
+            ref, sec = str(pair[0]), str(pair[1])
+            records.append((
+                ref, sec,
+                float(bperp_map.get(ref, 0.0)),
+                float(bperp_map.get(sec, 0.0)),
+            ))
+    if records:
+        return records
+
+    # Fallback: legacy pairs_p*_f*.json + baselines_p*_f*.json
     for pairs_file in sorted(folder.glob("pairs_p*_f*.json")):
         key = pairs_file.stem.replace("pairs_", "")
-        pairs: list = json.loads(pairs_file.read_text())
+        pairs = json.loads(pairs_file.read_text())
 
-        bperp_map: dict[str, float] = {}
+        bperp_map = {}
         bl_file = folder / f"baselines_{key}.json"
         if bl_file.exists():
             bperp_map = json.loads(bl_file.read_text())
@@ -116,7 +145,7 @@ class PairQuality:
     ):
         self.folder           = Path(folder_path).expanduser().resolve()
         self.force_refresh    = force_refresh
-        self.weights          = weights         # only used when lc_aware=False
+        self.weights          = weights         # only used when lc_aware=False and coherence_aware=False
         self.lc_aware         = lc_aware        # True = land-cover branching
         self.coherence_aware  = coherence_aware # True = use S1 global coherence dataset
 
@@ -203,8 +232,10 @@ class PairQuality:
                 sc, fct = _classifier.coherence_score(fv)
             elif self.lc_aware:
                 sc, fct = _classifier.lc_score(fv)
+                sc = max(0, min(100, round(float(sc) * 100)))
             else:
                 sc, fct = _classifier.score(fv, weights=self.weights)
+                sc = max(0, min(100, round(float(sc) * 100)))
             pair_key          = f"{ref}:{sec}"
             scores[pair_key]  = sc
             factors[pair_key] = fct
@@ -263,3 +294,11 @@ class PairQuality:
                 f"  {fct.get('snow_cover_d2') or 0:>7.2f}"
                 f"  {bar}"
             )
+
+if __name__ == "__main__":
+    from pathlib import Path
+    p = Path("~/playground/p100_f466/").expanduser().resolve()
+    pq = PairQuality(p, force_refresh=True)
+    a = pq.compute(show_progress=True)
+    pq.print_summary()
+    

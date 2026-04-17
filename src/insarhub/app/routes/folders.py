@@ -16,7 +16,7 @@ from insarhub.app.models import FolderDownloadRequest, SelectPairsRequest, SaveP
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
-from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job
+from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, read_insarhub_config, write_insarhub_config
 
 router = APIRouter()
 
@@ -25,19 +25,12 @@ router = APIRouter()
 async def get_folder_details(path: str):
     """Return downloader config, pairs file presence, and network image path for a job folder."""
     folder = Path(path).expanduser().resolve()
+    cfg = read_insarhub_config(folder)
     result: dict[str, Any] = {
-        "downloader_config": None,
-        "has_pairs": False,
+        "downloader_config": cfg.get("downloader", {}).get("config"),
+        "has_pairs": bool(list(folder.glob("stack_p*_f*.json"))),
         "network_image": None,
     }
-    cfg_file = folder / "downloader_config.json"
-    if cfg_file.exists():
-        try:
-            result["downloader_config"] = json.loads(cfg_file.read_text())
-        except Exception:
-            pass
-    pairs_files = list(folder.glob("pairs_p*_f*.json"))
-    result["has_pairs"] = bool(pairs_files)
     network_files = sorted(folder.glob("network_p*_f*.png"))
     result["network_image"] = str(network_files[0]) if network_files else None
     return result
@@ -45,14 +38,15 @@ async def get_folder_details(path: str):
 
 @router.get("/api/folder-pairs")
 async def get_folder_pairs(path: str):
-    """Return pairs list from the first pairs_p*_f*.json found in the folder."""
+    """Return pairs list from the first stack_p*_f*.json found in the folder."""
     folder = Path(path).expanduser().resolve()
-    pairs_files = sorted(folder.glob("pairs_p*_f*.json"))
-    if not pairs_files:
-        raise HTTPException(status_code=404, detail="No pairs file found")
+    stack_files = sorted(folder.glob("stack_p*_f*.json"))
+    if not stack_files:
+        raise HTTPException(status_code=404, detail="No stack file found")
     try:
-        pairs = json.loads(pairs_files[0].read_text())
-        return {"pairs": pairs, "count": len(pairs), "file": pairs_files[0].name}
+        data = json.loads(stack_files[0].read_text())
+        pairs = data.get("pairs") or []
+        return {"pairs": pairs, "count": len(pairs), "file": stack_files[0].name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -73,11 +67,10 @@ async def get_folder_image(path: str):
 
 @router.post("/api/folder-download")
 async def folder_download(req: FolderDownloadRequest, background_tasks: BackgroundTasks):
-    """Re-search and download using the downloader_config.json saved in the job folder."""
+    """Re-search and download using insarhub_config.json saved in the job folder."""
     folder = Path(req.folder_path).expanduser().resolve()
-    cfg_file = folder / "downloader_config.json"
-    if not cfg_file.exists():
-        raise HTTPException(status_code=404, detail="downloader_config.json not found in folder")
+    if not read_insarhub_config(folder).get("downloader"):
+        raise HTTPException(status_code=404, detail="No downloader config found in folder")
     job_id, _ = _new_job("Starting search…")
     background_tasks.add_task(_run_folder_download, job_id, req.folder_path)
     return {"job_id": job_id}
@@ -90,12 +83,17 @@ async def _run_folder_download(job_id: str, folder_path: str):
     def run():
         try:
             folder = Path(folder_path).expanduser().resolve()
-            raw: dict[str, Any] = json.loads((folder / "downloader_config.json").read_text())
+            insarhub_cfg = read_insarhub_config(folder)
+            dl_section = insarhub_cfg.get("downloader", {})
+            dl_type = dl_section.get("type", "S1_SLC")
+            raw: dict[str, Any] = dl_section.get("config", {})
 
-            cfg = S1_SLC_Config(workdir=folder)
+            dl_cls  = Downloader._registry.get(dl_type)
+            cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
+            cfg = cfg_cls(workdir=folder)
             _apply_config_from_dict(cfg, raw, skip_keys={"workdir"})
 
-            downloader = Downloader.create("S1_SLC", cfg)
+            downloader = Downloader.create(dl_type, cfg)
             search_result = SearchCommand(downloader, progress_callback=state._make_progress(job_id)).run()
             if not search_result.success:
                 _finish_job(job_id, status="error", progress=0, message=search_result.message)
@@ -137,9 +135,8 @@ async def _run_folder_download(job_id: str, folder_path: str):
 async def folder_download_orbit(req: FolderDownloadRequest, background_tasks: BackgroundTasks):
     """Download orbit files for scenes in a job folder."""
     folder = Path(req.folder_path).expanduser().resolve()
-    cfg_file = folder / "downloader_config.json"
-    if not cfg_file.exists():
-        raise HTTPException(status_code=404, detail="downloader_config.json not found in folder")
+    if not read_insarhub_config(folder).get("downloader"):
+        raise HTTPException(status_code=404, detail="No downloader config found in folder")
     job_id, _ = _new_job("Starting orbit download…")
     background_tasks.add_task(_run_folder_download_orbit, job_id, req.folder_path)
     return {"job_id": job_id}
@@ -152,12 +149,17 @@ async def _run_folder_download_orbit(job_id: str, folder_path: str):
     def run():
         try:
             folder = Path(folder_path).expanduser().resolve()
-            raw: dict[str, Any] = json.loads((folder / "downloader_config.json").read_text())
+            insarhub_cfg = read_insarhub_config(folder)
+            dl_section = insarhub_cfg.get("downloader", {})
+            dl_type = dl_section.get("type", "S1_SLC")
+            raw: dict[str, Any] = dl_section.get("config", {})
 
-            cfg = S1_SLC_Config(workdir=folder)
+            dl_cls  = Downloader._registry.get(dl_type)
+            cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
+            cfg = cfg_cls(workdir=folder)
             _apply_config_from_dict(cfg, raw, skip_keys={"workdir"})
 
-            downloader = Downloader.create("S1_SLC", cfg)
+            downloader = Downloader.create(dl_type, cfg)
             state._jobs[job_id]["message"] = "Searching scenes…"
             search_result = SearchCommand(downloader, progress_callback=state._make_progress(job_id)).run()
             if not search_result.success:
@@ -182,26 +184,41 @@ async def _run_folder_download_orbit(job_id: str, folder_path: str):
 async def folder_select_pairs(req: SelectPairsRequest, background_tasks: BackgroundTasks):
     """Re-search using downloader_config.json and run select_pairs with given parameters."""
     folder = Path(req.folder_path).expanduser().resolve()
-    if not (folder / "downloader_config.json").exists():
-        raise HTTPException(status_code=404, detail="downloader_config.json not found in folder")
+    if not read_insarhub_config(folder).get("downloader"):
+        raise HTTPException(status_code=404, detail="No downloader config found in folder")
     job_id, _ = _new_job("Starting search…")
     background_tasks.add_task(_run_folder_select_pairs, job_id, req)
     return {"job_id": job_id}
+
+
+def _launch_db_build(folder, scenes_by_stack, bperp_by_stack):
+    """Launch a background thread that builds the full pair-quality DB for *folder*.
+
+    The DB covers all N*(N-1)/2 scene combinations so the interactive network
+    editor can look up any pair on demand.  Errors are logged but not raised.
+    """
+    import threading
+
+    def _run():
+        try:
+            from insarhub.utils.pair_quality._db import PairQualityDB
+            PairQualityDB(folder).build(scenes_by_stack, bperp_by_stack, show_progress=False)
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("Background DB build failed for %s: %s", folder, exc)
+
+    t = threading.Thread(target=_run, daemon=True, name=f"pq-db-bg-{folder.name}")
+    t.start()
 
 
 async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
     def run():
         try:
             folder  = Path(req.folder_path).expanduser().resolve()
-            raw: dict[str, Any] = json.loads((folder / "downloader_config.json").read_text())
-
-            dl_type = "S1_SLC"
-            wf_file = folder / "insarhub_workflow.json"
-            if wf_file.exists():
-                try:
-                    dl_type = json.loads(wf_file.read_text()).get("downloader", dl_type)
-                except Exception:
-                    pass
+            insarhub_cfg = read_insarhub_config(folder)
+            dl_section = insarhub_cfg.get("downloader", {})
+            dl_type = dl_section.get("type", "S1_SLC")
+            raw: dict[str, Any] = dl_section.get("config", {})
 
             dl_cls  = Downloader._registry.get(dl_type)
             cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
@@ -228,9 +245,6 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 max_workers=req.max_workers,
             )
 
-            from insarhub.utils.tool import write_workflow_marker
-            from insarhub.utils.pair_quality._db import PairQualityDB
-
             # Build scenes_by_stack from search results for the DB
             active = downloader.active_results
             scenes_by_stack: dict = {}
@@ -244,65 +258,63 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 for (path, frame), group_pairs in pairs.items():
                     subdir = folder.parent / f"p{path}_f{frame}"
                     subdir.mkdir(parents=True, exist_ok=True)
-                    write_workflow_marker(subdir, downloader=dl_type)
                     cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
                     cfg_dict['relativeOrbit'] = path
                     cfg_dict['frame'] = frame
-                    (subdir / "downloader_config.json").write_text(json.dumps(cfg_dict, indent=2, default=str))
-                    pjson = subdir / f"pairs_p{path}_f{frame}.json"
-                    pjson.write_text(json.dumps([list(p) for p in group_pairs], indent=2))
+                    write_insarhub_config(subdir, {"downloader": {"type": dl_type, "config": cfg_dict}})
                     sp = scene_bperp.get((path, frame)) or {}
-                    (subdir / f"baselines_p{path}_f{frame}.json").write_text(
-                        json.dumps({k: float(v) for k, v in sp.items()}, indent=2)
-                    )
                     stack_scenes = scenes_by_stack.get((path, frame), [])
-                    (subdir / f"scenes_p{path}_f{frame}.json").write_text(json.dumps(stack_scenes, indent=2))
-                    # Build full DB (all possible pairs) then filter to selected
-                    state._jobs[job_id]["message"] = f"Scoring all pairs — P{path}/F{frame}…"
+                    stack_data: dict = {
+                        "pairs":    [list(p) for p in group_pairs],
+                        "baselines": {k: float(v) for k, v in sp.items()},
+                        "scenes":   stack_scenes,
+                        "pair_quality": {"scores": {}, "factors": {}},
+                    }
+                    # Write stack file first so PairQuality.compute() can read selected pairs
+                    (subdir / f"stack_p{path}_f{frame}.json").write_text(json.dumps(stack_data, indent=2))
+                    # Score only the selected pairs (fast: N_selected pairs, not N*(N-1)/2)
+                    state._jobs[job_id]["message"] = f"Scoring {len(group_pairs)} pairs — P{path}/F{frame}…"
                     try:
-                        db = PairQualityDB(subdir)
-                        db.build({(path, frame): stack_scenes}, {(path, frame): {k: float(v) for k, v in sp.items()}})
-                        db_data = json.loads((subdir / ".insarhub_pair_quality_db.json").read_text())
-                        all_scores  = db_data.get("scores", {})
-                        all_factors = db_data.get("factors", {})
-                        quality_scores  = {}
-                        quality_factors = {}
-                        for pair in group_pairs:
-                            for k in [f"{pair[0]}:{pair[1]}", f"{pair[1]}:{pair[0]}"]:
-                                if k in all_scores:
-                                    quality_scores[k]  = all_scores[k]
-                                    quality_factors[k] = all_factors.get(k, {})
-                        (subdir / f"pair_quality_p{path}_f{frame}.json").write_text(
-                            json.dumps({"scores": quality_scores, "factors": quality_factors}, indent=2)
-                        )
-                    except Exception:
-                        quality_scores  = None
-                        quality_factors = None
+                        from insarhub.utils.pair_quality import PairQuality
+                        result = PairQuality(subdir, force_refresh=False).compute(show_progress=False)
+                        stack_data["pair_quality"] = {
+                            "scores":  result.scores,
+                            "factors": result.factors,
+                        }
+                        (subdir / f"stack_p{path}_f{frame}.json").write_text(json.dumps(stack_data, indent=2))
+                    except Exception as _exc:
+                        import logging as _logging
+                        _logging.getLogger(__name__).warning("Pair quality scoring failed: %s", _exc)
+                    # Launch full DB build in background for interactive network editor
+                    _launch_db_build(subdir, {(path, frame): stack_scenes},
+                                     {(path, frame): {k: float(v) for k, v in sp.items()}})
             else:
-                pjson = folder / "pairs.json"
-                pjson.write_text(json.dumps([list(p) for p in pairs], indent=2))
-                write_workflow_marker(folder, downloader=dl_type)
+                cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
+                write_insarhub_config(folder, {"downloader": {"type": dl_type, "config": cfg_dict}})
                 sp = scene_bperp if isinstance(scene_bperp, dict) else {}
                 stack_scenes = scenes_by_stack.get((0, 0), [])
-                (folder / "scenes_p0_f0.json").write_text(json.dumps(stack_scenes, indent=2))
-                state._jobs[job_id]["message"] = "Scoring all pairs…"
+                stack_data = {
+                    "pairs":    [list(p) for p in pairs],
+                    "baselines": {k: float(v) for k, v in sp.items()},
+                    "scenes":   stack_scenes,
+                    "pair_quality": {"scores": {}, "factors": {}},
+                }
+                (folder / "stack_p0_f0.json").write_text(json.dumps(stack_data, indent=2))
+                state._jobs[job_id]["message"] = f"Scoring {len(pairs)} selected pairs…"
                 try:
-                    db = PairQualityDB(folder)
-                    db.build({(0, 0): stack_scenes}, {(0, 0): {k: float(v) for k, v in sp.items()}})
-                    db_data = json.loads((folder / ".insarhub_pair_quality_db.json").read_text())
-                    all_scores  = db_data.get("scores", {})
-                    all_factors = db_data.get("factors", {})
-                    quality_scores  = {}
-                    quality_factors = {}
-                    for pair in pairs:
-                        for k in [f"{pair[0]}:{pair[1]}", f"{pair[1]}:{pair[0]}"]:
-                            if k in all_scores:
-                                quality_scores[k]  = all_scores[k]
-                                quality_factors[k] = all_factors.get(k, {})
-                    (folder / "pair_quality.json").write_text(json.dumps({"scores": quality_scores, "factors": quality_factors}, indent=2))
-                except Exception:
-                    quality_scores  = None
-                    quality_factors = None
+                    from insarhub.utils.pair_quality import PairQuality
+                    result = PairQuality(folder, force_refresh=False).compute(show_progress=False)
+                    stack_data["pair_quality"] = {
+                        "scores":  result.scores,
+                        "factors": result.factors,
+                    }
+                    (folder / "stack_p0_f0.json").write_text(json.dumps(stack_data, indent=2))
+                except Exception as _exc:
+                    import logging as _logging
+                    _logging.getLogger(__name__).warning("Pair quality scoring failed: %s", _exc)
+                # Launch full DB build in background for interactive network editor
+                _launch_db_build(folder, {(0, 0): stack_scenes},
+                                 {(0, 0): {k: float(v) for k, v in sp.items()}})
 
             _finish_job(job_id, status="done", message="Pairs selected")
         except Exception as e:
@@ -313,14 +325,16 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
 
 @router.get("/api/folder-pairs-candidates")
 async def get_folder_pairs_candidates(path: str):
-    """Return all pairs JSON files with their pair lists for the network editor."""
+    """Return all stack JSON files with their pair lists for the network editor."""
     folder = Path(path).expanduser().resolve()
-    pairs_files = sorted(folder.glob("pairs_p*_f*.json"))
+    stack_files = sorted(folder.glob("stack_p*_f*.json"))
     result = {}
-    for pf in pairs_files:
-        key = pf.stem  # e.g. pairs_p100_f466
+    for sf in stack_files:
+        # key mirrors old "pairs_p100_f466" convention for frontend compatibility
+        key = sf.stem.replace("stack_", "pairs_", 1)
         try:
-            result[key] = json.loads(pf.read_text())
+            data = json.loads(sf.read_text())
+            result[key] = data.get("pairs", [])
         except Exception:
             result[key] = []
     return {"candidates": result}
@@ -336,23 +350,15 @@ async def get_folder_network_data(path: str):
     """
     folder = Path(path).expanduser().resolve()
     stacks: dict = {}
-    for pairs_file in sorted(folder.glob("pairs_p*_f*.json")):
-        key = pairs_file.stem.replace("pairs_", "")   # "p100_f466"
+    for stack_file in sorted(folder.glob("stack_p*_f*.json")):
+        key = stack_file.stem.replace("stack_", "")   # "p100_f466"
         try:
-            pairs = json.loads(pairs_file.read_text())
+            data = json.loads(stack_file.read_text())
         except Exception:
-            pairs = []
+            data = {}
+        pairs     = data.get("pairs", [])
+        bperp_map = data.get("baselines", {})
 
-        # Load per-scene perpendicular baselines saved by _run_folder_select_pairs
-        bperp_map: dict = {}
-        bl_file = folder / f"baselines_{key}.json"
-        if bl_file.exists():
-            try:
-                bperp_map = json.loads(bl_file.read_text())
-            except Exception:
-                pass
-
-        # Collect unique scene names and build node list
         seen: dict[str, None] = {}
         for pair in pairs:
             if len(pair) >= 2:
@@ -368,7 +374,6 @@ async def get_folder_network_data(path: str):
                 "date":  iso_date,
                 "bperp": float(bperp_map.get(name, 0.0)),
             })
-        # Sort nodes chronologically
         nodes.sort(key=lambda n: n["date"])
         stacks[key] = {"nodes": nodes, "pairs": pairs}
 
@@ -377,15 +382,18 @@ async def get_folder_network_data(path: str):
 
 @router.post("/api/folder-save-pairs")
 async def save_folder_pairs(req: SavePairsRequest):
-    """Overwrite pairs JSON files in the folder with the user-edited pairs."""
+    """Overwrite pairs in stack_p*_f*.json with the user-edited pairs."""
     folder = Path(req.folder_path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
     saved = []
     for key, pairs in req.pairs.items():
-        # key is like "p100_f466"; build filename pairs_p100_f466.json
-        fname = f"pairs_{key}.json"
-        out = folder / fname
-        out.write_text(json.dumps(pairs, indent=2))
-        saved.append(fname)
+        stack_file = folder / f"stack_{key}.json"
+        try:
+            data = json.loads(stack_file.read_text()) if stack_file.exists() else {}
+        except Exception:
+            data = {}
+        data["pairs"] = pairs
+        stack_file.write_text(json.dumps(data, indent=2))
+        saved.append(stack_file.name)
     return {"ok": True, "saved": saved}

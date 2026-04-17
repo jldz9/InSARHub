@@ -288,16 +288,16 @@ class PairQualityDB:
         logger.info("PairQualityDB: saved %d scores → %s", total, self.folder / DB_FILE)
 
     def build_from_folder(self, progress_cb=None) -> None:
-        """Load scenes from saved scenes_p*_f*.json files and build DB.
+        """Load scenes from saved stack_p*_f*.json files and build DB.
 
-        Requires that scenes_p*_f*.json and baselines_p*_f*.json exist in
-        each stack subfolder (written by insarhub downloader --select-pairs).
+        Requires that stack_p*_f*.json exists in the folder
+        (written by insarhub downloader --select-pairs).
         """
         scenes_by_stack: dict[tuple[int, int], list[str]] = {}
         bperp_by_stack:  dict[tuple[int, int], dict[str, float]] = {}
 
-        for scenes_file in sorted(self.folder.glob("scenes_p*_f*.json")):
-            stem = scenes_file.stem  # "scenes_p100_f466"
+        for stack_file in sorted(self.folder.glob("stack_p*_f*.json")):
+            stem = stack_file.stem  # "stack_p100_f466"
             parts = stem.split("_")
             try:
                 path  = int(parts[1][1:])
@@ -305,14 +305,13 @@ class PairQualityDB:
             except (IndexError, ValueError):
                 continue
             key = (path, frame)
-            scenes_by_stack[key] = json.loads(scenes_file.read_text())
-
-            bl_file = self.folder / f"baselines_p{path}_f{frame}.json"
-            bperp_by_stack[key] = json.loads(bl_file.read_text()) if bl_file.exists() else {}
+            data = json.loads(stack_file.read_text())
+            scenes_by_stack[key] = data.get("scenes", [])
+            bperp_by_stack[key]  = data.get("baselines", {})
 
         if not scenes_by_stack:
             raise FileNotFoundError(
-                f"No scenes_p*_f*.json files found in {self.folder}. "
+                f"No stack_p*_f*.json files found in {self.folder}. "
                 "Run 'insarhub downloader --select-pairs' first."
             )
 

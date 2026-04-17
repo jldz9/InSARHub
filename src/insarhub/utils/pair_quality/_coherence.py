@@ -40,6 +40,7 @@ import functools
 import logging
 import math
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -61,7 +62,7 @@ _S3_BASE = (
 )
 
 # Available temporal baselines in days
-_COH_LEVELS = [6, 12, 18, 24, 36, 48]
+_COH_LEVELS = [12, 24, 36, 48]
 
 # Season names and the months that belong to them (Northern Hemisphere)
 _MONTH_TO_SEASON: dict[int, str] = {
@@ -321,7 +322,7 @@ def _read_mean_coh(
     if arr is None:
         return None
     data  = arr.astype(float)
-    valid = data[data < 255]
+    valid = data[(data > 0) & (data < 255)]   # 0 = native nodata, 255 = outside polygon
     if valid.size == 0:
         return None
     return float(valid.mean()) / 100.0
@@ -390,7 +391,7 @@ def _fetch_season_coh_by_class(
             continue
 
         coh_f     = coh_raw.astype(float)
-        valid_mask = coh_f < 255
+        valid_mask = (coh_f > 0) & (coh_f < 255)   # 0 = native nodata, 255 = outside polygon
 
         for group, codes in _LC_GROUPS.items():
             class_mask = np.isin(wc_on_coh, list(codes)) & valid_mask
@@ -409,94 +410,461 @@ def _fetch_season_coh_by_class(
 # ── Interpolation & decay chaining ────────────────────────────────────────────
 
 @functools.lru_cache(maxsize=64)
-def _fit_decay_model_cached(coh_items: tuple) -> tuple[float, float]:
+def _fit_decay_model_cached(coh_items: tuple) -> tuple[float, float, float]:
     """LRU-cached entry point — converts the hashable tuple back to a dict."""
     return _fit_decay_model(dict(coh_items))
 
 
-def _fit_decay_model(coh_map: dict[int, float]) -> tuple[float, float]:
-    """Fit γ(t) = (1 − ρ∞) · exp(−t/τ) + ρ∞ to measured COH levels.
+def _fit_decay_model(coh_map: dict[int, float]) -> tuple[float, float, float]:
+    """Fit γ(t) = γ∞ + (γ0 − γ∞) · exp(−t/τ) to measured COH levels.
 
-    The two components:
-      * (1 − ρ∞) · exp(−t/τ) — the decorrelating scatterers (vegetation,
-        soil moisture, snow).  Starts at (1 − ρ∞) at t=0 and decays to 0.
-      * ρ∞ — permanent-scatterer floor (rocks, buildings).  Never decorrelates
-        regardless of temporal baseline.
+    Three free parameters
+    ---------------------
+    γ∞  — permanent-scatterer floor: the asymptote as t → ∞.
+            Rocks, buildings — always coherent regardless of baseline.
+    γ0  — initial coherence extrapolated back to t = 0.
+            Stable surfaces: γ0 ≈ 1.0.
+            Forests / volume scatterers: γ0 < 1.0 even at zero baseline
+            because volume decorrelation is instantaneous.
+    τ   — decorrelation time constant (days).
+            Short τ (5–15 d): agriculture, wet soil, snow.
+            Long τ (30–100 d): desert, urban, bare rock.
 
-    Algorithm: grid-search ρ∞ ∈ [0, min(coh)·0.95], then solve for τ by
-    ordinary least squares in log space.  Returns (rho_inf, tau_days).
+    Algorithm
+    ---------
+    1. Grid-search γ∞ ∈ [0, min(coh) × 0.95]  (40 steps).
+    2. For each γ∞, fit γ0 and τ jointly by OLS in log space:
 
-    Parameters
-    ----------
-    coh_map : {level_days: coherence} — at least 2 entries required.
+           y(t)  = γ(t) − γ∞  =  A · exp(−t/τ)     where A = γ0 − γ∞
+
+       Taking log:  log y = log A − t/τ
+
+       This is a linear model  log y = b0 + b1·t  with
+           b1 = −1/τ  (must be negative)
+           b0 = log A  →  A = exp(b0)  →  γ0 = γ∞ + A
+
+    3. Pick the (γ∞, γ0, τ) triple with smallest MSE.
 
     Returns
     -------
-    (rho_inf, tau) where rho_inf ∈ [0, 1) and tau > 0 (days).
-    Falls back to (0.0, 30.0) if the fit fails.
+    (gamma_inf, gamma0, tau)
+        gamma_inf : float ∈ [0, 1)  — PS floor
+        gamma0    : float ∈ (0, 1]  — initial coherence at t = 0 (clamped to 1)
+        tau       : float > 0       — decorrelation time constant (days)
+    Falls back to (0.0, 1.0, 30.0) if the fit fails.
     """
     t_arr   = np.array(sorted(coh_map), dtype=float)
     coh_arr = np.array([coh_map[int(l)] for l in t_arr])
 
     min_coh = float(coh_arr.min())
-    best_rho, best_tau, best_err = 0.0, 30.0, float("inf")
+    best_ginf, best_g0, best_tau, best_err = 0.0, 1.0, 30.0, float("inf")
 
-    for rho in np.linspace(0.0, min_coh * 0.95, 40):
-        y = coh_arr - rho          # = (1 − ρ∞) · exp(−t/τ)
-        amp = 1.0 - rho            # = (1 − ρ∞)
-        if np.any(y <= 0) or amp <= 0:
+    # Pre-compute OLS helpers (mean-centered for numerical stability)
+    t_mean = t_arr.mean()
+    t_c    = t_arr - t_mean            # centered time
+    ss_t   = float(np.dot(t_c, t_c))  # Σ(t - t̄)²
+
+    for ginf in np.linspace(0.0, min_coh * 0.95, 40):
+        y = coh_arr - ginf             # = A · exp(−t/τ),  A = γ0 − γ∞
+        if np.any(y <= 0):
             continue
-        # log(y / amp) = −t / τ  →  1/τ = −Σ(t · log(y/amp)) / Σ(t²)
-        log_y  = np.log(y / amp)
-        inv_tau = -float(np.dot(t_arr, log_y) / np.dot(t_arr, t_arr))
-        if inv_tau <= 0:
-            continue
-        tau  = 1.0 / inv_tau
-        pred = amp * np.exp(-t_arr / tau) + rho
+
+        log_y      = np.log(y)
+        log_y_mean = log_y.mean()
+
+        # OLS slope = Σ[(t−t̄)(log y − log ȳ)] / Σ(t−t̄)²
+        slope = float(np.dot(t_c, log_y - log_y_mean)) / ss_t   # = −1/τ
+        if slope >= 0:
+            continue                    # decay requires negative slope
+
+        tau       = -1.0 / slope
+        intercept = log_y_mean - slope * t_mean   # = log A
+        A         = math.exp(intercept)            # = γ0 − γ∞
+        g0        = ginf + A                       # γ0 (may exceed 1 from noise)
+
+        pred = ginf + A * np.exp(-t_arr / tau)
         err  = float(np.mean((pred - coh_arr) ** 2))
+
         if err < best_err:
-            best_err, best_rho, best_tau = err, float(rho), tau
+            best_err  = err
+            best_ginf = float(ginf)
+            best_g0   = float(g0)
+            best_tau  = float(tau)
 
-    return best_rho, best_tau
+    # γ0 > 1 is unphysical — clamp but keep the fit otherwise intact.
+    best_g0 = min(best_g0, 1.0)
+    return best_ginf, best_g0, best_tau
 
 
-def _interpolate_level(coh_map: dict[int, float], dt: int) -> float | None:
-    """Estimate coherence for an arbitrary dt (days) from available COH levels.
+def _eval_decay(gamma_inf: float, gamma0: float, tau: float, dt: float) -> float:
+    """Evaluate γ(t) = γ∞ + (γ0 − γ∞) · exp(−t/τ)."""
+    return gamma_inf + (gamma0 - gamma_inf) * math.exp(-dt / tau)
 
-    Algorithm
-    ---------
-    * dt ≤ max level : linear interpolation between the two nearest levels.
-    * dt > max level : use fitted γ(t) = (1−ρ∞)·exp(−t/τ) + ρ∞ so the
-      result approaches the permanent-scatterer floor ρ∞, not zero.
 
-    Returns None if coh_map is empty.
+# ── Per-pixel decay-map fitting ───────────────────────────────────────────────
+
+def _fit_pixel_decay_maps(
+    aoi_wkt: str,
+    season: str,
+    pol: str = "vv",
+) -> dict | None:
+    """Fit γ(t) = γ∞ + (γ0 − γ∞)·exp(−t/τ) independently at every pixel.
+
+    Reads _COH_LEVELS from S3 as pixel arrays, stacks them into an
+    (N_pixels, N_levels) matrix, then fits the three decay parameters per pixel.
+
+    Why per-pixel instead of fitting to AOI means
+    ---------------------------------------------
+    Fitting to mean values conflates different land-cover types: an AOI that is
+    50% urban (γ∞ ≈ 0.40, τ ≈ 60 d) and 50% forest (γ∞ ≈ 0.05, τ ≈ 8 d) would
+    yield a mean curve that matches neither class.  Per-pixel fitting captures
+    spatial heterogeneity; AOI-mean coherence is then the mean of γ(dt) evaluated
+    per pixel — a more accurate estimator.
+
+    Nodata handling
+    ---------------
+    Two nodata conventions coexist in the raster:
+      0   — native file nodata (no Sentinel-1 acquisition at this location)
+      255 — outside the AOI polygon (filled by rio_mask)
+    Both are excluded from the fit.  A pixel needs ≥ 3 valid levels to constrain
+    the three model parameters.
+
+    Fitting strategy
+    ----------------
+    Fast path  (all _COH_LEVELS valid) — vectorised grid-search + OLS over all
+               such pixels simultaneously using numpy broadcasting.
+    Slow path  (3 to N_levels-1 valid) — scalar _fit_decay_model() loop, one
+               pixel at a time, using only its available levels.
+
+    Parameters
+    ----------
+    aoi_wkt : WKT polygon (geographic CRS, EPSG:4326)
+    season  : "winter" | "spring" | "summer" | "fall"
+    pol     : "vv" (default) or "vh"
+
+    Returns
+    -------
+    dict with keys:
+        gamma_inf : 2-D list[list[float]] — PS floor map
+        gamma0    : 2-D list[list[float]] — initial coherence at t=0
+        tau       : 2-D list[list[float]] — decorrelation time constant (days)
+        valid     : 2-D list[list[bool]]  — True where ≥3 levels had data
+        shape     : [H, W]
+        transform : list[float]           — 6-element rasterio affine
+        season    : str
+        pol       : str
+    Returns None if any COH level file cannot be read from S3.
     """
-    if not coh_map:
+    # ── Read all COH levels as uint8 pixel arrays ─────────────────────────
+    arrs: list[np.ndarray] = []
+    transform = None
+    crs = None
+    for level in _COH_LEVELS:
+        arr, tfm, c = _read_coh_pixels(aoi_wkt, season, level, pol)
+        if arr is None:
+            _log.debug("Pixel decay map: COH%02d failed for %s/%s", level, season, pol)
+            return None
+        arrs.append(arr)
+        if transform is None:
+            transform, crs = tfm, c
+
+    H, W  = arrs[0].shape
+    t_arr = np.array(_COH_LEVELS, dtype=float)
+    n_levels = len(_COH_LEVELS)
+
+    # Stack into (N, n_levels); each row is one pixel, each column one COH level
+    flat = np.stack([a.reshape(-1).astype(float) for a in arrs], axis=1)
+
+    # Per-pixel, per-level validity mask
+    # 0   = native file nodata (no S1 acquisition)
+    # 255 = outside AOI polygon (filled by rio_mask)
+    level_ok   = (flat > 0) & (flat < 255)          # (N, n_levels)
+    n_ok       = level_ok.sum(axis=1)               # (N,) valid level count per pixel
+    valid_mask = n_ok >= 3                           # ≥3 levels needed to fit 3 params
+    full_mask  = n_ok == n_levels                    # all levels valid → vectorised path
+
+    coh = np.where(level_ok, flat / 100.0, np.nan)  # (N, n_levels) coherence [0,1]
+
+    N_total  = H * W
+    ginf_out = np.zeros(N_total, dtype=float)
+    g0_out   = np.zeros(N_total, dtype=float)
+    tau_out  = np.full(N_total, 30.0, dtype=float)
+
+    if not valid_mask.any():
+        _log.warning("Pixel decay map: no valid pixels for %s/%s", season, pol)
         return None
 
-    levels = sorted(coh_map)
-    vals   = [coh_map[l] for l in levels]
+    # ── Fast path: vectorised grid search over all fully-valid pixels ─────
+    # All pixels in coh_full share the same time axis t_arr, so OLS can be
+    # broadcast across them in one pass per grid-search step.
+    coh_full = coh[full_mask]        # (N_full, n_levels)
+    N_full   = coh_full.shape[0]
 
-    # ── interpolate within range ──────────────────────────────────────────
-    if dt <= levels[0]:
-        return vals[0]
-    if dt <= levels[-1]:
-        for i in range(len(levels) - 1):
-            if levels[i] <= dt <= levels[i + 1]:
-                t = (dt - levels[i]) / (levels[i + 1] - levels[i])
-                return vals[i] + t * (vals[i + 1] - vals[i])
-        return vals[-1]
+    if N_full > 0:
+        t_mean = t_arr.mean()
+        t_c    = t_arr - t_mean      # centred time axis, shared by all pixels
+        ss_t   = float(np.dot(t_c, t_c))
 
-    # ── extrapolate beyond max level using the physical decay model ───────
-    if len(levels) >= 2:
-        rho_inf, tau = _fit_decay_model(coh_map)
-        return max(rho_inf, (1.0 - rho_inf) * math.exp(-dt / tau) + rho_inf)
+        min_coh   = coh_full.min(axis=1)   # per-pixel minimum coherence
+        best_ginf = np.zeros(N_full)
+        best_g0   = np.ones(N_full)
+        best_tau  = np.full(N_full, 30.0)
+        best_err  = np.full(N_full, np.inf)
 
-    # Degenerate: only one level available — use it as constant
-    return vals[-1]
+        for i in range(40):
+            # γ∞ candidate: linearly from 0 → 0.95 × per-pixel min_coh
+            ginf_cand = min_coh * (i / 39) * 0.95        # (N_full,)
+            y  = coh_full - ginf_cand[:, np.newaxis]      # (N_full, n_levels)
+            ok = np.all(y > 0, axis=1)                    # feasible pixels for this γ∞
+            if not ok.any():
+                continue
+
+            yv, ginf_ok = y[ok], ginf_cand[ok]
+            log_y = np.log(yv)
+            lym   = log_y.mean(axis=1)
+
+            # OLS slope = Σ[(t_c)(log y − log ȳ)] / Σ(t_c²)
+            slope = (t_c * (log_y - lym[:, np.newaxis])).sum(axis=1) / ss_t
+            ns    = slope < 0                             # valid decay requires negative slope
+            if not ns.any():
+                continue
+
+            tau_ok = np.where(ns, -1.0 / np.where(slope != 0, slope, -1e-9), 30.0)
+            A_ok   = np.exp(np.clip(lym - slope * t_mean, -20, 5))
+            g0_ok  = np.clip(ginf_ok + A_ok, 0.0, 1.0)
+
+            pred    = ginf_ok[:, np.newaxis] + A_ok[:, np.newaxis] * \
+                      np.exp(-t_arr[np.newaxis, :] / tau_ok[:, np.newaxis])
+            err     = ((pred - coh_full[ok]) ** 2).mean(axis=1)
+            improve = ns & (err < best_err[ok])
+            idx     = np.where(ok)[0][improve]
+            best_ginf[idx] = ginf_ok[improve]
+            best_g0[idx]   = g0_ok[improve]
+            best_tau[idx]  = tau_ok[improve]
+            best_err[idx]  = err[improve]
+
+        full_idx = np.where(full_mask)[0]
+        ginf_out[full_idx] = best_ginf
+        g0_out[full_idx]   = best_g0
+        tau_out[full_idx]  = best_tau
+
+    # ── Slow path: scalar loop for pixels with 3 to n_levels-1 valid levels
+    # Each pixel may have a different subset of levels, so we can't share a
+    # common time axis — fall back to the scalar _fit_decay_model().
+    partial_mask = valid_mask & ~full_mask
+    if partial_mask.any():
+        for idx in np.where(partial_mask)[0]:
+            lv_ok   = level_ok[idx]
+            t_sub   = t_arr[lv_ok]
+            coh_sub = coh[idx, lv_ok]
+            coh_map = {int(t): float(c) for t, c in zip(t_sub, coh_sub)}
+            gi, g0, tau   = _fit_decay_model(coh_map)
+            ginf_out[idx] = gi
+            g0_out[idx]   = g0
+            tau_out[idx]  = tau
+
+    return {
+        "gamma_inf": ginf_out.reshape(H, W).tolist(),
+        "gamma0":    g0_out.reshape(H, W).tolist(),
+        "tau":       tau_out.reshape(H, W).tolist(),
+        "valid":     valid_mask.reshape(H, W).tolist(),
+        "shape":     [H, W],
+        "transform": list(transform),
+        "season":    season,
+        "pol":       pol,
+    }
 
 
-# ── Season COH map fetcher (with simple in-memory cache) ─────────────────────
+def _decay_maps_tif_path(save_dir: Path, season: str, pol: str) -> Path:
+    """Return the GeoTIFF path for a season/pol decay map."""
+    return save_dir / f"S1_coherence_decay_{season}_{pol}.tif"
+
+
+def _save_decay_maps_to_tif(maps: dict, save_dir: Path, season: str, pol: str) -> None:
+    """Save pixel decay map arrays to a 3-band GeoTIFF.
+
+    Bands
+    -----
+    1 : γ∞  (PS floor)
+    2 : γ0  (initial coherence)
+    3 : τ   (decorrelation time, days)
+
+    nodata = -9999.0
+    """
+    try:
+        import numpy as np
+        import rasterio
+        from rasterio.transform import Affine
+
+        save_dir.mkdir(parents=True, exist_ok=True)
+        tif_path = _decay_maps_tif_path(save_dir, season, pol)
+
+        H, W = maps["shape"]
+        ginf = np.array(maps["gamma_inf"], dtype=np.float32)
+        g0   = np.array(maps["gamma0"],    dtype=np.float32)
+        tau  = np.array(maps["tau"],       dtype=np.float32)
+        valid = np.array(maps["valid"],    dtype=bool)
+
+        NODATA = np.float32(-9999.0)
+        ginf[~valid] = NODATA
+        g0[~valid]   = NODATA
+        tau[~valid]  = NODATA
+
+        tfm_list = maps["transform"]
+        transform = Affine(*tfm_list[:6])
+
+        profile = {
+            "driver":    "GTiff",
+            "dtype":     "float32",
+            "width":     W,
+            "height":    H,
+            "count":     3,
+            "crs":       "EPSG:4326",
+            "transform": transform,
+            "nodata":    float(NODATA),
+            "compress":  "lzw",
+        }
+        with rasterio.open(tif_path, "w", **profile) as dst:
+            dst.write(ginf, 1)
+            dst.write(g0,   2)
+            dst.write(tau,  3)
+            dst.update_tags(
+                season=season, pol=pol,
+                band1="gamma_inf_PS_floor",
+                band2="gamma0_initial_coherence",
+                band3="tau_decorrelation_days",
+            )
+        _log.info("Saved coherence decay map: %s", tif_path)
+
+    except Exception as exc:
+        _log.warning("Could not save decay map GeoTIFF for %s/%s: %s", season, pol, exc)
+
+
+def _load_decay_maps_from_tif(save_dir: Path, season: str, pol: str) -> dict | None:
+    """Load pixel decay maps from an existing GeoTIFF.
+
+    Returns the same dict structure as _fit_pixel_decay_maps, or None if the
+    file does not exist or cannot be read.
+    """
+    tif_path = _decay_maps_tif_path(save_dir, season, pol)
+    if not tif_path.exists():
+        return None
+    try:
+        import numpy as np
+        import rasterio
+
+        with rasterio.open(tif_path) as src:
+            ginf_arr = src.read(1).astype(float)
+            g0_arr   = src.read(2).astype(float)
+            tau_arr  = src.read(3).astype(float)
+            nodata   = src.nodata
+            tfm      = src.transform
+            H, W     = src.height, src.width
+
+        nd = float(nodata) if nodata is not None else -9999.0
+        valid = (ginf_arr != nd) & (g0_arr != nd) & (tau_arr != nd)
+
+        # Restore nodata pixels to neutral default so downstream code is safe
+        ginf_arr[~valid] = 0.0
+        g0_arr[~valid]   = 0.0
+        tau_arr[~valid]  = 30.0
+
+        return {
+            "gamma_inf": ginf_arr.tolist(),
+            "gamma0":    g0_arr.tolist(),
+            "tau":       tau_arr.tolist(),
+            "valid":     valid.tolist(),
+            "shape":     [H, W],
+            "transform": list(tfm)[:6],
+            "season":    season,
+            "pol":       pol,
+        }
+
+    except Exception as exc:
+        _log.warning("Could not load decay map GeoTIFF %s: %s", tif_path, exc)
+        return None
+
+
+def _fetch_season_decay_maps(
+    aoi_wkt: str,
+    lat: float,
+    lon: float,
+    season: str,
+    pol: str = "vv",
+    cache: dict | None = None,
+    save_dir: Path | None = None,
+) -> tuple[dict | None, str]:
+    """Return (pixel_decay_maps, source) for one season, with caching.
+
+    pixel_decay_maps is the dict returned by _fit_pixel_decay_maps, or None
+    when S3 is unreachable.  source is "s3" or "failed".
+
+    Caching priority
+    ----------------
+    1. In-memory dict cache (fastest — no I/O)
+    2. GeoTIFF on disk at ``save_dir/S1_coherence_decay_{season}_{pol}.tif``
+       (survives process restarts; readable by CLI + GUI)
+    3. S3 fetch (slow — network round-trip)
+
+    The GeoTIFF is written after every S3 fetch so subsequent runs skip S3.
+    Pass ``save_dir`` as ``{folder}/decay_maps`` to enable disk persistence.
+    """
+    cache_key = f"s1coh_pmaps:{lat:.2f}:{lon:.2f}:{season}:{pol}"
+
+    # ── 1. In-memory cache ────────────────────────────────────────────────
+    if cache is not None and cache_key in cache:
+        stored = cache[cache_key]
+        if stored is None:
+            return None, "failed"
+        # Write GeoTIFF if save_dir is given and file doesn't exist yet
+        # (happens when data came from a prior run's JSON cache but TIF was never saved)
+        if save_dir is not None and stored is not None:
+            tif = _decay_maps_tif_path(save_dir, season, pol)
+            if not tif.exists():
+                _save_decay_maps_to_tif(stored, save_dir, season, pol)
+        return stored, "s3"
+
+    # ── 2. Disk GeoTIFF cache ─────────────────────────────────────────────
+    if save_dir is not None:
+        maps_from_disk = _load_decay_maps_from_tif(save_dir, season, pol)
+        if maps_from_disk is not None:
+            _log.debug("Loaded coherence decay map from disk: %s/%s", season, pol)
+            if cache is not None:
+                cache[cache_key] = maps_from_disk
+            return maps_from_disk, "s3"
+
+    # ── 3. S3 fetch ───────────────────────────────────────────────────────
+    maps = _fit_pixel_decay_maps(aoi_wkt, season, pol)
+    source = "s3" if maps is not None else "failed"
+
+    if source == "failed":
+        _log.info("S1 coherence pixel maps: S3 unavailable for %s/%s", season, pol)
+    elif save_dir is not None:
+        _save_decay_maps_to_tif(maps, save_dir, season, pol)
+
+    if cache is not None:
+        cache[cache_key] = maps   # None stored on failure so we don't retry
+
+    return maps, source
+
+
+def _eval_pixel_maps(maps: dict, dt: float) -> tuple[float, float]:
+    """Evaluate the pixel decay maps at a given temporal baseline.
+
+    Returns (mean_coh, mean_ginf) averaged over all valid AOI pixels.
+    mean_coh  = mean[γ∞ + (γ0 − γ∞) · exp(−dt/τ)]  over valid pixels
+    mean_ginf = mean[γ∞]  over valid pixels  (PS floor for the AOI)
+    """
+    ginf = np.array(maps["gamma_inf"])
+    g0   = np.array(maps["gamma0"])
+    tau  = np.array(maps["tau"])
+    valid = np.array(maps["valid"], dtype=bool)
+
+    coh_pixels = ginf + (g0 - ginf) * np.exp(-dt / tau)
+    return float(coh_pixels[valid].mean()), float(ginf[valid].mean())
+
+
+# ── Season COH map fetcher (mean-based, kept for climatology fallback) ────────
 
 def _fetch_season_coh_map(
     aoi_wkt: str,
@@ -541,7 +909,7 @@ def _fetch_season_coh_map(
 def _chain_segments(
     segments: list[tuple[int, str]],
     season_maps: dict[str, dict[int, float]],
-) -> tuple[float | None, list[tuple[int, str, float | None]]]:
+) -> tuple[float | None, float, list[tuple[int, str, float | None]]]:
     """Chain coherence across season segments using the physical two-component model.
 
     Simple multiplication is wrong for cross-season pairs because it drives
@@ -564,13 +932,15 @@ def _chain_segments(
 
     Returns
     -------
-    (total_coh, seg_details)
+    (total_coh, rho_eff, seg_details)
       total_coh   : float in [0, 1], or None if any season map was empty (S3 failed)
+      rho_eff     : float — permanent-scatterer floor (min ρ∞ across segments); 0.0 on failure
       seg_details : [(dt_days, season, seg_coh_or_None), ...]
     """
     seg_details: list[tuple[int, str, float | None]] = []
-    exp_sum  = 0.0     # Σ(dt_i / τ_i)
-    rho_infs: list[float] = []
+    exp_sum   = 0.0     # Σ(dt_i / τ_i) — decorrelating exponent across segments
+    ginf_list: list[float] = []
+    g0_list:   list[float] = []
     all_valid = True
 
     for seg_dt, season in segments:
@@ -580,20 +950,30 @@ def _chain_segments(
             seg_details.append((seg_dt, season, None))
             continue
 
-        rho_inf, tau = _fit_decay_model_cached(tuple(sorted(coh_map.items())))
+        ginf, g0, tau = _fit_decay_model_cached(tuple(sorted(coh_map.items())))
         exp_sum += seg_dt / tau
-        rho_infs.append(rho_inf)
+        ginf_list.append(ginf)
+        g0_list.append(g0)
 
-        # Per-segment display coherence (what this segment alone would give)
-        seg_coh = rho_inf + (1.0 - rho_inf) * math.exp(-seg_dt / tau)
+        # Per-segment display: coherence this segment alone would produce
+        seg_coh = _eval_decay(ginf, g0, tau, seg_dt)
         seg_details.append((seg_dt, season, round(seg_coh, 4)))
 
-    if not all_valid or not rho_infs:
-        return None, seg_details
+    if not all_valid or not ginf_list:
+        return None, 0.0, seg_details
 
-    rho_eff   = min(rho_infs)                                  # conservative floor
-    total_coh = rho_eff + (1.0 - rho_eff) * math.exp(-exp_sum)
-    return round(total_coh, 4), seg_details
+    # Cross-season chaining via the two-component model:
+    #   γ_total = γ∞_eff + (γ0_eff − γ∞_eff) · exp(−Σ dt_i/τ_i)
+    #
+    # γ∞_eff = min(γ∞) — conservative PS floor: a single low-stability
+    #   season limits the permanent coherence of the whole pair.
+    # γ0_eff = min(γ0) — conservative initial coherence: a season with
+    #   volume scattering (forest) limits the initial amplitude.
+    ginf_eff  = min(ginf_list)
+    g0_eff    = min(g0_list)
+    # γ_total = γ∞_eff + (γ0_eff − γ∞_eff) · exp(−Σ dt_i/τ_i)
+    total_coh = ginf_eff + (g0_eff - ginf_eff) * math.exp(-exp_sum)
+    return round(total_coh, 4), round(ginf_eff, 4), seg_details
 
 
 @functools.lru_cache(maxsize=4096)
@@ -606,7 +986,7 @@ def _climatology_pair_coherence(lat: float, date1: str, date2: str) -> float:
     segments    = split_by_season(date1, date2, lat)
     uniq_seasons = list(dict.fromkeys(s for _, s in segments))
     season_maps = {s: _climatology_coh_map(lat, s) for s in uniq_seasons}
-    total, _    = _chain_segments(segments, season_maps)
+    total, _, _ = _chain_segments(segments, season_maps)
     return total if total is not None else 0.0
 
 
@@ -620,6 +1000,7 @@ def estimate_coherence(
     date2: str,
     pol: str = "vv",
     cache: dict | None = None,
+    save_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Estimate expected interferometric coherence for a scene pair.
 
@@ -639,8 +1020,7 @@ def estimate_coherence(
     Returns
     -------
     dict with keys:
-        coherence_expected    : float in [0, 1] (S3 value or climatology fallback)
-        coherence_by_class    : {class_name: float} per-LC-class coherence (may be {})
+        coherence_expected    : float in [0, 1] (S3 AOI-mean or climatology fallback)
         coherence_same_season : bool  — True if pair falls entirely within one season
         coherence_season_d1   : str   — season of first date
         coherence_season_d2   : str   — season of second date
@@ -660,47 +1040,97 @@ def estimate_coherence(
     segments     = split_by_season(d1_str, d2_str, lat)
     uniq_seasons = list(dict.fromkeys(s for _, s in segments))
 
-    # ── fetch overall COH maps for each unique season ─────────────────────
-    season_maps: dict[str, dict[int, float]] = {}
+    # ── Tier 1: per-pixel decay maps (preferred) ──────────────────────────
+    # Fetch 3-parameter maps (γ∞, γ0, τ) per pixel for each season, then
+    # evaluate γ(dt) per pixel and average — more accurate than fitting to
+    # per-season means because spatial heterogeneity is preserved.
+    pixel_maps: dict[str, dict] = {}
     any_s3_failed = False
     for season in uniq_seasons:
-        coh_map, source = _fetch_season_coh_map(
-            aoi_wkt, lat, lon, season, pol, cache,
+        pmaps, source = _fetch_season_decay_maps(
+            aoi_wkt, lat, lon, season, pol, cache, save_dir=save_dir,
         )
-        season_maps[season] = coh_map
         if source == "failed":
             any_s3_failed = True
+        else:
+            pixel_maps[season] = pmaps  # type: ignore[assignment]
 
-    # ── chain segments using physical two-component model ─────────────────
-    total_coh, seg_details = _chain_segments(segments, season_maps)
+    if not any_s3_failed and len(pixel_maps) == len(uniq_seasons):
+        # All seasons available — compute coherence per pixel across segments.
+        # For single-season pair: evaluate model directly at dt_total.
+        # For cross-season pair: chain segments using the two-component model
+        #   applied per pixel, then average.
+        #
+        # Cross-season pixel chaining:
+        #   γ_pixel(total) = γ∞_eff + (γ0_eff − γ∞_eff) · exp(−Σ dt_i/τ_i)
+        # where for each pixel the effective parameters are:
+        #   γ∞_eff = min(γ∞_i)  — most restrictive PS floor
+        #   γ0_eff = min(γ0_i)  — most restrictive initial coherence
 
-    # ── per-LC-class coherence breakdown ─────────────────────────────────
-    # Fetch per-class COH maps for each season, chain segments per class.
-    # Skipped gracefully when WorldCover or S3 is unavailable.
-    coherence_by_class: dict[str, float] = {}
-    if not any_s3_failed:
-        # Collect per-class season maps: {season: {class: {level: coh}}}
-        class_season_maps: dict[str, dict[str, dict[int, float]]] = {}
+        first_maps = pixel_maps[uniq_seasons[0]]
+        H, W = first_maps["shape"]
+
+        # Initialise per-pixel accumulator arrays
+        ginf_eff  = np.ones((H, W))          # will take element-wise min
+        g0_eff    = np.ones((H, W))
+        exp_sum   = np.zeros((H, W))          # Σ dt_i/τ_i
+        valid_all = np.ones((H, W), dtype=bool)
+        seg_details: list = []
+
+        for seg_dt, season in segments:
+            pmaps = pixel_maps.get(season)
+            if pmaps is None:
+                seg_details.append((seg_dt, season, None))
+                valid_all[:] = False
+                continue
+
+            ginf_px = np.array(pmaps["gamma_inf"])
+            g0_px   = np.array(pmaps["gamma0"])
+            tau_px  = np.array(pmaps["tau"])
+            vld_px  = np.array(pmaps["valid"], dtype=bool)
+
+            ginf_eff  = np.minimum(ginf_eff,  ginf_px)
+            g0_eff    = np.minimum(g0_eff,    g0_px)
+            exp_sum  += seg_dt / np.where(tau_px > 0, tau_px, 30.0)
+            valid_all &= vld_px
+
+            # Per-segment display: mean coherence this segment alone produces
+            seg_coh_px = ginf_px + (g0_px - ginf_px) * np.exp(-seg_dt / tau_px)
+            seg_mean   = float(seg_coh_px[vld_px].mean()) if vld_px.any() else None
+            seg_details.append((seg_dt, season, round(seg_mean, 4) if seg_mean else None))
+
+        # Evaluate chained model per pixel, then average over AOI
+        coh_pixels = ginf_eff + (g0_eff - ginf_eff) * np.exp(-exp_sum)
+        total_coh  = round(float(coh_pixels[valid_all].mean()), 4) if valid_all.any() else None
+        rho_eff    = round(float(ginf_eff[valid_all].mean()), 4)   if valid_all.any() else 0.0
+
+    else:
+        # ── Tier 2 fallback: mean-based approach (S3 partial failure) ────
+        season_maps: dict[str, dict[int, float]] = {}
         for season in uniq_seasons:
-            by_cls = _fetch_season_coh_by_class(aoi_wkt, lat, lon, season, pol, cache)
-            for cls_name, coh_map in by_cls.items():
-                class_season_maps.setdefault(cls_name, {})[season] = coh_map
+            coh_map, source = _fetch_season_coh_map(
+                aoi_wkt, lat, lon, season, pol, cache,
+            )
+            season_maps[season] = coh_map
 
-        for cls_name, cls_maps in class_season_maps.items():
-            # Only chain if all segments have data for this class
-            cls_total, _ = _chain_segments(segments, cls_maps)
-            if cls_total is not None:
-                coherence_by_class[cls_name] = cls_total
+        total_coh, rho_eff, seg_details = _chain_segments(segments, season_maps)
+
+    # Derive rho_eff from climatology when S3 fully failed
+    if any_s3_failed or rho_eff == 0.0:
+        clim_maps = {s: _climatology_coh_map(lat, s) for s in uniq_seasons}
+        _, clim_rho_eff, _ = _chain_segments(segments, clim_maps)
+        if any_s3_failed:
+            rho_eff = clim_rho_eff
 
     return {
         "coherence_expected":    total_coh if (total_coh is not None and not any_s3_failed) else None,
-        "coherence_by_class":    coherence_by_class,
         "coherence_source":      "failed" if any_s3_failed else "s3",
         "coherence_same_season": len(uniq_seasons) == 1,
         "coherence_season_d1":   season_d1,
         "coherence_season_d2":   season_d2,
         "coherence_segments":    seg_details,
         "coherence_dt_total":    dt_total,
+        "coherence_rho_inf":     rho_eff,
     }
 
 

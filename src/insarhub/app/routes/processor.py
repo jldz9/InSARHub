@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
 from insarhub.app.models import ProcessRequest, Hyp3ActionRequest
-from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job
+from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
 
@@ -22,9 +22,9 @@ router = APIRouter()
 async def folder_process(req: ProcessRequest, background_tasks: BackgroundTasks):
     """Read pairs from folder, submit to processor, save job IDs."""
     folder = Path(req.folder_path).expanduser().resolve()
-    pairs_files = sorted(folder.glob("pairs_p*_f*.json"))
-    if not pairs_files:
-        raise HTTPException(status_code=404, detail="No pairs file found in folder")
+    stack_files = sorted(folder.glob("stack_p*_f*.json"))
+    if not stack_files:
+        raise HTTPException(status_code=404, detail="No stack file found in folder")
     job_id, _ = _new_job("Starting…")
     background_tasks.add_task(_run_folder_process, job_id, req)
     return {"job_id": job_id}
@@ -33,16 +33,14 @@ async def folder_process(req: ProcessRequest, background_tasks: BackgroundTasks)
 async def _run_folder_process(job_id: str, req: ProcessRequest):
     def run():
         try:
-            from insarhub.utils.tool import write_workflow_marker
-
             folder = Path(req.folder_path).expanduser().resolve()
-            pairs_files = sorted(folder.glob("pairs_p*_f*.json"))
-            if not pairs_files:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "No pairs file found", "data": None}
+            stack_files = sorted(folder.glob("stack_p*_f*.json"))
+            if not stack_files:
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "No stack file found", "data": None}
                 return
 
-            raw = json.loads(pairs_files[0].read_text())
-            pairs: list[tuple[str, str]] = [tuple(p) for p in raw]
+            data = json.loads(stack_files[0].read_text())
+            pairs: list[tuple[str, str]] = [tuple(p) for p in data.get("pairs", [])]
 
             proc_cls = Processor._registry.get(req.processor_type)
             if proc_cls is None:
@@ -57,30 +55,14 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
             _apply_config_from_dict(cfg, req.processor_config, skip_keys={"workdir", "pairs"})
             cfg.pairs = pairs
 
+            proc_cfg = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ("workdir", "pairs")}
+
             if req.dry_run:
                 n = len(pairs)
-                msgs = []
-                try:
-                    proc_cfg_path = folder / "processor_config.json"
-                    proc_cfg_path.write_text(json.dumps({
-                        "name": req.processor_type,
-                        "processor_config": req.processor_config,
-                    }, indent=2))
-                    msgs.append("wrote  processor_config.json")
-                except Exception as e:
-                    msgs.append(f"could not write processor_config.json: {e}")
-                try:
-                    write_workflow_marker(folder, processor=req.processor_type)
-                    msgs.append(f"marked insarhub_workflow.json  processor={req.processor_type}")
-                except Exception as e:
-                    msgs.append(f"could not update insarhub_workflow.json: {e}")
+                write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
                 state._jobs[job_id] = {
                     "status": "done", "progress": 100,
-                    "message": (
-                        f"[Dry run] Would submit {n} pair{'s' if n != 1 else ''} "
-                        f"via {req.processor_type} from {folder.name}\n"
-                        + "\n".join(msgs)
-                    ),
+                    "message": f"[Dry run] Would submit {n} pair{'s' if n != 1 else ''} via {req.processor_type} from {folder.name}",
                     "data": None,
                 }
                 return
@@ -95,12 +77,7 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
             state._jobs[job_id]["message"] = "Saving job IDs…"
             SaveJobsCommand(processor, progress_callback=state._make_progress(job_id)).run()
 
-            write_workflow_marker(folder, processor=req.processor_type)
-            proc_cfg_path = folder / "processor_config.json"
-            proc_cfg_path.write_text(json.dumps({
-                "name": req.processor_type,
-                "processor_config": req.processor_config,
-            }, indent=2))
+            write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
             _finish_job(job_id, status="done", message=submit_result.message)
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
@@ -125,14 +102,22 @@ async def get_folder_hyp3_jobs(path: str):
             total = 0
             users = []
         files.append({"name": f.name, "total": total, "users": users})
+    # Prefer insarhub_config.json (new format), fall back to legacy processor_config.json
     proc_type = None
-    proc_cfg_path = folder / "processor_config.json"
-    if proc_cfg_path.exists():
-        try:
-            pc = json.loads(proc_cfg_path.read_text())
-            proc_type = pc.get("name") or pc.get("processor_type")
-        except Exception:
-            pass
+    try:
+        from insarhub.app.state import read_insarhub_config
+        cfg = read_insarhub_config(folder)
+        proc_type = cfg.get("processor", {}).get("type")
+    except Exception:
+        pass
+    if not proc_type:
+        proc_cfg_path = folder / "processor_config.json"
+        if proc_cfg_path.exists():
+            try:
+                pc = json.loads(proc_cfg_path.read_text())
+                proc_type = pc.get("name") or pc.get("processor_type")
+            except Exception:
+                pass
     return {"files": files, "processor_type": proc_type}
 
 

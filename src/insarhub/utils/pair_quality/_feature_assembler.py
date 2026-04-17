@@ -53,6 +53,7 @@ class FeatureAssembler:
         self._lat       = lat
         self._lon       = lon
         self._skip_ndvi = skip_ndvi
+        self._save_dir  = self._cache._path.parent / "decay_maps"
         # AOI-level features — fetch once, reuse for all pairs
         self._lc_feats:   dict      = self._get_landcover()
 
@@ -187,56 +188,38 @@ class FeatureAssembler:
                 self.remote_fetch_count += 1
 
     def prefetch_coherence(self, pairs: list[tuple[str, str]]) -> None:
-        """Prefetch S1 global coherence COH maps for all unique seasons in pairs.
+        """Prefetch S1 coherence for all pairs: fetch pixel decay maps and
+        pre-compute the full coherence result per pair.
 
-        Call this once with all (date1, date2) pairs before the pair loop.
-        Populates self._coh_cache so assemble() never hits S3 per pair.
-
-        Fetches both overall and per-LC-class COH maps so that the first pair
-        in the scoring loop is a pure cache hit with no S3 latency.
+        Calling estimate_coherence() per pair here means assemble() gets a
+        cache hit for both the pixel maps (season-level) and the evaluated
+        coherence (pair-level), with no redundant numpy work.
         """
-        needed: set[str] = set()
-        for d1, d2 in pairs:
-            for _, season in _coherence.split_by_season(d1, d2, self._lat):
-                needed.add(season)
-
-        if not needed:
+        if not pairs:
             return
 
-        dirty = False  # track whether we need to re-persist the cache
+        dirty = False
 
-        # ── Overall COH maps ─────────────────────────────────────────────────
-        seasons_to_fetch = [
-            s for s in needed
-            if f"s1coh:{self._lat:.2f}:{self._lon:.2f}:{s}:vv" not in self._coh_cache
-        ]
-        if seasons_to_fetch:
-            logger.info("S1 coherence: fetching %d overall season(s) from S3 …",
-                        len(seasons_to_fetch))
-            for season in seasons_to_fetch:
-                _coherence._fetch_season_coh_map(
-                    self._wkt, self._lat, self._lon, season, "vv", self._coh_cache,
-                )
-                self.remote_fetch_count += 1
-            dirty = True
+        for d1, d2 in pairs:
+            d1n, d2n = _coherence._normalize_date(d1), _coherence._normalize_date(d2)
+            pair_key = f"s1coh_pair:{self._lat:.2f}:{self._lon:.2f}:{d1n}:{d2n}:vv"
+            if pair_key in self._coh_cache:
+                continue
 
-        # ── Per-LC-class COH maps ────────────────────────────────────────────
-        # These use a separate cache key (s1coh_cls:…) and are NOT fetched by
-        # _fetch_season_coh_map.  Without pre-fetching, the first pair in the
-        # scoring loop would block on a cold S3 + WorldCover read for each new
-        # season, and the results would never be persisted to disk.
-        cls_to_fetch = [
-            s for s in needed
-            if f"s1coh_cls:{self._lat:.2f}:{self._lon:.2f}:{s}:vv" not in self._coh_cache
-        ]
-        if cls_to_fetch:
-            logger.info("S1 coherence: fetching %d per-class season(s) from S3 …",
-                        len(cls_to_fetch))
-            for season in cls_to_fetch:
-                _coherence._fetch_season_coh_by_class(
-                    self._wkt, self._lat, self._lon, season, "vv", self._coh_cache,
-                )
-                self.remote_fetch_count += 1
+            # Track which season pixel-map keys exist before the call so we
+            # can count genuine S3 fetches (vs. cache hits on repeated seasons).
+            before = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")}
+
+            result = _coherence.estimate_coherence(
+                self._wkt, self._lat, self._lon, d1, d2,
+                pol="vv", cache=self._coh_cache, save_dir=self._save_dir,
+            )
+
+            new_season_keys = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")} - before
+            if new_season_keys:
+                self.remote_fetch_count += len(new_season_keys)
+
+            self._coh_cache[pair_key] = result
             dirty = True
 
         if dirty:
@@ -294,8 +277,11 @@ class FeatureAssembler:
         # 5. Season crossing (from existing _scorer logic, inline here)
         season_pen = _season_penalty(date1, date2, self._lat)
 
-        # 6. S1 global coherence estimate (uses in-memory cache from prefetch_coherence)
-        coh_result = _coherence.estimate_coherence(
+        # 6. S1 global coherence estimate — pair-level cache hit when prefetch_coherence ran
+        d1n = _coherence._normalize_date(date1)
+        d2n = _coherence._normalize_date(date2)
+        pair_key = f"s1coh_pair:{self._lat:.2f}:{self._lon:.2f}:{d1n}:{d2n}:vv"
+        coh_result = self._coh_cache.get(pair_key) or _coherence.estimate_coherence(
             self._wkt, self._lat, self._lon,
             date1, date2,
             pol="vv",
@@ -340,6 +326,8 @@ class FeatureAssembler:
             "temp_max_d2":     w2.get("temp_max"),
             "precip_d1":       w1.get("precip"),
             "precip_d2":       w2.get("precip"),
+            "precip_3day_d1":  w1.get("precip_3day"),
+            "precip_3day_d2":  w2.get("precip_3day"),
             "precip_7day_d1":  w1.get("precip_7day"),
             "precip_7day_d2":  w2.get("precip_7day"),
             "soil_moisture_d1": w1.get("soil_moisture"),
@@ -360,13 +348,13 @@ class FeatureAssembler:
 
             # S1 global coherence (replaces landcover+NDVI in coherence_score mode)
             "coherence_expected":    coh_result.get("coherence_expected"),
-            "coherence_by_class":    coh_result.get("coherence_by_class", {}),
             "coherence_source":      coh_result.get("coherence_source", "s3"),
             "coherence_same_season": coh_result.get("coherence_same_season"),
             "coherence_season_d1":   coh_result.get("coherence_season_d1"),
             "coherence_season_d2":   coh_result.get("coherence_season_d2"),
             "coherence_segments":    coh_result.get("coherence_segments"),
             "coherence_dt_total":    coh_result.get("coherence_dt_total"),
+            "coherence_rho_inf":     coh_result.get("coherence_rho_inf", 0.0),
             # Final safeline: climatology estimate (always available, no network needed)
             "coherence_climatology": _coherence._climatology_pair_coherence(
                 self._lat, date1, date2,
@@ -406,3 +394,5 @@ def _season_penalty(date1: str, date2: str, lat: float) -> float:
     if "winter" in pair:
         return 0.95
     return 0.70
+
+

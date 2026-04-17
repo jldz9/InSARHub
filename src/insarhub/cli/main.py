@@ -107,7 +107,7 @@ def create_parser() -> argparse.ArgumentParser:
                       help="Working directory (default: current directory)")
     g_dl.add_argument("--config", metavar="PATH", nargs="?", const="__default__", default=None,
                       help="Path to a saved downloader config JSON; "
-                           "omit the value to use <workdir>/downloader_config.json")
+                           "omit the value to use <workdir>/insarhub_config.json")
     g_dl.add_argument(
         "--AOI", nargs="+", metavar="AOI",
         help="Area of interest: shapefile/GeoJSON path, WKT string, or 4 floats W S E N. "
@@ -633,7 +633,7 @@ def _field_argparse_kwargs(annotation, default) -> dict:
 
 
 _MINTPY_ALL_STEPS = [
-    'load_data', 'modify_network', 'reference_point', 'invert_network',
+    'load_data', 'modify_network', 'reference_point', 'quick_overview', 'invert_network',
     'correct_LOD', 'correct_SET', 'correct_ionosphere', 'correct_troposphere',
     'deramp', 'correct_topography', 'residual_RMS', 'reference_date',
     'velocity', 'geocode', 'google_earth', 'hdfeos5',
@@ -693,7 +693,7 @@ def _print_config_options(config_cls_or_instance, display_label: str | None = No
     """Pretty-print all config fields for --list-options.
 
     Accepts either a dataclass *class* (shows defaults) or a dataclass *instance*.
-    value_overrides: field_name → str value read from mintpy.cfg, shown instead of defaults.
+    value_overrides: field_name → str value read from .mintpy.cfg, shown instead of defaults.
     """
     import dataclasses
     import typing
@@ -743,7 +743,7 @@ def _print_config_options(config_cls_or_instance, display_label: str | None = No
 
 
 def _read_mintpy_cfg(cfg_path: Path) -> dict[str, str]:
-    """Read a mintpy.cfg file and return {dataclass_field: value} by reverse-mapping keys.
+    """Read a .mintpy.cfg file and return {dataclass_field: value} by reverse-mapping keys.
 
     mintpy.compute.maxMemory → compute_maxMemory
     """
@@ -774,7 +774,7 @@ def _field_to_mintpy_key(field_name: str) -> str:
 
 
 def _update_mintpy_cfg(cfg_path: Path, overrides: dict) -> None:
-    """Apply field_name → value overrides in-place to an existing mintpy.cfg."""
+    """Apply field_name → value overrides in-place to an existing .mintpy.cfg."""
     lines = cfg_path.read_text().splitlines()
     updated = {_field_to_mintpy_key(k): str(v) for k, v in overrides.items()}
     new_lines = []
@@ -818,6 +818,34 @@ def _find_subfolder_config(workdir: Path, filename: str) -> Path | None:
     return None
 
 
+def _read_dl_config_from_folder(folder: Path) -> dict:
+    """Read downloader config from insarhub_config.json or fallback downloader_config.json."""
+    insarhub_cfg = folder / "insarhub_config.json"
+    if insarhub_cfg.exists():
+        try:
+            data = json.loads(insarhub_cfg.read_text())
+            cfg = data.get("downloader", {}).get("config", {})
+            if cfg:
+                return cfg
+        except Exception:
+            pass
+    return _read_config_json(folder / "downloader_config.json")
+
+
+def _read_proc_config_from_folder(folder: Path) -> dict:
+    """Read processor config from insarhub_config.json or fallback processor_config.json."""
+    insarhub_cfg = folder / "insarhub_config.json"
+    if insarhub_cfg.exists():
+        try:
+            data = json.loads(insarhub_cfg.read_text())
+            cfg = data.get("processor", {}).get("config", {})
+            if cfg:
+                return cfg
+        except Exception:
+            pass
+    return _read_config_json(folder / "processor_config.json")
+
+
 _GROUP_KEY_RE = re.compile(r"p(\d+)_f(\d+)")
 
 
@@ -836,7 +864,7 @@ def _load_pairs(args, workdir: Path) -> dict | list:
     Resolution order:
       1. --pairs-file  (explicit file)
       2. --pairs       (inline on CLI)
-      3. p*_f* subdirs containing pairs_p*_f*.json  (auto, multi-group)
+      3. p*_f* subdirs containing stack_p*_f*.json  (auto, multi-group)
       4. workdir/pairs.json  (auto, single group)
     """
     if getattr(args, "pairs_file", None):
@@ -854,33 +882,39 @@ def _load_pairs(args, workdir: Path) -> dict | list:
     # Auto-detect per-group subdirs created by `downloader --select-pairs`
     subdir_pairs: dict[str, list] = {}
     if workdir.is_dir():
-        for subdir in sorted(workdir.iterdir()) if workdir.is_dir() else []:
+        for subdir in sorted(workdir.iterdir()):
             if not subdir.is_dir():
                 continue
             pf = _parse_group_key(subdir.name)
-            if pf is not None:
-              
-                pjson = subdir / f"pairs_{subdir.name}.json"
-                if pjson.is_file():
-                    subdir_pairs[subdir.name] = json.loads(pjson.read_text())
-    
-    
-        for f in sorted(workdir.glob("pairs_*.json")):
-            if f.name == "pairs.json":
+            if pf is None:
                 continue
+            # New format: stack_p{path}_f{frame}.json inside subdir
+            stack = subdir / f"stack_{subdir.name}.json"
+            if stack.is_file():
+                data = json.loads(stack.read_text())
+                subdir_pairs[subdir.name] = data.get("pairs", [])
+                continue
+            # Legacy format: pairs_{subdir.name}.json inside subdir
+            pjson = subdir / f"pairs_{subdir.name}.json"
+            if pjson.is_file():
+                subdir_pairs[subdir.name] = json.loads(pjson.read_text())
 
-            potential_key = f.stem[6:] 
+        # Legacy: pairs_p*_f*.json flat in workdir
+        for f in sorted(workdir.glob("pairs_p*_f*.json")):
+            potential_key = f.stem[6:]
             if _parse_group_key(potential_key) and potential_key not in subdir_pairs:
                 subdir_pairs[potential_key] = json.loads(f.read_text())
+
     if subdir_pairs:
         print(f"[pairs] Auto-loading {len(subdir_pairs)} group(s) from subdirs")
         return subdir_pairs
-    # Fall back to flat pairs.json
-    
-    auto = workdir / "pairs.json"
-    if auto.is_file():
-        print(f"[pairs] Auto-loading {auto}")
-        return json.loads(auto.read_text())
+
+    # Fall back to flat stack_p0_f0.json (new) or pairs.json (legacy)
+    for auto in (workdir / "stack_p0_f0.json", workdir / "pairs.json"):
+        if auto.is_file():
+            print(f"[pairs] Auto-loading {auto}")
+            data = json.loads(auto.read_text())
+            return data.get("pairs", []) if isinstance(data, dict) else data
     print(f"[ERROR] No pairs file found under current workdir {workdir}. Use --pairs-file, --pairs, or run "
           "'insarhub downloader --select-pairs' first.", file=sys.stderr)
     sys.exit(1)
@@ -990,22 +1024,28 @@ def cmd_downloader(args, extra_args: list[str]):
     _default_cfg_requested = (args.config == "__default__")
     if _cfg:
         cfg_path = Path(_cfg).expanduser().resolve()
+        saved_cfg = _read_config_json(cfg_path)
     elif _default_cfg_requested:
-        # --config with no value: look for downloader_config.json in workdir first,
-        # then fall back to a p*_f* subfolder
-        _direct = workdir / "downloader_config.json"
-        cfg_path = _direct if _direct.exists() else _find_subfolder_config(workdir, "downloader_config.json")
-        if cfg_path is None:
+        # --config with no value: prefer insarhub_config.json (new format), fall back to
+        # downloader_config.json (legacy), check workdir then p*_f* subdirs
+        saved_cfg = _read_dl_config_from_folder(workdir)
+        if not saved_cfg:
+            subdir_cfg = _find_subfolder_config(workdir, "insarhub_config.json") or \
+                         _find_subfolder_config(workdir, "downloader_config.json")
+            if subdir_cfg:
+                saved_cfg = _read_dl_config_from_folder(subdir_cfg.parent) or _read_config_json(subdir_cfg)
+        if not saved_cfg:
             print(
-                f"[ERROR] --config specified but no downloader_config.json found in {workdir}",
+                f"[ERROR] --config specified but no insarhub_config.json found in {workdir}",
                 file=sys.stderr,
             )
             sys.exit(1)
+        cfg_path = workdir / "insarhub_config.json"
     else:
         cfg_path = None
-    saved_cfg = _read_config_json(cfg_path) if cfg_path else {}
+        saved_cfg = {}
     if saved_cfg:
-        print(f"[INFO] Loaded saved config from {cfg_path}")
+        print(f"[INFO] Loaded saved config from {cfg_path or workdir}")
 
     # Parse extra_args as downloader config overrides; explicit CLI args override saved config
     overrides: dict = dict(saved_cfg)
@@ -1084,6 +1124,7 @@ def cmd_downloader(args, extra_args: list[str]):
         from dataclasses import asdict
         from insarhub.utils.tool import write_workflow_marker
         from insarhub.utils import plot_pair_network as _plot_pair_network
+        from insarhub.app.state import write_insarhub_config
 
         pairs, baselines, scene_bperp = downloader.select_pairs(
             dt_targets=tuple(args.dt_targets),
@@ -1102,7 +1143,7 @@ def cmd_downloader(args, extra_args: list[str]):
 
         dl_workdir = downloader.config.workdir
 
-        # Build scenes_by_stack and bperp_by_stack for DB precompute
+        # Build scenes_by_stack for DB precompute
         active = downloader.active_results
         scenes_by_stack: dict[tuple, list[str]] = {}
         bperp_by_stack:  dict[tuple, dict[str, float]] = {}
@@ -1120,19 +1161,18 @@ def cmd_downloader(args, extra_args: list[str]):
                 cfg = {k: v for k, v in asdict(downloader.config).items() if k != 'workdir'}
                 cfg['relativeOrbit'] = path
                 cfg['frame'] = frame
-                (subdir / "downloader_config.json").write_text(json.dumps(cfg, indent=2, default=str))
-                pjson = subdir / f"pairs_p{path}_f{frame}.json"
-                pjson.write_text(json.dumps([list(p) for p in group_pairs], indent=2))
+                write_insarhub_config(subdir, {"downloader": {"type": type(downloader).name, "config": cfg}})
                 sp = scene_bperp.get((path, frame)) or {}
-                (subdir / f"baselines_p{path}_f{frame}.json").write_text(
-                    json.dumps({k: float(v) for k, v in sp.items()}, indent=2)
-                )
-                # Save all scene names so DB can rebuild from folder later
                 stack_scenes = scenes_by_stack.get((path, frame), [])
-                (subdir / f"scenes_p{path}_f{frame}.json").write_text(
-                    json.dumps(stack_scenes, indent=2)
-                )
                 bperp_by_stack[(path, frame)] = {k: float(v) for k, v in sp.items()}
+                stack_data = {
+                    "pairs":     [list(p) for p in group_pairs],
+                    "baselines": {k: float(v) for k, v in sp.items()},
+                    "scenes":    stack_scenes,
+                    "pair_quality": {"scores": {}, "factors": {}},
+                }
+                stack_path = subdir / f"stack_p{path}_f{frame}.json"
+                stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
                 print(f"[quality] Scoring all possible pairs — P{path}/F{frame}…")
                 try:
                     db = PairQualityDB(subdir)
@@ -1143,7 +1183,6 @@ def cmd_downloader(args, extra_args: list[str]):
                     db_data = json.loads((subdir / ".insarhub_pair_quality_db.json").read_text())
                     all_scores  = db_data.get("scores", {})
                     all_factors = db_data.get("factors", {})
-                    # Filter to selected pairs for the network plot and pair_quality JSON
                     quality_scores = {}
                     quality_factors = {}
                     for pair in group_pairs:
@@ -1151,10 +1190,8 @@ def cmd_downloader(args, extra_args: list[str]):
                             if k in all_scores:
                                 quality_scores[k]  = all_scores[k]
                                 quality_factors[k] = all_factors.get(k, {})
-                    key = f"p{path}_f{frame}"
-                    (subdir / f"pair_quality_{key}.json").write_text(
-                        json.dumps({"scores": quality_scores, "factors": quality_factors, "ndvi_source": db_data.get("_ndvi_source", "n/a")}, indent=2)
-                    )
+                    stack_data["pair_quality"] = {"scores": quality_scores, "factors": quality_factors}
+                    stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
                     print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored, {len(quality_scores)} selected")
                 except Exception as exc:
                     print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
@@ -1168,18 +1205,22 @@ def cmd_downloader(args, extra_args: list[str]):
                     quality_scores=quality_scores,
                     quality_factors=quality_factors,
                 )
-                print(f"[pairs] p{path}_f{frame}: {len(group_pairs)} pairs → {pjson}")
+                print(f"[pairs] p{path}_f{frame}: {len(group_pairs)} pairs → {stack_path}")
         else:
-            pairs_output = args.pairs_output if hasattr(args, "pairs_output") and args.pairs_output else None
-            pairs_path = Path(pairs_output).expanduser().resolve() if pairs_output else dl_workdir / "pairs.json"
-            pairs_path.parent.mkdir(parents=True, exist_ok=True)
-            write_workflow_marker(pairs_path.parent, downloader=type(downloader).name)
+            dl_workdir.mkdir(parents=True, exist_ok=True)
+            write_workflow_marker(dl_workdir, downloader=type(downloader).name)
             cfg = {k: v for k, v in asdict(downloader.config).items() if k != 'workdir'}
-            (pairs_path.parent / "downloader_config.json").write_text(json.dumps(cfg, indent=2, default=str))
-            pairs_path.write_text(json.dumps([list(p) for p in pairs], indent=2))
+            write_insarhub_config(dl_workdir, {"downloader": {"type": type(downloader).name, "config": cfg}})
             sp = scene_bperp if isinstance(scene_bperp, dict) else {}
             stack_scenes = scenes_by_stack.get((0, 0), [])
-            (dl_workdir / "scenes_p0_f0.json").write_text(json.dumps(stack_scenes, indent=2))
+            stack_data = {
+                "pairs":     [list(p) for p in pairs],
+                "baselines": {k: float(v) for k, v in sp.items()},
+                "scenes":    stack_scenes,
+                "pair_quality": {"scores": {}, "factors": {}},
+            }
+            stack_path = dl_workdir / "stack_p0_f0.json"
+            stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
             print("[quality] Scoring all possible pairs…")
             try:
                 db = PairQualityDB(dl_workdir)
@@ -1194,9 +1235,8 @@ def cmd_downloader(args, extra_args: list[str]):
                         if k in all_scores:
                             quality_scores[k]  = all_scores[k]
                             quality_factors[k] = all_factors.get(k, {})
-                (dl_workdir / "pair_quality.json").write_text(
-                    json.dumps({"scores": quality_scores, "factors": quality_factors, "ndvi_source": db_data.get("_ndvi_source", "n/a")}, indent=2)
-                )
+                stack_data["pair_quality"] = {"scores": quality_scores, "factors": quality_factors}
+                stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
                 print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored")
             except Exception as exc:
                 print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
@@ -1206,7 +1246,7 @@ def cmd_downloader(args, extra_args: list[str]):
                                save_path=dl_workdir / "network.png",
                                quality_scores=quality_scores,
                                quality_factors=quality_factors)
-            print(f"[pairs] Saved {len(pairs)} pairs → {pairs_path}")
+            print(f"[pairs] Saved {len(pairs)} pairs → {stack_path}")
 
     if args.download:
         orbit_dir = args.orbit_files if isinstance(args.orbit_files, str) else None
@@ -1327,21 +1367,28 @@ def _proc_submit(args, extra_args: list[str]):
     _default_cfg_requested = (args.config == "__default__")
     if _cfg:
         cfg_path = Path(_cfg).expanduser().resolve()
+        saved_cfg = _read_config_json(cfg_path)
     elif _default_cfg_requested:
-        # --config with no value: check workdir itself first, then p*_f* subfolders
-        _direct = workdir / "processor_config.json"
-        cfg_path = _direct if _direct.exists() else _find_subfolder_config(workdir, "processor_config.json")
-        if cfg_path is None:
+        # --config with no value: prefer insarhub_config.json (new format), fall back to
+        # processor_config.json (legacy), check workdir then p*_f* subdirs
+        saved_cfg = _read_proc_config_from_folder(workdir)
+        if not saved_cfg:
+            subdir_cfg = _find_subfolder_config(workdir, "insarhub_config.json") or \
+                         _find_subfolder_config(workdir, "processor_config.json")
+            if subdir_cfg:
+                saved_cfg = _read_proc_config_from_folder(subdir_cfg.parent) or _read_config_json(subdir_cfg)
+        if not saved_cfg:
             print(
-                f"[ERROR] --config specified but no processor_config.json found in {workdir}",
+                f"[ERROR] --config specified but no insarhub_config.json found in {workdir}",
                 file=sys.stderr,
             )
             sys.exit(1)
+        cfg_path = workdir / "insarhub_config.json"
     else:
         cfg_path = None
-    saved_cfg = _read_config_json(cfg_path) if cfg_path else {}
+        saved_cfg = {}
     if saved_cfg:
-        print(f"[INFO] Loaded saved config from {cfg_path}")
+        print(f"[INFO] Loaded saved config from {cfg_path or workdir}")
 
     # Parse extra_args as processor config overrides; explicit CLI args override saved config
     # Strip metadata keys that are not dataclass fields
@@ -1371,31 +1418,27 @@ def _proc_submit(args, extra_args: list[str]):
 
     dry_run = getattr(args, "dry_run", False)
 
-    # On dry-run: find every process directory (has both insarhub_workflow.json and
-    # downloader_config.json) at workdir level and one level of subdirectories,
-    # write processor_config.json and update insarhub_workflow.json in each.
+    # On dry-run: preview submission — find every process directory at workdir level
+    # and one level of subdirectories, write processor config into insarhub_config.json.
     if dry_run:
-        from insarhub.utils.tool import write_workflow_marker
+        from insarhub.app.state import write_insarhub_config
         _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool", "workdir", "pairs"}
         _preview_overrides = {k: v for k, v in overrides.items()
                               if k not in _SUBMIT_SKIP_FIELDS | {"name", "config"}}
 
         def _is_process_dir(d: Path) -> bool:
-            return (d / "insarhub_workflow.json").exists() and (d / "downloader_config.json").exists()
+            return (d / "insarhub_config.json").exists() or (d / "downloader_config.json").exists()
 
         def _stamp_process_dir(d: Path) -> None:
             try:
                 _preview_proc = Processor.create(processor_name, workdir=d,
                                                  pairs=[], **_preview_overrides)
-                _write_config_json(d / "processor_config.json",
-                                   {"name": processor_name,
-                                    **{f.name: getattr(_preview_proc.config, f.name)
-                                       for f in dataclasses.fields(_preview_proc.config)
-                                       if f.name not in _skip_write}})
-                write_workflow_marker(d, processor=processor_name)
+                proc_cfg = {f.name: getattr(_preview_proc.config, f.name)
+                            for f in dataclasses.fields(_preview_proc.config)
+                            if f.name not in _skip_write}
+                write_insarhub_config(d, {"processor": {"type": processor_name, "config": proc_cfg}})
                 print(f"[dry-run] {d}")
-                print(f"[dry-run]   wrote  processor_config.json")
-                print(f"[dry-run]   marked insarhub_workflow.json  processor={processor_name}")
+                print(f"[dry-run]   wrote  insarhub_config.json  processor={processor_name}")
             except Exception as e:
                 print(f"[dry-run] Could not update {d}: {e}", file=sys.stderr)
 
@@ -1413,10 +1456,10 @@ def _proc_submit(args, extra_args: list[str]):
         else:
             _checked = [workdir] + ([sub for sub in sorted(workdir.iterdir()) if sub.is_dir()] if workdir.is_dir() else [])
             for _d in _checked:
-                if not (_d / "downloader_config.json").exists():
-                    print(f"[dry-run] downloader_config.json is missing for {_d}", file=sys.stderr)
-                elif not (_d / "insarhub_workflow.json").exists():
-                    print(f"[dry-run] insarhub_workflow.json is missing for {_d}", file=sys.stderr)
+                if not (_d / "insarhub_config.json").exists() and not (_d / "downloader_config.json").exists():
+                    print(f"[dry-run] insarhub_config.json is missing for {_d}", file=sys.stderr)
+                elif not (_d / "insarhub_config.json").exists():
+                    print(f"[dry-run] insarhub_config.json is missing for {_d}", file=sys.stderr)
             if not _checked:
                 print(f"[dry-run] No directories found under {workdir}", file=sys.stderr)
 
@@ -1448,13 +1491,13 @@ def _proc_submit(args, extra_args: list[str]):
         group_overrides.update({"workdir": job_dir, "pairs": group_pairs,
                                  "name_prefix": group_prefix})
         processor = Processor.create(processor_name, **group_overrides)
-        # Write full resolved config (all fields except runtime-only keys)
+        # Write full resolved config into insarhub_config.json (consistent with GUI)
         _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool", "workdir", "pairs"}
-        _write_config_json(job_dir / "processor_config.json",
-                           {"name": processor_name,
-                            **{f.name: getattr(processor.config, f.name)
-                               for f in dataclasses.fields(processor.config)
-                               if f.name not in _skip_write}})
+        from insarhub.app.state import write_insarhub_config as _wic
+        _wic(job_dir, {"processor": {"type": processor_name,
+                                     "config": {f.name: getattr(processor.config, f.name)
+                                                for f in dataclasses.fields(processor.config)
+                                                if f.name not in _skip_write}}})
         if dry_run:
             print(f"\n{tag}Would submit {len(group_pairs)} pairs → {job_dir}")
             print(f"{tag}  name_prefix : {group_prefix}")
@@ -1649,7 +1692,7 @@ def cmd_analyzer(args, extra_args: list[str]):
         if f not in ("command", "az_action", "analyzer_name", "workdir",
                      "list_analyzers", "list_options", "debug")
     ):
-        # Config overrides without a subcommand — update mintpy.cfg and exit
+        # Config overrides without a subcommand — update .mintpy.cfg and exit
         _az_run(args, extra_args)
 
 
@@ -1701,15 +1744,15 @@ def _az_run(args, extra_args: list[str]):
             expanded.append(s)
     mintpy_steps = expanded or None  # None → AnalyzeCommand uses full default
 
-    # Config-only mode: overrides provided but no subcommand — update mintpy.cfg and exit
+    # Config-only mode: overrides provided but no subcommand — update .mintpy.cfg and exit
     if getattr(args, "az_action", None) is None and not args.list_options:
         if overrides:
             workdir = _resolve_workdir(args.workdir)
             for analysis_dir in _iter_analysis_dirs(workdir):
-                cfg_path = analysis_dir / "mintpy.cfg"
+                cfg_path = analysis_dir / ".mintpy.cfg"
                 label = analysis_dir.name if analysis_dir != workdir else workdir.name
                 if not cfg_path.exists():
-                    print(f"[WARNING] No mintpy.cfg in [{label}]. "
+                    print(f"[WARNING] No .mintpy.cfg in [{label}]. "
                           f"Run '--step prep' first.", file=sys.stderr)
                     continue
                 _update_mintpy_cfg(cfg_path, overrides)
@@ -1722,9 +1765,9 @@ def _az_run(args, extra_args: list[str]):
         config_cls = getattr(analyzer_cls, "default_config", None)
         for analysis_dir in analysis_dirs:
             label = analysis_dir.name if analysis_dir != workdir else workdir.name
-            cfg_path = analysis_dir / "mintpy.cfg"
+            cfg_path = analysis_dir / ".mintpy.cfg"
             if not cfg_path.exists():
-                print(f"\n[WARNING] No mintpy.cfg found in [{label}]. "
+                print(f"\n[WARNING] No .mintpy.cfg found in [{label}]. "
                       f"Run 'insarhub analyzer -N {args.analyzer_name} -w {analysis_dir} run --step prep' first.\n",
                       file=sys.stderr)
                 continue

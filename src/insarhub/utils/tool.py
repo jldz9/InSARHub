@@ -58,10 +58,10 @@ PairGroup = dict[tuple[int, int], list[Pair]]
 #  WORKFLOW MARKER
 # ═══════════════════════════════════════════════════════════════════════════
 
-_WORKFLOW_FILE = "insarhub_workflow.json"
+_CONFIG_FILE = "insarhub_config.json"
 
 def write_workflow_marker(workdir: Path, **roles: str) -> None:
-    """Write or update ``insarhub_workflow.json`` in *workdir*.
+    """Write or update role types in ``insarhub_config.json`` in *workdir*.
 
     Each keyword argument is a role→class-name pair, e.g.::
 
@@ -70,17 +70,17 @@ def write_workflow_marker(workdir: Path, **roles: str) -> None:
 
     Existing entries are preserved so the file accumulates as the pipeline runs.
     """
-    path = Path(workdir) / _WORKFLOW_FILE
+    path = Path(workdir) / _CONFIG_FILE
     try:
         existing: dict = json.loads(path.read_text()) if path.exists() else {}
     except Exception:
         existing = {}
-    existing.update(roles)
+    for role, cls_name in roles.items():
+        section = existing.setdefault(role, {})
+        section["type"] = cls_name
     existing["updated_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
-    ordered = {k: existing[k] for k in ("downloader", "processor", "analyzer", "updated_at") if k in existing}
-    ordered.update({k: v for k, v in existing.items() if k not in ordered})
     try:
-        path.write_text(json.dumps(ordered, indent=2))
+        path.write_text(json.dumps(existing, indent=2, default=str))
     except Exception as exc:
         logger.warning("Could not write %s: %s", path, exc)
 
@@ -896,8 +896,10 @@ def plot_pair_network(
 
     def _quality_colour(sc: float | None) -> str:
         if sc is None:  return _Q_NONE
-        if sc >= 0.60:  return _Q_GOOD
-        if sc >= 0.30:  return _Q_RISKY
+        # support both 0-1 (coherence) and 0-100 (pair quality) scales
+        v = sc if sc <= 1 else sc / 100.0
+        if v >= 0.60:  return _Q_GOOD
+        if v >= 0.30:  return _Q_RISKY
         return _Q_BAD
 
     # ── Extract per-class scores from quality_factors ─────────────────────
@@ -930,8 +932,9 @@ def plot_pair_network(
         for a, b in G.edges():
             sc = quality_scores.get(f"{a}:{b}") or quality_scores.get(f"{b}:{a}")
             edge_colours.append(_quality_colour(sc))
-            edge_widths.append(2.0 if sc is not None and sc >= 0.60 else
-                               1.2 if sc is not None and sc >= 0.30 else 0.7)
+            sv = (sc / 100.0 if sc is not None and sc > 1 else sc)
+            edge_widths.append(2.0 if sv is not None and sv >= 0.60 else
+                               1.2 if sv is not None and sv >= 0.30 else 0.7)
     else:
         edge_colours = [plt.cm.RdYlGn_r(min(dt, max_dt) / max_dt) for dt in edge_dts]
         edge_widths  = [0.5 + 2.5 * (1.0 - min(dt, max_dt) / max_dt) for dt in edge_dts]
@@ -1079,9 +1082,9 @@ def plot_pair_network(
     if quality_scores:
         ax_net.legend(
             handles=[
-                mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.60)"),
-                mpatches.Patch(color=_Q_RISKY, label="Risky (0.30–0.60)"),
-                mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.30)"),
+                mpatches.Patch(color=_Q_GOOD,  label="Good"),
+                mpatches.Patch(color=_Q_RISKY, label="Risky"),
+                mpatches.Patch(color=_Q_BAD,   label="Bad"),
                 mpatches.Patch(color=_Q_NONE,  label="Unscored"),
             ],
             title="Pair quality", loc="lower right", fontsize=7, title_fontsize=8,
@@ -1130,8 +1133,9 @@ def plot_pair_network(
             for a, b in G.edges():
                 sc = cls_map.get(f"{a}:{b}") or cls_map.get(f"{b}:{a}")
                 c_colours.append(_quality_colour(sc))
-                c_widths.append(2.0 if sc is not None and sc >= 0.60 else
-                                1.2 if sc is not None and sc >= 0.30 else 0.7)
+                sv = (sc / 100.0 if sc is not None and sc > 1 else sc)
+                c_widths.append(2.0 if sv is not None and sv >= 0.60 else
+                                1.2 if sv is not None and sv >= 0.30 else 0.7)
 
             fig_c = plt.figure(figsize=figsize)
             gs_c  = fig_c.add_gridspec(1, 2, width_ratios=[3, 1], wspace=0.35)

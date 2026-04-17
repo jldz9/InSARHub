@@ -29,7 +29,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         self.workdir = self.config.workdir
         self.tmp_dir = self.workdir.joinpath('tmp')
         self.clip_dir = self.workdir.joinpath('clip')
-        self.cfg_path = self.workdir.joinpath('mintpy.cfg')
+        self.cfg_path = self.workdir.joinpath('.mintpy.cfg')
         write_workflow_marker(self.workdir, analyzer=type(self).name)
 
     def prep_data(self):
@@ -87,7 +87,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
                 List of MintPy processing steps to execute. If None, the
                 default full workflow is executed:
                     [
-                        'load_data', 'modify_network', 'reference_point',
+                        'load_data', 'modify_network', 'reference_point', 'quick_overview',
                         'invert_network', 'correct_LOD', 'correct_SET',
                         'correct_ionosphere', 'correct_troposphere',
                         'deramp', 'correct_topography', 'residual_RMS',
@@ -111,7 +111,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             self._cds_authorize()
 
         run_steps = steps or [
-            'load_data', 'modify_network', 'reference_point', 'invert_network',
+            'load_data', 'modify_network', 'reference_point', 'quick_overview', 'invert_network',
             'correct_LOD', 'correct_SET', 'correct_ionosphere', 'correct_troposphere',
             'deramp', 'correct_topography', 'residual_RMS', 'reference_date',
             'velocity', 'geocode', 'google_earth', 'hdfeos5'

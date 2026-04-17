@@ -20,7 +20,7 @@ from insarhub.app.models import (
     AddJobRequest, DownloadByNameRequest, DownloadRequest,
     DownloadSceneRequest, JobResponse, ParseAoiRequest, SearchRequest,
 )
-from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job
+from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
@@ -287,8 +287,7 @@ async def add_job(req: AddJobRequest):
         "platform": req.platform,
     })
     cfg = {k: v for k, v in dataclasses.asdict(cfg_instance).items() if k != "workdir"}
-    (subdir / "downloader_config.json").write_text(json.dumps(cfg, indent=2, default=str))
-    write_workflow_marker(subdir, downloader=req.downloaderType)
+    write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
     return {"path": str(subdir), "name": subdir.name}
 
 

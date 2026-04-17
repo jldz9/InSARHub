@@ -53,6 +53,7 @@ _EMPTY: dict = {
     "temp_max":      None,
     "temp_min":      None,
     "precip":        None,
+    "precip_3day":   None,
     "precip_7day":   None,
     "snow_depth":    None,
     "snowfall":      None,
@@ -91,17 +92,23 @@ def _extract_date(daily: dict, date: str, all_precip: list | None) -> dict:
         vals = daily.get(key) or []
         return vals[idx] if idx < len(vals) else None
 
-    # 7-day rolling precip: sum of the 7 values ending at this index
+    # Rolling precipitation windows ending on this acquisition date.
+    # The batch fetch prepends enough days so both windows are always available.
+    precip_3day: float | None = None
     precip_7day: float | None = None
     if all_precip:
-        window = all_precip[max(0, idx - 6): idx + 1]
-        cleaned = [x for x in window if x is not None]
-        precip_7day = round(sum(cleaned), 2) if cleaned else None
+        w3 = all_precip[max(0, idx - 2): idx + 1]   # 3-day window: days -2, -1, 0
+        w7 = all_precip[max(0, idx - 6): idx + 1]   # 7-day window
+        c3 = [x for x in w3 if x is not None]
+        c7 = [x for x in w7 if x is not None]
+        precip_3day = round(sum(c3), 2) if c3 else None
+        precip_7day = round(sum(c7), 2) if c7 else None
 
     return {
         "temp_max":      v("temperature_2m_max"),
         "temp_min":      v("temperature_2m_min"),
         "precip":        v("precipitation_sum"),
+        "precip_3day":   precip_3day,
         "precip_7day":   precip_7day,
         "snow_depth":    v("snow_depth_max"),
         "snowfall":      v("snowfall_sum"),

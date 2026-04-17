@@ -493,7 +493,7 @@ export default function Map({
           coordinates: [[W, N], [E, N], [E, S], [W, S]],
         } as any)
         map.addLayer({ id: 'raster-overlay', type: 'raster', source: 'raster-overlay',
-          paint: { 'raster-opacity': 0.85 } }, 'ts-click-ring')
+          paint: { 'raster-opacity': 0.85, 'raster-resampling': 'nearest' } }, 'ts-click-ring')
         map.fitBounds([[W, S], [E, N]], { padding: 40, duration: 0 })
       } catch (err) {
         console.error('[InSARHub] raster-overlay error:', err)

@@ -48,7 +48,7 @@ insarhub downloader [options]
 | `--list-downloaders` | — | Print all registered downloaders and exit |
 | `--list-options` | — | Print all config fields for the selected downloader |
 | `-w`, `--workdir` | cwd | Working directory |
-| `--config` | `<workdir>/downloader_config.json` | Path to a saved downloader config JSON; omit the value to use the default path |
+| `--config` | `<workdir>/insarhub_config.json` | Path to a saved downloader config JSON; omit the value to use the default path |
 
 ```bash
 # List available downloaders
@@ -58,14 +58,14 @@ insarhub downloader --list-downloaders
 insarhub downloader -N S1_SLC --list-options
 ```
 
-After the first run, a `downloader_config.json` is written to `workdir` with the full resolved config. On subsequent runs, this file is automatically loaded as defaults — so you only need to specify what changed:
+After the first run, an `insarhub_config.json` is written to `workdir` with the full resolved config. On subsequent runs, this file is automatically loaded as defaults — so you only need to specify what changed:
 
 ```bash
 # First run: full options required
 insarhub downloader -N S1_SLC --AOI -113.05 37.74 -112.68 38.00 \
     --start 2020-01-01 --end 2020-12-31 --stacks 100:466 -w /data/bryce
 
-# Subsequent run: config reloaded from /data/bryce/downloader_config.json
+# Subsequent run: config reloaded from /data/bryce/insarhub_config.json
 insarhub downloader -N S1_SLC -w /data/bryce
 
 # Use a different config file
@@ -99,8 +99,7 @@ insarhub downloader --stacks 100:466 20:118
 
 ### Pair selection
 
-Add `--select-pairs` to run interferogram pair selection after search. Results are saved as `pairs_p<path>_f<frame>.json` inside a `p<path>_f<frame>/` subfolder under `workdir`. 
-One file per track/frame group. 
+Add `--select-pairs` to run interferogram pair selection after search. Results are saved as `stack_p<path>_f<frame>.json` inside a `p<path>_f<frame>/` subfolder under `workdir`, alongside an `insarhub_config.json` with the downloader settings. One file per track/frame group. 
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -180,7 +179,7 @@ insarhub processor submit [options]
 | `-N`, `--name` | `Hyp3_InSAR` | Processor to use |
 | `--list-options` | — | Print all config fields for the selected processor |
 | `-w`, `--workdir` | cwd | Working directory |
-| `--config` | `<workdir>/processor_config.json` | Path to a saved processor config JSON; omit the value to use the default path |
+| `--config` | `<workdir>/insarhub_config.json` | Path to a saved processor config JSON; omit the value to use the default path |
 | `--credential-pool` | `~/.credit_pool` | JSON file mapping `{username: password}` for multi-account HyP3 submission |
 | `--name-prefix` | `ifg` | Job name prefix |
 | `--max-workers` | `4` | Parallel submission workers |
@@ -188,7 +187,7 @@ insarhub processor submit [options]
 | `--pairs-file` | auto | JSON file from `downloader --select-pairs` |
 | `--pairs` | — | Inline pairs as `"reference,secondary"` strings |
 
-After a successful submission or dry run, `processor_config.json` is written to `workdir`. On subsequent runs it is loaded automatically, so you only need to specify overrides:
+After a successful submission or dry run, processor settings are saved to `insarhub_config.json` in `workdir`. On subsequent runs it is loaded automatically, so you only need to specify overrides:
 
 ```bash
 # Run with overrides options
@@ -201,7 +200,7 @@ insarhub processor submit -w /data/bryce --config
 insarhub processor submit -w /data/bryce --config /other/config.json
 ```
 
-When no `--pairs-file` is given, `submit` automatically looks for `pairs_p<path>_f<frame>.json` files inside `p<path>_f<frame>/` subfolders under `workdir` (the layout produced by `downloader --select-pairs`). A separate HyP3 job batch is submitted for each group found, with outputs saved alongside the pairs file.
+When no `--pairs-file` is given, `submit` automatically looks for `stack_p<path>_f<frame>.json` files inside `p<path>_f<frame>/` subfolders under `workdir` (the layout produced by `downloader --select-pairs`). A separate HyP3 job batch is submitted for each group found, with outputs saved alongside the stack file.
 
 ```bash
 # Submit from auto-detected pairs.json in workdir

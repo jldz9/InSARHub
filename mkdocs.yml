@@ -52,6 +52,7 @@ nav:
         - Analyzer: frontend/analyzer.md
         - Results Viewer: frontend/results.md
   - Advanced:
+        - File Structure: advanced/file_structure.md
         - Downloader: advanced/downloader.md
         - Processor: advanced/processor.md
         - Analyzer: advanced/analyzer.md

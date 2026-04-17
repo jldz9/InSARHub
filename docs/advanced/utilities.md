@@ -74,7 +74,7 @@ username2:password2
 ```
 then read use:
 ```python
-from isnarscript.utils import earth_credit_pool
+from insarhub.utils import earth_credit_pool
 ec_pool = earth_credit_pool()
 ```
 You may then pass this into processor for seameless switch across multiple Earthdata credentials

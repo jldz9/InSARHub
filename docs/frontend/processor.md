@@ -22,53 +22,41 @@ Click the downloader tag on a job folder to open its detail panel.
 
 Constructing a well-designed interferometric pair network is a critical step in time-series InSAR analysis. A carefully chosen SBAS network balances temporal and perpendicular baseline constraints to maximize coherence while ensuring full temporal connectivity across the scene stack.
 
-Click **Select Pairs** to automatically generate an SBAS interferogram network from the downloaded scenes.
+Click **Edit Network** to open the interactive baseline–time graph editor.
 
-<!-- screenshot: select pairs button -->
-![Select Pairs Button](fig/select_pairs_light.png#only-light){: .doc-img style="width: 60%"}
-![Select Pairs Button](fig/select_pairs_dark.png#only-dark){: .doc-img style="width: 60%"}
+![Edit Network](fig/processor_edit_network_light.png#only-light){: .doc-img style="width: 50%"}
+![Edit Network](fig/processor_edit_network_dark.png#only-dark){: .doc-img style="width: 50%"}
 /// caption
-Click **Select Pairs** to open the pair network configuration dialog.
+Select Edit Network to open network modification window
 ///
 
-A configuration dialog will appear with the following options:
+The network graph is interactive. **Drag** from one scene node to another to create a new pair. **Click** an existing edge to remove it from the network. **Hover** over any edge to view its temporal baseline, perpendicular baseline, and quality score.
+
+![Network Graph](fig/network_modify_light.gif#only-light){: .doc-img }
+![Network Graph](fig/network_modify_dark.gif#only-dark){: .doc-img }
+/// caption
+Baseline–time graph showing the interferometric network. Click any edge to toggle it, or drag between nodes to add a new pair.
+///
+
+Edge colors reflect the pre-computed pair quality score — green edges are high quality, yellow are moderate, and red are poor. 
+**Hover** over any edge to view its temporal baseline, perpendicular baseline, and quality score.
+
+
+The network editor supports two workflows:
+
+**Manual editing** — **click** any edge (interferogram pair) to toggle it active or removed.  **Drag** from one scene node to another to create a new pair. Click **Save** to persist the updated pair list to the job folder.
+
+**Auto pair selection** — click **⚙ Parameters** to generate the network automatically from the scene stack:
 
 | Parameter | Description |
 |-----------|-------------|
-| **Target Temporal Baselines** | Comma-separated list of target temporal separations (days) to form pairs around |
-| **Tolerance** | Allowed deviation (days) from each target baseline when matching scene pairs |
-| **Max Temporal** | Hard upper limit on temporal baseline (days); pairs exceeding this are excluded |
-| **Max Perp. Baseline** | Hard upper limit on perpendicular baseline (m); pairs exceeding this are excluded |
-| **Min Connections** | Minimum number of interferograms each scene must participate in to ensure network connectivity |
-| **Max Connections** | Maximum number of interferograms per scene to avoid redundancy |
-| **Force Connected Network** | When enabled, adds extra pairs as needed to guarantee the network has no isolated nodes |
-
-Click **Run** to generate the network. The resulting pair network is displayed as a baseline–time graph and saved to the job folder.
-
-<!-- screenshot: pair network -->
-![Pair Network](fig/pairs_light.png#only-light){: .doc-img style="width: 60%"}
-![Pair Network](fig/pairs_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-Interferogram pair network generated from the scene stack.
-///
-
-Once pair selection is complete, two viewing options become available:
-
-**View Network** — displays the interferometric baseline–time graph, showing how scenes are connected across the temporal and perpendicular baseline dimensions.
-
-<!-- screenshot: view network button -->
-![View Network](fig/view_network_light.png#only-light){: .doc-img style="width: 60%"}
-![View Network](fig/view_network_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-Click **View Network** to open the baseline–time graph.
-///
-
-<!-- screenshot: network graph -->
-![Network Graph](fig/network_graph_light.png#only-light){: .doc-img }
-![Network Graph](fig/network_graph_dark.png#only-dark){: .doc-img }
-/// caption
-Baseline–time graph showing the interferometric network connectivity.
-///
+| **Target Temporal Baselines** | Comma-separated target temporal separations (days) to form pairs around |
+| **Tolerance** | Allowed deviation (days) from each target baseline |
+| **Max Temporal** | Hard upper limit on temporal baseline (days) |
+| **Max Perp. Baseline** | Hard upper limit on perpendicular baseline (m) |
+| **Min Connections** | Minimum number of interferograms each scene must participate in |
+| **Max Connections** | Maximum number of interferograms per scene |
+| **Force Connected Network** | Add extra pairs to guarantee no isolated nodes |
 
 **View Pairs** — lists all selected interferometric pairs with their temporal and perpendicular baseline values.
 
@@ -77,6 +65,65 @@ Baseline–time graph showing the interferometric network connectivity.
 ![View Pairs](fig/view_pairs_dark.png#only-dark){: .doc-img style="width: 60%"}
 /// caption
 List of selected interferometric pairs with baseline information.
+///
+
+---
+
+## Decay Maps
+
+Click **Decay Maps** to open the Coherence Decay Maps drawer. This overlays seasonal S1 Global Coherence maps on the main map, giving you a quick read on expected coherence at your site before submitting any jobs.
+
+![Decay Maps Button](fig/decay_maps_button_light.png#only-light){: .doc-img style="width: 60%"}
+![Decay Maps Button](fig/decay_maps_button_dark.png#only-dark){: .doc-img style="width: 60%"}
+/// caption
+The Decay Maps button in the downloader job panel.
+///
+
+Each available season and polarization is listed. Click any of the three band buttons to overlay it on the map:
+
+| Band | Symbol | What it shows |
+|------|--------|---------------|
+| **1** | γ∞ PS floor | Permanent-scatterer coherence floor — the minimum coherence that persists regardless of time gap |
+| **2** | γ0 initial coh | Initial coherence at acquisition — higher values indicate better short-baseline coherence |
+| **3** | τ decay | Decorrelation time constant (days) — larger values mean coherence persists longer |
+
+![Decay Maps Overlay](fig/decay_maps_overlay_light.png#only-light){: .doc-img}
+![Decay Maps Overlay](fig/decay_maps_overlay_dark.png#only-dark){: .doc-img}
+/// caption
+Coherence decay map overlaid on the basemap. Hover over the map to read pixel values.
+///
+
+Click the same button again to hide the overlay. Click a different band to switch layers.
+
+---
+
+## View Data
+
+Once interferograms have been downloaded, click **View Data** in the Processor panel to open the data browser. This lists all HyP3 product files extracted from the downloaded `.zip` archives and lets you overlay any of them directly on the map.
+
+![View Data Button](fig/view_data_button_light.png#only-light){: .doc-img style="width: 60%"}
+![View Data Button](fig/view_data_button_dark.png#only-dark){: .doc-img style="width: 60%"}
+/// caption
+The View Data button in the Processor panel.
+///
+
+Each interferogram pair is listed with its available product files:
+
+| Type | Description |
+|------|-------------|
+| `unw_phase` | Unwrapped interferometric phase |
+| `corr` | Interferogram coherence |
+| `dem` | Digital elevation model used in processing |
+| `lv_theta` | Look vector elevation angle |
+| `lv_phi` | Look vector azimuth angle |
+| `water_mask` | Water body mask |
+
+Click any file to render it as a raster overlay on the map. Click again to hide it.
+
+![View Data Overlay](fig/view_data_overlay_light.png#only-light){: .doc-img}
+![View Data Overlay](fig/view_data_overlay_dark.png#only-dark){: .doc-img}
+/// caption
+HyP3 interferogram product overlaid on the basemap.
 ///
 
 ---
@@ -104,8 +151,6 @@ Processor selection dialog. Choose a processor (e.g. `Hyp3_InSAR`) and confirm t
 
     ```
     [Dry run] Would submit 65 pairs via Hyp3_InSAR from p93_f121
-    wrote processor_config.json
-    marked insarhub_workflow.json processor=Hyp3_InSAR
     ```
 
     This is recommended before your first submission to ensure everything is configured correctly.

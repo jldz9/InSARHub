@@ -7,7 +7,7 @@ Detailed reference for every panel in the InSARHub web interface.
 Open by clicking the **Downloader** tag on a job folder.
 
 ### Config Tab
-Shows the downloader configuration stored in `downloader_config.json`. Click any row to copy the value.
+Shows the downloader configuration stored in `insarhub_config.json`. Click any row to copy the value.
 
 ### Actions
 
@@ -64,6 +64,7 @@ Each MintPy processing step is shown with a checkbox. Select the steps you want 
 | `load_data` | Load interferograms into MintPy HDF5 stack |
 | `modify_network` | Remove low-coherence interferograms |
 | `reference_point` | Select a stable reference pixel |
+| `quick_overview` | Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask) — enables the **Overview** button |
 | `invert_network` | SBAS inversion → timeseries |
 | `correct_LOD` | Correct local oscillator drift |
 | `correct_SET` | Solid Earth tide correction |
@@ -116,12 +117,12 @@ Select the file to use for pixel time series extraction, then click **Plot**.
 
 Clicking **Plot**:
 
-1. Renders the velocity map as a colored PNG overlay on the map (±0.1 cm/yr colorscale)
+1. Renders the velocity map as a colored PNG overlay on the map (colorscale auto-scaled to 98th percentile of data)
 2. Arms map-click for time series extraction using the selected timeseries file
 
 ### Velocity Map
 
-- Color scale: blue = subsidence, red = uplift, ±0.1 cm/yr
+- Color scale: blue = subsidence, red = uplift, symmetric range scaled to 98th percentile
 - Zero-displacement pixels are transparent
 - Opacity: 85%
 

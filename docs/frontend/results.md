@@ -16,7 +16,7 @@ After analysis completes, InSARHub can display MintPy results directly on the ma
 Results panel with timeseries file selected, ready to plot.
 ///
 
-The velocity map is overlaid on the map with a ±0.1 cm/yr colorbar (red = subsidence, blue = uplift). Zero-displacement pixels are transparent.
+The velocity map is overlaid on the map with a symmetric colorbar scaled to the 98th percentile of the data (red = subsidence, blue = uplift). Zero-displacement pixels are transparent.
 
 <!-- screenshot: velocity map overlaid on map -->
 ![Velocity Map](fig/velocity_map_light.png#only-light){: .doc-img-wide }
@@ -48,7 +48,7 @@ The timeseries drawer:
 
 ## Colorbar
 
-The velocity colorbar spans **−0.1 to +0.1 cm/yr** by default:
+The velocity colorbar is symmetric and auto-scaled to the **98th percentile** of the absolute velocity values in the scene:
 
 - **Red** — negative velocity (subsidence / moving away from satellite)
 - **White** — near-zero displacement

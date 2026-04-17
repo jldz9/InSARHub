@@ -11,7 +11,7 @@
         <link rel="prev" href="../analyzer/">
       
       
-        <link rel="next" href="../../advanced/downloader/">
+        <link rel="next" href="../../advanced/file_structure/">
       
       
         
@@ -345,7 +345,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../advanced/downloader/" class="md-tabs__link">
+        <a href="../../advanced/file_structure/" class="md-tabs__link">
           
   
   
@@ -1048,6 +1048,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/file_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/downloader/" class="md-nav__link">
         
   
@@ -1284,7 +1312,7 @@
 <p>Results panel with timeseries file selected, ready to plot.</p>
 </figcaption>
 </figure>
-<p>The velocity map is overlaid on the map with a ±0.1 cm/yr colorbar (red = subsidence, blue = uplift). Zero-displacement pixels are transparent.</p>
+<p>The velocity map is overlaid on the map with a symmetric colorbar scaled to the 98th percentile of the data (red = subsidence, blue = uplift). Zero-displacement pixels are transparent.</p>
 <!-- screenshot: velocity map overlaid on map -->
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/velocity_map_light.png#only-light" data-desc-position="bottom"><img alt="Velocity Map" class="doc-img-wide" src="../fig/velocity_map_light.png#only-light"></a>
@@ -1312,7 +1340,7 @@
 </ul>
 <hr>
 <h2 id="colorbar">Colorbar</h2>
-<p>The velocity colorbar spans <strong>−0.1 to +0.1 cm/yr</strong> by default:</p>
+<p>The velocity colorbar is symmetric and auto-scaled to the <strong>98th percentile</strong> of the absolute velocity values in the scene:</p>
 <ul>
 <li><strong>Red</strong> — negative velocity (subsidence / moving away from satellite)</li>
 <li><strong>White</strong> — near-zero displacement</li>

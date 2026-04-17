@@ -345,7 +345,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../downloader/" class="md-tabs__link">
+        <a href="../file_structure/" class="md-tabs__link">
           
   
   
@@ -960,6 +960,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../file_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1684,7 +1712,7 @@
 </span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">workdir</span>
 </span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">tmp_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">'tmp'</span><span class="p">)</span>
 </span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">clip_dir</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">'clip'</span><span class="p">)</span>
-</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cfg_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">'mintpy.cfg'</span><span class="p">)</span>
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cfg_path</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="o">.</span><span class="n">joinpath</span><span class="p">(</span><span class="s1">'.mintpy.cfg'</span><span class="p">)</span>
 </span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33"></a>        <span class="n">write_workflow_marker</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">,</span> <span class="n">analyzer</span><span class="o">=</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>
 </span><span id="__span-0-34"><a id="__codelineno-0-34" name="__codelineno-0-34"></a>
 </span><span id="__span-0-35"><a id="__codelineno-0-35" name="__codelineno-0-35"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">prep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -1742,7 +1770,7 @@
 </span><span id="__span-0-87"><a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="sd">                List of MintPy processing steps to execute. If None, the</span>
 </span><span id="__span-0-88"><a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="sd">                default full workflow is executed:</span>
 </span><span id="__span-0-89"><a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="sd">                    [</span>
-</span><span id="__span-0-90"><a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="sd">                        'load_data', 'modify_network', 'reference_point',</span>
+</span><span id="__span-0-90"><a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="sd">                        'load_data', 'modify_network', 'reference_point', 'quick_overview',</span>
 </span><span id="__span-0-91"><a id="__codelineno-0-91" name="__codelineno-0-91"></a><span class="sd">                        'invert_network', 'correct_LOD', 'correct_SET',</span>
 </span><span id="__span-0-92"><a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="sd">                        'correct_ionosphere', 'correct_troposphere',</span>
 </span><span id="__span-0-93"><a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="sd">                        'deramp', 'correct_topography', 'residual_RMS',</span>
@@ -1766,7 +1794,7 @@
 </span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_cds_authorize</span><span class="p">()</span>
 </span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112"></a>
 </span><span id="__span-0-113"><a id="__codelineno-0-113" name="__codelineno-0-113"></a>        <span class="n">run_steps</span> <span class="o">=</span> <span class="n">steps</span> <span class="ow">or</span> <span class="p">[</span>
-</span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114"></a>            <span class="s1">'load_data'</span><span class="p">,</span> <span class="s1">'modify_network'</span><span class="p">,</span> <span class="s1">'reference_point'</span><span class="p">,</span> <span class="s1">'invert_network'</span><span class="p">,</span>
+</span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114"></a>            <span class="s1">'load_data'</span><span class="p">,</span> <span class="s1">'modify_network'</span><span class="p">,</span> <span class="s1">'reference_point'</span><span class="p">,</span> <span class="s1">'quick_overview'</span><span class="p">,</span> <span class="s1">'invert_network'</span><span class="p">,</span>
 </span><span id="__span-0-115"><a id="__codelineno-0-115" name="__codelineno-0-115"></a>            <span class="s1">'correct_LOD'</span><span class="p">,</span> <span class="s1">'correct_SET'</span><span class="p">,</span> <span class="s1">'correct_ionosphere'</span><span class="p">,</span> <span class="s1">'correct_troposphere'</span><span class="p">,</span>
 </span><span id="__span-0-116"><a id="__codelineno-0-116" name="__codelineno-0-116"></a>            <span class="s1">'deramp'</span><span class="p">,</span> <span class="s1">'correct_topography'</span><span class="p">,</span> <span class="s1">'residual_RMS'</span><span class="p">,</span> <span class="s1">'reference_date'</span><span class="p">,</span>
 </span><span id="__span-0-117"><a id="__codelineno-0-117" name="__codelineno-0-117"></a>            <span class="s1">'velocity'</span><span class="p">,</span> <span class="s1">'geocode'</span><span class="p">,</span> <span class="s1">'google_earth'</span><span class="p">,</span> <span class="s1">'hdfeos5'</span>
@@ -2719,7 +2747,7 @@ OR<p></p>
 </span><span id="__span-0-671"><a id="__codelineno-0-671" name="__codelineno-0-671"></a>    <span class="c1">## Load data</span>
 </span><span id="__span-0-672"><a id="__codelineno-0-672" name="__codelineno-0-672"></a>    <span class="n">load_processor</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'auto'</span>
 </span><span id="__span-0-673"><a id="__codelineno-0-673" name="__codelineno-0-673"></a>    <span class="n">load_autoPath</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'auto'</span> 
-</span><span id="__span-0-674"><a id="__codelineno-0-674" name="__codelineno-0-674"></a>    <span class="n">load_updateMode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'auto'</span>
+</span><span id="__span-0-674"><a id="__codelineno-0-674" name="__codelineno-0-674"></a>    <span class="n">load_updateMode</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'no'</span>
 </span><span id="__span-0-675"><a id="__codelineno-0-675" name="__codelineno-0-675"></a>    <span class="n">load_compression</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'auto'</span>
 </span><span id="__span-0-676"><a id="__codelineno-0-676" name="__codelineno-0-676"></a>    <span class="c1">##---------for ISCE only:</span>
 </span><span id="__span-0-677"><a id="__codelineno-0-677" name="__codelineno-0-677"></a>    <span class="n">load_metaFile</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">'auto'</span>
@@ -2975,7 +3003,7 @@ OR<p></p>
                 <p>List of MintPy processing steps to execute. If None, the
 default full workflow is executed:
     [
-        'load_data', 'modify_network', 'reference_point',
+        'load_data', 'modify_network', 'reference_point', 'quick_overview',
         'invert_network', 'correct_LOD', 'correct_SET',
         'correct_ionosphere', 'correct_troposphere',
         'deramp', 'correct_topography', 'residual_RMS',
@@ -3619,7 +3647,7 @@ Run the Mintpy time-series analysis based on provid configuration</li>
                 <p>List of MintPy processing steps to execute. If None, the
 default full workflow is executed:
     [
-        'load_data', 'modify_network', 'reference_point',
+        'load_data', 'modify_network', 'reference_point', 'quick_overview',
         'invert_network', 'correct_LOD', 'correct_SET',
         'correct_ionosphere', 'correct_troposphere',
         'deramp', 'correct_topography', 'residual_RMS',
@@ -3730,7 +3758,7 @@ and authorization fails.</p>
 </span><span id="__span-0-87"><a id="__codelineno-0-87" name="__codelineno-0-87"></a><span class="sd">            List of MintPy processing steps to execute. If None, the</span>
 </span><span id="__span-0-88"><a id="__codelineno-0-88" name="__codelineno-0-88"></a><span class="sd">            default full workflow is executed:</span>
 </span><span id="__span-0-89"><a id="__codelineno-0-89" name="__codelineno-0-89"></a><span class="sd">                [</span>
-</span><span id="__span-0-90"><a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="sd">                    'load_data', 'modify_network', 'reference_point',</span>
+</span><span id="__span-0-90"><a id="__codelineno-0-90" name="__codelineno-0-90"></a><span class="sd">                    'load_data', 'modify_network', 'reference_point', 'quick_overview',</span>
 </span><span id="__span-0-91"><a id="__codelineno-0-91" name="__codelineno-0-91"></a><span class="sd">                    'invert_network', 'correct_LOD', 'correct_SET',</span>
 </span><span id="__span-0-92"><a id="__codelineno-0-92" name="__codelineno-0-92"></a><span class="sd">                    'correct_ionosphere', 'correct_troposphere',</span>
 </span><span id="__span-0-93"><a id="__codelineno-0-93" name="__codelineno-0-93"></a><span class="sd">                    'deramp', 'correct_topography', 'residual_RMS',</span>
@@ -3754,7 +3782,7 @@ and authorization fails.</p>
 </span><span id="__span-0-111"><a id="__codelineno-0-111" name="__codelineno-0-111"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_cds_authorize</span><span class="p">()</span>
 </span><span id="__span-0-112"><a id="__codelineno-0-112" name="__codelineno-0-112"></a>
 </span><span id="__span-0-113"><a id="__codelineno-0-113" name="__codelineno-0-113"></a>    <span class="n">run_steps</span> <span class="o">=</span> <span class="n">steps</span> <span class="ow">or</span> <span class="p">[</span>
-</span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114"></a>        <span class="s1">'load_data'</span><span class="p">,</span> <span class="s1">'modify_network'</span><span class="p">,</span> <span class="s1">'reference_point'</span><span class="p">,</span> <span class="s1">'invert_network'</span><span class="p">,</span>
+</span><span id="__span-0-114"><a id="__codelineno-0-114" name="__codelineno-0-114"></a>        <span class="s1">'load_data'</span><span class="p">,</span> <span class="s1">'modify_network'</span><span class="p">,</span> <span class="s1">'reference_point'</span><span class="p">,</span> <span class="s1">'quick_overview'</span><span class="p">,</span> <span class="s1">'invert_network'</span><span class="p">,</span>
 </span><span id="__span-0-115"><a id="__codelineno-0-115" name="__codelineno-0-115"></a>        <span class="s1">'correct_LOD'</span><span class="p">,</span> <span class="s1">'correct_SET'</span><span class="p">,</span> <span class="s1">'correct_ionosphere'</span><span class="p">,</span> <span class="s1">'correct_troposphere'</span><span class="p">,</span>
 </span><span id="__span-0-116"><a id="__codelineno-0-116" name="__codelineno-0-116"></a>        <span class="s1">'deramp'</span><span class="p">,</span> <span class="s1">'correct_topography'</span><span class="p">,</span> <span class="s1">'residual_RMS'</span><span class="p">,</span> <span class="s1">'reference_date'</span><span class="p">,</span>
 </span><span id="__span-0-117"><a id="__codelineno-0-117" name="__codelineno-0-117"></a>        <span class="s1">'velocity'</span><span class="p">,</span> <span class="s1">'geocode'</span><span class="p">,</span> <span class="s1">'google_earth'</span><span class="p">,</span> <span class="s1">'hdfeos5'</span>

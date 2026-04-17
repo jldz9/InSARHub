@@ -343,7 +343,7 @@
     
     
       <li class="md-tabs__item md-tabs__item--active">
-        <a href="../downloader/" class="md-tabs__link">
+        <a href="../file_structure/" class="md-tabs__link">
           
   
   
@@ -958,6 +958,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../file_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1626,7 +1654,7 @@
 <h2 id="downloader-panel">Downloader Panel</h2>
 <p>Open by clicking the <strong>Downloader</strong> tag on a job folder.</p>
 <h3 id="config-tab">Config Tab</h3>
-<p>Shows the downloader configuration stored in <code>downloader_config.json</code>. Click any row to copy the value.</p>
+<p>Shows the downloader configuration stored in <code>insarhub_config.json</code>. Click any row to copy the value.</p>
 <h3 id="actions">Actions</h3>
 <table>
 <thead>
@@ -1751,6 +1779,10 @@
 <td>Select a stable reference pixel</td>
 </tr>
 <tr>
+<td><code>quick_overview</code></td>
+<td>Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask) — enables the <strong>Overview</strong> button</td>
+</tr>
+<tr>
 <td><code>invert_network</code></td>
 <td>SBAS inversion → timeseries</td>
 </tr>
@@ -1846,12 +1878,12 @@
 <h3 id="plot-button">Plot Button</h3>
 <p>Clicking <strong>Plot</strong>:</p>
 <ol>
-<li>Renders the velocity map as a colored PNG overlay on the map (±0.1 cm/yr colorscale)</li>
+<li>Renders the velocity map as a colored PNG overlay on the map (colorscale auto-scaled to 98th percentile of data)</li>
 <li>Arms map-click for time series extraction using the selected timeseries file</li>
 </ol>
 <h3 id="velocity-map">Velocity Map</h3>
 <ul>
-<li>Color scale: blue = subsidence, red = uplift, ±0.1 cm/yr</li>
+<li>Color scale: blue = subsidence, red = uplift, symmetric range scaled to 98th percentile</li>
 <li>Zero-displacement pixels are transparent</li>
 <li>Opacity: 85%</li>
 </ul>

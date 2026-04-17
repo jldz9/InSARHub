@@ -345,7 +345,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../advanced/downloader/" class="md-tabs__link">
+        <a href="../../advanced/file_structure/" class="md-tabs__link">
           
   
   
@@ -894,6 +894,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#decay-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay Maps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#view-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#submitting-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1051,6 +1073,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/file_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1237,6 +1287,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#decay-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay Maps
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#view-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Data
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#submitting-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1310,16 +1382,27 @@
 </figure>
 <h2 id="selecting-pairs">Selecting Pairs</h2>
 <p>Constructing a well-designed interferometric pair network is a critical step in time-series InSAR analysis. A carefully chosen SBAS network balances temporal and perpendicular baseline constraints to maximize coherence while ensuring full temporal connectivity across the scene stack.</p>
-<p>Click <strong>Select Pairs</strong> to automatically generate an SBAS interferogram network from the downloaded scenes.</p>
-<!-- screenshot: select pairs button -->
+<p>Click <strong>Edit Network</strong> to open the interactive baseline–time graph editor.</p>
 <figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/select_pairs_light.png#only-light" data-desc-position="bottom"><img alt="Select Pairs Button" class="doc-img" src="../fig/select_pairs_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/select_pairs_dark.png#only-dark" data-desc-position="bottom"><img alt="Select Pairs Button" class="doc-img" src="../fig/select_pairs_dark.png#only-dark" style="width: 60%"></a></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_edit_network_light.png#only-light" data-desc-position="bottom"><img alt="Edit Network" class="doc-img" src="../fig/processor_edit_network_light.png#only-light" style="width: 50%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_edit_network_dark.png#only-dark" data-desc-position="bottom"><img alt="Edit Network" class="doc-img" src="../fig/processor_edit_network_dark.png#only-dark" style="width: 50%"></a></p>
 <figcaption>
-<p>Click <strong>Select Pairs</strong> to open the pair network configuration dialog.</p>
+<p>Select Edit Network to open network modification window</p>
 </figcaption>
 </figure>
-<p>A configuration dialog will appear with the following options:</p>
+<p>The network graph is interactive. <strong>Drag</strong> from one scene node to another to create a new pair. <strong>Click</strong> an existing edge to remove it from the network. <strong>Hover</strong> over any edge to view its temporal baseline, perpendicular baseline, and quality score.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_modify_light.gif#only-light" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_modify_light.gif#only-light"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_modify_dark.gif#only-dark" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_modify_dark.gif#only-dark"></a></p>
+<figcaption>
+<p>Baseline–time graph showing the interferometric network. Click any edge to toggle it, or drag between nodes to add a new pair.</p>
+</figcaption>
+</figure>
+<p>Edge colors reflect the pre-computed pair quality score — green edges are high quality, yellow are moderate, and red are poor. 
+<strong>Hover</strong> over any edge to view its temporal baseline, perpendicular baseline, and quality score.</p>
+<p>The network editor supports two workflows:</p>
+<p><strong>Manual editing</strong> — <strong>click</strong> any edge (interferogram pair) to toggle it active or removed.  <strong>Drag</strong> from one scene node to another to create a new pair. Click <strong>Save</strong> to persist the updated pair list to the job folder.</p>
+<p><strong>Auto pair selection</strong> — click <strong>⚙ Parameters</strong> to generate the network automatically from the scene stack:</p>
 <table>
 <thead>
 <tr>
@@ -1330,61 +1413,34 @@
 <tbody>
 <tr>
 <td><strong>Target Temporal Baselines</strong></td>
-<td>Comma-separated list of target temporal separations (days) to form pairs around</td>
+<td>Comma-separated target temporal separations (days) to form pairs around</td>
 </tr>
 <tr>
 <td><strong>Tolerance</strong></td>
-<td>Allowed deviation (days) from each target baseline when matching scene pairs</td>
+<td>Allowed deviation (days) from each target baseline</td>
 </tr>
 <tr>
 <td><strong>Max Temporal</strong></td>
-<td>Hard upper limit on temporal baseline (days); pairs exceeding this are excluded</td>
+<td>Hard upper limit on temporal baseline (days)</td>
 </tr>
 <tr>
 <td><strong>Max Perp. Baseline</strong></td>
-<td>Hard upper limit on perpendicular baseline (m); pairs exceeding this are excluded</td>
+<td>Hard upper limit on perpendicular baseline (m)</td>
 </tr>
 <tr>
 <td><strong>Min Connections</strong></td>
-<td>Minimum number of interferograms each scene must participate in to ensure network connectivity</td>
+<td>Minimum number of interferograms each scene must participate in</td>
 </tr>
 <tr>
 <td><strong>Max Connections</strong></td>
-<td>Maximum number of interferograms per scene to avoid redundancy</td>
+<td>Maximum number of interferograms per scene</td>
 </tr>
 <tr>
 <td><strong>Force Connected Network</strong></td>
-<td>When enabled, adds extra pairs as needed to guarantee the network has no isolated nodes</td>
+<td>Add extra pairs to guarantee no isolated nodes</td>
 </tr>
 </tbody>
 </table>
-<p>Click <strong>Run</strong> to generate the network. The resulting pair network is displayed as a baseline–time graph and saved to the job folder.</p>
-<!-- screenshot: pair network -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/pairs_light.png#only-light" data-desc-position="bottom"><img alt="Pair Network" class="doc-img" src="../fig/pairs_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/pairs_dark.png#only-dark" data-desc-position="bottom"><img alt="Pair Network" class="doc-img" src="../fig/pairs_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>Interferogram pair network generated from the scene stack.</p>
-</figcaption>
-</figure>
-<p>Once pair selection is complete, two viewing options become available:</p>
-<p><strong>View Network</strong> — displays the interferometric baseline–time graph, showing how scenes are connected across the temporal and perpendicular baseline dimensions.</p>
-<!-- screenshot: view network button -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_network_light.png#only-light" data-desc-position="bottom"><img alt="View Network" class="doc-img" src="../fig/view_network_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_network_dark.png#only-dark" data-desc-position="bottom"><img alt="View Network" class="doc-img" src="../fig/view_network_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>Click <strong>View Network</strong> to open the baseline–time graph.</p>
-</figcaption>
-</figure>
-<!-- screenshot: network graph -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_graph_light.png#only-light" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_graph_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_graph_dark.png#only-dark" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_graph_dark.png#only-dark"></a></p>
-<figcaption>
-<p>Baseline–time graph showing the interferometric network connectivity.</p>
-</figcaption>
-</figure>
 <p><strong>View Pairs</strong> — lists all selected interferometric pairs with their temporal and perpendicular baseline values.</p>
 <!-- screenshot: view pairs -->
 <figure>
@@ -1392,6 +1448,104 @@
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_pairs_dark.png#only-dark" data-desc-position="bottom"><img alt="View Pairs" class="doc-img" src="../fig/view_pairs_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
 <p>List of selected interferometric pairs with baseline information.</p>
+</figcaption>
+</figure>
+<hr>
+<h2 id="decay-maps">Decay Maps</h2>
+<p>Click <strong>Decay Maps</strong> to open the Coherence Decay Maps drawer. This overlays seasonal S1 Global Coherence maps on the main map, giving you a quick read on expected coherence at your site before submitting any jobs.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_button_light.png#only-light" data-desc-position="bottom"><img alt="Decay Maps Button" class="doc-img" src="../fig/decay_maps_button_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_button_dark.png#only-dark" data-desc-position="bottom"><img alt="Decay Maps Button" class="doc-img" src="../fig/decay_maps_button_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>The Decay Maps button in the downloader job panel.</p>
+</figcaption>
+</figure>
+<p>Each available season and polarization is listed. Click any of the three band buttons to overlay it on the map:</p>
+<table>
+<thead>
+<tr>
+<th>Band</th>
+<th>Symbol</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td>γ∞ PS floor</td>
+<td>Permanent-scatterer coherence floor — the minimum coherence that persists regardless of time gap</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>γ0 initial coh</td>
+<td>Initial coherence at acquisition — higher values indicate better short-baseline coherence</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>τ decay</td>
+<td>Decorrelation time constant (days) — larger values mean coherence persists longer</td>
+</tr>
+</tbody>
+</table>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_overlay_light.png#only-light" data-desc-position="bottom"><img alt="Decay Maps Overlay" class="doc-img" src="../fig/decay_maps_overlay_light.png#only-light"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_overlay_dark.png#only-dark" data-desc-position="bottom"><img alt="Decay Maps Overlay" class="doc-img" src="../fig/decay_maps_overlay_dark.png#only-dark"></a></p>
+<figcaption>
+<p>Coherence decay map overlaid on the basemap. Hover over the map to read pixel values.</p>
+</figcaption>
+</figure>
+<p>Click the same button again to hide the overlay. Click a different band to switch layers.</p>
+<hr>
+<h2 id="view-data">View Data</h2>
+<p>Once interferograms have been downloaded, click <strong>View Data</strong> in the Processor panel to open the data browser. This lists all HyP3 product files extracted from the downloaded <code>.zip</code> archives and lets you overlay any of them directly on the map.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_button_light.png#only-light" data-desc-position="bottom"><img alt="View Data Button" class="doc-img" src="../fig/view_data_button_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_button_dark.png#only-dark" data-desc-position="bottom"><img alt="View Data Button" class="doc-img" src="../fig/view_data_button_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>The View Data button in the Processor panel.</p>
+</figcaption>
+</figure>
+<p>Each interferogram pair is listed with its available product files:</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>unw_phase</code></td>
+<td>Unwrapped interferometric phase</td>
+</tr>
+<tr>
+<td><code>corr</code></td>
+<td>Interferogram coherence</td>
+</tr>
+<tr>
+<td><code>dem</code></td>
+<td>Digital elevation model used in processing</td>
+</tr>
+<tr>
+<td><code>lv_theta</code></td>
+<td>Look vector elevation angle</td>
+</tr>
+<tr>
+<td><code>lv_phi</code></td>
+<td>Look vector azimuth angle</td>
+</tr>
+<tr>
+<td><code>water_mask</code></td>
+<td>Water body mask</td>
+</tr>
+</tbody>
+</table>
+<p>Click any file to render it as a raster overlay on the map. Click again to hide it.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_overlay_light.png#only-light" data-desc-position="bottom"><img alt="View Data Overlay" class="doc-img" src="../fig/view_data_overlay_light.png#only-light"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_overlay_dark.png#only-dark" data-desc-position="bottom"><img alt="View Data Overlay" class="doc-img" src="../fig/view_data_overlay_dark.png#only-dark"></a></p>
+<figcaption>
+<p>HyP3 interferogram product overlaid on the basemap.</p>
 </figcaption>
 </figure>
 <hr>
@@ -1417,8 +1571,6 @@
 <p class="admonition-title">Test before submitting</p>
 <p>For submitting jobs to an external server, check <strong>Dry Run</strong> in the processor dialog to validate your environment and credentials without submitting real jobs. A successful dry run produces output similar to:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>[Dry run] Would submit 65 pairs via Hyp3_InSAR from p93_f121
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>wrote processor_config.json
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>marked insarhub_workflow.json processor=Hyp3_InSAR
 </span></code></pre></div>
 <p>This is recommended before your first submission to ensure everything is configured correctly.</p>
 </div>

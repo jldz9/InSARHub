@@ -345,7 +345,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../advanced/downloader/" class="md-tabs__link">
+        <a href="../../advanced/file_structure/" class="md-tabs__link">
           
   
   
@@ -1319,6 +1319,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/file_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/downloader/" class="md-nav__link">
         
   
@@ -1870,7 +1898,7 @@
 </tr>
 <tr>
 <td><code>--config</code></td>
-<td><code>&lt;workdir&gt;/downloader_config.json</code></td>
+<td><code>&lt;workdir&gt;/insarhub_config.json</code></td>
 <td>Path to a saved downloader config JSON; omit the value to use the default path</td>
 </tr>
 </tbody>
@@ -1881,12 +1909,12 @@
 </span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1"># List all config fields for S1_SLC (reads saved config if present)</span>
 </span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span>--list-options
 </span></code></pre></div>
-<p>After the first run, a <code>downloader_config.json</code> is written to <code>workdir</code> with the full resolved config. On subsequent runs, this file is automatically loaded as defaults — so you only need to specify what changed:</p>
+<p>After the first run, an <code>insarhub_config.json</code> is written to <code>workdir</code> with the full resolved config. On subsequent runs, this file is automatically loaded as defaults — so you only need to specify what changed:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># First run: full options required</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span>-w<span class="w"> </span>/data/bryce
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Subsequent run: config reloaded from /data/bryce/downloader_config.json</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="c1"># Subsequent run: config reloaded from /data/bryce/insarhub_config.json</span>
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span>-w<span class="w"> </span>/data/bryce
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
 </span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c1"># Use a different config file</span>
@@ -1925,8 +1953,7 @@
 </span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="m">20</span>:118
 </span></code></pre></div>
 <h3 id="pair-selection">Pair selection</h3>
-<p>Add <code>--select-pairs</code> to run interferogram pair selection after search. Results are saved as <code>pairs_p&lt;path&gt;_f&lt;frame&gt;.json</code> inside a <code>p&lt;path&gt;_f&lt;frame&gt;/</code> subfolder under <code>workdir</code>. 
-One file per track/frame group. </p>
+<p>Add <code>--select-pairs</code> to run interferogram pair selection after search. Results are saved as <code>stack_p&lt;path&gt;_f&lt;frame&gt;.json</code> inside a <code>p&lt;path&gt;_f&lt;frame&gt;/</code> subfolder under <code>workdir</code>, alongside an <code>insarhub_config.json</code> with the downloader settings. One file per track/frame group. </p>
 <table>
 <thead>
 <tr>
@@ -2094,7 +2121,7 @@ One file per track/frame group. </p>
 </tr>
 <tr>
 <td><code>--config</code></td>
-<td><code>&lt;workdir&gt;/processor_config.json</code></td>
+<td><code>&lt;workdir&gt;/insarhub_config.json</code></td>
 <td>Path to a saved processor config JSON; omit the value to use the default path</td>
 </tr>
 <tr>
@@ -2129,7 +2156,7 @@ One file per track/frame group. </p>
 </tr>
 </tbody>
 </table>
-<p>After a successful submission or dry run, <code>processor_config.json</code> is written to <code>workdir</code>. On subsequent runs it is loaded automatically, so you only need to specify overrides:</p>
+<p>After a successful submission or dry run, processor settings are saved to <code>insarhub_config.json</code> in <code>workdir</code>. On subsequent runs it is loaded automatically, so you only need to specify overrides:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Run with overrides options</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_InSAR<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--phase_filter_parameter<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span>--dry-run
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
@@ -2139,7 +2166,7 @@ One file per track/frame group. </p>
 </span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="c1"># Use a custom config file</span>
 </span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--config<span class="w"> </span>/other/config.json
 </span></code></pre></div>
-<p>When no <code>--pairs-file</code> is given, <code>submit</code> automatically looks for <code>pairs_p&lt;path&gt;_f&lt;frame&gt;.json</code> files inside <code>p&lt;path&gt;_f&lt;frame&gt;/</code> subfolders under <code>workdir</code> (the layout produced by <code>downloader --select-pairs</code>). A separate <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> job batch is submitted for each group found, with outputs saved alongside the pairs file.</p>
+<p>When no <code>--pairs-file</code> is given, <code>submit</code> automatically looks for <code>stack_p&lt;path&gt;_f&lt;frame&gt;.json</code> files inside <code>p&lt;path&gt;_f&lt;frame&gt;/</code> subfolders under <code>workdir</code> (the layout produced by <code>downloader --select-pairs</code>). A separate <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> job batch is submitted for each group found, with outputs saved alongside the stack file.</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># Submit from auto-detected pairs.json in workdir</span>
 </span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--dry-run
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>

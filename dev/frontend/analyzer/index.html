@@ -345,7 +345,7 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../advanced/downloader/" class="md-tabs__link">
+        <a href="../../advanced/file_structure/" class="md-tabs__link">
           
   
   
@@ -944,6 +944,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#edit-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edit Network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#viewing-results" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1062,6 +1084,34 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/file_structure/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    File Structure
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
             
               
                 
@@ -1270,6 +1320,28 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#edit-network" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edit Network
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#viewing-results" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1355,8 +1427,126 @@
 <p>Analyzer running all steps.</p>
 </figcaption>
 </figure>
+<h2 id="edit-network">Edit Network</h2>
+<p>After initializing the analyzer and running at least the <code>load_data</code> step, an <strong>Edit Network</strong> button appears in the Analyzer panel. Click it to open the network editor showing the interferogram network currently loaded into MintPy, with coherence values overlaid on each edge.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_button_light.png#only-light" data-desc-position="bottom"><img alt="Edit Network Button" class="doc-img" src="../fig/analyzer_edit_network_button_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_button_dark.png#only-dark" data-desc-position="bottom"><img alt="Edit Network Button" class="doc-img" src="../fig/analyzer_edit_network_button_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>The Edit Network button appears in the Analyzer panel after load_data completes.</p>
+</figcaption>
+</figure>
+<p>Unlike the pair selection stage, you cannot drag to create new pairs here — the interferograms have already been processed, so only the downloaded pairs are available. What you can do:</p>
+<ul>
+<li><strong>Click an active edge</strong> to remove that pair from the network</li>
+<li><strong>Click a removed edge</strong> to re-add it</li>
+<li><strong>⚙ Parameters</strong> — configure MintPy <code>modify_network</code> constraints and click <strong>Run modify_network</strong> to let MintPy automatically filter the network</li>
+</ul>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_graph_light.png#only-light" data-desc-position="bottom"><img alt="Edit Network Graph" class="doc-img" src="../fig/analyzer_edit_network_graph_light.png#only-light"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_graph_dark.png#only-dark" data-desc-position="bottom"><img alt="Edit Network Graph" class="doc-img" src="../fig/analyzer_edit_network_graph_dark.png#only-dark"></a></p>
+<figcaption>
+<p>The network editor showing coherence values on each edge. Click an edge to remove or re-add it.</p>
+</figcaption>
+</figure>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Max temporal baseline</strong></td>
+<td>Remove pairs exceeding this temporal separation (days)</td>
+</tr>
+<tr>
+<td><strong>Max ⊥ baseline</strong></td>
+<td>Remove pairs exceeding this perpendicular baseline (m)</td>
+</tr>
+<tr>
+<td><strong>Start date</strong></td>
+<td>Exclude acquisitions before this date (YYYYMMDD)</td>
+</tr>
+<tr>
+<td><strong>End date</strong></td>
+<td>Exclude acquisitions after this date (YYYYMMDD)</td>
+</tr>
+<tr>
+<td><strong>Exclude dates</strong></td>
+<td>Space-separated list of individual dates to drop (YYYYMMDD)</td>
+</tr>
+<tr>
+<td><strong>Coherence-based</strong></td>
+<td>Enable coherence-based network modification (<code>yes</code> / <code>no</code> / <code>auto</code>)</td>
+</tr>
+<tr>
+<td><strong>Min coherence</strong></td>
+<td>Minimum average coherence threshold for keeping a pair</td>
+</tr>
+<tr>
+<td><strong>Keep min span tree</strong></td>
+<td>Preserve the minimum spanning tree when removing low-coherence pairs</td>
+</tr>
+</tbody>
+</table>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_parameter_light.png#only-light" data-desc-position="bottom"><img alt="modify_network Parameters" class="doc-img" src="../fig/analyzer_edit_network_parameter_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_parameter_dark.png#only-dark" data-desc-position="bottom"><img alt="modify_network Parameters" class="doc-img" src="../fig/analyzer_edit_network_parameter_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>The ⚙ Parameters dialog for modify_network configuration.</p>
+</figcaption>
+</figure>
+<p>After running, the graph refreshes to reflect the updated network. You can then continue running subsequent analyzer steps on the modified network.</p>
+<hr>
+<h2 id="overview">Overview</h2>
+<p>After running the <code>reference_point</code> and <code>quick_overview</code> steps, an <strong>Overview</strong> button appears in the Analyzer panel. Click it to open the Overview drawer, which lets you plot MintPy diagnostic layers directly on the map.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_overview_light.png#only-light" data-desc-position="bottom"><img alt="Overview Light" class="doc-img" src="../fig/analyzer_overview_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_overview_dark.png#only-dark" data-desc-position="bottom"><img alt="Overview Dark" class="doc-img" src="../fig/analyzer_overview_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>The Overview button and diagnostic layer controls in the Analyzer panel.</p>
+</figcaption>
+</figure>
+<p>The Overview drawer provides four diagnostic layers:</p>
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>File</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Avg Spatial Coherence</td>
+<td><code>avgSpatialCoh.h5</code></td>
+<td>Per-pixel average coherence across all interferograms — high values indicate reliable pixels</td>
+</tr>
+<tr>
+<td>Avg Phase Velocity</td>
+<td><code>avgPhaseVelocity.h5</code></td>
+<td>Mean phase change rate — a quick sanity check for coherent deformation patterns</td>
+</tr>
+<tr>
+<td>Unwrapping Error Count</td>
+<td><code>numTriNonzeroIntAmbiguity.h5</code></td>
+<td>Number of triangle closures with non-zero integer ambiguity — high counts indicate unreliable unwrapping</td>
+</tr>
+<tr>
+<td>Connected Component Mask</td>
+<td><code>maskConnComp.h5</code></td>
+<td>Pixels that belong to a connected unwrapping component — isolated pixels are masked out</td>
+</tr>
+</tbody>
+</table>
+<p>Click any button to overlay that layer on the map. Click again to hide it. Hover over the map to read the pixel value in the colorbar.</p>
+<!-- insert picture: overview drawer with diagnostic overlay on map -->
+
+<hr>
 <h2 id="viewing-results">Viewing Results</h2>
-<p>Once the <code>velocity</code> and <code>geocode</code> steps have completed successfully, a <strong>View Results</strong> button appears at the bottom of the Analyzer panel. Click it to open the Results viewer, which overlays the computed velocity map on the main map.</p>
+<p>Once the <code>velocity</code> and <code>geocode</code> steps have completed successfully, a <strong>View Results</strong> button appears in the Analyzer panel. Click it to open the Results viewer, which overlays the computed velocity map on the main map.</p>
 <p>Click any point on the velocity overlay to extract and display the displacement time series at that location.</p>
 <!-- screenshot: view results panel -->
 <figure>

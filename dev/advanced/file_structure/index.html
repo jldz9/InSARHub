@@ -1062,6 +1062,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stage-1b-dem-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1b — DEM Download
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#stage-2-job-submission" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1077,6 +1088,17 @@
     <span class="md-ellipsis">
       
         Stage 3 — Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-utilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Utilities
       
     </span>
   </a>
@@ -1127,6 +1149,67 @@
     <span class="md-ellipsis">
       
         hyp3_jobs.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#internal-cache-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal Cache Files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Internal Cache Files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#insarhub_cachejson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .insarhub_cache.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub_quality_cachejson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .insarhub_quality_cache.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub_pair_quality_dbjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .insarhub_pair_quality_db.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decay_maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        decay_maps/
       
     </span>
   </a>
@@ -1266,6 +1349,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../pair_quality/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pair Quality Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../frontend/" class="md-nav__link">
         
   
@@ -1355,6 +1466,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#stage-1b-dem-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stage 1b — DEM Download
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#stage-2-job-submission" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1370,6 +1492,17 @@
     <span class="md-ellipsis">
       
         Stage 3 — Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-utilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Utilities
       
     </span>
   </a>
@@ -1431,6 +1564,67 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#internal-cache-files" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Internal Cache Files
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Internal Cache Files">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#insarhub_cachejson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .insarhub_cache.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub_quality_cachejson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .insarhub_quality_cache.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub_pair_quality_dbjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        .insarhub_pair_quality_db.json
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#decay_maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        decay_maps/
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1455,30 +1649,39 @@
 <p>InSARHub writes a consistent set of files to disk as the pipeline progresses. Each stage adds files to the working directory — the same folder is reused from pair selection through analysis, so you can always tell how far a folder has been processed by which files are present.</p>
 <hr>
 <h2 id="directory-layout">Directory Layout</h2>
-<p>InSARHub separates files by track/frame group. All pipeline files go into a <code>p{path}_f{frame}/</code> subfolder — nothing is written to the top-level workdir for multi-stack runs.</p>
-<p><strong>Multi-stack run</strong> (search covers more than one track/frame):</p>
+<p><strong>Single-stack (flat) run</strong> — when only one track/frame is found, all files are written directly into <code>workdir/</code>:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>workdir/
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── p100_f466/                    # one subfolder per track/frame group
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│   ├── insarhub_config.json      # pipeline config (accumulates each stage)
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>│   ├── stack_p100_f466.json      # pairs, baselines, scenes, quality scores
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>│   ├── ...
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── p93_f121/
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   ├── insarhub_config.json
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── stack_p93_f121.json
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   └── ...
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── insarhub_config.json               # pipeline config (accumulates each stage)
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── stack_p0_f0.json                   # pairs, baselines, scenes, quality scores
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── network_p0_f0.png                  # interferogram network graph image
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── dem_p0_f0.tif                      # DEM raster (after downloader dem)
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>├── hyp3_jobs.json                     # submitted job IDs  (after processor submit)
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>├── hyp3_retry_jobs_*.json             # retry batches      (after processor retry)
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>├── .mintpy.cfg                        # MintPy config written by InSARHub (after analyzer init)
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>├── .insarhub_cache.json               # processor result cache (filenames + out_dir)
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>├── .insarhub_quality_cache.json       # weather, snow, landcover, coherence feature cache
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>├── .insarhub_pair_quality_db.json     # pre-scored quality for all N×(N-1)/2 scene pairs
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>├── decay_maps/                        # S1 coherence pixel decay GeoTIFFs (one per season)
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   ├── S1_coherence_decay_winter_vv.tif
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── S1_coherence_decay_spring_vv.tif
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── S1_coherence_decay_summer_vv.tif
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── S1_coherence_decay_fall_vv.tif
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── tmp/                               # extracted zip contents  (removed by cleanup)
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── clip/                              # AOI-clipped data        (removed by cleanup)
 </span></code></pre></div>
-<p><strong>Single-stack (flat) run</strong> — when only one track/frame is found, files are written directly into workdir with no subfolder:</p>
+<p><strong>Multi-stack run</strong> — when the search covers more than one track/frame, each group gets its own <code>p{path}_f{frame}/</code> subfolder. Each subfolder contains exactly the same file structure as the single-stack layout above; nothing is written to the top-level workdir.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>workdir/
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── insarhub_config.json          # pipeline config (accumulates each stage)
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── stack_p0_f0.json              # pairs, baselines, scenes, quality scores
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── hyp3_jobs.json                # submitted job IDs  (after processor submit)
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>├── hyp3_retry_jobs_*.json        # retry batches      (after processor retry)
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── .mintpy.cfg                   # MintPy config written by InSARHub (after analyzer init)
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>├── tmp/                          # extracted zip contents  (removed by cleanup)
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>└── clip/                         # AOI-clipped data        (removed by cleanup)
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── p100_f466/                    # one subfolder per track/frame group
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│   ├── insarhub_config.json
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│   ├── stack_p100_f466.json
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│   ├── .insarhub_quality_cache.json
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│   ├── .insarhub_pair_quality_db.json
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│   ├── decay_maps/
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│   └── ...                       # same structure as single-stack
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>├── p93_f121/
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│   └── ...                       # same structure as single-stack
 </span></code></pre></div>
 <p>MintPy inputs (<code>inputs/ifgramStack.h5</code>, etc.) and outputs (<code>timeseries*.h5</code>, <code>velocity.h5</code>, <code>velocity.tif</code>, etc.) are all written by MintPy and are not listed here. See the <a href="https://mintpy.readthedocs.io">MintPy documentation</a> for details.</p>
-<p>For multi-stack runs the same set of files appears inside each <code>p{path}_f{frame}/</code> subfolder independently.</p>
 <hr>
 <h2 id="files-by-stage">Files by Stage</h2>
 <h3 id="stage-1-pair-selection">Stage 1 — Pair Selection</h3>
@@ -1499,6 +1702,41 @@
 <tr>
 <td><code>stack_p{path}_f{frame}.json</code></td>
 <td>Selected pairs, perpendicular baselines, scene list, and pair quality scores</td>
+</tr>
+<tr>
+<td><code>network_p{path}_f{frame}.png</code></td>
+<td>Interferogram network graph — nodes are scenes, edges are pairs, colored by quality score</td>
+</tr>
+<tr>
+<td><code>.insarhub_quality_cache.json</code></td>
+<td>Weather, snow, and coherence data fetched during pair scoring</td>
+</tr>
+<tr>
+<td><code>.insarhub_pair_quality_db.json</code></td>
+<td>Pre-scored quality for all N×(N−1)/2 scene combinations (built in background)</td>
+</tr>
+<tr>
+<td><code>decay_maps/</code></td>
+<td>S1 global coherence pixel decay GeoTIFFs cached from AWS S3 (one per season)</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Legacy:</strong> older versions also wrote <code>downloader_config.json</code> per group folder. This is superseded by <code>insarhub_config.json</code> and can be ignored if present.</p>
+</blockquote>
+<h3 id="stage-1b-dem-download">Stage 1b — DEM Download</h3>
+<p>Produced by <code>insarhub downloader dem</code>. Optional — only needed if a local DEM is required for co-registration.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dem_p{path}_f{frame}.tif</code></td>
+<td>Merged and reprojected DEM raster covering the stack AOI</td>
 </tr>
 </tbody>
 </table>
@@ -1523,6 +1761,10 @@
 <tr>
 <td><code>hyp3_retry_jobs_{timestamp}.json</code></td>
 <td>Job IDs for a retry batch (written on each <strong>Retry</strong>)</td>
+</tr>
+<tr>
+<td><code>.insarhub_cache.json</code></td>
+<td>Updated after each <strong>Check</strong> with succeeded filenames and output directory</td>
 </tr>
 </tbody>
 </table>
@@ -1557,6 +1799,39 @@
 <p>All MintPy inputs and outputs are produced by MintPy. See the <a href="https://mintpy.readthedocs.io">MintPy documentation</a> for the full list.</p>
 <p><strong>After <code>cleanup</code>:</strong></p>
 <p><code>tmp/</code> and <code>clip/</code> are deleted. <code>insarhub_config.json</code>, <code>.mintpy.cfg</code>, and all MintPy outputs are preserved.</p>
+<h3 id="export-utilities">Export Utilities</h3>
+<p>InSARHub provides optional export helpers that convert MintPy HDF5 outputs to more portable formats. These are not a pipeline stage — they are run manually or via the GUI <strong>Export</strong> button after MintPy has finished.</p>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>velocity.tif</code>, <code>velocityERA5.tif</code></td>
+<td>LOS velocity GeoTIFFs converted from MintPy <code>velocity.h5</code></td>
+</tr>
+<tr>
+<td><code>timeseries.tif</code>, <code>timeseriesResidual.tif</code></td>
+<td>Displacement time series GeoTIFFs (one band per date)</td>
+</tr>
+<tr>
+<td><code>temporalCoherence.tif</code>, <code>avgSpatialCoh.tif</code></td>
+<td>Coherence map GeoTIFFs</td>
+</tr>
+<tr>
+<td><code>demErr.tif</code>, <code>maskTempCoh.tif</code>, <code>maskConnComp.tif</code></td>
+<td>DEM error and mask GeoTIFFs</td>
+</tr>
+<tr>
+<td><code>{product}_footprint.shp</code> / <code>.gpkg</code></td>
+<td>AOI footprint polygon derived from raster bounds</td>
+</tr>
+</tbody>
+</table>
+<p>All source data comes from MintPy HDF5 files. These utilities only reformat existing outputs — they do not run any processing themselves.</p>
 <hr>
 <h2 id="key-json-file-formats">Key JSON File Formats</h2>
 <h3 id="insarhub_configjson"><code>insarhub_config.json</code></h3>
@@ -1624,6 +1899,145 @@
 </span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466"</span>
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">}</span>
 </span></code></pre></div>
+<hr>
+<h2 id="internal-cache-files">Internal Cache Files</h2>
+<p>These dot-files are written automatically. You can safely delete them — InSARHub will regenerate them on the next run.</p>
+<h3 id="insarhub_cachejson"><code>.insarhub_cache.json</code></h3>
+<p>Written by the processor after a <strong>Check</strong> or <strong>Download</strong> action. Stores the list of expected interferogram zip filenames and the HyP3 output directory so the <strong>Render</strong> tab can find downloaded products without re-reading all job files.</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="p">{</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">"filenames"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="s2">"S1AA_20200101T000000_20200113T000000_VVP012_INT20_G_ueF_1234.zip"</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="p">],</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466"</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="insarhub_quality_cachejson"><code>.insarhub_quality_cache.json</code></h3>
+<p>Shared cache for all pair-quality feature data. Written by the pair scorer and updated incrementally — data that doesn't change (historical weather, MODIS snow, land cover) is never re-fetched.</p>
+<table>
+<thead>
+<tr>
+<th>Section</th>
+<th>Key format</th>
+<th>Contents</th>
+<th>Expires</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>geometry</code></td>
+<td><code>&lt;aoi_hash&gt;</code></td>
+<td>AOI area, bounding box</td>
+<td>365 days</td>
+</tr>
+<tr>
+<td><code>landcover</code></td>
+<td><code>&lt;aoi_hash&gt;</code></td>
+<td>WorldCover class fractions</td>
+<td>365 days</td>
+</tr>
+<tr>
+<td><code>weather</code></td>
+<td><code>&lt;lat&gt;:&lt;lon&gt;:&lt;date&gt;</code></td>
+<td>Precipitation, temperature, wind</td>
+<td>Never</td>
+</tr>
+<tr>
+<td><code>snow_modis</code></td>
+<td><code>&lt;lat&gt;:&lt;lon&gt;:&lt;date&gt;</code></td>
+<td>MODIS snow-cover fraction</td>
+<td>Never</td>
+</tr>
+<tr>
+<td><code>veg</code></td>
+<td><code>&lt;source&gt;:&lt;lat&gt;:&lt;lon&gt;:&lt;year&gt;:&lt;month&gt;</code></td>
+<td>NDVI / vegetation index</td>
+<td>Never</td>
+</tr>
+<tr>
+<td><code>s1_coherence</code></td>
+<td><code>"map"</code></td>
+<td>S1 global coherence per-season pixel maps + per-pair evaluated results</td>
+<td>Never</td>
+</tr>
+<tr>
+<td><code>ndvi</code></td>
+<td><code>"map"</code></td>
+<td>MODIS NDVI per-date lookup</td>
+<td>Never</td>
+</tr>
+</tbody>
+</table>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="p">{</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="nt">"_schema_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">  </span><span class="nt">"weather"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="nt">"45.123:0.456:2020-01-01"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">      </span><span class="nt">"precip_3d_mm"</span><span class="p">:</span><span class="w"> </span><span class="mf">2.1</span><span class="p">,</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">      </span><span class="nt">"temp_mean_c"</span><span class="p">:</span><span class="w"> </span><span class="mf">3.4</span><span class="p">,</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">      </span><span class="nt">"_fetched_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01T00:00:00+00:00"</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">  </span><span class="nt">"landcover"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="nt">"a1b2c3d4"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">      </span><span class="nt">"tree_cover_frac"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.12</span><span class="p">,</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">      </span><span class="nt">"urban_frac"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.34</span><span class="p">,</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">      </span><span class="nt">"_fetched_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01T00:00:00+00:00"</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-6-16"><a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-6-17"><a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="p">}</span>
+</span></code></pre></div>
+<h3 id="insarhub_pair_quality_dbjson"><code>.insarhub_pair_quality_db.json</code></h3>
+<p>Pre-computed quality scores for <strong>all N×(N−1)/2 scene combinations</strong> in the folder. Built once in the background after pair selection and reused by the Network Editor for instant lookups without any network calls.</p>
+<p>The DB is only rebuilt when the scene list grows (new scenes added by a fresh search). Removing scenes or changing selection parameters (<code>dt_max</code>, <code>pb_max</code>, etc.) does <strong>not</strong> trigger a rebuild because scores depend only on scene acquisition dates, weather, and coherence — not on the graph algorithm.</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="p">{</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">"_schema_version"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">  </span><span class="nt">"_built_at"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2024-01-01T00:00:00+00:00"</span><span class="p">,</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">  </span><span class="nt">"_n_scenes"</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">,</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="nt">"_n_pairs"</span><span class="p">:</span><span class="w"> </span><span class="mi">861</span><span class="p">,</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">  </span><span class="nt">"_complete"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="nt">"_scene_names"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"S1A_IW_SLC__1SDV_20200101..."</span><span class="p">,</span><span class="w"> </span><span class="s2">"..."</span><span class="p">],</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">  </span><span class="nt">"scores"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="nt">"S1A_..._20200101:S1A_..._20200113"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.82</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">  </span><span class="p">},</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">  </span><span class="nt">"factors"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="nt">"S1A_..._20200101:S1A_..._20200113"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">      </span><span class="nt">"dt_days"</span><span class="p">:</span><span class="w"> </span><span class="mi">12</span><span class="p">,</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">      </span><span class="nt">"bperp_diff"</span><span class="p">:</span><span class="w"> </span><span class="mf">8.3</span><span class="p">,</span>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">      </span><span class="nt">"coherence_expected"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.71</span><span class="p">,</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="w">      </span><span class="nt">"snow_cover_d1"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a><span class="w">      </span><span class="nt">"snow_cover_d2"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="w">      </span><span class="nt">"precip_3d_d1"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.2</span><span class="p">,</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="w">      </span><span class="nt">"precip_3d_d2"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.5</span><span class="p">,</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="w">      </span><span class="nt">"score"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.82</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a><span class="p">}</span>
+</span></code></pre></div>
+<p>While a build is in progress <code>_complete</code> is <code>false</code> and <code>scores</code>/<code>factors</code> are absent — the UI shows a "Building pair database…" indicator until it flips to <code>true</code>.</p>
+<h3 id="decay_maps"><code>decay_maps/</code></h3>
+<p>GeoTIFF files caching the fitted S1 coherence pixel decay maps downloaded from AWS S3 (<code>sentinel-1-global-coherence-earthbigdata</code>). One 3-band GeoTIFF per season:</p>
+<table>
+<thead>
+<tr>
+<th>Band</th>
+<th>Contents</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>γ∞ — permanent-scatterer coherence floor</td>
+</tr>
+<tr>
+<td>2</td>
+<td>γ0 — initial coherence at t = 0</td>
+</tr>
+<tr>
+<td>3</td>
+<td>τ — decorrelation time constant (days)</td>
+</tr>
+</tbody>
+</table>
+<p>These files survive process restarts, so S3 is only queried once per season per AOI. Delete them to force a re-download from S3.</p>
 
 
 

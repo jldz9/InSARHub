@@ -1459,6 +1459,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/pair_quality/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pair Quality Scoring
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/frontend/" class="md-nav__link">
         
   
@@ -1995,7 +2023,7 @@
 </tr>
 <tr>
 <td><code>--max-degree</code></td>
-<td><code>999</code></td>
+<td><code>5</code></td>
 <td>Maximum connections per scene</td>
 </tr>
 <tr>
@@ -2007,6 +2035,21 @@
 <td><code>--sp-workers</code></td>
 <td><code>8</code></td>
 <td>Threads for API baseline fallback</td>
+</tr>
+<tr>
+<td><code>--avoid-low-quality-days</code> / <code>--no-avoid-low-quality-days</code></td>
+<td>enabled</td>
+<td>Exclude scenes with heavy rain or snow cover</td>
+</tr>
+<tr>
+<td><code>--precip-mm-threshold</code></td>
+<td><code>25.0</code></td>
+<td>3-day precipitation threshold (mm) above which a scene is excluded</td>
+</tr>
+<tr>
+<td><code>--snow-threshold</code></td>
+<td><code>0.5</code></td>
+<td>MODIS snow-cover fraction (0–1) above which a scene is excluded</td>
 </tr>
 <tr>
 <td><code>--pairs-output</code></td>

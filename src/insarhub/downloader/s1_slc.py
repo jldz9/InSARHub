@@ -17,7 +17,9 @@ class S1_SLC(ASF_Base_Downloader):
     """
     A class to search and download Sentinel-1 data using ASF Search API."""
 
-    def download(self, save_path: str | None = None, max_workers: int = 3, force_asf: bool = False, download_orbit: bool = False, stop_event=None, on_progress=None):
+    def download(self, save_path: str | None = None, max_workers: int = None, force_asf: bool = False, download_orbit: bool = False, stop_event=None, on_progress=None):
+        from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
+        if max_workers is None: max_workers = _DL["max_workers"]
         """Download SLC data and optionally associated orbit files.
 
         Args:

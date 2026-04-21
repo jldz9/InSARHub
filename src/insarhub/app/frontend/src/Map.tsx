@@ -7,6 +7,7 @@ import type { RasterOverlay } from './JobQueueDrawer'
 
 interface Props {
   footprints?:        GeoJSON.FeatureCollection | null
+  highlightStackKey?: string | null
   aoi?:               Bbox | null
   aoiGeojson?:        GeoJSON.Feature | null
   drawMode:           DrawMode
@@ -40,7 +41,7 @@ const BASEMAP_TILES: Record<Basemap, { tiles: string[]; overlay?: string[]; attr
 }
 
 export default function Map({
-  footprints, aoi, aoiGeojson, drawMode, basemap,
+  footprints, highlightStackKey, aoi, aoiGeojson, drawMode, basemap,
   footprintOpacity, rasterOverlay, tsClickPoint, onAoiDrawn, onMouseMove, onFootprintClick, onRasterPixel, onMapClick, onMapClickAny,
 }: Props) {
   const containerRef        = useRef<HTMLDivElement>(null)
@@ -52,9 +53,10 @@ export default function Map({
   const onRasterPixelRef    = useRef(onRasterPixel)
   const onMapClickRef       = useRef(onMapClick)
   const onMapClickAnyRef    = useRef(onMapClickAny)
-  const boxStartRef    = useRef<[number, number] | null>(null)
-  const polyPointsRef  = useRef<[number, number][]>([])
-  const mousePosRef    = useRef<[number, number]>([0, 0])
+  const boxStartRef         = useRef<[number, number] | null>(null)
+  const polyPointsRef       = useRef<[number, number][]>([])
+  const mousePosRef         = useRef<[number, number]>([0, 0])
+  const stackHighlightIds   = useRef<Set<number | string>>(new Set())
 
   useEffect(() => { drawModeRef.current = drawMode }, [drawMode])
   useEffect(() => { onAoiDrawnRef.current = onAoiDrawn }, [onAoiDrawn])
@@ -63,6 +65,23 @@ export default function Map({
   useEffect(() => { onRasterPixelRef.current = onRasterPixel }, [onRasterPixel])
   useEffect(() => { onMapClickRef.current = onMapClick }, [onMapClick])
   useEffect(() => { onMapClickAnyRef.current = onMapClickAny }, [onMapClickAny])
+
+  // Highlight all footprints belonging to a hovered stack key
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map?.isStyleLoaded()) return
+    stackHighlightIds.current.forEach(id => {
+      map.setFeatureState({ source: 'footprints', id }, { hover: false })
+    })
+    stackHighlightIds.current.clear()
+    if (!highlightStackKey) return
+    map.querySourceFeatures('footprints').forEach(f => {
+      if (f.properties?._stack === highlightStackKey && f.id != null) {
+        map.setFeatureState({ source: 'footprints', id: f.id }, { hover: true })
+        stackHighlightIds.current.add(f.id)
+      }
+    })
+  }, [highlightStackKey])
 
   // ── Init map ──────────────────────────────────────────────────────────────
   useEffect(() => {

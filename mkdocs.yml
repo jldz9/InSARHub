@@ -57,6 +57,7 @@ nav:
         - Processor: advanced/processor.md
         - Analyzer: advanced/analyzer.md
         - Utilities: advanced/utilities.md
+        - Pair Quality Scoring: advanced/pair_quality.md
         - Frontend Reference: advanced/frontend.md
 
 

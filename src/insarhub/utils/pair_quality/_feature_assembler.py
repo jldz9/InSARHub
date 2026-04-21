@@ -191,39 +191,67 @@ class FeatureAssembler:
         """Prefetch S1 coherence for all pairs: fetch pixel decay maps and
         pre-compute the full coherence result per pair.
 
-        Calling estimate_coherence() per pair here means assemble() gets a
-        cache hit for both the pixel maps (season-level) and the evaluated
-        coherence (pair-level), with no redundant numpy work.
+        Two-phase parallel strategy
+        ---------------------------
+        Phase 1 — download unique season pixel maps in parallel (max 4 threads,
+                   one per season).  S3 downloads dominate; numpy is released.
+        Phase 2 — compute per-pair coherence results in parallel.  Season maps
+                   are read-only at this point so dict access is thread-safe;
+                   numpy releases the GIL so threads get true parallelism.
         """
         if not pairs:
             return
 
-        dirty = False
+        from concurrent.futures import ThreadPoolExecutor, as_completed
 
+        # ── Phase 1: download unique season pixel maps in parallel ────────────
+        needed_seasons: set[str] = set()
+        for d1, d2 in pairs:
+            for _, season in _coherence.split_by_season(
+                _coherence._normalize_date(d1), _coherence._normalize_date(d2), self._lat
+            ):
+                needed_seasons.add(season)
+
+        before_season_keys = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")}
+
+        def _fetch_season(season: str) -> None:
+            _coherence._fetch_season_decay_maps(
+                self._wkt, self._lat, self._lon, season, "vv",
+                self._coh_cache, save_dir=self._save_dir,
+            )
+
+        with ThreadPoolExecutor(max_workers=min(4, len(needed_seasons))) as ex:
+            for fut in as_completed([ex.submit(_fetch_season, s) for s in needed_seasons]):
+                fut.result()
+
+        new_season_keys = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")} - before_season_keys
+        if new_season_keys:
+            self.remote_fetch_count += len(new_season_keys)
+
+        # ── Phase 2: compute per-pair coherence in parallel ───────────────────
+        # Season maps are fully populated — estimate_coherence() only reads them.
+        # Each pair writes a unique key so concurrent dict writes are safe.
+        uncached: list[tuple[str, str, str]] = []
         for d1, d2 in pairs:
             d1n, d2n = _coherence._normalize_date(d1), _coherence._normalize_date(d2)
             pair_key = f"s1coh_pair:{self._lat:.2f}:{self._lon:.2f}:{d1n}:{d2n}:vv"
-            if pair_key in self._coh_cache:
-                continue
+            if pair_key not in self._coh_cache:
+                uncached.append((d1, d2, pair_key))
 
-            # Track which season pixel-map keys exist before the call so we
-            # can count genuine S3 fetches (vs. cache hits on repeated seasons).
-            before = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")}
+        if uncached:
+            def _compute_pair(args: tuple[str, str, str]) -> None:
+                d1, d2, pair_key = args
+                result = _coherence.estimate_coherence(
+                    self._wkt, self._lat, self._lon, d1, d2,
+                    pol="vv", cache=self._coh_cache, save_dir=self._save_dir,
+                )
+                self._coh_cache[pair_key] = result
 
-            result = _coherence.estimate_coherence(
-                self._wkt, self._lat, self._lon, d1, d2,
-                pol="vv", cache=self._coh_cache, save_dir=self._save_dir,
-            )
+            with ThreadPoolExecutor(max_workers=8) as ex:
+                for fut in as_completed([ex.submit(_compute_pair, a) for a in uncached]):
+                    fut.result()
 
-            new_season_keys = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")} - before
-            if new_season_keys:
-                self.remote_fetch_count += len(new_season_keys)
-
-            self._coh_cache[pair_key] = result
-            dirty = True
-
-        if dirty:
-            self._save_coh_cache()
+        self._save_coh_cache()
 
     # ── Public API ────────────────────────────────────────────────────────────
 
@@ -364,17 +392,9 @@ class FeatureAssembler:
         return fv
 
 
-# ── Season penalty (inlined to avoid circular import with _scorer.py) ─────────
+# ── Season penalty ────────────────────────────────────────────────────────────
 
-_SEASON_NH = {12: "winter", 1: "winter",  2: "winter",
-               3: "spring", 4: "spring",  5: "spring",
-               6: "summer", 7: "summer",  8: "summer",
-               9: "autumn", 10: "autumn", 11: "autumn"}
-
-_ADJACENT = {
-    frozenset({"winter", "spring"}), frozenset({"spring", "summer"}),
-    frozenset({"summer", "autumn"}), frozenset({"autumn", "winter"}),
-}
+from insarhub.utils.defaults import SEASON_NH as _SEASON_NH, SEASON_ADJACENT as _ADJACENT
 
 
 def _season(month: int, lat: float) -> str:

@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 
 from insarhub._version import __version__
+from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP, DOWNLOAD_DEFAULTS as _DL
 
 
 # ---------------------------------------------------------------------------
@@ -126,18 +127,25 @@ def create_parser() -> argparse.ArgumentParser:
         help="Select interferogram pairs after search and save to pairs.json",
     )
     g_pairs.add_argument(
-        "--dt-targets", nargs="+", type=int, default=[6, 12, 24, 36, 48, 72, 96],
-        metavar="DAYS", help="Target temporal spacings in days (default: 6 12 24 36 48 72 96)",
+        "--dt-targets", nargs="+", type=int, default=list(_SP["dt_targets"]),
+        metavar="DAYS", help=f"Target temporal spacings in days (default: {list(_SP['dt_targets'])})",
     )
-    g_pairs.add_argument("--dt-tol",  type=int,   default=3,     metavar="DAYS", help="Temporal tolerance in days (default: 3)")
-    g_pairs.add_argument("--dt-max",  type=int,   default=120,   metavar="DAYS", help="Max temporal baseline in days (default: 120)")
-    g_pairs.add_argument("--pb-max",  type=float, default=150.0, metavar="M",    help="Max perpendicular baseline in metres (default: 150.0)")
-    g_pairs.add_argument("--min-degree", type=int, default=3,   metavar="INT",   help="Min connections per scene (default: 3)")
-    g_pairs.add_argument("--max-degree", type=int, default=5,   metavar="INT",   help="Max connections per scene (default: 5)")
-    g_pairs.add_argument("--force-connect", action=argparse.BooleanOptionalAction, default=True,
-                         help="Force connectivity for isolated scenes (default: True)")
-    g_pairs.add_argument("--sp-workers", type=int, default=8, metavar="INT",
-                         help="Threads for baseline API fallback (default: 8)")
+    g_pairs.add_argument("--dt-tol",  type=int,   default=_SP["dt_tol"],  metavar="DAYS", help=f"Temporal tolerance in days (default: {_SP['dt_tol']})")
+    g_pairs.add_argument("--dt-max",  type=int,   default=_SP["dt_max"],  metavar="DAYS", help=f"Max temporal baseline in days (default: {_SP['dt_max']})")
+    g_pairs.add_argument("--pb-max",  type=float, default=_SP["pb_max"],  metavar="M",    help=f"Max perpendicular baseline in metres (default: {_SP['pb_max']})")
+    g_pairs.add_argument("--min-degree", type=int, default=_SP["min_degree"], metavar="INT", help=f"Min connections per scene (default: {_SP['min_degree']})")
+    g_pairs.add_argument("--max-degree", type=int, default=_SP["max_degree"], metavar="INT", help=f"Max connections per scene (default: {_SP['max_degree']})")
+    g_pairs.add_argument("--force-connect", action=argparse.BooleanOptionalAction, default=_SP["force_connect"],
+                         help=f"Force connectivity for isolated scenes (default: {_SP['force_connect']})")
+    g_pairs.add_argument("--sp-workers", type=int, default=_SP["max_workers"], metavar="INT",
+                         help=f"Threads for baseline API fallback (default: {_SP['max_workers']})")
+    g_pairs.add_argument("--no-avoid-low-quality-days", action="store_false", dest="avoid_low_quality_days",
+                         help="Disable weather/snow pre-filter (enabled by default)")
+    g_pairs.set_defaults(avoid_low_quality_days=_SP["avoid_low_quality_days"])
+    g_pairs.add_argument("--snow-threshold", type=float, default=_SP["snow_threshold"], metavar="FRAC",
+                         help=f"Snow cover fraction [0-1] above which a scene is dropped (default: {_SP['snow_threshold']})")
+    g_pairs.add_argument("--precip-mm-threshold", type=float, default=_SP["precip_mm_threshold"], metavar="MM",
+                         help=f"3-day precipitation (mm) above which a scene is dropped (default: {_SP['precip_mm_threshold']})")
     g_pairs.add_argument("--pairs-output", metavar="PATH", default=None,
                          help="Output file for pairs (default: <workdir>/pairs.json)")
 
@@ -145,8 +153,8 @@ def create_parser() -> argparse.ArgumentParser:
     g_down.add_argument("-d", "--download",    action="store_true", help="Download scenes after search")
     g_down.add_argument("-O", "--orbit-files", nargs="?", const=True, default=False, metavar="PATH",
                         help="Download orbit files. Optionally specify a save directory, e.g. -O orbits/ (default: workdir)")
-    g_down.add_argument("--workers", metavar="INT", type=int, default=3,
-                        help="Parallel download workers (default: 3)")
+    g_down.add_argument("--workers", metavar="INT", type=int, default=_DL["max_workers"],
+                        help=f"Parallel download workers (default: {_DL['max_workers']})")
     g_down.add_argument("--footprint", metavar="PATH",
                         help="Save footprint map image to this path")
 
@@ -484,8 +492,8 @@ def create_parser() -> argparse.ArgumentParser:
                         help="Directory containing HyP3 zip files (default: current directory)")
     p_era5.add_argument("-o", "--output", metavar="PATH", default=".",
                         help="Output directory for ERA5 .grb files (default: current directory)")
-    p_era5.add_argument("--num-processes", metavar="N", type=int, default=3,
-                        help="Parallel download workers (default: 3)")
+    p_era5.add_argument("--num-processes", metavar="N", type=int, default=_DL["max_workers"],
+                        help=f"Parallel download workers (default: {_DL['max_workers']})")
     p_era5.add_argument("--max-retries", metavar="N", type=int, default=3,
                         help="Retry attempts per file on download failure (default: 3)")
 
@@ -1126,7 +1134,7 @@ def cmd_downloader(args, extra_args: list[str]):
         from insarhub.utils import plot_pair_network as _plot_pair_network
         from insarhub.app.state import write_insarhub_config
 
-        pairs, baselines, scene_bperp = downloader.select_pairs(
+        pairs, baselines, scene_bperp, prefetch_cache = downloader.select_pairs(
             dt_targets=tuple(args.dt_targets),
             dt_tol=args.dt_tol,
             dt_max=args.dt_max,
@@ -1135,11 +1143,34 @@ def cmd_downloader(args, extra_args: list[str]):
             max_degree=args.max_degree,
             force_connect=args.force_connect,
             max_workers=args.sp_workers,
+            avoid_low_quality_days=args.avoid_low_quality_days,
+            snow_threshold=args.snow_threshold,
+            precip_mm_threshold=args.precip_mm_threshold,
         )
 
         from insarhub.utils import PairQuality
-
         from insarhub.utils.pair_quality._db import PairQualityDB
+
+        def _seed_cli_cache(folder, prefetch):
+            """Seed the folder's quality cache with weather/snow from select_pairs."""
+            weather = prefetch.get("weather", {})
+            snow    = prefetch.get("snow", {})
+            if not weather and not snow:
+                return
+            lat = prefetch.get("lat", 0.0)
+            lon = prefetch.get("lon", 0.0)
+            try:
+                from insarhub.utils.pair_quality._cache import CacheManager
+                cache = CacheManager(folder)
+                for date, feats in weather.items():
+                    if feats:
+                        cache.set("weather", f"{lat:.3f}:{lon:.3f}:{date}", feats)
+                for date, feats in snow.items():
+                    if feats:
+                        cache.set("snow_modis", f"{lat:.3f}:{lon:.3f}:{date}", feats)
+                cache.save()
+            except Exception as exc:
+                print(f"[quality] Warning: could not seed weather cache ({exc})")
 
         dl_workdir = downloader.config.workdir
 
@@ -1173,6 +1204,7 @@ def cmd_downloader(args, extra_args: list[str]):
                 }
                 stack_path = subdir / f"stack_p{path}_f{frame}.json"
                 stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
+                _seed_cli_cache(subdir, prefetch_cache.get((path, frame), {}))
                 print(f"[quality] Scoring all possible pairs — P{path}/F{frame}…")
                 try:
                     db = PairQualityDB(subdir)
@@ -1221,6 +1253,7 @@ def cmd_downloader(args, extra_args: list[str]):
             }
             stack_path = dl_workdir / "stack_p0_f0.json"
             stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
+            _seed_cli_cache(dl_workdir, prefetch_cache)
             print("[quality] Scoring all possible pairs…")
             try:
                 db = PairQualityDB(dl_workdir)

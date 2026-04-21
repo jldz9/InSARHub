@@ -77,15 +77,16 @@ def dis_scan(
         
         result_slc = slc.search()
 
-    pairs, _, _ = select_pairs(
+    from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
+    pairs, _, _, _ = select_pairs(
             result_slc,
-            dt_targets=(12,24,36,48,72),
-            dt_tol=3,
-            dt_max=120,
-            pb_max=200,
-            min_degree=3,
-            max_degree=5,
-            force_connect=True
+            dt_targets=(12, 24, 36, 48, 72),  # quicklook: skip 6-day and 96-day
+            dt_tol=_SP["dt_tol"],
+            dt_max=_SP["dt_max"],
+            pb_max=200,                        # quicklook: more lenient baseline
+            min_degree=_SP["min_degree"],
+            max_degree=_SP["max_degree"],
+            force_connect=_SP["force_connect"],
             )
     for key, pair in tqdm(pairs.items(), desc=f'Working on batch', position=0, leave=True):
         if len(pair) <= 10:

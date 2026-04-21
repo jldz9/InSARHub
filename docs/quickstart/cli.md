@@ -109,9 +109,12 @@ Add `--select-pairs` to run interferogram pair selection after search. Results a
 | `--dt-max` | `120` | Maximum temporal baseline (days) |
 | `--pb-max` | `150.0` | Maximum perpendicular baseline (m) |
 | `--min-degree` | `3` | Minimum connections per scene |
-| `--max-degree` | `999` | Maximum connections per scene |
+| `--max-degree` | `5` | Maximum connections per scene |
 | `--force-connect` / `--no-force-connect` | enabled | Force connectivity for isolated scenes |
 | `--sp-workers` | `8` | Threads for API baseline fallback |
+| `--avoid-low-quality-days` / `--no-avoid-low-quality-days` | enabled | Exclude scenes with heavy rain or snow cover |
+| `--precip-mm-threshold` | `25.0` | 3-day precipitation threshold (mm) above which a scene is excluded |
+| `--snow-threshold` | `0.5` | MODIS snow-cover fraction (0–1) above which a scene is excluded |
 | `--pairs-output` | `<workdir>/pairs.json` | Output file path |
 
 ```bash

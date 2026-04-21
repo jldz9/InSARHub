@@ -173,11 +173,11 @@ dl.dem()
 
 - **Select Pairs**
 
-    Compute interferogram pairs for all active stacks based on temporal and perpendicular baseline constraints
+    Compute interferogram pairs for all active stacks based on temporal and perpendicular baseline constraints. Scenes with poor acquisition conditions (heavy rain, snow) are excluded automatically when `avoid_low_quality_days=True` (default).
 
     ```python
     from insarhub.utils import plot_pair_network
-    pairs, baselines, scene_bperp = dl.select_pairs(
+    pairs, baselines, scene_bperp, _ = dl.select_pairs(
         dt_targets=(6, 12, 24, 36, 48, 72, 96),
         dt_tol=3,
         dt_max=120,
@@ -185,6 +185,9 @@ dl.dem()
         min_degree=3,
         max_degree=5,
         force_connect=True,
+        avoid_low_quality_days=True,   # exclude scenes with bad weather/snow (default)
+        precip_mm_threshold=25.0,      # 3-day precip threshold in mm
+        snow_threshold=0.5,            # MODIS snow-cover fraction threshold
     )
     fig = plot_pair_network(pairs, baselines, scene_bperp)
     fig.show()
@@ -337,11 +340,11 @@ dl.dem()
 
 - **Select Pairs**
 
-    Compute interferogram pairs for all active stacks based on temporal and perpendicular baseline constraints
+    Compute interferogram pairs for all active stacks based on temporal and perpendicular baseline constraints. Scenes with poor acquisition conditions (heavy rain, snow) are excluded automatically when `avoid_low_quality_days=True` (default).
 
     ```python
     from insarhub.utils import plot_pair_network
-    pairs, baselines, scene_bperp = s1.select_pairs(
+    pairs, baselines, scene_bperp, _ = s1.select_pairs(
         dt_targets=(6, 12, 24, 36, 48, 72, 96),
         dt_tol=3,
         dt_max=120,
@@ -349,11 +352,13 @@ dl.dem()
         min_degree=3,
         max_degree=5,
         force_connect=True,
+        avoid_low_quality_days=True,   # exclude scenes with bad weather/snow (default)
+        precip_mm_threshold=25.0,      # 3-day precip threshold in mm
+        snow_threshold=0.5,            # MODIS snow-cover fraction threshold
     )
     fig = plot_pair_network(pairs, baselines, scene_bperp)
     fig.show()
     ```
-  
 
     ::: insarhub.downloader.ASF_Base_Downloader.select_pairs
         options:

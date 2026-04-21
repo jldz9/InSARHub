@@ -31,15 +31,18 @@ async def pick_folder():
     """Open a native folder-picker dialog and return the selected path."""
     is_wsl = Path("/proc/version").exists() and \
              "microsoft" in Path("/proc/version").read_text().lower()
+    _PS_FOLDER_SCRIPT = (
+        "Add-Type -AssemblyName System.Windows.Forms; "
+        "$f = New-Object System.Windows.Forms.FolderBrowserDialog; "
+        "$f.Description = 'Select work directory'; "
+        "$f.UseDescriptionForTitle = $true; "
+        "$f.AutoUpgradeEnabled = $true; "
+        "$null = $f.ShowDialog(); "
+        "Write-Output $f.SelectedPath"
+    )
+
     if is_wsl:
-        ps_script = (
-            "Add-Type -AssemblyName System.Windows.Forms; "
-            "$f = New-Object System.Windows.Forms.FolderBrowserDialog; "
-            "$f.Description = 'Select work directory'; "
-            "$null = $f.ShowDialog(); "
-            "Write-Output $f.SelectedPath"
-        )
-        res = subprocess.run(["powershell.exe", "-NoProfile", "-Command", ps_script],
+        res = subprocess.run(["powershell.exe", "-NoProfile", "-Command", _PS_FOLDER_SCRIPT],
                              capture_output=True, text=True)
         win_path = res.stdout.strip()
         if not win_path:
@@ -48,14 +51,7 @@ async def pick_folder():
         return {"path": conv.stdout.strip() or None}
 
     if sys.platform == "win32":
-        ps_script = (
-            "Add-Type -AssemblyName System.Windows.Forms; "
-            "$f = New-Object System.Windows.Forms.FolderBrowserDialog; "
-            "$f.Description = 'Select work directory'; "
-            "$null = $f.ShowDialog(); "
-            "Write-Output $f.SelectedPath"
-        )
-        res = subprocess.run(["powershell", "-NoProfile", "-Command", ps_script],
+        res = subprocess.run(["powershell", "-NoProfile", "-Command", _PS_FOLDER_SCRIPT],
                              capture_output=True, text=True)
         return {"path": res.stdout.strip() or None}
 

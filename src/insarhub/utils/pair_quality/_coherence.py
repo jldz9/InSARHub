@@ -916,14 +916,23 @@ def _chain_segments(
     the permanent-scatterer floor ρ∞ toward ρ∞² instead of ρ∞ as baselines grow.
 
     The correct formula separates the two components:
-      γ_total = ρ∞_eff + (1 − ρ∞_eff) · exp(−Σ dt_i / τ_i)
+      γ_total = γ∞_eff + (γ0_eff − γ∞_eff) · exp(−Σ dt_i / τ_i)
 
     where:
-      * ρ∞_eff = min(ρ∞ across all season segments) — conservative permanent floor
+      * γ∞_eff = duration-weighted mean(γ∞_i)
+                 PS targets are physically constant (metal, rock) — the seasonal
+                 dataset fits a lower γ∞ in winter because snow partially masks them,
+                 but the actual PS fraction of the scene does not change between seasons.
+                 Weighting by segment duration means a 2-day winter crossing does not
+                 dominate a 22-day summer segment.
+      * γ0_eff = duration-weighted mean(γ0_i)
+                 Initial coherence varies with vegetation state and snowpack; weighting
+                 by duration gives the dominant season its fair influence.
       * τ_i    = decay time constant for segment i, fitted per season from COH levels
       * dt_i   = duration of segment i in days
+      * exp_sum = Σ dt_i/τ_i — distributed-scatterer decorrelation compounds correctly
 
-    For a single-season pair this reduces to the standard γ(t) = (1−ρ∞)·exp(−t/τ) + ρ∞.
+    For a single-season pair this reduces to the standard γ(t) = γ∞ + (γ0−γ∞)·exp(−t/τ).
 
     Parameters
     ----------
@@ -934,13 +943,14 @@ def _chain_segments(
     -------
     (total_coh, rho_eff, seg_details)
       total_coh   : float in [0, 1], or None if any season map was empty (S3 failed)
-      rho_eff     : float — permanent-scatterer floor (min ρ∞ across segments); 0.0 on failure
+      rho_eff     : float — duration-weighted PS floor; 0.0 on failure
       seg_details : [(dt_days, season, seg_coh_or_None), ...]
     """
     seg_details: list[tuple[int, str, float | None]] = []
-    exp_sum   = 0.0     # Σ(dt_i / τ_i) — decorrelating exponent across segments
-    ginf_list: list[float] = []
-    g0_list:   list[float] = []
+    exp_sum    = 0.0
+    ginf_weighted = 0.0   # Σ(dt_i · γ∞_i)
+    g0_weighted   = 0.0   # Σ(dt_i · γ0_i)
+    total_dt      = 0.0   # Σ dt_i  (valid segments only)
     all_valid = True
 
     for seg_dt, season in segments:
@@ -951,27 +961,20 @@ def _chain_segments(
             continue
 
         ginf, g0, tau = _fit_decay_model_cached(tuple(sorted(coh_map.items())))
-        exp_sum += seg_dt / tau
-        ginf_list.append(ginf)
-        g0_list.append(g0)
+        exp_sum       += seg_dt / tau
+        ginf_weighted += seg_dt * ginf
+        g0_weighted   += seg_dt * g0
+        total_dt      += seg_dt
 
-        # Per-segment display: coherence this segment alone would produce
         seg_coh = _eval_decay(ginf, g0, tau, seg_dt)
         seg_details.append((seg_dt, season, round(seg_coh, 4)))
 
-    if not all_valid or not ginf_list:
+    if not all_valid or total_dt == 0:
         return None, 0.0, seg_details
 
-    # Cross-season chaining via the two-component model:
-    #   γ_total = γ∞_eff + (γ0_eff − γ∞_eff) · exp(−Σ dt_i/τ_i)
-    #
-    # γ∞_eff = min(γ∞) — conservative PS floor: a single low-stability
-    #   season limits the permanent coherence of the whole pair.
-    # γ0_eff = min(γ0) — conservative initial coherence: a season with
-    #   volume scattering (forest) limits the initial amplitude.
-    ginf_eff  = min(ginf_list)
-    g0_eff    = min(g0_list)
-    # γ_total = γ∞_eff + (γ0_eff − γ∞_eff) · exp(−Σ dt_i/τ_i)
+    # Duration-weighted effective parameters
+    ginf_eff  = ginf_weighted / total_dt
+    g0_eff    = g0_weighted   / total_dt
     total_coh = ginf_eff + (g0_eff - ginf_eff) * math.exp(-exp_sum)
     return round(total_coh, 4), round(ginf_eff, 4), seg_details
 
@@ -1063,17 +1066,20 @@ def estimate_coherence(
         #
         # Cross-season pixel chaining:
         #   γ_pixel(total) = γ∞_eff + (γ0_eff − γ∞_eff) · exp(−Σ dt_i/τ_i)
-        # where for each pixel the effective parameters are:
-        #   γ∞_eff = min(γ∞_i)  — most restrictive PS floor
-        #   γ0_eff = min(γ0_i)  — most restrictive initial coherence
+        # where for each pixel the effective parameters are duration-weighted means:
+        #   γ∞_eff = Σ(dt_i · γ∞_i) / Σ dt_i  — PS targets are physically constant;
+        #            weighting by duration avoids a 2-day winter crossing dominating
+        #            a 22-day summer segment.
+        #   γ0_eff = Σ(dt_i · γ0_i) / Σ dt_i  — same rationale for initial coherence.
 
         first_maps = pixel_maps[uniq_seasons[0]]
         H, W = first_maps["shape"]
 
         # Initialise per-pixel accumulator arrays
-        ginf_eff  = np.ones((H, W))          # will take element-wise min
-        g0_eff    = np.ones((H, W))
-        exp_sum   = np.zeros((H, W))          # Σ dt_i/τ_i
+        ginf_sum  = np.zeros((H, W))         # Σ(dt_i · γ∞_i)
+        g0_sum    = np.zeros((H, W))         # Σ(dt_i · γ0_i)
+        dt_sum    = 0.0                      # Σ dt_i (valid segments)
+        exp_sum   = np.zeros((H, W))         # Σ dt_i/τ_i
         valid_all = np.ones((H, W), dtype=bool)
         seg_details: list = []
 
@@ -1089,15 +1095,20 @@ def estimate_coherence(
             tau_px  = np.array(pmaps["tau"])
             vld_px  = np.array(pmaps["valid"], dtype=bool)
 
-            ginf_eff  = np.minimum(ginf_eff,  ginf_px)
-            g0_eff    = np.minimum(g0_eff,    g0_px)
-            exp_sum  += seg_dt / np.where(tau_px > 0, tau_px, 30.0)
+            ginf_sum  += seg_dt * ginf_px
+            g0_sum    += seg_dt * g0_px
+            dt_sum    += seg_dt
+            exp_sum   += seg_dt / np.where(tau_px > 0, tau_px, 30.0)
             valid_all &= vld_px
 
             # Per-segment display: mean coherence this segment alone produces
             seg_coh_px = ginf_px + (g0_px - ginf_px) * np.exp(-seg_dt / tau_px)
             seg_mean   = float(seg_coh_px[vld_px].mean()) if vld_px.any() else None
             seg_details.append((seg_dt, season, round(seg_mean, 4) if seg_mean else None))
+
+        # Duration-weighted effective parameters per pixel
+        ginf_eff = ginf_sum / max(dt_sum, 1.0)
+        g0_eff   = g0_sum   / max(dt_sum, 1.0)
 
         # Evaluate chained model per pixel, then average over AOI
         coh_pixels = ginf_eff + (g0_eff - ginf_eff) * np.exp(-exp_sum)

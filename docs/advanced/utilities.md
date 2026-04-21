@@ -18,7 +18,7 @@ s1 = Downloader.create('S1_SLC',
                     workdir='path/to/dir')
 results = s1.search()
 
-pairs, baselines, scene_bperp = select_pairs(search_results=results)
+pairs, baselines, scene_bperp, _ = select_pairs(search_results=results)
 ```
 
 ::: insarhub.utils.select_pairs

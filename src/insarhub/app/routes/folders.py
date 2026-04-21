@@ -4,9 +4,12 @@
 import asyncio
 import dataclasses
 import json
+import logging
 import threading as _threading
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import Response
@@ -191,24 +194,77 @@ async def folder_select_pairs(req: SelectPairsRequest, background_tasks: Backgro
     return {"job_id": job_id}
 
 
-def _launch_db_build(folder, scenes_by_stack, bperp_by_stack):
+def _seed_pair_quality_cache(folder: Path, prefetch: dict) -> None:
+    """Write weather/snow data fetched by select_pairs into the folder's quality cache.
+
+    prefetch must be {"weather": {date: feats}, "snow": {date: feats}, "lat": float, "lon": float}.
+    FeatureAssembler.prefetch_dates() checks this cache first, so the data won't be
+    re-fetched from Open-Meteo / MODIS during scoring.
+    """
+    weather = prefetch.get("weather", {})
+    snow    = prefetch.get("snow", {})
+    if not weather and not snow:
+        return
+    lat = prefetch.get("lat", 0.0)
+    lon = prefetch.get("lon", 0.0)
+    try:
+        from insarhub.utils.pair_quality._cache import CacheManager
+        cache = CacheManager(folder)
+        for date, feats in weather.items():
+            if feats:
+                cache.set("weather", f"{lat:.3f}:{lon:.3f}:{date}", feats)
+        for date, feats in snow.items():
+            if feats:
+                cache.set("snow_modis", f"{lat:.3f}:{lon:.3f}:{date}", feats)
+        cache.save()
+        logger.debug("Seeded quality cache for %s with %d weather + %d snow entries",
+                     folder.name, len(weather), len(snow))
+    except Exception as exc:
+        logger.warning("Could not seed quality cache for %s: %s", folder, exc)
+
+
+def _launch_db_build(folder, scenes_by_stack, bperp_by_stack) -> str | None:
     """Launch a background thread that builds the full pair-quality DB for *folder*.
 
-    The DB covers all N*(N-1)/2 scene combinations so the interactive network
-    editor can look up any pair on demand.  Errors are logged but not raised.
+    Skips the build if an existing complete DB already covers the same scene set.
+    Returns the job_id, or None if the build was skipped.
     """
     import threading
+    from insarhub.utils.pair_quality._db import PairQualityDB
+
+    # Count unique scenes across all stacks
+    all_scenes: set[str] = set()
+    for scene_list in scenes_by_stack.values():
+        all_scenes.update(scene_list)
+    n_scenes = len(all_scenes)
+
+    from insarhub.utils.pair_quality._db import _load_db
+    existing = _load_db(folder)
+    if existing and existing.get("_complete"):
+        existing_names = existing.get("_scene_names")
+        if existing_names is not None:
+            # Full check: skip if current scenes are a subset of what the DB covers
+            skip = all_scenes <= set(existing_names)
+        else:
+            # Old DB without _scene_names: fall back to count (avoids spurious rebuilds)
+            skip = existing.get("_n_scenes", 0) >= n_scenes
+        if skip:
+            logger.debug("Pair DB up-to-date for %s (%d scenes) — skipping rebuild", folder.name, n_scenes)
+            return None
+
+    db_job_id, _ = _new_job(f"Building pair database — {folder.name}…")
 
     def _run():
         try:
-            from insarhub.utils.pair_quality._db import PairQualityDB
             PairQualityDB(folder).build(scenes_by_stack, bperp_by_stack, show_progress=False)
+            _finish_job(db_job_id, status="done", message="Pair database ready")
         except Exception as exc:
-            import logging
-            logging.getLogger(__name__).warning("Background DB build failed for %s: %s", folder, exc)
+            logger.warning("Background DB build failed for %s: %s", folder, exc)
+            _finish_job(db_job_id, status="error", progress=0, message=str(exc))
 
     t = threading.Thread(target=_run, daemon=True, name=f"pq-db-bg-{folder.name}")
     t.start()
+    return db_job_id
 
 
 async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
@@ -234,7 +290,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 return
 
             state._jobs[job_id]["message"] = "Selecting pairs…"
-            pairs, baselines, scene_bperp = downloader.select_pairs(
+            pairs, baselines, scene_bperp, prefetch_cache = downloader.select_pairs(
                 dt_targets=tuple(req.dt_targets),
                 dt_tol=req.dt_tol,
                 dt_max=req.dt_max,
@@ -243,6 +299,9 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 max_degree=req.max_degree,
                 force_connect=req.force_connect,
                 max_workers=req.max_workers,
+                avoid_low_quality_days=req.avoid_low_quality_days,
+                snow_threshold=req.snow_threshold,
+                precip_mm_threshold=req.precip_mm_threshold,
             )
 
             # Build scenes_by_stack from search results for the DB
@@ -253,6 +312,8 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     scenes_by_stack[k] = [p.properties["sceneName"] for p in prods]
             else:
                 scenes_by_stack[(0, 0)] = [p.properties["sceneName"] for p in active]
+
+            db_job_ids: list[str] = []
 
             if isinstance(pairs, dict):
                 for (path, frame), group_pairs in pairs.items():
@@ -270,9 +331,9 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                         "scenes":   stack_scenes,
                         "pair_quality": {"scores": {}, "factors": {}},
                     }
-                    # Write stack file first so PairQuality.compute() can read selected pairs
                     (subdir / f"stack_p{path}_f{frame}.json").write_text(json.dumps(stack_data, indent=2))
-                    # Score only the selected pairs (fast: N_selected pairs, not N*(N-1)/2)
+                    state._jobs[job_id]["message"] = f"Building weather/snow cache — P{path}/F{frame}…"
+                    _seed_pair_quality_cache(subdir, prefetch_cache.get((path, frame), {}))
                     state._jobs[job_id]["message"] = f"Scoring {len(group_pairs)} pairs — P{path}/F{frame}…"
                     try:
                         from insarhub.utils.pair_quality import PairQuality
@@ -283,11 +344,13 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                         }
                         (subdir / f"stack_p{path}_f{frame}.json").write_text(json.dumps(stack_data, indent=2))
                     except Exception as _exc:
-                        import logging as _logging
-                        _logging.getLogger(__name__).warning("Pair quality scoring failed: %s", _exc)
-                    # Launch full DB build in background for interactive network editor
-                    _launch_db_build(subdir, {(path, frame): stack_scenes},
-                                     {(path, frame): {k: float(v) for k, v in sp.items()}})
+                        logger.warning("Pair quality scoring failed: %s", _exc)
+                    db_jid = _launch_db_build(
+                        subdir, {(path, frame): stack_scenes},
+                        {(path, frame): {k: float(v) for k, v in sp.items()}}
+                    )
+                    if db_jid:
+                        db_job_ids.append(db_jid)
             else:
                 cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
                 write_insarhub_config(folder, {"downloader": {"type": dl_type, "config": cfg_dict}})
@@ -300,6 +363,8 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     "pair_quality": {"scores": {}, "factors": {}},
                 }
                 (folder / "stack_p0_f0.json").write_text(json.dumps(stack_data, indent=2))
+                state._jobs[job_id]["message"] = "Building weather/snow cache…"
+                _seed_pair_quality_cache(folder, prefetch_cache)
                 state._jobs[job_id]["message"] = f"Scoring {len(pairs)} selected pairs…"
                 try:
                     from insarhub.utils.pair_quality import PairQuality
@@ -310,13 +375,16 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     }
                     (folder / "stack_p0_f0.json").write_text(json.dumps(stack_data, indent=2))
                 except Exception as _exc:
-                    import logging as _logging
-                    _logging.getLogger(__name__).warning("Pair quality scoring failed: %s", _exc)
-                # Launch full DB build in background for interactive network editor
-                _launch_db_build(folder, {(0, 0): stack_scenes},
-                                 {(0, 0): {k: float(v) for k, v in sp.items()}})
+                    logger.warning("Pair quality scoring failed: %s", _exc)
+                db_jid = _launch_db_build(
+                    folder, {(0, 0): stack_scenes},
+                    {(0, 0): {k: float(v) for k, v in sp.items()}}
+                )
+                if db_jid:
+                    db_job_ids.append(db_jid)
 
-            _finish_job(job_id, status="done", message="Pairs selected")
+            _finish_job(job_id, status="done", message="Pairs selected",
+                        data={"db_job_ids": db_job_ids})
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
 

@@ -534,16 +534,22 @@ def _to_wkt(geom_input) -> str | None:
 #  PUBLIC API
 # ═══════════════════════════════════════════════════════════════════════════
 
+from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
+
 def select_pairs(
     search_results: Union[dict[tuple[int, int], list[ASFProduct]], list[ASFProduct]],
-    dt_targets: tuple[int, ...] = (6, 12, 24, 36, 48, 72, 96),
-    dt_tol: int = 3,
-    dt_max: int = 120,
-    pb_max: float = 150.0,
-    min_degree: int = 3,
-    max_degree: int = 5,
-    force_connect: bool = True,
-    max_workers: int = 8
+    dt_targets: tuple[int, ...]  = _SP["dt_targets"],
+    dt_tol: int                  = _SP["dt_tol"],
+    dt_max: int                  = _SP["dt_max"],
+    pb_max: float                = _SP["pb_max"],
+    min_degree: int              = _SP["min_degree"],
+    max_degree: int              = _SP["max_degree"],
+    force_connect: bool          = _SP["force_connect"],
+    max_workers: int             = _SP["max_workers"],
+    avoid_low_quality_days: bool = _SP["avoid_low_quality_days"],
+    snow_threshold: float        = _SP["snow_threshold"],
+    precip_mm_threshold: float   = _SP["precip_mm_threshold"],
+    aoi_wkt: str | None = None,
 ) -> Union[PairGroup, list[Pair]]:
     
     """
@@ -578,8 +584,24 @@ def select_pairs(
             If a scene falls below min_degree after primary selection, add its nearest-time 
             neighbors that satisfy pb_max and dt_max. May introduce lower-quality pairs; a warning is logged.
         max_workers (int, optional):
-            Number of threads for API fallback. Has no effect if all products have local baseline 
+            Number of threads for API fallback. Has no effect if all products have local baseline
             data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for debugging).
+        avoid_low_quality_days (bool, optional):
+            If True, fetch weather and snow cover for every acquisition date and
+            remove scenes whose date fails quality thresholds before building the
+            network. Removed scenes are logged as warnings. Defaults to False.
+        snow_threshold (float, optional):
+            Snow-cover fraction [0–1] above which a scene is considered unusable.
+            Also triggers a wet-snow hard-kill (snow_frac > 0.3 AND temp > 0 °C).
+            Defaults to 0.5.
+        precip_mm_threshold (float, optional):
+            3-day accumulated precipitation (mm) above which a scene is considered
+            unusable. Defaults to 20.0 mm.
+        aoi_wkt (str, optional):
+            WKT geometry of the area of interest.  When provided the centroid of
+            this geometry is used for weather/snow lookups instead of the union
+            centroid of the scene footprints, ensuring the same location is used
+            here as in FeatureAssembler.  Defaults to None.
 
     Returns:
         tuple of three elements:
@@ -602,6 +624,93 @@ def select_pairs(
             y-axis (negative/positive spread around zero). Mirrors the
             structure of *pairs* (flat or grouped).
     """
+
+    # ── bad-day pre-filter ────────────────────────────────────────────────
+    def _bad_scene_names(
+        prods: list,
+        snow_thr: float,
+        precip_thr: float,
+    ) -> tuple[set[str], dict[str, dict], dict[str, dict], float, float]:
+        """Return (bad_names, weather_dict, snow_dict, lat, lon).
+
+        weather_dict / snow_dict are {date: feats} for ALL unique dates — not
+        just the bad ones — so callers can seed FeatureAssembler's cache and
+        avoid a second fetch during scoring.
+
+        Flags a date bad when:
+          - wet snow  : snow_frac > 0.3 AND temp_max > 0 °C  (C-band hard kill)
+          - heavy snow: snow_frac >= snow_thr
+          - heavy rain: precip_3day (or daily precip fallback) >= precip_thr mm
+        """
+        from shapely.geometry import shape as _shape
+        from shapely.ops import unary_union
+        from insarhub.utils.pair_quality._weather import fetch_weather_batch
+        from insarhub.utils.pair_quality._snow_modis import fetch_snow_features_batch
+
+        # Prefer the explicit AOI centroid (same geometry FeatureAssembler uses).
+        # Fall back to the union centroid of all scene footprints.
+        try:
+            from shapely import wkt as _wkt
+            if aoi_wkt:
+                c = _wkt.loads(aoi_wkt).centroid
+            else:
+                union = unary_union([_shape(p.geometry) for p in prods])
+                c = union.centroid
+            lat, lon = c.y, c.x
+        except Exception as exc:
+            logger.warning("avoid_low_quality_days: could not extract centroid (%s) — skipping filter", exc)
+            return set(), {}, {}, 0.0, 0.0
+
+        # Use startTime property (already ISO-8601) rather than parsing the scene
+        # name at fixed character positions — more reliable across sensor types.
+        date_of: dict[str, str] = {
+            p.properties["sceneName"]: (p.properties.get("startTime") or "")[:10]
+            for p in prods
+        }
+        unique_dates = list({d for d in date_of.values() if len(d) == 10})
+
+        if not unique_dates:
+            logger.warning("avoid_low_quality_days: no valid dates extracted — skipping filter")
+            return set(), {}, {}, lat, lon
+
+        logger.info("avoid_low_quality_days: fetching weather/snow for %d dates …", len(unique_dates))
+        try:
+            weather = fetch_weather_batch(lat, lon, unique_dates)
+        except Exception as exc:
+            logger.warning("avoid_low_quality_days: weather fetch failed (%s) — skipping filter", exc)
+            weather = {}
+        try:
+            snow = fetch_snow_features_batch(lat, lon, unique_dates)
+        except Exception as exc:
+            logger.warning("avoid_low_quality_days: snow fetch failed (%s) — skipping filter", exc)
+            snow = {}
+
+        bad_dates: set[str] = set()
+        for date in unique_dates:
+            w = weather.get(date, {})
+            s = snow.get(date, {})
+            temp      = w.get("temp_max")
+            # precip_3day can be None when the API returns null for precipitation_sum.
+            # Fall back to the daily precip so the check is never silently bypassed.
+            precip3   = w.get("precip_3day")
+            precip1   = w.get("precip")
+            precip_mm = (precip3 if precip3 is not None else precip1) or 0.0
+            snow_frac = s.get("snow_cover_frac") or 0.0
+
+            wet_snow   = (temp is not None and temp > 0 and snow_frac > 0.30)
+            heavy_snow = snow_frac >= snow_thr
+            heavy_rain = precip_mm >= precip_thr
+
+            if wet_snow or heavy_snow or heavy_rain:
+                reasons = []
+                if wet_snow:   reasons.append(f"wet snow (frac={snow_frac:.2f}, temp={temp:.1f}°C)")
+                if heavy_snow: reasons.append(f"heavy snow (frac={snow_frac:.2f} ≥ {snow_thr})")
+                if heavy_rain: reasons.append(f"heavy rain (precip={precip_mm:.1f} mm ≥ {precip_thr} mm)")
+                logger.warning("avoid_low_quality_days: dropping date %s — %s", date, ", ".join(reasons))
+                bad_dates.add(date)
+
+        bad_names = {name for name, d in date_of.items() if d in bad_dates}
+        return bad_names, weather, snow, lat, lon
 
     # ── normalise input ───────────────────────────────────────────────────
     input_is_list = isinstance(search_results, list)
@@ -627,6 +736,8 @@ def select_pairs(
     pairs_group: PairGroup = defaultdict(list)
     baseline_group: dict[tuple[int, int], BaselineTable] = {}
     scene_bperp_group: dict[tuple[int, int], dict] = {}
+    # Keyed by (path, frame): {"weather": {date: feats}, "snow": {date: feats}, "lat": float, "lon": float}
+    prefetch_cache: dict[tuple[int, int], dict] = {}
 
     # ── process each (path, frame) key ───────────────────────────────────
     for key, search_result in working_dict.items():
@@ -653,6 +764,29 @@ def select_pairs(
         }
         ids: set[SceneID] = set(id_time_raw)
         names: list[SceneID] = [p.properties["sceneName"] for p in prods]
+
+        # ── 0. Drop bad-weather/snow acquisition dates ────────────────────
+        if avoid_low_quality_days:
+            bad, w_cache, s_cache, pc_lat, pc_lon = _bad_scene_names(
+                prods, snow_threshold, precip_mm_threshold
+            )
+            prefetch_cache[key] = {
+                "weather": w_cache,
+                "snow":    s_cache,
+                "lat":     pc_lat,
+                "lon":     pc_lon,
+            }
+            if bad:
+                before = len(prods)
+                prods  = [p for p in prods if p.properties["sceneName"] not in bad]
+                names  = [n for n in names if n not in bad]
+                ids    = set(names)
+                id_time_raw = {k: v for k, v in id_time_raw.items() if k not in bad}
+                id_time_dt  = {k: v for k, v in id_time_dt.items()  if k not in bad}
+                logger.warning(
+                    "Key %s — avoid_low_quality_days: removed %d / %d scenes.",
+                    key, before - len(prods), before,
+                )
 
         # ── 1. Build pairwise baseline table ─────────────────────────────
         B, scene_bp = _build_baseline_table(prods, ids, id_time_dt, max_workers=max_workers)
@@ -686,8 +820,9 @@ def select_pairs(
         )
     pairs = pairs_group[(0, 0)] if input_is_list else pairs_group
     scene_bperp = scene_bperp_group.get((0, 0), {}) if input_is_list else scene_bperp_group
+    prefetch = prefetch_cache.get((0, 0), {}) if input_is_list else prefetch_cache
 
-    return pairs, baseline_group, scene_bperp
+    return pairs, baseline_group, scene_bperp, prefetch
 
 def get_config(config_path=None):
 

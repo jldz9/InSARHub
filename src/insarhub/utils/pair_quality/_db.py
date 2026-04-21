@@ -40,6 +40,8 @@ import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
+from insarhub.utils.defaults import FALLBACK_AOI as _FALLBACK_AOI
+
 logger = logging.getLogger(__name__)
 
 DB_FILE         = ".insarhub_pair_quality_db.json"
@@ -187,7 +189,7 @@ class PairQualityDB:
             lat, lon, wkt = _load_aoi(self.folder)
         except Exception as exc:
             logger.warning("Could not load AOI from folder: %s — using lat=45, lon=0", exc)
-            lat, lon, wkt = 45.0, 0.0, "POLYGON ((0 45, 1 45, 1 46, 0 46, 0 45))"
+            lat, lon, wkt = _FALLBACK_AOI["lat"], _FALLBACK_AOI["lon"], _FALLBACK_AOI["wkt"]
 
         cache     = CacheManager(self.folder, force_refresh=self.force_refresh)
         assembler = FeatureAssembler(
@@ -252,6 +254,17 @@ class PairQualityDB:
         total = len(all_pairs)
         logger.info("PairQualityDB: scoring %d pairs for %d scenes", total, len(all_scenes))
 
+        # Write a stub so the status endpoint returns exists=True, complete=False
+        # while the background build is in progress (visible in the UI).
+        stub: dict = {
+            "_schema_version": _SCHEMA_VERSION,
+            "_built_at":  datetime.now(timezone.utc).isoformat(),
+            "_n_scenes":  len(all_scenes),
+            "_n_pairs":   total,
+            "_complete":  False,
+        }
+        (self.folder / DB_FILE).write_text(json.dumps(stub))
+
         mode = "S3 coherence" if self.coherence_aware else ("LC/NDVI" if self.lc_aware else "flat")
         for i, (ref, sec, bperp_ref, bperp_sec) in enumerate(_tqdm(
             all_pairs,
@@ -281,6 +294,7 @@ class PairQualityDB:
             "_n_scenes":  len(all_scenes),
             "_n_pairs":   total,
             "_complete":  True,
+            "_scene_names": sorted(all_scenes),
             "scores":     scores,
             "factors":    factors,
         }

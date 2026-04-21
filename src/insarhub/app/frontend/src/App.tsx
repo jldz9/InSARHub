@@ -6,6 +6,7 @@ import SearchFilters, { type Filters, DEFAULT_FILTERS, hasActiveFilters } from '
 import BasemapSwitcher from './BasemapSwitcher'
 import ScenePanel from './ScenePanel'
 import StackSceneList from './StackSceneList'
+import StackSummaryDrawer from './StackSummaryDrawer'
 import SceneDetailPanel from './SceneDetailPanel'
 import SettingsPanel from './SettingsPanel'
 import JobQueueDrawer, { type RasterOverlay } from './JobQueueDrawer'
@@ -186,6 +187,7 @@ export default function App() {
   const [mouseCoords,     setMouseCoords]     = useState<{ lat: number; lng: number } | null>(null)
   const [selectedFeature, setSelectedFeature] = useState<GeoJSON.Feature | null>(null)
   const [stackOpen,       setStackOpen]       = useState(false)
+  const [hoveredStackKey, setHoveredStackKey] = useState<string | null>(null)
   const [detailScene,     setDetailScene]     = useState<GeoJSON.Feature | null>(null)
   const [workdir,         setWorkdir]         = useState('.')
   const [settingsOpen,    setSettingsOpen]    = useState(false)
@@ -429,6 +431,7 @@ export default function App() {
       <div style={{ position: 'absolute', top: 84, left: 0, right: 0, bottom: 0 }}>
         <Map
           footprints={footprints}
+          highlightStackKey={hoveredStackKey}
           aoi={aoi}
           aoiGeojson={aoiGeoJson}
           drawMode={drawMode}
@@ -451,13 +454,13 @@ export default function App() {
         {rasterOverlay && <Colorbar overlay={rasterOverlay} />}
       </div>
 
-      {/* Cascading scene panels — L3 · L2 · L1 (left to right) */}
-      {selectedFeature && (
+      {/* Cascading scene panels — L4 · L3 · L2 · L1 (left to right) */}
+      {(footprints || selectedFeature) && (
         <div style={{
           position: 'absolute', top: 84, right: 0, bottom: 0,
           display: 'flex', flexDirection: 'row', zIndex: 110,
         }}>
-          {detailScene && (
+          {selectedFeature && detailScene && (
             <SceneDetailPanel
               feature={detailScene}
               theme={theme}
@@ -465,7 +468,7 @@ export default function App() {
               onClose={() => setDetailScene(null)}
             />
           )}
-          {stackOpen && (
+          {selectedFeature && stackOpen && (
             <StackSceneList
               stackKey={selectedFeature.properties?._stack ?? ''}
               scenes={stackScenes}
@@ -475,20 +478,32 @@ export default function App() {
               onSceneClick={setDetailScene}
             />
           )}
-          <ScenePanel
-            feature={selectedFeature}
-            theme={theme}
-            stackStart={stackDateRange.start}
-            stackEnd={stackDateRange.end}
-            stackCount={stackScenes.length}
-            stackUrls={stackScenes.map(f => f.properties?.url).filter(Boolean)}
-            workdir={workdir}
-            aoiWkt={aoiWkt}
-            downloaderType={downloaderType}
-            stackOpen={stackOpen}
-            onClose={() => { setSelectedFeature(null); setStackOpen(false); setDetailScene(null) }}
-            onStackClick={() => { setStackOpen(o => !o); setDetailScene(null) }}
-          />
+          {selectedFeature && (
+            <ScenePanel
+              feature={selectedFeature}
+              theme={theme}
+              stackStart={stackDateRange.start}
+              stackEnd={stackDateRange.end}
+              stackCount={stackScenes.length}
+              stackUrls={stackScenes.map(f => f.properties?.url).filter(Boolean)}
+              workdir={workdir}
+              aoiWkt={aoiWkt}
+              downloaderType={downloaderType}
+              stackOpen={stackOpen}
+              onClose={() => { setSelectedFeature(null); setStackOpen(false); setDetailScene(null) }}
+              onStackClick={() => { setStackOpen(o => !o); setDetailScene(null) }}
+            />
+          )}
+          {footprints && (
+            <StackSummaryDrawer
+              footprints={footprints}
+              theme={theme}
+              selectedStackKey={selectedFeature?.properties?._stack ?? null}
+              onStackHover={setHoveredStackKey}
+              onStackClick={f => { setSelectedFeature(f); setStackOpen(false); setDetailScene(null) }}
+              onClose={() => { setFootprints(null); setSelectedFeature(null); setStackOpen(false); setDetailScene(null); setResultCount('') }}
+            />
+          )}
         </div>
       )}
 

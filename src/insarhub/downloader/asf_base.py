@@ -674,15 +674,32 @@ Check documentation for how to setup .netrc file.\n""")
     
     def select_pairs(
         self,
-        dt_targets: tuple = (6, 12, 24, 36, 48, 72, 96),
-        dt_tol: int = 3,
-        dt_max: int = 120,
-        pb_max: float = 150.0,
-        min_degree: int = 3,
-        max_degree: int = 5,
-        force_connect: bool = True,
-        max_workers: int = 4,
+        dt_targets: tuple        = None,
+        dt_tol: int              = None,
+        dt_max: int              = None,
+        pb_max: float            = None,
+        min_degree: int          = None,
+        max_degree: int          = None,
+        force_connect: bool      = None,
+        max_workers: int         = None,
+        avoid_low_quality_days: bool = None,
+        snow_threshold: float    = None,
+        precip_mm_threshold: float = None,
+        aoi_wkt: str | None = None,
     ) -> tuple:
+        # None → pull from the single source of truth
+        from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
+        if dt_targets             is None: dt_targets             = _SP["dt_targets"]
+        if dt_tol                 is None: dt_tol                 = _SP["dt_tol"]
+        if dt_max                 is None: dt_max                 = _SP["dt_max"]
+        if pb_max                 is None: pb_max                 = _SP["pb_max"]
+        if min_degree             is None: min_degree             = _SP["min_degree"]
+        if max_degree             is None: max_degree             = _SP["max_degree"]
+        if force_connect          is None: force_connect          = _SP["force_connect"]
+        if max_workers            is None: max_workers            = _SP["max_workers"]
+        if avoid_low_quality_days is None: avoid_low_quality_days = _SP["avoid_low_quality_days"]
+        if snow_threshold         is None: snow_threshold         = _SP["snow_threshold"]
+        if precip_mm_threshold    is None: precip_mm_threshold    = _SP["precip_mm_threshold"]
         """Compute interferogram pairs for all active stacks.
 
         Args:
@@ -706,6 +723,7 @@ Check documentation for how to setup .netrc file.\n""")
         if not hasattr(self, 'results'):
             raise ValueError("No search results found. Please run search() first.")
 
+        _aoi_wkt = aoi_wkt or getattr(self.config, "intersectsWith", None)
         _sp_result = _select_pairs(
             self.active_results,
             dt_targets=dt_targets,
@@ -716,12 +734,20 @@ Check documentation for how to setup .netrc file.\n""")
             max_degree=max_degree,
             force_connect=force_connect,
             max_workers=max_workers,
+            avoid_low_quality_days=avoid_low_quality_days,
+            snow_threshold=snow_threshold,
+            precip_mm_threshold=precip_mm_threshold,
+            aoi_wkt=_aoi_wkt,
         )
-        pairs, baselines = _sp_result[0], _sp_result[1]
+        pairs      = _sp_result[0]
+        baselines  = _sp_result[1]
         scene_bperp: dict = _sp_result[2] if len(_sp_result) > 2 else {}
-        return pairs, baselines, scene_bperp
+        prefetch:   dict  = _sp_result[3] if len(_sp_result) > 3 else {}
+        return pairs, baselines, scene_bperp, prefetch
 
-    def download(self, save_path: str | None = None, max_workers: int = 3, stop_event=None, on_progress=None):
+    def download(self, save_path: str | None = None, max_workers: int = None, stop_event=None, on_progress=None):
+        from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
+        if max_workers is None: max_workers = _DL["max_workers"]
         """Download the search results to the specified output directory.
 
         Args:

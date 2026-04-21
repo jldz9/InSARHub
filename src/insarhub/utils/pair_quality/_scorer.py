@@ -22,20 +22,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-
-# ── Season helpers ────────────────────────────────────────────────────────────
-
-_SEASON_NH = {12: "winter", 1: "winter", 2: "winter",
-               3: "spring", 4: "spring", 5: "spring",
-               6: "summer", 7: "summer", 8: "summer",
-               9: "autumn", 10: "autumn", 11: "autumn"}
-
-_ADJACENT = {
-    frozenset({"winter", "spring"}),
-    frozenset({"spring", "summer"}),
-    frozenset({"summer", "autumn"}),
-    frozenset({"autumn", "winter"}),
-}
+from insarhub.utils.defaults import SEASON_NH as _SEASON_NH, SEASON_ADJACENT as _ADJACENT
 
 
 def _season(month: int, lat: float) -> str:

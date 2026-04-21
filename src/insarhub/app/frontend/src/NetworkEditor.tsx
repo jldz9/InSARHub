@@ -189,19 +189,23 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const [totalCount,  setTotalCount]  = useState(0)
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState('')
+  const [dbStatus,    setDbStatus]    = useState<'idle' | 'building' | 'ready'>('idle')
   const [hovEdge,     setHovEdge]     = useState<Edge | null>(null)
   const [hovNode,     setHovNode]     = useState<LayoutNode | null>(null)
   const [mousePos,    setMousePos]    = useState<{ x: number; y: number } | null>(null)
 
   // Pair-selection parameters (mirrors SelectPairs)
   const [paramsOpen,   setParamsOpen]   = useState(initParamsOpen)
-  const [dtTargets,    setDtTargets]    = useState('6, 12, 24, 36, 48, 72, 96')
-  const [dtTol,        setDtTol]        = useState(3)
-  const [dtMax,        setDtMax]        = useState(120)
-  const [pbMax,        setPbMax]        = useState(150)
-  const [minDegree,    setMinDegree]    = useState(3)
-  const [maxDegree,    setMaxDegree]    = useState(5)
-  const [forceConnect, setForceConnect] = useState(true)
+  const [dtTargets,           setDtTargets]           = useState('6, 12, 24, 36, 48, 72, 96')
+  const [dtTol,               setDtTol]               = useState(3)
+  const [dtMax,               setDtMax]               = useState(120)
+  const [pbMax,               setPbMax]               = useState(150)
+  const [minDegree,           setMinDegree]           = useState(3)
+  const [maxDegree,           setMaxDegree]           = useState(5)
+  const [forceConnect,        setForceConnect]        = useState(true)
+  const [avoidLowQuality,     setAvoidLowQuality]     = useState(true)
+  const [snowThreshold,       setSnowThreshold]       = useState(0.5)
+  const [precipMmThreshold,   setPrecipMmThreshold]   = useState(25.0)
   const [updating,     setUpdating]     = useState(false)
   const [updateMsg,    setUpdateMsg]    = useState('')
 
@@ -798,21 +802,40 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                   bperpDiff: Math.abs(src.bperp - tgt.bperp),
                 })
                 setTotalCount(edges.length)
-                // Look up precomputed quality score for the new pair from DB
+                // Look up precomputed quality score for the new pair from DB.
+                // If DB isn't ready yet, retry once the status shows complete.
                 const pairKey = `${src.id}:${tgt.id}`
                 const altKey  = `${tgt.id}:${src.id}`
-                fetch(`${API}/api/pair-quality-db/lookup?path=${encodeURIComponent(folderPathRef.current)}&pairs=${encodeURIComponent(pairKey)},${encodeURIComponent(altKey)}`)
+                const applyDragScore = (d: any) => {
+                  if (!d?.scores || Object.keys(d.scores).length === 0) return false
+                  manualScoresRef.current  = { ...manualScoresRef.current,  ...d.scores }
+                  manualFactorsRef.current = { ...manualFactorsRef.current, ...(d.factors ?? {}) }
+                  qualityRef.current = { ...(qualityRef.current ?? {}), ...d.scores }
+                  qualityFactorsRef.current = { ...(qualityFactorsRef.current ?? {}), ...(d.factors ?? {}) }
+                  setQualityScores(prev => ({ ...(prev ?? {}), ...d.scores }))
+                  setQualityFactors(prev => ({ ...(prev ?? {}), ...(d.factors ?? {}) }))
+                  redraw()
+                  return true
+                }
+                const lookupUrl = `${API}/api/pair-quality-db/lookup?path=${encodeURIComponent(folderPathRef.current)}&pairs=${encodeURIComponent(pairKey)},${encodeURIComponent(altKey)}`
+                fetch(lookupUrl)
                   .then(r => r.ok ? r.json() : null)
                   .then(d => {
-                    if (d?.scores && Object.keys(d.scores).length > 0) {
-                      manualScoresRef.current  = { ...manualScoresRef.current,  ...d.scores }
-                      manualFactorsRef.current = { ...manualFactorsRef.current, ...(d.factors ?? {}) }
-                      qualityRef.current = { ...(qualityRef.current ?? {}), ...d.scores }
-                      qualityFactorsRef.current = { ...(qualityFactorsRef.current ?? {}), ...(d.factors ?? {}) }
-                      setQualityScores(prev => ({ ...(prev ?? {}), ...d.scores }))
-                      setQualityFactors(prev => ({ ...(prev ?? {}), ...(d.factors ?? {}) }))
-                      redraw()
-                    }
+                    if (applyDragScore(d)) return
+                    // DB may still be building — poll status and retry once complete
+                    const poll = setInterval(() => {
+                      fetch(`${API}/api/pair-quality-db/status?path=${encodeURIComponent(folderPathRef.current)}`)
+                        .then(r => r.ok ? r.json() : null)
+                        .then(s => {
+                          if (!s?.complete) return
+                          clearInterval(poll)
+                          dbAvailableRef.current = true
+                          fetch(lookupUrl).then(r => r.ok ? r.json() : null).then(applyDragScore).catch(() => {})
+                        })
+                        .catch(() => clearInterval(poll))
+                    }, 3000)
+                    // Stop polling after 2 minutes regardless
+                    setTimeout(() => clearInterval(poll), 120_000)
                   })
                   .catch(() => {})
               }
@@ -965,11 +988,26 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       })
       .catch(() => {})
 
-    // Check if static DB file is ready (written synchronously by CLI)
-    fetch(`${API}/api/pair-quality-db/status?path=${encodeURIComponent(folderPath)}`)
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.exists && d?.complete) dbAvailableRef.current = true })
-      .catch(() => {})
+    // Check if the quality DB is ready; poll while it's still building
+    let pollTimer: ReturnType<typeof setInterval> | null = null
+    const checkDb = () => {
+      fetch(`${API}/api/pair-quality-db/status?path=${encodeURIComponent(folderPath)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => {
+          if (!d?.exists) { setDbStatus('idle'); return }
+          if (d.complete) {
+            dbAvailableRef.current = true
+            setDbStatus('ready')
+            if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
+          } else {
+            setDbStatus('building')
+          }
+        })
+        .catch(() => {})
+    }
+    checkDb()
+    pollTimer = setInterval(checkDb, 4000)
+    return () => { if (pollTimer) clearInterval(pollTimer) }
   }, [folderPath, redraw])
 
 
@@ -1003,6 +1041,9 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           dt_max: dtMax, pb_max: pbMax,
           min_degree: minDegree, max_degree: maxDegree,
           force_connect: forceConnect,
+          avoid_low_quality_days: avoidLowQuality,
+          snow_threshold: snowThreshold,
+          precip_mm_threshold: precipMmThreshold,
         }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -1015,8 +1056,30 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
         if (!jr.ok) throw new Error(`Job poll failed: HTTP ${jr.status}`)
         const job = await jr.json()
         if (job.message) setUpdateMsg(job.message)
-        if (job.status === 'failed' || job.status === 'error') throw new Error(job.error ?? 'Job failed')
-        if (job.status === 'done') break
+        if (job.status === 'failed' || job.status === 'error') throw new Error(job.error ?? job.message ?? 'Job failed')
+        if (job.status === 'done') {
+          // Kick off background DB polling before unblocking the UI
+          const dbJobIds: string[] = job.data?.db_job_ids ?? []
+          if (dbJobIds.length > 0) {
+            setDbStatus('building')
+            ;(async () => {
+              try {
+                await Promise.all(dbJobIds.map(async (dbId) => {
+                  while (true) {
+                    await new Promise(r => setTimeout(r, 2000))
+                    const r = await fetch(`${API}/api/jobs/${dbId}`)
+                    if (!r.ok) break
+                    const j = await r.json()
+                    if (j.status === 'done' || j.status === 'error') break
+                  }
+                }))
+              } finally {
+                setDbStatus('ready')
+              }
+            })()
+          }
+          break
+        }
       }
 
       setUpdateMsg('Refreshing network…')
@@ -1379,6 +1442,29 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                         style={{ accentColor: t.accent, width: 14, height: 14 }} />
                       Force connected network
                     </label>
+                    <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 10 }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: t.text, marginBottom: 8 }}>
+                        <input type="checkbox" checked={avoidLowQuality}
+                          onChange={e => setAvoidLowQuality(e.target.checked)}
+                          style={{ accentColor: t.accent, width: 14, height: 14 }} />
+                        Avoid low-quality acquisition days
+                        <span style={{ color: t.textMuted, fontSize: 10 }}>(fetches weather &amp; snow)</span>
+                      </label>
+                      {avoidLowQuality && (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginLeft: 20 }}>
+                          <div>
+                            <label style={lbl}>Snow cover threshold (0–1)</label>
+                            <input type="number" style={inp} value={snowThreshold} min={0} max={1} step={0.05}
+                              onChange={e => setSnowThreshold(parseFloat(e.target.value) || 0)} />
+                          </div>
+                          <div>
+                            <label style={lbl}>3-day precip threshold (mm)</label>
+                            <input type="number" style={inp} value={precipMmThreshold} min={0} step={5}
+                              onChange={e => setPrecipMmThreshold(parseFloat(e.target.value) || 0)} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   {/* footer */}
                   <div style={{
@@ -1755,10 +1841,36 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               <span>Scroll to zoom</span>
               <span>Right-drag to pan</span>
               {error && <span style={{ color: '#e53935', marginLeft: 'auto' }}>{error}</span>}
+              {!error && dbStatus === 'building' && (
+                <span style={{ color: '#ffc107', marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ffc107', animation: 'pulse 1.2s ease-in-out infinite' }} />
+                  Building DB…
+                </span>
+              )}
             </>
           )}
         </div>
       </div>
+
+      {/* ── DB build indicator — bottom-right corner ───────────────────────── */}
+      {dbStatus === 'building' && (
+        <div style={{
+          position: 'absolute', bottom: 36, right: 16,
+          background: 'rgba(20,28,44,0.92)',
+          border: '1px solid #ffc107',
+          borderRadius: 6, padding: '6px 12px',
+          display: 'flex', alignItems: 'center', gap: 8,
+          fontSize: 12, color: '#ffc107',
+          pointerEvents: 'none',
+          boxShadow: '0 2px 12px rgba(0,0,0,0.5)',
+        }}>
+          <span style={{
+            display: 'inline-block', width: 7, height: 7, borderRadius: '50%',
+            background: '#ffc107', animation: 'pulse 1.2s ease-in-out infinite',
+          }} />
+          Building pair database…
+        </div>
+      )}
     </div>
   )
 }

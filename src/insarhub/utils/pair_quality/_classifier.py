@@ -192,11 +192,11 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
     """Quality score with three-tier fallback chain.
 
     Tier 1 — AWS S3 coherence (``coherence_source == "s3"``)
-        Coherence itself becomes a penalty component (weight 0.50).  Reference
-        point γ = 0.50 (urban/bare-soil 12-day average in the Kellndorfer global
-        dataset).  Pairs at or above 0.50 incur no coherence penalty.  Environmental penalties (snow 0.25, precip 0.10+0.10,
-        freeze-thaw 0.05) are added on top.  Score is returned as an integer
-        in [0, 100] to distinguish it from coherence values (0–1).
+        Coherence penalty = shifted quadratic (weight 1.00): zero at γ ≥ 0.60,
+        full at γ ≤ 0.10, quadratic ramp between.
+        γ = 1.0 incurs no penalty; γ = 0.0 incurs full penalty.
+        Environmental penalties (snow 0.25, precip 0.75+0.75, freeze-thaw 0.05)
+        are added on top.  Score is returned as an integer in [0, 100].
 
     Tier 2 — NDVI / land-cover scoring (``coherence_source == "failed"``)
         S3 was unreachable.  Delegates to lc_score() which uses WorldCover
@@ -252,12 +252,14 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
         final        = 0
         coh_penalty  = snow_penalty = pr_penalty_d1 = pr_penalty_d2 = ft_penalty = 0.0
     else:
-        # ── Coherence penalty (weight 0.40) ───────────────────────────────────
-        # Reference point: γ = 0.50 — pairs at or above this incur no coherence
-        # penalty (urban/bare soil 12-day pairs typically land here).  Below 0.50
-        # the penalty rises linearly to 1.0 at γ = 0 (water / tropical forest).
-        _COH_REF = 0.50
-        coh_penalty = max(0.0, (_COH_REF - base) / _COH_REF)   # 0 at γ≥0.50, 1.0 at γ=0
+        # ── Coherence penalty (weight 1.00) ──────────────────────────────────
+        # Shifted quadratic: zero penalty above γ_good (0.60), full penalty at/
+        # below γ_min (0.10).  Avoids penalising usable pairs just for not being
+        # perfect — global S1 average at 12 days is 0.30–0.45, which is workable.
+        _GAMMA_GOOD = 0.60
+        _GAMMA_MIN  = 0.10
+        clamped     = max(0.0, min(1.0, (_GAMMA_GOOD - base) / (_GAMMA_GOOD - _GAMMA_MIN)))
+        coh_penalty = clamped ** 2
 
         # ── Snow penalty (weight 0.25) ────────────────────────────────────────
         # Use the worst single snow metric to avoid double-counting dates.
@@ -275,7 +277,7 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
 
         # ── Weighted sum → 0-100 score ────────────────────────────────────────
         total_penalty = (
-            0.40 * coh_penalty   +
+            1.00 * coh_penalty   +
             0.25 * snow_penalty  +
             0.75 * pr_penalty_d1 +
             0.75 * pr_penalty_d2 +
@@ -298,7 +300,7 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
         "coherence_segments":    fv.get("coherence_segments"),
         # Weighted penalty breakdown (each = weight × normalised feature)
         "penalties": {
-            "coherence":   round(0.40 * coh_penalty,   4),
+            "coherence":   round(1.00 * coh_penalty,   4),
             "snow":        round(0.25 * snow_penalty,   4),
             "precip_d1":   round(0.75 * pr_penalty_d1, 4),
             "precip_d2":   round(0.75 * pr_penalty_d2, 4),

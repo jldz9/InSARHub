@@ -3,6 +3,7 @@
 
 from typing import Any
 from pydantic import BaseModel, Field
+from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
 
 
 class SearchRequest(BaseModel):
@@ -93,15 +94,18 @@ class FolderDownloadRequest(BaseModel):
 
 
 class SelectPairsRequest(BaseModel):
-    folder_path:   str
-    dt_targets:    list[int] = Field(default=[6, 12, 24, 36, 48, 72, 96])
-    dt_tol:        int   = 3
-    dt_max:        int   = 120
-    pb_max:        float = 150.0
-    min_degree:    int   = 3
-    max_degree:    int   = 5
-    force_connect: bool  = True
-    max_workers:   int   = 4
+    folder_path:              str
+    dt_targets:               list[int] = Field(default_factory=lambda: list(_SP["dt_targets"]))
+    dt_tol:                   int   = _SP["dt_tol"]
+    dt_max:                   int   = _SP["dt_max"]
+    pb_max:                   float = _SP["pb_max"]
+    min_degree:               int   = _SP["min_degree"]
+    max_degree:               int   = _SP["max_degree"]
+    force_connect:            bool  = _SP["force_connect"]
+    max_workers:              int   = _SP["max_workers"]
+    avoid_low_quality_days:   bool  = _SP["avoid_low_quality_days"]
+    snow_threshold:           float = _SP["snow_threshold"]
+    precip_mm_threshold:      float = _SP["precip_mm_threshold"]
 
 
 class SavePairsRequest(BaseModel):

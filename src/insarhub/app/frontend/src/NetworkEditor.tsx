@@ -1063,18 +1063,22 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           if (dbJobIds.length > 0) {
             setDbStatus('building')
             ;(async () => {
+              let anyError = false
               try {
                 await Promise.all(dbJobIds.map(async (dbId) => {
                   while (true) {
                     await new Promise(r => setTimeout(r, 2000))
                     const r = await fetch(`${API}/api/jobs/${dbId}`)
-                    if (!r.ok) break
+                    if (!r.ok) { anyError = true; break }
                     const j = await r.json()
-                    if (j.status === 'done' || j.status === 'error') break
+                    if (j.status === 'error') { anyError = true; break }
+                    if (j.status === 'done') break
                   }
                 }))
+              } catch {
+                anyError = true
               } finally {
-                setDbStatus('ready')
+                setDbStatus(anyError ? 'error' : 'ready')
               }
             })()
           }
@@ -1846,6 +1850,9 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                   <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#ffc107', animation: 'pulse 1.2s ease-in-out infinite' }} />
                   Building DB…
                 </span>
+              )}
+              {!error && dbStatus === 'error' && (
+                <span style={{ color: '#e53935', marginLeft: 'auto' }}>DB build failed</span>
               )}
             </>
           )}

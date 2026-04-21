@@ -687,6 +687,29 @@ Check documentation for how to setup .netrc file.\n""")
         precip_mm_threshold: float = None,
         aoi_wkt: str | None = None,
     ) -> tuple:
+        """Compute interferogram pairs for all active stacks.
+
+        Args:
+            dt_targets (tuple, optional): Target temporal spacings in days. Defaults to (6, 12, 24, 36, 48, 72, 96).
+            dt_tol (int, optional): Tolerance in days around each target spacing. Defaults to 3.
+            dt_max (int, optional): Maximum temporal baseline in days. Defaults to 120.
+            pb_max (float, optional): Maximum perpendicular baseline in meters. Defaults to 150.0.
+            min_degree (int, optional): Minimum number of connections per scene. Defaults to 3.
+            max_degree (int, optional): Maximum number of connections per scene. Defaults to 5.
+            force_connect (bool, optional): Force connectivity for isolated scenes. Defaults to True.
+            max_workers (int, optional): Threads for API baseline fallback. Defaults to 4.
+            avoid_low_quality_days (bool, optional): Skip scenes with heavy snow or rain. Defaults to True.
+            snow_threshold (float, optional): MODIS snow fraction threshold to exclude a scene. Defaults to 0.5.
+            precip_mm_threshold (float, optional): 3-day precipitation threshold in mm to exclude a scene. Defaults to 25.0.
+            aoi_wkt (str, optional): AOI geometry in WKT for quality scoring. Defaults to search AOI.
+
+        Returns:
+            tuple: (pairs, baselines, scene_bperp, prefetch_cache)
+                - pairs: dict keyed by (path, frame) for multi-stack, or list for single stack
+                - baselines: temporal baselines
+                - scene_bperp: perpendicular baselines per scene
+                - prefetch_cache: coherence/weather cache dict for downstream use
+        """
         # None → pull from the single source of truth
         from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
         if dt_targets             is None: dt_targets             = _SP["dt_targets"]
@@ -700,24 +723,6 @@ Check documentation for how to setup .netrc file.\n""")
         if avoid_low_quality_days is None: avoid_low_quality_days = _SP["avoid_low_quality_days"]
         if snow_threshold         is None: snow_threshold         = _SP["snow_threshold"]
         if precip_mm_threshold    is None: precip_mm_threshold    = _SP["precip_mm_threshold"]
-        """Compute interferogram pairs for all active stacks.
-
-        Args:
-            dt_targets (tuple, optional): Target temporal spacings in days. Defaults to (6, 12, 24, 36, 48, 72, 96).
-            dt_tol (int, optional): Tolerance in days around each target spacing. Defaults to 3.
-            dt_max (int, optional): Maximum temporal baseline in days. Defaults to 120.
-            pb_max (float, optional): Maximum perpendicular baseline in meters. Defaults to 150.0.
-            min_degree (int, optional): Minimum number of connections per scene. Defaults to 3.
-            max_degree (int, optional): Maximum number of connections per scene. Defaults to 5.
-            force_connect (bool, optional): Force connectivity for isolated scenes. Defaults to True.
-            max_workers (int, optional): Threads for API baseline fallback. Defaults to 4.
-
-        Returns:
-            tuple: (pairs, baselines, scene_bperp)
-                - pairs: dict keyed by (path, frame) for multi-stack, or list for single stack
-                - baselines: temporal baselines
-                - scene_bperp: perpendicular baselines per scene
-        """
         from insarhub.utils.tool import select_pairs as _select_pairs
 
         if not hasattr(self, 'results'):

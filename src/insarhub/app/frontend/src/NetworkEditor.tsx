@@ -189,7 +189,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const [totalCount,  setTotalCount]  = useState(0)
   const [saving,      setSaving]      = useState(false)
   const [error,       setError]       = useState('')
-  const [dbStatus,    setDbStatus]    = useState<'idle' | 'building' | 'ready'>('idle')
+  const [dbStatus,    setDbStatus]    = useState<'idle' | 'building' | 'ready' | 'error'>('idle')
   const [hovEdge,     setHovEdge]     = useState<Edge | null>(null)
   const [hovNode,     setHovNode]     = useState<LayoutNode | null>(null)
   const [mousePos,    setMousePos]    = useState<{ x: number; y: number } | null>(null)

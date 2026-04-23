@@ -1093,9 +1093,14 @@ function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, 
   const [analyzerMsg,      setAnalyzerMsg]      = useState('')
   const [analyzerStat,     setAnalyzerStat]     = useState<'idle' | 'ok' | 'error'>('idle')
 
+  const isLocal = processorType === 'ISCE_InSAR'
+
   function loadFiles() {
     setLoading(true)
-    fetch(`${API}/api/folder-hyp3-jobs?path=${encodeURIComponent(folderPath)}`)
+    const endpoint = isLocal
+      ? `${API}/api/folder-local-jobs?path=${encodeURIComponent(folderPath)}`
+      : `${API}/api/folder-hyp3-jobs?path=${encodeURIComponent(folderPath)}`
+    fetch(endpoint)
       .then(r => r.json())
       .then(d => {
         const fs: Hyp3File[] = d.files ?? []
@@ -1153,7 +1158,8 @@ function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, 
     setActionStat('running')
     setActionProgress(0)
     setActionMsg(action === 'refresh' ? 'Refreshing…' : action === 'retry' ? 'Retrying…' : 'Downloading…')
-    fetch(`${API}/api/folder-hyp3-action`, {
+    const actionEndpoint = isLocal ? `${API}/api/folder-local-action` : `${API}/api/folder-hyp3-action`
+    fetch(actionEndpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ folder_path: folderPath, job_file: selected, action, processor_type: processorType }),
@@ -1198,7 +1204,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, 
       {loading ? (
         <span style={{ color: t.textMuted, fontSize: 11 }}>Loading…</span>
       ) : files.length === 0 ? (
-        <span style={{ color: t.textMuted, fontSize: 11 }}>No HyP3 job files found.</span>
+        <span style={{ color: t.textMuted, fontSize: 11 }}>{isLocal ? 'No ISCE job files found.' : 'No HyP3 job files found.'}</span>
       ) : (
         <>
           {/* File selector */}
@@ -1227,14 +1233,16 @@ function ProcessorPanel({ theme: t, folderPath, processorType, onFolderRefresh, 
             <button disabled={busy} onClick={() => runAction('retry')} style={btnStyle(false)}>
               Retry
             </button>
-            {currentAction === 'download' && actionStat === 'running' ? (
-              <button onClick={stopDownload} style={{ ...btnStyle(true), background: '#e53935', borderColor: '#e53935', color: '#fff' }}>
-                Stop
-              </button>
-            ) : (
-              <button disabled={busy} onClick={() => runAction('download')} style={btnStyle(true)}>
-                Download
-              </button>
+            {!isLocal && (
+              currentAction === 'download' && actionStat === 'running' ? (
+                <button onClick={stopDownload} style={{ ...btnStyle(true), background: '#e53935', borderColor: '#e53935', color: '#fff' }}>
+                  Stop
+                </button>
+              ) : (
+                <button disabled={busy} onClick={() => runAction('download')} style={btnStyle(true)}>
+                  Download
+                </button>
+              )
             )}
           </div>
 
@@ -1669,13 +1677,13 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
               minWidth: 16, textAlign: 'right', fontFamily: 'monospace',
             }}>{b.band}</span>
             <span style={{ fontSize: 10, color: t.text }}>{b.label}</span>
-            <span style={{ fontSize: 9, color: t.textMuted, marginLeft: 2 }}>— {b.desc}</span>
+            <span style={{ fontSize: 9, color: t.textMuted, marginLeft: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>— {b.desc}</span>
           </div>
         ))}
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         {loading ? (
           <span style={{ color: t.textMuted, fontSize: 11 }}>Loading…</span>
         ) : maps.length === 0 ? (
@@ -1693,7 +1701,7 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
             )
             return (
               <div key={`${entry.season}:${entry.pol}`} style={{
-                border: `1px solid ${t.border}`, borderRadius: 6, overflow: 'hidden',
+                border: `1px solid ${t.border}`, borderRadius: 6, overflow: 'hidden', flexShrink: 0,
               }}>
                 {/* Season header */}
                 <div style={{
@@ -1743,7 +1751,7 @@ function CohDecayMapsDrawer({ theme: t, folderPath, onClose, onRasterSelect, rig
                         <span style={{ marginLeft: 'auto', fontSize: 10, color: t.text, fontFamily: 'monospace' }}>
                           {s.mean.toFixed(key === 'tau' ? 0 : 3)}{unit}
                         </span>
-                        <span style={{ fontSize: 9, color: t.textMuted, fontFamily: 'monospace' }}>
+                        <span style={{ fontSize: 9, color: t.textMuted, fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                           [{s.min.toFixed(key === 'tau' ? 0 : 2)}–{s.max.toFixed(key === 'tau' ? 0 : 2)}{unit}]
                         </span>
                       </button>

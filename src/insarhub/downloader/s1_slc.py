@@ -17,7 +17,7 @@ class S1_SLC(ASF_Base_Downloader):
     """
     A class to search and download Sentinel-1 data using ASF Search API."""
 
-    def download(self, save_path: str | None = None, max_workers: int = None, force_asf: bool = False, download_orbit: bool = False, stop_event=None, on_progress=None):
+    def download(self, save_path: str | None = None, max_workers: int = None, force_cdse: bool = False, download_orbit: bool = False, stop_event=None, on_progress=None):
         from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
         if max_workers is None: max_workers = _DL["max_workers"]
         """Download SLC data and optionally associated orbit files.
@@ -25,54 +25,63 @@ class S1_SLC(ASF_Base_Downloader):
         Args:
             save_path (str | None): Optional path to save the downloaded files. Defaults to None.
             max_workers (int): Parallel download workers. Defaults to 3.
-            force_asf (bool): If True, forces downloading orbit files from ASF instead of CDSE. Defaults to False.
+            force_cdse (bool): If True, forces downloading orbit files from CDSE instead of ASF. Defaults to False.
             download_orbit (bool): If True, also downloads orbit files after scenes. Defaults to False.
             stop_event: Optional threading.Event to cancel the download.
             on_progress: Optional callback(message, pct) called after each file completes.
         """
         super().download(save_path=save_path, max_workers=max_workers, stop_event=stop_event, on_progress=on_progress)
         if download_orbit:
-            self.download_orbit(force_asf=force_asf)
+            self.download_orbit(force_cdse=force_cdse)
 
-    def download_orbit(self, force_asf: bool = False, save_dir: str | None = None, stop_event=None):
+    def download_orbit(self, force_cdse: bool = False, save_dir: str | None = None,
+                       stop_event=None, scenes=None):
         """Download orbit files for the current search results.
 
-        Orbit files can be downloaded from ASF or Copernicus Data Space Ecosystem (CDSE).
-        CDSE typically releases orbit files earlier. Users will be prompted for CDSE credentials
-        if not already configured in a `.netrc` file.
+        Downloads from ASF by default (no credentials required).  Pass
+        ``force_cdse=True`` to use the Copernicus Data Space Ecosystem (CDSE)
+        server instead — CDSE typically publishes precise orbits a few hours
+        earlier but requires an account at https://dataspace.copernicus.eu/
+        configured in your ``.netrc`` file.
 
         Args:
-            force_asf (bool): If True, forces downloading from ASF instead of CDSE. Defaults to False.
+            force_cdse (bool): Use CDSE instead of ASF. Defaults to False.
             save_dir (str | None): Directory to save orbit files. Defaults to workdir if not specified.
+            scenes: Restrict to a subset of scenes. Accepts scene name strings, or the
+                direct output of ``select_pairs()`` (list or dict). Same format as
+                ``download(scenes=...)``. When ``None`` all scenes get orbit files.
         """
-        print("""
-Orbit files can be downloaded from both ASF and Copernicus Data Space Ecosystem (CDSE) servers. Generally CDSE release orbit files a few hours to days earlier.
-To download orbit file from Copernicus Data Space Ecosystem(CDSE). Please ensure you to create an account at https://dataspace.copernicus.eu/ and setup in the .netrc file.
-If a .netrc file is not provide under your home directory, you will be prompt to enter your CDSE username and password.
-Check documentation for how to setup .netrc file.
-If CDSE download fails, ASF will be attempted as a fallback.""")
+        use_asf = not force_cdse
+        print(f"Downloading orbit files from {'ASF' if use_asf else 'CDSE'}…")
 
-        self._has_cdse_netrc = self._check_netrc(keyword='machine dataspace.copernicus.eu')
-        if self._has_cdse_netrc:
-            print(f"{Fore.GREEN}Credential from .netrc was found for authentication.\n")
-        else:
-            while True:
-                self._cdse_username = input("Enter your CDSE username: ")
-                self._cdse_password = getpass.getpass("Enter your CDSE password: ")
-                if not self._check_cdse_credentials(self._cdse_username, self._cdse_password):
-                    print(f"{Fore.RED}Authentication failed. Please check your credentials and try again.\n")
-                    continue
-                else:
-                    print(f"{Fore.GREEN}Authentication successful.\n")
+        if force_cdse:
+            self._has_cdse_netrc = self._check_netrc(keyword='machine dataspace.copernicus.eu')
+            if self._has_cdse_netrc:
+                print(f"{Fore.GREEN}CDSE credentials found in .netrc.\n")
+            else:
+                while True:
+                    self._cdse_username = input("Enter your CDSE username: ")
+                    self._cdse_password = getpass.getpass("Enter your CDSE password: ")
+                    if not self._check_cdse_credentials(self._cdse_username, self._cdse_password):
+                        print(f"{Fore.RED}Authentication failed. Please check your credentials and try again.\n")
+                        continue
                     netrc_path = Path.home().joinpath(".netrc")
                     cdse_entry = f"\nmachine dataspace.copernicus.eu\n    login {self._cdse_username}\n    password {self._cdse_password}\n"
                     with open(netrc_path, 'a') as f:
                         f.write(cdse_entry)
-                    print(f"{Fore.GREEN}Credentials saved to {netrc_path}. You can now download orbit from CDSE without entering credentials again.\n")
+                    print(f"{Fore.GREEN}Credentials saved to {netrc_path}.\n")
                     break
 
+        from insarhub.downloader.asf_base import _parse_scene_filter
+        scene_filter = _parse_scene_filter(scenes)
+
         base_dir = Path(save_dir) if save_dir else (getattr(self, 'download_dir', None) or Path(getattr(self.config, 'workdir', None) or Path.cwd()))
-        all_items = [(key, result) for key, results in self.results.items() for result in results]  # type: ignore[union-attr]
+        all_items = [
+            (key, result)
+            for key, results in self.results.items()  # type: ignore[union-attr]
+            for result in results
+            if scene_filter is None or result.properties['sceneName'] in scene_filter
+        ]
         with tqdm(all_items, desc="Orbit files", unit="scene", bar_format="{l_bar}{bar:20}{r_bar}") as pbar:
             for key, result in pbar:
                 if stop_event is not None and stop_event.is_set():
@@ -97,12 +106,12 @@ If CDSE download fails, ASF will be attempted as a fallback.""")
                 pbar.set_postfix_str(f"fetch {short_name}")
                 _save = download_path.as_posix()
                 try:
-                    info = download_eofs(sentinel_file=scene_name, save_dir=_save, force_asf=force_asf)
+                    info = download_eofs(sentinel_file=scene_name, save_dir=_save, force_asf=use_asf)
                 except Exception as e:
-                    if not force_asf:
-                        pbar.set_postfix_str(f"CDSE fail, try ASF {short_name}")
+                    if use_asf:
+                        pbar.set_postfix_str(f"ASF fail, try CDSE {short_name}")
                         try:
-                            info = download_eofs(sentinel_file=scene_name, save_dir=_save, force_asf=True)
+                            info = download_eofs(sentinel_file=scene_name, save_dir=_save, force_asf=False)
                         except Exception as e2:
                             tqdm.write(f"{Fore.RED}[ERROR] {scene_name}: {e2}")
                             info = []

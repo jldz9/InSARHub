@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import requests
 import time
 import logging
 import zipfile
@@ -65,7 +67,7 @@ def write_workflow_marker(workdir: Path, **roles: str) -> None:
 
     Each keyword argument is a role→class-name pair, e.g.::
 
-        write_workflow_marker(self.output_dir, processor="Hyp3_InSAR")
+        write_workflow_marker(self.output_dir, processor="Hyp3_S1")
         write_workflow_marker(self.workdir,    analyzer="Hyp3_SBAS")
 
     Existing entries are preserved so the file accumulates as the pipeline runs.
@@ -337,6 +339,47 @@ def _build_baseline_table(
 
     return B, scene_bperp
 
+
+def _download_isce_stacktool(base: Path) -> Path:
+    """Download topsStack from GitHub into ``{base}/share/isce2/topsStack/``.
+
+    Args:
+        base: The ISCE2 environment root (e.g. the conda env prefix or ISCE_HOME).
+
+    Returns:
+        Path to the downloaded ``stackSentinel.py``.
+
+    Raises:
+        RuntimeError: If the GitHub API is unreachable or the download fails.
+    """
+    target_dir = Path(base) / "components" / "contrib" / "stack" / "topsStack"
+    target_dir = target_dir.expanduser().resolve()
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    api_url = "https://api.github.com/repos/isce-framework/isce2/contents/contrib/stack/topsStack"
+    headers = {"User-Agent": "insarhub/1.0"}
+
+    print(f"  topsStack not found — downloading from GitHub into {target_dir} …")
+    response = requests.get(api_url, headers=headers)
+    if response.status_code != 200:
+        raise RuntimeError(
+            f"GitHub API returned status {response.status_code}. "
+            "Check your internet connection or download topsStack manually from "
+            "https://github.com/isce-framework/isce2/tree/main/contrib/stack/topsStack"
+        )
+
+    files_to_download = [item for item in response.json() if item["type"] == "file"]
+    for file_info in tqdm(files_to_download, desc="Downloading topsStack", unit="file"):
+        file_data = requests.get(file_info["download_url"], headers=headers).content
+        (target_dir / file_info["name"]).write_bytes(file_data)
+
+    sentinel = target_dir / "stackSentinel.py"
+    if not sentinel.exists():
+        raise RuntimeError(
+            f"Download completed but stackSentinel.py not found in {target_dir}."
+        )
+    print(f"  topsStack ready → {target_dir}")
+    return sentinel
 
 def _enforce_connectivity(
     pairs: set[Pair],
@@ -1400,7 +1443,7 @@ def earth_credit_pool(earthdata_credentials_pool_path = Path.home().joinpath('.c
             earthdata_credentials_pool[key] = value
     return earthdata_credentials_pool
 
-def clip_hyp3_insar(workdir: Path | str, aoi: list[float] | str | Path, file_suffixes=None):
+def clip_hyp3_s1(workdir: Path | str, aoi: list[float] | str | Path, file_suffixes=None):
     """
     Clips Hyp3 zip contents to an AOI and saves them in a MintPy-ready structure.
     

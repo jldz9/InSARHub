@@ -22,9 +22,11 @@ _log = logging.getLogger(__name__)
 
 # ── Trigger auto-registration of all components ──────────────────────────────
 import insarhub.downloader.s1_slc       # noqa: F401
-import insarhub.processor.hyp3_insar    # noqa: F401
+import insarhub.processor.hyp3_s1    # noqa: F401
+import insarhub.processor.isce_s1    # noqa: F401
 import insarhub.analyzer.hyp3_sbas      # noqa: F401
 import insarhub.analyzer.mintpy_base    # noqa: F401
+import insarhub.analyzer.isce_sbas      # noqa: F401
 
 from insarhub.core.registry import Downloader, Processor, Analyzer
 

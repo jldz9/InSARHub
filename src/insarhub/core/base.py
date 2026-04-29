@@ -85,7 +85,7 @@ class BaseDownloader(ABC):
             a = Downloader.create('S1_SLC')
             a.pipeline()
             # S1_SLC
-            # └─ Hyp3_InSAR
+            # └─ Hyp3_S1
             #    ├─ Hyp3_SBAS
             #    └─ Mintpy_SBAS_Base_Analyzer
         """
@@ -119,7 +119,17 @@ class BaseDownloader(ABC):
         print('\n'.join(lines))
 
 
-class ISCEProcessor(ABC):
+class LocalProcessor(ABC):
+    """Abstract base class for local (on-machine) processing backends.
+
+    Mirrors the Hyp3Processor interface so local processors feel identical
+    from the user's perspective: submit jobs, refresh status, retry failures,
+    watch until done, save/load job state, collect outputs.
+
+    Subclasses that define a non-empty ``name`` attribute are automatically
+    registered in the Processor registry.
+    """
+
     name: str
     default_config: Optional[Type] = None
 
@@ -131,13 +141,28 @@ class ISCEProcessor(ABC):
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # 1. Handle Registration (The Recruiter)
         from .registry import Processor
         if hasattr(cls, "name") and cls.name:
             Processor.register(cls)
 
     @abstractmethod
-    def run(self) -> Any:
+    def submit(self, *args, **kwargs) -> Any:
+        pass
+
+    @abstractmethod
+    def refresh(self, *args, **kwargs) -> Any:
+        pass
+
+    @abstractmethod
+    def retry(self, *args, **kwargs) -> Any:
+        pass
+
+    @abstractmethod
+    def watch(self, *args, **kwargs) -> Any:
+        pass
+
+    @abstractmethod
+    def save(self, *args, **kwargs) -> Any:
         pass
 
 class Hyp3Processor(ABC):

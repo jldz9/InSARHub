@@ -25,6 +25,35 @@ from insarhub.core.base import BaseDownloader
 from insarhub.config import ASF_Base_Config
 from insarhub.utils.tool import _to_wkt
 
+def _parse_scene_filter(scenes) -> set[str] | None:
+    """Return a set of scene name strings, or None meaning 'no filter'.
+
+    Accepts:
+    - None                              → no filter
+    - set / list of scene name strings  → use as-is
+    - list[[ref, sec], ...]             → single-stack select_pairs output
+    - dict{(path,frame): [[ref,sec]]}   → multi-stack select_pairs output
+    """
+    if scenes is None:
+        return None
+    if isinstance(scenes, dict):
+        # multi-stack pairs dict
+        return {str(s) for v in scenes.values() for pair in v for s in pair}
+    if isinstance(scenes, (set, frozenset)):
+        return set(scenes)
+    if isinstance(scenes, (list, tuple)):
+        if not scenes:
+            return set()
+        first = scenes[0]
+        if isinstance(first, str):
+            # plain list of scene names
+            return set(scenes)
+        if isinstance(first, (list, tuple)):
+            # single-stack pairs list
+            return {str(s) for pair in scenes for s in pair}
+    return set(str(s) for s in scenes)
+
+
 class ASF_Base_Downloader(BaseDownloader):
     """
     Simplify searching and downloading satellite data using ASF Search API.
@@ -750,20 +779,27 @@ Check documentation for how to setup .netrc file.\n""")
         prefetch:   dict  = _sp_result[3] if len(_sp_result) > 3 else {}
         return pairs, baselines, scene_bperp, prefetch
 
-    def download(self, save_path: str | None = None, max_workers: int = None, stop_event=None, on_progress=None):
-        from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
-        if max_workers is None: max_workers = _DL["max_workers"]
-        """Download the search results to the specified output directory.
+    def download(self, save_path: str | None = None, max_workers: int = None,
+                 stop_event=None, on_progress=None,
+                 scenes=None):
+        """Download search results to the specified output directory.
 
         Args:
-            save_path (str, optional): Download path. If None, uses config.workdir.
-                Defaults to None.
-            max_workers (int, optional): Number of concurrent downloads. 3-5 recommended
-                for ASF. Set to 1 to disable multithreading. Defaults to 3.
+            save_path (str, optional): Download path. Defaults to config.workdir.
+            max_workers (int, optional): Concurrent downloads (3–5 recommended). Defaults to 3.
+            scenes: Restrict download to a subset of scenes. Accepts any of:
+                - ``list | set`` of scene name strings
+                - The direct output of ``select_pairs()`` — either a
+                  ``list[[ref, sec], ...]`` (single-stack) or a
+                  ``dict{(path, frame): [[ref, sec], ...]}`` (multi-stack).
+                  Unique scene names are extracted automatically.
+                  When ``None`` (default) all search results are downloaded.
 
         Raises:
             ValueError: If no search results are available.
         """
+        from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
+        if max_workers is None: max_workers = _DL["max_workers"]
         import json as _json
         from concurrent.futures import ThreadPoolExecutor, as_completed
         from insarhub.utils.tool import write_workflow_marker
@@ -779,15 +815,20 @@ Check documentation for how to setup .netrc file.\n""")
             stop_event = threading.Event()
         _cfg_base = {k: v for k, v in asdict(self.config).items() if k != 'workdir'}
 
+        scene_filter = _parse_scene_filter(scenes)
+
         jobs = []
+        stack_paths: dict = {}
         for key, results in self.active_results.items():
             download_path = self.download_dir / f'p{key[0]}_f{key[1]}'
             download_path.mkdir(parents=True, exist_ok=True)
+            stack_paths[key] = download_path
             write_workflow_marker(download_path, downloader=type(self).name)
             _cfg = {**_cfg_base, 'relativeOrbit': key[0], 'frame': key[1]}
             (download_path / "downloader_config.json").write_text(_json.dumps(_cfg, indent=2, default=str))
             for result in results:
-                jobs.append((key, result, download_path))
+                if scene_filter is None or result.properties['sceneName'] in scene_filter:
+                    jobs.append((key, result, download_path))
         
         total_jobs   = len(jobs)
         success_count = 0
@@ -797,9 +838,12 @@ Check documentation for how to setup .netrc file.\n""")
         active_files: dict[int, Path] = {}
         active_files_lock = threading.Lock()
 
-        print(f"Downloading {total_jobs} scenes across "
-          f"{len(self.active_results)} stacks "
-          f"({max_workers} concurrent)...\n")
+        total_scenes = sum(len(v) for v in self.active_results.values())
+        filter_note  = (f" (filtered to {total_jobs} of {total_scenes})"
+                        if scene_filter is not None and total_jobs != total_scenes else "")
+        print(f"Downloading {total_jobs} scene(s) across "
+              f"{len(self.active_results)} stack(s)"
+              f"{filter_note} ({max_workers} concurrent)...\n")
         
         def _stream_download_interruptible(url, file_path, expected_bytes, 
                                         pbar_position, scene_name):
@@ -966,4 +1010,9 @@ Check documentation for how to setup .netrc file.\n""")
             print(f"\nFailed files:")
             for f in failed_files:
                 print(f"  {Fore.RED}- {f}")
-        print(f"\nFiles saved to: {self.download_dir}")
+        if len(stack_paths) == 1:
+            print(f"\nFiles saved to: {next(iter(stack_paths.values()))}")
+        else:
+            print(f"\nFiles saved to:")
+            for key, p in stack_paths.items():
+                print(f"  path={key[0]} frame={key[1]}: {p}")

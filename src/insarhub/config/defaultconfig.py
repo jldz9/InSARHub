@@ -253,7 +253,7 @@ class Hyp3_Base_Config:
 
 
 @dataclass
-class Hyp3_InSAR_Config(Hyp3_Base_Config):
+class Hyp3_S1_Config(Hyp3_Base_Config):
     """
     Configuration options for `hyp3_sdk` InSAR GAMMA processing jobs.
 
@@ -334,7 +334,7 @@ class Hyp3_InSAR_Config(Hyp3_Base_Config):
     }
     # ─────────────────────────────────────────────────────────────────────────
 
-    name: str = "Hyp3_InSAR_Config"
+    name: str = "Hyp3_S1_Config"
     pairs: list[tuple[str, str]] | None = None
     name_prefix: str | None = 'ifg'
     include_look_vectors:bool=True
@@ -879,4 +879,191 @@ class Hyp3_SBAS_Config(Mintpy_SBAS_Base_Config):
     network_minCoherence : str| float = 0.7
     plot : str = 'yes'
     save_kmz: str = 'no'
+
+
+@dataclass
+class ISCE_S1_Config:
+    """Configuration for the ISCE2 stackSentinel time-series processor.
+
+    stackSentinel.py generates a set of numbered run scripts from all SLC files
+    in slc_dir, then InSARHub executes them sequentially while parallelising the
+    independent commands within each step.
+
+    Attributes:
+        workdir: Processing root.  All outputs (run_files/, merged/, etc.) live here.
+        slc_dir: Directory containing all Sentinel-1 SLC .SAFE files (or .zips).
+        orbit_dir: Directory with .EOF orbit files.  Created automatically if absent.
+        aux_dir: Directory with Sentinel-1 AUX_CAL files.  Defaults to workdir/aux;
+            ISCE2 downloads missing files there on first run.
+        dem_path: ISCE2-binary DEM (dem.wgs84 + .xml sidecar).  When None, GLO-30
+            is pre-downloaded using bbox.
+        isce_home: ISCE2 installation root.  Falls back to $ISCE_HOME env var.
+        bbox: Area of interest as [S, N, W, E] degrees.  Required when dem_path is None.
+        num_overlap_connections: Connections used for NESD azimuth coregistration.
+        reference_date: Stack reference date YYYYMMDD.  None = stackSentinel auto-selects.
+        coregistration: 'NESD' (default, more accurate) or 'geometry' (faster).
+        max_workers: Parallel commands within each run step.
+    """
+
+    _ui_groups: ClassVar[list] = [
+        {"label": "Paths",
+         "fields": ["workdir", "slc_dir", "orbit_dir", "aux_dir", "dem_path", "isce_home"]},
+        {"label": "Network",
+         "fields": ["num_overlap_connections", "reference_date",
+                    "start_date", "end_date", "exclude_dates", "include_dates"]},
+        {"label": "Area of interest",
+         "fields": ["bbox", "swath_num"]},
+        {"label": "Coregistration",
+         "fields": ["coregistration", "esd_coherence_threshold", "snr_misreg_threshold"]},
+        {"label": "Interferogram",
+         "fields": ["workflow", "looks_range", "looks_azimuth", "filter_strength",
+                    "rm_filter", "polarization", "unw_method", "virtual_merge"]},
+        {"label": "Ionosphere",
+         "fields": ["param_ion", "num_connections_ion"]},
+        {"label": "Compute",
+         "fields": ["use_gpu", "num_proc", "num_proc4topo", "text_cmd"]},
+        {"label": "Job",
+         "fields": ["max_workers", "skip_existing"]},
+    ]
+    _ui_fields: ClassVar[dict] = {
+        "workdir":                  {"type": "text", "hint": "Processing root directory"},
+        "slc_dir":                  {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files"},
+        "orbit_dir":                {"type": "text", "hint": "Directory with .EOF orbit files"},
+        "aux_dir":                  {"type": "text", "hint": "Directory with AUX_CAL files (leave blank to auto-download)"},
+        "dem_path":                 {"type": "text", "hint": "ISCE2-format DEM path (leave blank to download GLO-30 using bbox)"},
+        "isce_home":                {"type": "text", "hint": "ISCE2 installation root (or set $ISCE_HOME)"},
+        "bbox":                     {"type": "text", "hint": "Bounding box S N W E, e.g. 33.0 38.0 -120.0 -115.0"},
+        "swath_num":                {"type": "text", "hint": "Subswaths to process, e.g. '1 2 3' or '1 2'"},
+        "num_overlap_connections":  {"type": "number", "min": 1, "max": 10, "step": 1, "default": 3,
+                                     "hint": "Connections for NESD azimuth coregistration"},
+        "reference_date":           {"type": "text", "hint": "Reference date YYYYMMDD (leave blank for auto)"},
+        "start_date":               {"type": "text", "hint": "Start date YYYY-MM-DD (leave blank for all)"},
+        "end_date":                 {"type": "text", "hint": "End date YYYY-MM-DD (leave blank for all)"},
+        "exclude_dates":            {"type": "text", "hint": "Comma-separated dates to exclude, e.g. 20200102,20200126"},
+        "include_dates":            {"type": "text", "hint": "Comma-separated dates to include (all others excluded)"},
+        "coregistration":           {"type": "select", "options": ["NESD", "geometry"],
+                                     "hint": "NESD = geometry + ESD refinement (recommended); geometry = orbit-only (faster)"},
+        "esd_coherence_threshold":  {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.85,
+                                     "hint": "Min coherence in burst overlaps for ESD azimuth estimation"},
+        "snr_misreg_threshold":     {"type": "number", "min": 1, "max": 30, "step": 1, "default": 10,
+                                     "hint": "Min SNR for range misregistration cross-correlation"},
+        "looks_range":              {"type": "number", "min": 1, "max": 100, "step": 1, "default": 20,
+                                     "hint": "Range looks"},
+        "looks_azimuth":            {"type": "number", "min": 1, "max": 20,  "step": 1, "default": 4,
+                                     "hint": "Azimuth looks"},
+        "filter_strength":          {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.5,
+                                     "hint": "Goldstein filter strength"},
+        "polarization":             {"type": "select", "options": ["vv", "vh"],
+                                     "hint": "Polarization channel"},
+        "unw_method":               {"type": "select", "options": ["snaphu", "icu"],
+                                     "hint": "Phase unwrapping algorithm"},
+        "workflow":                 {"type": "select",
+                                     "options": ["interferogram", "slc", "offset",
+                                                 "correlation", "dense_offsets", "ionosphere"],
+                                     "hint": "Processing workflow type"},
+        "rm_filter":                {"type": "bool",
+                                     "hint": "Remove interferometric filter before unwrapping"},
+        "virtual_merge":            {"type": "select", "options": ["", "True", "False"],
+                                     "hint": "Virtual burst merging (leave blank to use ISCE2 default)"},
+        "param_ion":                {"type": "text",
+                                     "hint": "Path to ionosphere parameter file (leave blank to skip)"},
+        "num_connections_ion":      {"type": "number", "min": 1, "max": 10, "step": 1, "default": 3,
+                                     "hint": "Interferogram connections for ionosphere estimation"},
+        "use_gpu":                  {"type": "bool",
+                                     "hint": "Use CUDA GPU acceleration (requires ISCE2 GPU build)"},
+        "num_proc":                 {"type": "number", "min": 1, "max": 32, "step": 1, "default": 1,
+                                     "hint": "Parallel processes per ISCE step (most steps benefit from 1–4)"},
+        "num_proc4topo":            {"type": "number", "min": 1, "max": 32, "step": 1, "default": 1,
+                                     "hint": "Parallel processes for the topo step specifically"},
+        "text_cmd":                 {"type": "text",
+                                     "hint": "Command prefix for each run-script line, e.g. 'mpirun -np 4'"},
+        "max_workers":              {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
+                                     "hint": "Parallel commands within each run step"},
+        "skip_existing":            {"type": "bool",
+                                     "hint": "Skip steps that already completed successfully"},
+    }
+
+    name: str                             = "ISCE_S1_Config"
+    workdir: Path | str                   = field(default_factory=lambda: Path.cwd())
+    slc_dir: Path | str                   = field(default_factory=lambda: Path.cwd())
+    orbit_dir: Path | str | None          = None
+    aux_dir: Path | str | None            = None
+    dem_path: Path | str | None           = None
+    isce_home: Path | str | None          = None
+    saved_job_path: Path | str | None     = None
+    # Area / dates
+    bbox: list[float] | None              = None   # [S, N, W, E]
+    swath_num: str                        = "1 2 3"
+    start_date: str | None                = None   # YYYY-MM-DD
+    end_date: str | None                  = None
+    exclude_dates: str | None             = None   # comma-separated YYYYMMDD
+    include_dates: str | None             = None
+    # Network
+    num_overlap_connections: int          = 3
+    reference_date: str | None            = None   # YYYYMMDD
+    # Coregistration
+    coregistration: str                   = "NESD"
+    esd_coherence_threshold: float        = 0.85
+    snr_misreg_threshold: float           = 10.0
+    # Interferogram
+    looks_range: int                      = 20
+    looks_azimuth: int                    = 4
+    filter_strength: float                = 0.5
+    polarization: str                     = "vv"
+    unw_method: str                       = "snaphu"
+    workflow: str                         = "interferogram"
+    rm_filter: bool                       = False
+    virtual_merge: str | None             = None   # "True" | "False" | None (ISCE2 default)
+    # Ionosphere
+    param_ion: str | None                 = None
+    num_connections_ion: int              = 3
+    # Compute
+    use_gpu: bool                         = False
+    num_proc: int                         = 1
+    num_proc4topo: int                    = 1
+    text_cmd: str                         = ""
+    # Job control
+    max_workers: int                      = 4
+    skip_existing: bool                   = True
+    submission_chunk_size: int            = 1
+
+    def __post_init__(self):
+        for attr in ("workdir", "slc_dir", "orbit_dir", "aux_dir", "dem_path", "isce_home",
+                     "saved_job_path"):
+            val = getattr(self, attr)
+            if isinstance(val, str):
+                setattr(self, attr, Path(val).expanduser().resolve())
+
+
+@dataclass
+class ISCE_SBAS_Config(Mintpy_SBAS_Base_Config):
+    """MintPy SBAS config pre-wired for ISCE2 topsApp outputs.
+
+    File paths are set automatically by ``ISCE_SBAS.prep_data()`` based on
+    the pair directories found in ``workdir``.  You can override any field
+    manually if your directory layout differs.
+    """
+    name: str                         = "ISCE_SBAS_Config"
+    load_processor: str               = "isce"
+    # These are populated by ISCE_SBAS.prep_data() — left empty here so
+    # write_mintpy_config() skips them when they are still unset.
+    load_metaFile: str                = "auto"
+    load_baselineDir: str             = "auto"
+    load_unwFile: str                 = "auto"
+    load_corFile: str                 = "auto"
+    load_connCompFile: str            = "auto"
+    load_demFile: str                 = "auto"
+    load_lookupYFile: str             = "auto"
+    load_lookupXFile: str             = "auto"
+    load_incAngleFile: str            = "auto"
+    load_azAngleFile: str             = "auto"
+    load_waterMaskFile: str           = "auto"
+    deramp: str                       = "linear"
+    troposphericDelay_method: str     = "pyaps"
+    networkInversion_maskDataset: str = "coherence"
+    networkInversion_maskThreshold: str | float = 0.5
+    network_coherenceBased: str       = "yes"
+    network_minCoherence: str | float = 0.7
+    plot: str                         = "yes"
+    save_kmz: str                     = "no"
 

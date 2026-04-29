@@ -1,16 +1,16 @@
 from colorama import Fore
 from tqdm import tqdm
 
-from insarhub.config import Hyp3_InSAR_Config
+from insarhub.config import Hyp3_S1_Config
 from insarhub.processor.hyp3_base import Hyp3Base 
 
 
-class Hyp3_InSAR(Hyp3Base):
-    name = "Hyp3_InSAR"
+class Hyp3_S1(Hyp3Base):
+    name = "Hyp3_S1"
     description = "HyP3 InSAR GAMMA processing. Produces geocoded interferograms from Sentinel-1 SLC pairs."
     compatible_downloader = "S1_SLC"
-    default_config = Hyp3_InSAR_Config
-    def __init__(self, config: Hyp3_InSAR_Config | None = None):
+    default_config = Hyp3_S1_Config
+    def __init__(self, config: Hyp3_S1_Config | None = None):
         super().__init__(config)
         # Fetch InSAR specific cost table
         try:

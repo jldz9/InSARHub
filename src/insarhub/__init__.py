@@ -80,7 +80,7 @@ from .core.registry import (
 
 from .core.base import (
     BaseDownloader,
-    ISCEProcessor,
+    LocalProcessor,
     Hyp3Processor,
     BaseAnalyzer,
 )
@@ -99,14 +99,15 @@ from .downloader import (
 )
 
 from .processor import (
-    Hyp3_InSAR
+    Hyp3_S1,
+    ISCE_S1,
 )
 
 from .analyzer import (
     Mintpy_SBAS_Base_Analyzer,
     Hyp3_SBAS,
-    Hyp3_SBAS_Config
-    
+    Hyp3_SBAS_Config,
+    ISCE_SBAS,
 )
 
 from .downloader.s1_slc import S1_SLC_Config
@@ -119,7 +120,7 @@ from .utils import (
 
 __all__ = [
     "BaseDownloader",
-    "ISCEProcessor",
+    "LocalProcessor",
     "Hyp3Processor",
     "BaseAnalyzer",
     "Downloader",
@@ -129,7 +130,7 @@ __all__ = [
     "ASF_Base_Downloader",
     "S1_SLC",
     "S1_SLC_Config",
-    "Hyp3_InSAR", 
+    "Hyp3_S1", 
     "Mintpy_SBAS_Base_Config",
     "Mintpy_SBAS_Base_Analyzer",
     "Hyp3_SBAS",

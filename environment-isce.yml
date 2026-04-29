@@ -5,6 +5,7 @@ dependencies:
     - python >=3.11,<3.13
     - gdal >=3.8
     - mintpy
+    - isce2
     - pip
     - pip:
         - rasterio
@@ -20,4 +21,3 @@ dependencies:
         - openpyxl
         - python-multipart
         - numpy <2.0
-        

@@ -68,7 +68,7 @@ class TestRegistry:
     def test_processor_registry(self):
         from insarhub import Processor
         available = Processor.available()
-        assert "Hyp3_InSAR" in available
+        assert "Hyp3_S1" in available
 
     def test_analyzer_registry(self):
         from insarhub import Analyzer
@@ -96,9 +96,9 @@ class TestConfigs:
         cfg = S1_SLC_Config()
         assert cfg.dataset == "SENTINEL-1"
 
-    def test_hyp3_insar_config_defaults(self):
-        from insarhub.config import Hyp3_InSAR_Config
-        cfg = Hyp3_InSAR_Config()
+    def test_hyp3_s1_config_defaults(self):
+        from insarhub.config import Hyp3_S1_Config
+        cfg = Hyp3_S1_Config()
         assert cfg.looks in ("20x4", "10x2", "5x1")
 
     def test_hyp3_sbas_config_defaults(self):
@@ -197,9 +197,9 @@ class TestUtils:
         from insarhub.utils.postprocess import save_footprint
         assert callable(save_footprint)
 
-    def test_clip_hyp3_insar_importable(self):
-        from insarhub.utils.tool import clip_hyp3_insar
-        assert callable(clip_hyp3_insar)
+    def test_clip_hyp3_s1_importable(self):
+        from insarhub.utils.tool import clip_hyp3_s1
+        assert callable(clip_hyp3_s1)
 
 
 # ===========================================================================
@@ -260,7 +260,7 @@ class TestCLI:
 
     def test_processor_list(self):
         _, out, _ = run_cli("processor", "--list-processors")
-        assert "Hyp3_InSAR" in out
+        assert "Hyp3_S1" in out
 
     def test_analyzer_help(self):
         rc, out, _ = run_cli("analyzer", "--help")

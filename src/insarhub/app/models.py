@@ -115,7 +115,7 @@ class SavePairsRequest(BaseModel):
 
 class ProcessRequest(BaseModel):
     folder_path:      str
-    processor_type:   str = "Hyp3_InSAR"
+    processor_type:   str = "Hyp3_S1"
     processor_config: dict[str, Any] = {}
     dry_run:          bool = False
 
@@ -135,7 +135,14 @@ class Hyp3ActionRequest(BaseModel):
     folder_path:    str
     job_file:       str
     action:         str   # "refresh" | "retry" | "download"
-    processor_type: str = "Hyp3_InSAR"
+    processor_type: str = "Hyp3_S1"
+
+
+class LocalActionRequest(BaseModel):
+    folder_path:    str
+    job_file:       str
+    action:         str   # "refresh" | "retry"
+    processor_type: str = "ISCE_S1"
 
 
 class FolderConfigPatch(BaseModel):

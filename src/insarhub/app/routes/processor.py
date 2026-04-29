@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, BackgroundTasks, HTTPException
 
 import insarhub.app.state as state
-from insarhub.app.models import ProcessRequest, Hyp3ActionRequest
+from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRequest
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
@@ -209,5 +209,92 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
 
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
+
+    await asyncio.to_thread(run)
+
+
+@router.get("/api/folder-local-jobs")
+async def get_folder_local_jobs(path: str):
+    """List isce_jobs*.json files in a folder with stored job counts."""
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists():
+        raise HTTPException(status_code=404, detail="Folder not found")
+    files = []
+    for f in sorted(folder.glob("isce_jobs*.json")):
+        try:
+            data = json.loads(f.read_text())
+            total = len(data.get("jobs", {}))
+        except Exception:
+            total = 0
+        files.append({"name": f.name, "total": total, "users": []})
+    proc_type = None
+    try:
+        from insarhub.app.state import read_insarhub_config
+        cfg = read_insarhub_config(folder)
+        proc_type = cfg.get("processor", {}).get("type")
+    except Exception:
+        pass
+    return {"files": files, "processor_type": proc_type}
+
+
+@router.post("/api/folder-local-action")
+async def folder_local_action(req: LocalActionRequest, background_tasks: BackgroundTasks):
+    job_id, _ = state._new_job("Starting…")
+    background_tasks.add_task(_run_local_action, job_id, req)
+    return {"job_id": job_id}
+
+
+async def _run_local_action(job_id: str, req: LocalActionRequest):
+    def run():
+        try:
+            folder = Path(req.folder_path).expanduser().resolve()
+            job_file = folder / req.job_file
+            if not job_file.exists():
+                state._jobs[job_id] = {"status": "error", "progress": 0, "message": f"{req.job_file} not found", "data": None}
+                return
+
+            proc_cls = Processor._registry.get(req.processor_type)
+            if proc_cls is None:
+                state._finish_job(job_id, status="error", progress=0, message=f"Unknown processor: {req.processor_type}")
+                return
+            cfg_cls = getattr(proc_cls, "default_config", None)
+            if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
+                state._finish_job(job_id, status="error", progress=0, message="Processor has no config")
+                return
+
+            cfg = cfg_cls(workdir=folder)
+            cfg.saved_job_path = str(job_file)
+            state._jobs[job_id]["message"] = "Initializing processor…"
+            processor = Processor.create(req.processor_type, cfg)
+
+            if req.action == "refresh":
+                state._jobs[job_id]["message"] = "Refreshing job statuses…"
+                jobs = processor.refresh()
+                counts: dict[str, int] = {}
+                for meta in jobs.values():
+                    sc = meta.get("status", "UNKNOWN")
+                    counts[sc] = counts.get(sc, 0) + 1
+                total = sum(counts.values())
+                summary = f"{total} pairs — " + ", ".join(
+                    f"{v} {k.lower()}" for k, v in sorted(counts.items())
+                )
+                lines = [summary]
+                for meta in jobs.values():
+                    ref = meta.get("ref", "")[:25]
+                    sec = meta.get("sec", "")[:25]
+                    sc  = meta.get("status", "?")
+                    lines.append(f"  {ref} / {sec}  {sc}")
+                state._finish_job(job_id, status="done", message="\n".join(lines))
+
+            elif req.action == "retry":
+                state._jobs[job_id]["message"] = "Retrying failed pairs…"
+                processor.retry()
+                state._finish_job(job_id, status="done", message="Retry submitted. New job file saved.")
+
+            else:
+                state._finish_job(job_id, status="error", progress=0, message=f"Unknown action: {req.action}")
+
+        except Exception as e:
+            state._finish_job(job_id, status="error", progress=0, message=str(e))
 
     await asyncio.to_thread(run)

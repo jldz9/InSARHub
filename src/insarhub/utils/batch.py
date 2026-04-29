@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from insarhub import Downloader, Processor
 from insarhub.utils import select_pairs
-def hyp3_insar_batch_check(
+def hyp3_s1_batch_check(
         root_dir: str,
         download : bool = False,
         retry : bool = False,
@@ -30,7 +30,7 @@ def hyp3_insar_batch_check(
     json_files = batch_path.rglob('*.json')
 
     for file in json_files:
-        job = Processor.create('Hyp3_InSAR', saved_job_path=file, earthdata_credentials_pool=earthdata_credentials_pool)
+        job = Processor.create('Hyp3_S1', saved_job_path=file, earthdata_credentials_pool=earthdata_credentials_pool)
         b = json.loads(file.read_text())
         print(f"Overview for job {Path(b['out_dir'])}")
         if not download :
@@ -47,7 +47,7 @@ def dis_scan(
     end : str = '2020-12-31',
     flightDirection: str = 'ASCENDING', # or DESCENDING
     downloader: str = "S1_SLC",
-    processor: str = "Hyp3_InSAR",
+    processor: str = "Hyp3_S1",
     output_dir = "out",
     earthdata_credentials_pool: dict | None = None
 ):

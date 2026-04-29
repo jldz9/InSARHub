@@ -250,14 +250,14 @@ class Hyp3Base(Hyp3Processor):
             print(f"{Fore.CYAN}{Style.BRIGHT}User: {username} ({len(data)} jobs){Style.RESET_ALL}")
             try: 
                 password = self._password_pool[self._username_pool.index(username)]
-                self.client = HyP3(username=username, password=password)
+                client = HyP3(username=username, password=password)
                 
                 if isinstance(data[0], Job):
                     batch_to_refresh = Batch(data)
-                    updated_batch = self.client.refresh(batch_to_refresh)
+                    updated_batch = client.refresh(batch_to_refresh)
                 else:
                     start_date = datetime.now(timezone.utc) - timedelta(days=20) 
-                    skeleton_jobs = self.client.find_jobs(start=start_date)
+                    skeleton_jobs = client.find_jobs(start=start_date)
                     updated_batch = Batch([job for job in skeleton_jobs if job.job_id in data])
                 
                 refreshed_batchs[username] = updated_batch

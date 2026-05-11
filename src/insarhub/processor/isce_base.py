@@ -689,16 +689,21 @@ class ISCE_Base(LocalProcessor):
     })
 
     @staticmethod
-    def _slurm_active_jobs() -> set[str]:
-        """Return set of SLURM job IDs currently in squeue (RUNNING or PENDING)."""
+    def _slurm_active_jobs() -> dict[str, str]:
+        """Return {job_id: squeue_state} for all active jobs (R, PD, CG, etc.)."""
         try:
             r = subprocess.run(
-                ["squeue", "--noheader", "--format=%i", "--me"],
+                ["squeue", "--noheader", "--format=%i %T", "--me"],
                 capture_output=True, text=True, timeout=10,
             )
-            return {s.strip() for s in r.stdout.splitlines() if s.strip()}
+            result: dict[str, str] = {}
+            for line in r.stdout.splitlines():
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    result[parts[0]] = parts[1]
+            return result
         except Exception:
-            return set()
+            return {}
 
     @staticmethod
     def _slurm_job_states(job_ids: list[str]) -> dict[str, str]:
@@ -740,7 +745,7 @@ class ISCE_Base(LocalProcessor):
             for meta in self.jobs.values()
         )
         hpc = getattr(self.config, "hpc_mode", False) or _has_slurm_ids
-        active_slurm: set[str] = set()
+        active_slurm: dict[str, str] = {}
         sacct_states: dict[str, str] = {}
         if hpc:
             active_slurm = self._slurm_active_jobs()
@@ -773,8 +778,10 @@ class ISCE_Base(LocalProcessor):
                     [meta["slurm_job_id"]] if meta.get("slurm_job_id") else []
                 )
                 if job_ids:
-                    if any(jid in active_slurm for jid in job_ids):
+                    if any(active_slurm.get(jid) == "RUNNING" for jid in job_ids):
                         status = _RUNNING
+                    elif any(jid in active_slurm for jid in job_ids):
+                        status = _PENDING  # queued in SLURM but not yet running
                     else:
                         dead = [jid for jid in job_ids
                                 if jid in sacct_states
@@ -825,8 +832,10 @@ class ISCE_Base(LocalProcessor):
                             cmd_st, cmd_color = _SUCCEEDED, Fore.GREEN
                         elif fail_f.exists():
                             cmd_st, cmd_color = _FAILED, Fore.RED
-                        elif jid in active_slurm:
+                        elif active_slurm.get(jid) == "RUNNING":
                             cmd_st, cmd_color = _RUNNING, Fore.CYAN
+                        elif jid in active_slurm:
+                            cmd_st, cmd_color = _PENDING, Fore.YELLOW  # SLURM PD
                         else:
                             cmd_st, cmd_color = _PENDING, Fore.YELLOW
                         print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}  [job {jid}]")

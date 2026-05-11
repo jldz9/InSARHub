@@ -965,6 +965,8 @@ class ISCE_S1_Config:
                                      "hint": "Skip steps that already completed successfully"},
         "hpc_mode":                 {"type": "bool",
                                      "hint": "Submit each step as a sbatch job with sequential --dependency chaining"},
+        "dry_run":                  {"type": "bool",
+                                     "hint": "Preview commands without executing (HPC: generate sbatch scripts only; local: print commands only)"},
         "sbatch_options_per_step":  {"type": "text",
                                      "hint": "JSON dict of step number → sbatch flags, e.g. {\"01\": \"--ntasks=1 --cpus-per-task=2 --mem=8G\", \"07\": \"--ntasks=1 --cpus-per-task=4 --mem=32G\"}. Steps not listed use the 'default' entry."},
     }
@@ -1015,6 +1017,7 @@ class ISCE_S1_Config:
     submission_chunk_size: int            = 1
     # HPC / SLURM
     hpc_mode: bool                        = False
+    dry_run: bool                         = False
     sbatch_options_per_step: dict           = field(default_factory=dict)
 
     def __post_init__(self):

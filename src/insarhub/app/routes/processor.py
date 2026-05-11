@@ -384,14 +384,14 @@ async def _run_local_submit(job_id: str, req: LocalSubmitRequest):
             processor = proc_cls(pairs=pairs, config=cfg)
 
             # Persist resolved config so the folder is self-contained for future runs
+            _cfg_skip = {"workdir", "name", "hpc_mode", "dry_run", "sbatch_options_per_step"}
             cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items()
-                        if k not in ("workdir", "name")}
+                        if k not in _cfg_skip}
             write_insarhub_config(folder, {"processor": {"type": req.processor_type,
                                                          "config": cfg_dict}})
 
             state._jobs[job_id]["message"] = f"Submitting {len(pairs)} pair(s)…"
             processor.submit()
-            processor.save()
 
             state._finish_job(job_id, status="done", progress=100,
                               message=f"Submitted {len(pairs)} pair(s). Processing started in background.")
@@ -402,56 +402,7 @@ async def _run_local_submit(job_id: str, req: LocalSubmitRequest):
     await asyncio.to_thread(run)
 
 
-_SBATCH_DEFAULT_TEMPLATE = {
-    "_comment": (
-        "Slurmjob_Config fields per step. 'default' applies to any unlisted step. "
-        "Step-specific keys override the default. "
-        "Supported keys: time, partition, nodes, ntasks, cpus_per_task, mem, "
-        "account, qos, nodelist, gpus, mail_user, mail_type."
-    ),
-    "_steps": {
-        "01": "unpack_topo_reference",
-        "02": "unpack_secondary_slc",
-        "03": "average_baseline",
-        "04": "extract_burst_overlaps",
-        "05": "overlap_geo2rdr",
-        "06": "overlap_resample",
-        "07": "pairs_misreg",
-        "08": "timeseries_misreg",
-        "09": "fullBurst_geo2rdr",
-        "10": "fullBurst_resample",
-        "11": "extract_stack_valid_region",
-        "12": "merge_reference_secondary_slc",
-        "13": "generate_burst_igram",
-        "14": "merge_burst_igram",
-        "15": "filter_coherence",
-        "16": "unwrap",
-    },
-    "default": {
-        "time":          "04:00:00",
-        "partition":     "all",
-        "nodes":         1,
-        "ntasks":        1,
-        "cpus_per_task": 4,
-        "mem":           "16G",
-    },
-    "01": {"cpus_per_task": 1, "mem": "4G"},
-    "02": {"cpus_per_task": 1, "mem": "4G"},
-    "03": {"cpus_per_task": 1, "mem": "4G"},
-    "04": {"cpus_per_task": 1, "mem": "4G"},
-    "05": {},
-    "06": {},
-    "07": {},
-    "08": {},
-    "09": {},
-    "10": {"cpus_per_task": 8, "mem": "32G"},
-    "11": {},
-    "12": {"cpus_per_task": 8, "mem": "32G"},
-    "13": {"cpus_per_task": 8, "mem": "32G"},
-    "14": {"cpus_per_task": 8, "mem": "32G"},
-    "15": {"cpus_per_task": 8, "mem": "32G"},
-    "16": {"time": "08:00:00", "cpus_per_task": 8, "mem": "64G"},
-}
+from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
 
 
 @router.get("/api/folder-sbatch-options")

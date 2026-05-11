@@ -335,7 +335,12 @@ def create_parser() -> argparse.ArgumentParser:
             _kwargs["default"] = argparse.SUPPRESS
             _kwargs["help"] = argparse.SUPPRESS
             try:
-                p_analyzer.add_argument("--" + _f.name, dest=_f.name, **_kwargs)
+                _flag_h = "--" + _f.name.replace("_", "-")
+                _flag_u = "--" + _f.name
+                if _flag_h != _flag_u:
+                    p_analyzer.add_argument(_flag_h, _flag_u, dest=_f.name, **_kwargs)
+                else:
+                    p_analyzer.add_argument(_flag_h, dest=_f.name, **_kwargs)
             except argparse.ArgumentError:
                 pass
     except Exception:
@@ -650,6 +655,7 @@ _SUBMIT_SKIP_FIELDS = {
     "name", "workdir", "pairs", "saved_job_path",
     "earthdata_credentials_pool",
     "name_prefix", "max_workers",
+    "hpc_mode", "dry_run", "sbatch_options_per_step",
 }
 
 # Fields handled by static flags or internal state in cmd_analyzer
@@ -677,12 +683,16 @@ def _build_config_parser(config_cls, skip_fields: set | None = None) -> argparse
             continue
         annotation = hints.get(field.name, str)
 
-        flag = "--" + field.name
+        flag_hyphen = "--" + field.name.replace("_", "-")
+        flag_under  = "--" + field.name
         kwargs = _field_argparse_kwargs(annotation, None)
         kwargs["default"] = _UNSET  # distinguish "not provided" from any real value
         kwargs["help"] = argparse.SUPPRESS  # hidden; shown only via --list-options
         try:
-            p.add_argument(flag, dest=field.name, **kwargs)
+            if flag_hyphen != flag_under:
+                p.add_argument(flag_hyphen, flag_under, dest=field.name, **kwargs)
+            else:
+                p.add_argument(flag_hyphen, dest=field.name, **kwargs)
         except argparse.ArgumentError:
             pass  # skip duplicate flags (e.g. --workdir already added)
 
@@ -811,13 +821,28 @@ def _write_config_json(cfg_path: Path, overrides: dict) -> None:
 
 
 def _find_jobs_file(workdir: Path, pattern: str) -> Path | None:
-    """Return the first matching jobs JSON file in workdir or its p*_f* subdirs."""
+    """Return the first matching jobs JSON file.
+
+    Search order:
+      1. workdir/ directly
+      2. workdir/isce/          ← ISCE_S1 stores isce_jobs.json here
+      3. workdir/<p*_f*>/
+      4. workdir/<p*_f*>/isce/
+    """
     for p in sorted(workdir.glob(pattern)):
         return p
+    isce_sub = workdir / "isce"
+    if isce_sub.is_dir():
+        for p in sorted(isce_sub.glob(pattern)):
+            return p
     for subdir in sorted(workdir.iterdir()):
         if subdir.is_dir() and _parse_group_key(subdir.name):
             for p in sorted(subdir.glob(pattern)):
                 return p
+            nested = subdir / "isce"
+            if nested.is_dir():
+                for p in sorted(nested.glob(pattern)):
+                    return p
     return None
 
 
@@ -1140,7 +1165,7 @@ def cmd_downloader(args, extra_args: list[str]):
         from dataclasses import asdict
         from insarhub.utils.tool import write_workflow_marker
         from insarhub.utils import plot_pair_network as _plot_pair_network
-        from insarhub.app.state import write_insarhub_config
+        from insarhub.utils.config_io import write_insarhub_config
 
         pairs, baselines, scene_bperp, prefetch_cache = downloader.select_pairs(
             dt_targets=tuple(args.dt_targets),
@@ -1456,7 +1481,7 @@ def _proc_submit(args, extra_args: list[str]):
     # On dry-run: preview submission — find every process directory at workdir level
     # and one level of subdirectories, write processor config into insarhub_config.json.
     if dry_run:
-        from insarhub.app.state import write_insarhub_config
+        from insarhub.utils.config_io import write_insarhub_config
         _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool", "workdir", "pairs"}
         _preview_overrides = {k: v for k, v in overrides.items()
                               if k not in _SUBMIT_SKIP_FIELDS | {"name", "config"}}
@@ -1528,7 +1553,7 @@ def _proc_submit(args, extra_args: list[str]):
         processor = Processor.create(processor_name, **group_overrides)
         # Write full resolved config into insarhub_config.json (consistent with GUI)
         _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool", "workdir", "pairs"}
-        from insarhub.app.state import write_insarhub_config as _wic
+        from insarhub.utils.config_io import write_insarhub_config as _wic
         _wic(job_dir, {"processor": {"type": processor_name,
                                      "config": {f.name: getattr(processor.config, f.name)
                                                 for f in dataclasses.fields(processor.config)
@@ -1690,7 +1715,7 @@ def _proc_credits(args):
 def _proc_local_submit(args, extra_args: list[str]):
     import dataclasses
     from insarhub import Processor
-    from insarhub.app.state import write_insarhub_config as _wic
+    from insarhub.utils.config_io import write_insarhub_config as _wic
 
     processor_name = getattr(args, "processor_name", "ISCE_S1")
     processor_cls  = Processor._registry[processor_name]
@@ -1755,13 +1780,13 @@ def _proc_local_submit(args, extra_args: list[str]):
             except Exception as e:
                 print(f"[WARN] Could not read {sbatch_path}: {e}", file=sys.stderr)
         else:
-            from insarhub.app.routes.processor import _SBATCH_DEFAULT_TEMPLATE
+            from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
             sbatch_path.write_text(json.dumps(_SBATCH_DEFAULT_TEMPLATE, indent=2))
             print(
                 f"\n[INFO] No sbatch_options.json found — initialized default at:\n"
                 f"       {sbatch_path}\n\n"
                 f"  Edit the sbatch options for each step, then rerun:\n\n"
-                f"    insarhub processor -N {processor_name} -w {workdir} --hpc_mode submit\n"
+                f"    insarhub processor -N {processor_name} -w {workdir} --hpc-mode submit\n"
             )
             sys.exit(0)
 

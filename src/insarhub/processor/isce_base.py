@@ -35,6 +35,57 @@ _FAILED    = "FAILED"
 
 JOBS_FILE = "isce_jobs.json"
 
+_SBATCH_DEFAULT_TEMPLATE: dict = {
+    "_comment": (
+        "Slurmjob_Config fields per step. 'default' applies to any unlisted step. "
+        "Step-specific keys override the default. "
+        "Supported keys: time, partition, nodes, ntasks, cpus_per_task, mem, "
+        "account, qos, nodelist, gpus, mail_user, mail_type."
+    ),
+    "_steps": {
+        "01": "unpack_topo_reference",
+        "02": "unpack_secondary_slc",
+        "03": "average_baseline",
+        "04": "extract_burst_overlaps",
+        "05": "overlap_geo2rdr",
+        "06": "overlap_resample",
+        "07": "pairs_misreg",
+        "08": "timeseries_misreg",
+        "09": "fullBurst_geo2rdr",
+        "10": "fullBurst_resample",
+        "11": "extract_stack_valid_region",
+        "12": "merge_reference_secondary_slc",
+        "13": "generate_burst_igram",
+        "14": "merge_burst_igram",
+        "15": "filter_coherence",
+        "16": "unwrap",
+    },
+    "default": {
+        "time":          "02:00:00",
+        "partition":     "all",
+        "nodes":         1,
+        "ntasks":        1,
+        "cpus_per_task": 2,
+        "mem":           "8G",
+    },
+    "01": {"cpus_per_task": 1, "mem": "4G"},
+    "02": {"cpus_per_task": 1, "mem": "4G"},
+    "03": {"cpus_per_task": 1, "mem": "4G"},
+    "04": {"cpus_per_task": 1, "mem": "4G"},
+    "05": {"cpus_per_task": 2, "mem": "8G"},
+    "06": {"cpus_per_task": 2, "mem": "8G"},
+    "07": {"cpus_per_task": 2, "mem": "8G"},
+    "08": {"cpus_per_task": 2, "mem": "8G"},
+    "09": {"cpus_per_task": 2, "mem": "8G"},
+    "10": {"cpus_per_task": 4, "mem": "16G"},
+    "11": {"cpus_per_task": 1, "mem": "4G"},
+    "12": {"cpus_per_task": 4, "mem": "16G"},
+    "13": {"cpus_per_task": 4, "mem": "16G"},
+    "14": {"cpus_per_task": 4, "mem": "16G"},
+    "15": {"cpus_per_task": 4, "mem": "16G"},
+    "16": {"time": "04:00:00", "cpus_per_task": 2, "mem": "32G"},
+}
+
 
 # ── ISCE2 discovery ───────────────────────────────────────────────────────────
 
@@ -179,7 +230,7 @@ class ISCE_Base(LocalProcessor):
             raise FileNotFoundError(f"Job file not found: {path}")
         self.jobs = json.loads(path.read_text()).get("jobs", {})
 
-    def save(self, save_path: Path | str | None = None) -> Path:
+    def save(self, save_path: Path | str | None = None, silent: bool = False) -> Path:
         if not self.jobs:
             raise ValueError("No jobs to save. Call submit() first.")
         path = (Path(save_path).expanduser().resolve() if save_path
@@ -188,41 +239,39 @@ class ISCE_Base(LocalProcessor):
         path.write_text(json.dumps(
             {"jobs": self.jobs, "workdir": str(self.workdir)}, indent=2
         ))
-        print(f"{Fore.GREEN}Job file saved to {path}.{Style.RESET_ALL}")
+        if not silent:
+            print(f"{Fore.GREEN}Job file saved to {path}.{Style.RESET_ALL}")
         return path
 
     # ── Sequential step executor ──────────────────────────────────────────────
 
-    def _build_step_sbatch_script(
-        self, step: str, script: Path, log_dir: Path, step_cfg: dict
+    def _build_cmd_sbatch_script(
+        self, step: str, cmd: str, cmd_idx: int, log_dir: Path, step_cfg: dict,
+        sbatch_dir: Path | None = None,
     ) -> Path:
-        """Generate a sbatch script for all commands in a step using Slurmjob_Config."""
+        """Generate a single-command sbatch script for one line of a step's run file."""
         import dataclasses
         from insarhub.utils.tool import Slurmjob_Config
-
-        commands = [
-            self._fix_cmd(line.strip())
-            for line in script.read_text().splitlines()
-            if line.strip() and not line.strip().startswith("#")
-        ]
 
         env = os.environ.copy()
         pythonpath = str(self._pythonpath_add) + os.pathsep + env.get("PYTHONPATH", "")
         path = (str(self._stack_bin.parent) + os.pathsep
                 + str(self._isce_app_bin.parent) + os.pathsep
                 + env.get("PATH", ""))
-        status_file = _status_file(self._run_files_dir, step)
 
-        # Build Slurmjob_Config from per-step dict; override job identity fields ourselves
+        done_file = log_dir / f"cmd_{cmd_idx:04d}.done"
+        fail_file = log_dir / f"cmd_{cmd_idx:04d}.fail"
+        log_file  = log_dir / f"cmd_{cmd_idx:04d}.log"
+
         _slurm_fields = {f.name for f in dataclasses.fields(Slurmjob_Config)}
         _skip = {"job_name", "output_file", "error_file", "dependency",
                  "command", "modules", "conda_env", "export_env", "array"}
         slurm_kwargs = {k: v for k, v in step_cfg.items()
                         if k in _slurm_fields and k not in _skip}
         slurm_cfg = Slurmjob_Config(
-            job_name=f"isce_{step}",
-            output_file=str(log_dir / f"{step}_slurm_%j.out"),
-            error_file=str(log_dir / f"{step}_slurm_%j.err"),
+            job_name=f"isce_{step}_{cmd_idx:04d}",
+            output_file=str(log_dir / f"{step}_{cmd_idx:04d}_slurm_%j.out"),
+            error_file=str(log_dir / f"{step}_{cmd_idx:04d}_slurm_%j.err"),
             **slurm_kwargs,
         )
 
@@ -233,82 +282,118 @@ class ISCE_Base(LocalProcessor):
             f"export PYTHONPATH={pythonpath!r}",
             f"export PATH={path!r}",
             "",
-            f'echo "[$(date)] Starting step {step}"',
-            "_pids=()",
+            f'if [[ -f {done_file} ]]; then echo "cmd_{cmd_idx:04d} already done, skipping."; exit 0; fi',
             "",
+            f'{cmd} > {log_file} 2>&1',
+            f'_rc=$?',
+            f'if [[ $_rc -eq 0 ]]; then',
+            f'  touch {done_file}',
+            f'  rm -f {fail_file}',
+            f'else',
+            f'  echo $_rc > {fail_file}',
+            f'  exit $_rc',
+            f'fi',
         ]
 
-        for i, cmd in enumerate(commands):
-            done_file = log_dir / f"cmd_{i:04d}.done"
-            fail_file = log_dir / f"cmd_{i:04d}.fail"
-            log_file  = log_dir / f"cmd_{i:04d}.log"
-            lines += [
-                f"if [[ ! -f {done_file} ]]; then",
-                f"  ( {cmd} > {log_file} 2>&1"
-                f" && touch {done_file} && rm -f {fail_file}"
-                f" || {{ echo $? > {fail_file}; }} ) &",
-                f"  _pids+=($!)",
-                f"fi",
-                "",
-            ]
-
-        lines += [
-            "wait \"${_pids[@]}\"",
-            "",
-            f"_failed=$(ls {log_dir}/cmd_*.fail 2>/dev/null | wc -l)",
-            f'if [[ "$_failed" -eq 0 ]]; then',
-            f'  echo "SUCCEEDED" > {status_file}',
-            f'  echo "[$(date)] Step {step} SUCCEEDED"',
-            f"else",
-            f'  echo "FAILED:$_failed command(s) failed" > {status_file}',
-            f'  echo "[$(date)] Step {step} FAILED ($_failed command(s))" >&2',
-            f"  exit 1",
-            f"fi",
-        ]
-
-        sbatch_script = log_dir / f"{step}.sbatch"
+        out_dir = sbatch_dir if sbatch_dir is not None else log_dir
+        sbatch_script = out_dir / f"{step}_{cmd_idx:04d}.sbatch"
         sbatch_script.write_text("\n".join(lines) + "\n")
         sbatch_script.chmod(0o755)
         return sbatch_script
 
     def _step_executor_hpc(self, pending_steps: list[str]) -> None:
-        """Submit each step as one sbatch job with sequential --dependency. Returns immediately."""
-        prev_job_id: str | None = None
+        """Submit one sbatch job per command; steps chain via --dependency. Returns immediately.
+
+        If config.dry_run is True: generate sbatch scripts only, do not call sbatch.
+        On submit: skip commands whose cmd_*.done file already exists.
+        """
+        dry_run    = getattr(self.config, "dry_run", False)
+        prev_job_ids: list[str] = []
 
         for step in pending_steps:
             script  = Path(self.jobs[step]["script"])
             log_dir = Path(self.jobs[step]["log_dir"])
             log_dir.mkdir(parents=True, exist_ok=True)
 
-            step_cfg      = self._sbatch_opts_for_step(step)
-            sbatch_script = self._build_step_sbatch_script(step, script, log_dir, step_cfg)
+            commands = [
+                self._fix_cmd(line.strip())
+                for line in script.read_text().splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
 
-            dep_flag  = f"--dependency=afterok:{prev_job_id}" if prev_job_id else ""
-            sbatch_cmd = " ".join(filter(None, [
-                "sbatch",
-                dep_flag,
-                str(sbatch_script),
-            ]))
+            if not commands:
+                _write_status(self._run_files_dir, step, _SUCCEEDED)
+                self.jobs[step]["status"] = _SUCCEEDED
+                self.jobs[step]["slurm_job_ids"] = []
+                continue
 
-            result = subprocess.run(sbatch_cmd, shell=True, capture_output=True, text=True)
-            if result.returncode != 0:
-                print(f"  {Fore.RED}sbatch failed for {step}: {result.stderr.strip()}{Style.RESET_ALL}")
-                _write_status(self._run_files_dir, step, _FAILED, "sbatch submission failed")
-                self.jobs[step]["status"] = _FAILED
-                self.save()
+            step_cfg   = self._sbatch_opts_for_step(step)
+            dep_flag   = ("--dependency=afterok:" + ":".join(prev_job_ids)) if prev_job_ids else ""
+            sbatch_dir = self._run_files_dir / f"{step}_sbatch"
+            sbatch_dir.mkdir(parents=True, exist_ok=True)
+
+            step_job_ids: list[str] = []
+            submit_failed = False
+            all_done = True
+
+            for i, cmd in enumerate(commands):
+                done_file     = log_dir / f"cmd_{i:04d}.done"
+                sbatch_script = self._build_cmd_sbatch_script(step, cmd, i, log_dir, step_cfg, sbatch_dir)
+
+                if dry_run:
+                    dep_preview = f"  dep=[{dep_flag[14:34]}…]" if dep_flag else ""
+                    print(f"      [dryrun] cmd_{i:04d}  {sbatch_script.name}{dep_preview}")
+                    continue
+
+                if done_file.exists():
+                    print(f"      cmd_{i:04d}  {Fore.YELLOW}SKIPPED (already done){Style.RESET_ALL}")
+                    continue
+
+                all_done = False
+                sbatch_cmd = " ".join(filter(None, ["sbatch", dep_flag, str(sbatch_script)]))
+                result = subprocess.run(sbatch_cmd, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    print(f"  {Fore.RED}sbatch failed for {step}[{i}]: {result.stderr.strip()}{Style.RESET_ALL}")
+                    _write_status(self._run_files_dir, step, _FAILED, "sbatch submission failed")
+                    self.jobs[step]["status"] = _FAILED
+                    self.save(silent=True)
+                    submit_failed = True
+                    break
+                m = re.search(r"\d+", result.stdout)
+                step_job_ids.append(m.group() if m else "unknown")
+
+            if dry_run:
+                self.jobs[step]["slurm_job_ids"] = []
+                self.jobs[step]["status"] = _PENDING
+                print(f"  {Fore.YELLOW}  [dryrun] {step}  →  {len(commands)} script(s) in {sbatch_dir}{Style.RESET_ALL}")
+                continue
+
+            if submit_failed:
                 return
 
-            m = re.search(r"\d+", result.stdout)
-            job_id = m.group() if m else "unknown"
-            self.jobs[step]["slurm_job_id"] = job_id
+            if all_done and not step_job_ids:
+                _write_status(self._run_files_dir, step, _SUCCEEDED)
+                self.jobs[step]["status"] = _SUCCEEDED
+                self.jobs[step]["slurm_job_ids"] = []
+                print(f"  {Fore.GREEN}  ✓ {step}  (all commands already done){Style.RESET_ALL}")
+                continue
+
+            self.jobs[step]["slurm_job_ids"] = step_job_ids
+            self.jobs[step].pop("slurm_job_id", None)
             self.jobs[step]["status"] = _PENDING
             _write_status(self._run_files_dir, step, _PENDING)
-            prev_job_id = job_id
-            print(f"  {Fore.CYAN}  ▶ {step}  →  SLURM job {job_id}{Style.RESET_ALL}")
+            prev_job_ids = step_job_ids
+            ids_preview = (step_job_ids[0] if len(step_job_ids) == 1
+                           else f"{step_job_ids[0]}…{step_job_ids[-1]}")
+            print(f"  {Fore.CYAN}  ▶ {step}  →  {len(step_job_ids)} job(s) [{ids_preview}]{Style.RESET_ALL}")
 
-        self.save()
-        print(f"\n{Fore.GREEN}All steps queued. "
-              f"SSH session can now be closed — use 'refresh' to check status.{Style.RESET_ALL}")
+        self.save(silent=True)
+        if dry_run:
+            print(f"\n{Fore.YELLOW}Dry-run complete. Sbatch scripts written to <step>_sbatch/ folders.")
+            print(f"Run without --dry-run to submit.{Style.RESET_ALL}")
+        else:
+            print(f"\n{Fore.GREEN}All steps queued. "
+                  f"SSH session can now be closed — use 'refresh' to check status.{Style.RESET_ALL}")
 
     def _step_executor(self, pending_steps: list[str]) -> None:
         """Run steps in order; parallelise independent commands within each step."""
@@ -316,17 +401,32 @@ class ISCE_Base(LocalProcessor):
             self._step_executor_hpc(pending_steps)
             return
 
+        dry_run = getattr(self.config, "dry_run", False)
+
         for step in pending_steps:
             status, _ = _read_status(self._run_files_dir, step)
             if status == _SUCCEEDED and self.config.skip_existing:
                 continue
 
-            _write_status(self._run_files_dir, step, _RUNNING, str(os.getpid()))
-            self.jobs[step]["status"] = _RUNNING
-
             script  = Path(self.jobs[step]["script"])
             log_dir = Path(self.jobs[step]["log_dir"])
-            print(f"\n{Fore.CYAN}  ▶ {step}{Style.RESET_ALL}")
+            commands = [
+                self._fix_cmd(line.strip())
+                for line in script.read_text().splitlines()
+                if line.strip() and not line.strip().startswith("#")
+            ]
+
+            print(f"\n{Fore.CYAN}  ▶ {step}{Style.RESET_ALL}  ({len(commands)} command(s))")
+
+            if dry_run:
+                for i, cmd in enumerate(commands):
+                    done_file = log_dir / f"cmd_{i:04d}.done"
+                    tag = f"  {Fore.YELLOW}(already done){Style.RESET_ALL}" if done_file.exists() else ""
+                    print(f"      cmd_{i:04d}  [dry-run] {cmd[:120]}{tag}")
+                continue
+
+            _write_status(self._run_files_dir, step, _RUNNING, str(os.getpid()))
+            self.jobs[step]["status"] = _RUNNING
 
             success = self._run_step(script, log_dir)
 
@@ -340,7 +440,9 @@ class ISCE_Base(LocalProcessor):
                 print(f"  {Fore.RED}✗ {step} FAILED — logs: {log_dir}{Style.RESET_ALL}")
                 break
 
-        self.save()
+        if dry_run:
+            print(f"\n{Fore.YELLOW}Dry-run complete. Run without --dry-run to execute.{Style.RESET_ALL}")
+        self.save(silent=True)
 
     def _fix_cmd(self, cmd: str) -> str:
         """Resolve bare .py script names to absolute paths and prefix with sys.executable."""
@@ -407,25 +509,23 @@ class ISCE_Base(LocalProcessor):
                        + os.pathsep + env.get("PATH", ""))
 
         failed = 0
-        skipped = 0
         with ThreadPoolExecutor(max_workers=w) as pool:
-            futures = {}
+            futures: dict = {}
             for i, cmd in enumerate(commands):
                 done_file = log_dir / f"cmd_{i:04d}.done"
                 if done_file.exists():
-                    skipped += 1
+                    print(f"      cmd_{i:04d}  {Fore.YELLOW}SKIPPED  {Style.RESET_ALL}")
                     continue
-                futures[pool.submit(self._run_cmd, cmd, log_dir, i, env)] = cmd
-
-            if skipped:
-                print(f"    {Fore.YELLOW}  {skipped} command(s) already done, skipping.{Style.RESET_ALL}")
+                futures[pool.submit(self._run_cmd, cmd, log_dir, i, env)] = i
 
             for fut in as_completed(futures):
+                i = futures[fut]
                 rc = fut.result()
-                if rc != 0:
+                if rc == 0:
+                    print(f"      cmd_{i:04d}  {Fore.GREEN}SUCCEEDED{Style.RESET_ALL}")
+                else:
                     failed += 1
-                    snippet = futures[fut][:80]
-                    print(f"  {Fore.RED}  cmd failed (rc={rc}): {snippet}…{Style.RESET_ALL}")
+                    print(f"      cmd_{i:04d}  {Fore.RED}FAILED    (rc={rc}){Style.RESET_ALL}")
 
         return failed == 0
 
@@ -504,13 +604,14 @@ class ISCE_Base(LocalProcessor):
         sacct_states: dict[str, str] = {}
         if hpc:
             active_slurm = self._slurm_active_jobs()
-            # Only query sacct for steps whose status file still says PENDING
-            # (job may have died without writing the file)
-            pending_ids = [
-                meta["slurm_job_id"]
-                for meta in self.jobs.values()
-                if meta.get("slurm_job_id") and meta.get("status") == _PENDING
-            ]
+            pending_ids: list[str] = []
+            for meta in self.jobs.values():
+                if meta.get("status") == _PENDING:
+                    # support both old single-id and new list format
+                    ids = meta.get("slurm_job_ids") or (
+                        [meta["slurm_job_id"]] if meta.get("slurm_job_id") else []
+                    )
+                    pending_ids.extend(ids)
             if pending_ids:
                 sacct_states = self._slurm_job_states(pending_ids)
 
@@ -528,22 +629,84 @@ class ISCE_Base(LocalProcessor):
         for step, meta in sorted(self.jobs.items()):
             status, detail = _read_status(self._run_files_dir, step)
             if hpc and status == _PENDING:
-                job_id = meta.get("slurm_job_id", "")
-                if job_id:
-                    if job_id in active_slurm:
+                job_ids: list[str] = meta.get("slurm_job_ids") or (
+                    [meta["slurm_job_id"]] if meta.get("slurm_job_id") else []
+                )
+                if job_ids:
+                    if any(jid in active_slurm for jid in job_ids):
                         status = _RUNNING
-                    elif job_id in sacct_states:
-                        sacct_state = sacct_states[job_id]
-                        if sacct_state in self._SLURM_DEAD_STATES:
-                            detail = f"SLURM {sacct_state} (job {job_id})"
+                    else:
+                        dead = [jid for jid in job_ids
+                                if jid in sacct_states
+                                and sacct_states[jid] in self._SLURM_DEAD_STATES]
+                        if dead:
+                            detail = f"SLURM {sacct_states[dead[0]]} (job {dead[0]})"
                             status = _FAILED
                             _write_status(self._run_files_dir, step, _FAILED, detail)
+                        else:
+                            log_dir_p = Path(meta["log_dir"])
+                            fail_count = len(list(log_dir_p.glob("cmd_*.fail")))
+                            done_count = len(list(log_dir_p.glob("cmd_*.done")))
+                            if fail_count > 0:
+                                detail = f"{fail_count} command(s) failed"
+                                status = _FAILED
+                                _write_status(self._run_files_dir, step, _FAILED, detail)
+                            elif done_count >= len(job_ids):
+                                status = _SUCCEEDED
+                                _write_status(self._run_files_dir, step, _SUCCEEDED)
             meta["status"] = status
             counts[status] += 1
             color  = color_map.get(status, "")
             suffix = f"  ({detail})" if detail and status == _FAILED else ""
-            job_id_tag = f"  [job {meta['slurm_job_id']}]" if hpc and meta.get("slurm_job_id") else ""
+            if hpc:
+                job_ids_d: list[str] = meta.get("slurm_job_ids") or (
+                    [meta["slurm_job_id"]] if meta.get("slurm_job_id") else []
+                )
+                if len(job_ids_d) == 1:
+                    job_id_tag = f"  [job {job_ids_d[0]}]"
+                elif len(job_ids_d) > 1:
+                    job_id_tag = f"  [{len(job_ids_d)} jobs: {job_ids_d[0]}…{job_ids_d[-1]}]"
+                else:
+                    job_id_tag = ""
+            else:
+                job_id_tag = ""
             print(f"  - {step:<43}  {color}{status}{suffix}{Style.RESET_ALL}{job_id_tag}")
+
+            # Per-command lines for multi-command steps (HPC new/old format, and local)
+            log_dir_p = Path(meta.get("log_dir", ""))
+            if log_dir_p.exists():
+                cmd_job_ids: list[str] = meta.get("slurm_job_ids") or []
+                if len(cmd_job_ids) > 1:
+                    # New HPC format: one job per command — show job IDs
+                    for i, jid in enumerate(cmd_job_ids):
+                        done_f = log_dir_p / f"cmd_{i:04d}.done"
+                        fail_f = log_dir_p / f"cmd_{i:04d}.fail"
+                        if done_f.exists():
+                            cmd_st, cmd_color = _SUCCEEDED, Fore.GREEN
+                        elif fail_f.exists():
+                            cmd_st, cmd_color = _FAILED, Fore.RED
+                        elif jid in active_slurm:
+                            cmd_st, cmd_color = _RUNNING, Fore.CYAN
+                        else:
+                            cmd_st, cmd_color = _PENDING, Fore.YELLOW
+                        print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}  [job {jid}]")
+                else:
+                    # Old HPC format or local mode: scan done/fail files
+                    indices = sorted(
+                        {int(f.stem.split("_", 1)[1]) for f in log_dir_p.glob("cmd_????.done")}
+                        | {int(f.stem.split("_", 1)[1]) for f in log_dir_p.glob("cmd_????.fail")}
+                    )
+                    if len(indices) > 1:
+                        for i in indices:
+                            done_f = log_dir_p / f"cmd_{i:04d}.done"
+                            fail_f = log_dir_p / f"cmd_{i:04d}.fail"
+                            if done_f.exists():
+                                cmd_st, cmd_color = _SUCCEEDED, Fore.GREEN
+                            elif fail_f.exists():
+                                cmd_st, cmd_color = _FAILED, Fore.RED
+                            else:
+                                cmd_st, cmd_color = _PENDING, Fore.YELLOW
+                            print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}")
 
         print()
         print(f"  {Fore.GREEN}Succeeded : {counts[_SUCCEEDED]}{Style.RESET_ALL}  "
@@ -551,7 +714,7 @@ class ISCE_Base(LocalProcessor):
               f"{Fore.YELLOW}Pending : {counts[_PENDING]}{Style.RESET_ALL}  "
               f"{Fore.RED}Failed : {counts[_FAILED]}{Style.RESET_ALL}")
 
-        self.save()
+        self.save(silent=True)
         return self.jobs
 
     # ── Retry ─────────────────────────────────────────────────────────────────

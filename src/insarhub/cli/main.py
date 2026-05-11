@@ -202,8 +202,8 @@ def create_parser() -> argparse.ArgumentParser:
         help="Print all config fields for the selected processor and exit",
     )
     p_proc.add_argument("--config", metavar="PATH", nargs="?", const="__default__", default=None,
-                        help="Path to a saved processor config JSON; "
-                             "omit the value to use <workdir>/processor_config.json")
+                        help="Path to insarhub_config.json or a saved processor config JSON; "
+                             "omit the value to use <workdir>/insarhub_config.json")
     proc_sub = p_proc.add_subparsers(dest="proc_action", required=False, metavar="ACTION")
 
     # --- submit  (HyP3) ----------------------------------------------- #
@@ -221,8 +221,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     g_sub = p_proc_submit.add_argument_group("submit options")
     g_sub.add_argument("--config", metavar="PATH", nargs="?", const="__default__", default=None,
-                       help="Path to a saved processor config JSON; "
-                            "omit the value to use <workdir>/processor_config.json")
+                       help="Path to insarhub_config.json or a saved processor config JSON; "
+                            "omit the value to use <workdir>/insarhub_config.json")
     g_sub.add_argument("--credential-pool", metavar="PATH",
                        help="JSON {username: password} for multi-account HyP3 submission")
     g_sub.add_argument("--name-prefix", metavar="STR", default="ifg",
@@ -542,11 +542,14 @@ def _iter_job_dirs(workdir: Path, job_file_override: str | None) -> list[Path]:
 
     Resolution order:
       1. --job-file given  → parent directory of that file only
-      2. p*_f* subdirs that contain any hyp3*.json  → each subdir
-      3. workdir itself  (flat / single-group case)
+      2. workdir has insarhub_config.json  → workdir itself (already a stack dir)
+      3. p*_f* subdirs that contain any hyp3*.json  → each subdir
+      4. workdir itself  (flat / single-group case)
     """
     if job_file_override:
         return [Path(job_file_override).expanduser().resolve().parent]
+    if (workdir / "insarhub_config.json").exists():
+        return [workdir]
     subdirs = sorted(
         d for d in workdir.iterdir()
         if d.is_dir() and _parse_group_key(d.name) and any(d.glob("hyp3*.json"))
@@ -559,9 +562,12 @@ def _iter_analysis_dirs(workdir: Path) -> list[Path]:
     Return the list of directories to run analysis on.
 
     Resolution order:
-      1. p*_f* subdirs that contain any *.zip files  → each subdir
-      2. workdir itself  (flat / single-group case)
+      1. workdir has insarhub_config.json  → workdir itself (already a stack dir)
+      2. p*_f* subdirs that contain any *.zip files  → each subdir
+      3. workdir itself  (flat / single-group case)
     """
+    if (workdir / "insarhub_config.json").exists():
+        return [workdir]
     subdirs = sorted(
         d for d in workdir.iterdir()
         if d.is_dir() and _parse_group_key(d.name) and any(d.glob("*.zip"))
@@ -858,6 +864,9 @@ def _find_subfolder_config(workdir: Path, filename: str) -> Path | None:
     return None
 
 
+_RUNTIME_ONLY_FIELDS = {"workdir", "name", "saved_job_path"}
+
+
 def _read_dl_config_from_folder(folder: Path) -> dict:
     """Read downloader config from insarhub_config.json or fallback downloader_config.json."""
     insarhub_cfg = folder / "insarhub_config.json"
@@ -866,10 +875,11 @@ def _read_dl_config_from_folder(folder: Path) -> dict:
             data = json.loads(insarhub_cfg.read_text())
             cfg = data.get("downloader", {}).get("config", {})
             if cfg:
-                return cfg
+                return {k: v for k, v in cfg.items() if k not in _RUNTIME_ONLY_FIELDS}
         except Exception:
             pass
-    return _read_config_json(folder / "downloader_config.json")
+    raw = _read_config_json(folder / "downloader_config.json")
+    return {k: v for k, v in raw.items() if k not in _RUNTIME_ONLY_FIELDS}
 
 
 def _read_proc_config_from_folder(folder: Path) -> dict:
@@ -880,10 +890,11 @@ def _read_proc_config_from_folder(folder: Path) -> dict:
             data = json.loads(insarhub_cfg.read_text())
             cfg = data.get("processor", {}).get("config", {})
             if cfg:
-                return cfg
+                return {k: v for k, v in cfg.items() if k not in _RUNTIME_ONLY_FIELDS}
         except Exception:
             pass
-    return _read_config_json(folder / "processor_config.json")
+    raw = _read_config_json(folder / "processor_config.json")
+    return {k: v for k, v in raw.items() if k not in _RUNTIME_ONLY_FIELDS}
 
 
 _GROUP_KEY_RE = re.compile(r"p(\d+)_f(\d+)")

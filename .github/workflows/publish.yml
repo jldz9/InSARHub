@@ -71,7 +71,7 @@ jobs:
         run: conda install -y pip
 
       - name: Install conda dependencies
-        run: conda install -y gdal pysolid pygrib
+        run: conda install -y gdal pysolid pygrib cvxopt
         continue-on-error: true
 
       - name: Download wheel

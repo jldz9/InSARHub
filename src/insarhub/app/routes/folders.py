@@ -185,7 +185,7 @@ async def _run_folder_download_orbit(job_id: str, folder_path: str):
 
 @router.post("/api/folder-select-pairs")
 async def folder_select_pairs(req: SelectPairsRequest, background_tasks: BackgroundTasks):
-    """Re-search using downloader_config.json and run select_pairs with given parameters."""
+    """Re-search using insarhub_config.json and run select_pairs with given parameters."""
     folder = Path(req.folder_path).expanduser().resolve()
     if not read_insarhub_config(folder).get("downloader"):
         raise HTTPException(status_code=404, detail="No downloader config found in folder")

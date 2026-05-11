@@ -803,6 +803,7 @@ Check documentation for how to setup .netrc file.\n""")
         import json as _json
         from concurrent.futures import ThreadPoolExecutor, as_completed
         from insarhub.utils.tool import write_workflow_marker
+        from insarhub.utils.config_io import write_insarhub_config as _wic
         output_dir = Path(save_path).expanduser().resolve() if save_path else self.config.workdir
         output_dir.mkdir(exist_ok=True, parents=True)
 
@@ -819,14 +820,15 @@ Check documentation for how to setup .netrc file.\n""")
 
         jobs = []
         stack_paths: dict = {}
+        _dir_is_stack = (self.download_dir / "insarhub_config.json").exists()
         for key, results in self.active_results.items():
-            stack_path = self.download_dir / f'p{key[0]}_f{key[1]}'
+            stack_path = self.download_dir if _dir_is_stack else self.download_dir / f'p{key[0]}_f{key[1]}'
             download_path = stack_path / 'slc'
             download_path.mkdir(parents=True, exist_ok=True)
             stack_paths[key] = download_path
             write_workflow_marker(stack_path, downloader=type(self).name)
             _cfg = {**_cfg_base, 'relativeOrbit': key[0], 'frame': key[1]}
-            (stack_path / "downloader_config.json").write_text(_json.dumps(_cfg, indent=2, default=str))
+            _wic(stack_path, {"downloader": {"type": type(self).name, "config": _cfg}})
             for result in results:
                 if scene_filter is None or result.properties['sceneName'] in scene_filter:
                     jobs.append((key, result, download_path))

@@ -343,7 +343,8 @@ class ISCE_S1(ISCE_Base):
             # Local mode: fork a detached background process so CLI returns
             # immediately; use refresh/cancel/retry to control execution.
             self._start_local_background(sorted(pending))
-        self.save()
+        if not dry_run:
+            self.save()
         return self.jobs
 
     def _job_meta(self, step: str, script: Path, status: str,

@@ -303,13 +303,131 @@ class ISCE_Base(LocalProcessor):
         sbatch_script.chmod(0o755)
         return sbatch_script
 
-    def _step_executor_hpc(self, pending_steps: list[str]) -> None:
-        """Submit one sbatch job per command; steps chain via --dependency. Returns immediately.
+    @staticmethod
+    def _parse_time_secs(t: str) -> int:
+        """Parse SLURM time string (HH:MM:SS, MM:SS, or integer minutes) → seconds."""
+        t = str(t).strip()
+        parts = t.split(":")
+        try:
+            if len(parts) == 3:
+                return int(parts[0]) * 3600 + int(parts[1]) * 60 + int(parts[2])
+            if len(parts) == 2:
+                return int(parts[0]) * 60 + int(parts[1])
+            return int(parts[0]) * 60
+        except ValueError:
+            return 0
 
-        If config.dry_run is True: generate sbatch scripts only, do not call sbatch.
-        On submit: skip commands whose cmd_*.done file already exists.
-        """
-        dry_run    = getattr(self.config, "dry_run", False)
+    @staticmethod
+    def _fmt_secs(s: int) -> str:
+        h, rem = divmod(s, 3600)
+        m, sec = divmod(rem, 60)
+        return f"{h:02d}:{m:02d}:{sec:02d}"
+
+    def _dry_run_path_checks(self) -> bool:
+        """Print path validation table. Returns True if all required paths OK."""
+        cfg = self.config
+        W, G, R, B, E = Fore.YELLOW, Fore.GREEN, Fore.RED, Style.BRIGHT, Style.RESET_ALL
+        print(f"\n{B}{'─'*60}{E}")
+        print(f"{B}  DRY-RUN VALIDATION{E}")
+        print(f"{'─'*60}")
+        checks = [
+            ("workdir",   self.workdir,                                           True),
+            ("isce_dir",  self.isce_dir,                                          True),
+            ("run_files", self._run_files_dir,                                    True),
+            ("slc_dir",   Path(str(cfg.slc_dir))   if cfg.slc_dir   else None,   True),
+            ("orbit_dir", Path(str(cfg.orbit_dir)) if cfg.orbit_dir else None,   False),
+            ("dem_path",  Path(str(cfg.dem_path))  if cfg.dem_path  else None,   False),
+        ]
+        all_ok = True
+        for label, p, required in checks:
+            if p is None:
+                print(f"  {W}{'?' if required else '-'}{E}  {label:<12}  not set")
+                if required:
+                    all_ok = False
+                continue
+            exists = p.exists()
+            sym = (G + "✓" + E) if exists else (R + "✗" + E)
+            note = ""
+            if exists and label == "slc_dir":
+                n = len(list(p.glob("*.SAFE"))) + len(list(p.glob("*.zip")))
+                note = f"  ({n} SLC file(s))"
+            elif exists and label == "orbit_dir":
+                note = f"  ({len(list(p.glob('*.EOF')))} orbit file(s))"
+            elif not exists and required:
+                all_ok = False
+            print(f"  {sym}  {label:<12}  {p}{note}")
+        return all_ok
+
+    def _hpc_dry_run_summary(self, pending_steps: list[str]) -> None:
+        """Validate config paths and print a per-step HPC submission summary."""
+        W, G, R, B, E = Fore.YELLOW, Fore.GREEN, Fore.RED, Style.BRIGHT, Style.RESET_ALL
+
+        all_ok = self._dry_run_path_checks()
+
+        # ── Per-step table ────────────────────────────────────────────────────
+        print(f"\n{B}{'─'*60}{E}")
+        print(f"{B}  {'STEP':<44} {'JOBS':>5}  {'TIME':>9}  {'CPUS':>5}  {'MEM':>6}{E}")
+        print(f"{'─'*60}")
+
+        total_jobs = 0
+        total_secs = 0
+        issues: list[str] = []
+
+        for step in pending_steps:
+            script = Path(self.jobs[step]["script"])
+            commands = [
+                l.strip() for l in script.read_text().splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+            n_cmds = len(commands)
+            step_cfg = self._sbatch_opts_for_step(step)
+            t_str  = step_cfg.get("time",          "??:??:??")
+            cpus   = step_cfg.get("cpus_per_task", "?")
+            mem    = step_cfg.get("mem",            "?")
+
+            secs = self._parse_time_secs(t_str)
+            total_secs += secs
+            total_jobs += n_cmds
+
+            # flag suspicious values
+            step_issues = []
+            if secs == 0:
+                step_issues.append("time=0?")
+                issues.append(f"{step}: time invalid ({t_str})")
+            try:
+                if int(str(cpus)) < 1:
+                    step_issues.append("cpus<1?")
+            except ValueError:
+                pass
+
+            flag = f"  {W}⚠ {', '.join(step_issues)}{E}" if step_issues else ""
+            print(f"  {step:<44} {n_cmds:>5}  {t_str:>9}  {str(cpus):>5}  {str(mem):>6}{flag}")
+
+        # ── Totals ────────────────────────────────────────────────────────────
+        print(f"{'─'*60}")
+        print(f"  {'TOTAL':<44} {total_jobs:>5}  {self._fmt_secs(total_secs):>9}")
+        print(f"\n  Steps run sequentially; commands within each step run in parallel.")
+        print(f"  {B}Estimated wall time ≈ {self._fmt_secs(total_secs)}{E}  "
+              f"(sum of per-step time limits)")
+
+        if issues:
+            print(f"\n{W}  Warnings:{E}")
+            for iss in issues:
+                print(f"    {W}⚠{E}  {iss}")
+
+        verdict = (f"{G}  ✓ All paths OK — ready to submit.{E}"
+                   if all_ok else
+                   f"{R}  ✗ Fix missing required paths before submitting.{E}")
+        print(f"\n{verdict}")
+        print(f"  Run without --dry-run to submit jobs.\n")
+
+    def _step_executor_hpc(self, pending_steps: list[str]) -> None:
+        """Submit one sbatch job per command; steps chain via --dependency."""
+        dry_run = getattr(self.config, "dry_run", False)
+        if dry_run:
+            self._hpc_dry_run_summary(pending_steps)
+            return
+
         prev_job_ids: list[str] = []
 
         for step in pending_steps:
@@ -339,13 +457,8 @@ class ISCE_Base(LocalProcessor):
             all_done = True
 
             for i, cmd in enumerate(commands):
-                done_file     = log_dir / f"cmd_{i:04d}.done"
+                done_file = log_dir / f"cmd_{i:04d}.done"
                 sbatch_script = self._build_cmd_sbatch_script(step, cmd, i, log_dir, step_cfg, sbatch_dir)
-
-                if dry_run:
-                    dep_preview = f"  dep=[{dep_flag[14:34]}…]" if dep_flag else ""
-                    print(f"      [dryrun] cmd_{i:04d}  {sbatch_script.name}{dep_preview}")
-                    continue
 
                 if done_file.exists():
                     print(f"      cmd_{i:04d}  {Fore.YELLOW}SKIPPED (already done){Style.RESET_ALL}")
@@ -363,12 +476,6 @@ class ISCE_Base(LocalProcessor):
                     break
                 m = re.search(r"\d+", result.stdout)
                 step_job_ids.append(m.group() if m else "unknown")
-
-            if dry_run:
-                self.jobs[step]["slurm_job_ids"] = []
-                self.jobs[step]["status"] = _PENDING
-                print(f"  {Fore.YELLOW}  [dryrun] {step}  →  {len(commands)} script(s) in {sbatch_dir}{Style.RESET_ALL}")
-                continue
 
             if submit_failed:
                 return
@@ -390,12 +497,8 @@ class ISCE_Base(LocalProcessor):
             print(f"  {Fore.CYAN}  ▶ {step}  →  {len(step_job_ids)} job(s) [{ids_preview}]{Style.RESET_ALL}")
 
         self.save(silent=True)
-        if dry_run:
-            print(f"\n{Fore.YELLOW}Dry-run complete. Sbatch scripts written to <step>_sbatch/ folders.")
-            print(f"Run without --dry-run to submit.{Style.RESET_ALL}")
-        else:
-            print(f"\n{Fore.GREEN}All steps queued. "
-                  f"SSH session can now be closed — use 'refresh' to check status.{Style.RESET_ALL}")
+        print(f"\n{Fore.GREEN}All steps queued. "
+              f"SSH session can now be closed — use 'refresh' to check status.{Style.RESET_ALL}")
 
     def _step_executor(self, pending_steps: list[str]) -> None:
         """Run steps in order; parallelise independent commands within each step."""
@@ -404,6 +507,47 @@ class ISCE_Base(LocalProcessor):
             return
 
         dry_run = getattr(self.config, "dry_run", False)
+
+        if dry_run:
+            W, G, B, E = Fore.YELLOW, Fore.GREEN, Style.BRIGHT, Style.RESET_ALL
+            all_ok = self._dry_run_path_checks()
+            # ── Step summary table ────────────────────────────────────────────
+            print(f"\n{B}{'─'*60}{E}")
+            print(f"{B}  {'STEP':<44} {'CMDS':>5}  {'DONE':>5}{E}")
+            print(f"{'─'*60}")
+            total_cmds = total_done = 0
+            for step in pending_steps:
+                script  = Path(self.jobs[step]["script"])
+                log_dir = Path(self.jobs[step]["log_dir"])
+                cmds = [l.strip() for l in script.read_text().splitlines()
+                        if l.strip() and not l.strip().startswith("#")]
+                done = sum(1 for i in range(len(cmds))
+                           if (log_dir / f"cmd_{i:04d}.done").exists())
+                total_cmds += len(cmds)
+                total_done += done
+                done_tag = f"  {G}(all done){E}" if done == len(cmds) else (
+                           f"  {W}({done}/{len(cmds)} done){E}" if done else "")
+                print(f"  {step:<44} {len(cmds):>5}  {done:>5}{done_tag}")
+            print(f"{'─'*60}")
+            print(f"  {'TOTAL':<44} {total_cmds:>5}  {total_done:>5}")
+            # ── Command listing ───────────────────────────────────────────────
+            print(f"\n{B}  COMMANDS{E}")
+            for step in pending_steps:
+                script  = Path(self.jobs[step]["script"])
+                log_dir = Path(self.jobs[step]["log_dir"])
+                cmds = [self._fix_cmd(l.strip()) for l in script.read_text().splitlines()
+                        if l.strip() and not l.strip().startswith("#")]
+                print(f"\n{Fore.CYAN}  ▶ {step}{E}  ({len(cmds)} command(s))")
+                for i, cmd in enumerate(cmds):
+                    done_file = log_dir / f"cmd_{i:04d}.done"
+                    tag = f"  {W}(done){E}" if done_file.exists() else ""
+                    print(f"      cmd_{i:04d}  {cmd[:120]}{tag}")
+            verdict = (f"{G}  ✓ All paths OK — ready to run.{E}" if all_ok
+                       else f"{Fore.RED}  ✗ Fix missing required paths before running.{E}")
+            print(f"\n{verdict}")
+            print(f"  Run without --dry-run to execute.\n")
+            self.save(silent=True)
+            return
 
         for step in pending_steps:
             status, _ = _read_status(self._run_files_dir, step)
@@ -419,14 +563,6 @@ class ISCE_Base(LocalProcessor):
             ]
 
             print(f"\n{Fore.CYAN}  ▶ {step}{Style.RESET_ALL}  ({len(commands)} command(s))")
-
-            if dry_run:
-                for i, cmd in enumerate(commands):
-                    done_file = log_dir / f"cmd_{i:04d}.done"
-                    tag = f"  {Fore.YELLOW}(already done){Style.RESET_ALL}" if done_file.exists() else ""
-                    print(f"      cmd_{i:04d}  [dry-run] {cmd[:120]}{tag}")
-                continue
-
             _write_status(self._run_files_dir, step, _RUNNING, str(os.getpid()))
             self.jobs[step]["status"] = _RUNNING
 
@@ -442,8 +578,6 @@ class ISCE_Base(LocalProcessor):
                 print(f"  {Fore.RED}✗ {step} FAILED — logs: {log_dir}{Style.RESET_ALL}")
                 break
 
-        if dry_run:
-            print(f"\n{Fore.YELLOW}Dry-run complete. Run without --dry-run to execute.{Style.RESET_ALL}")
         self.save(silent=True)
 
     def _fix_cmd(self, cmd: str) -> str:

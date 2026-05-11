@@ -1824,14 +1824,14 @@ def _proc_local_submit(args, extra_args: list[str]):
     processor.submit()
 
 
-def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path):
+def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
+                           hpc_mode: bool = False, dry_run: bool = False):
     """Instantiate a local processor from a saved jobs file without needing pairs."""
     from insarhub import Processor
-    import dataclasses
     processor_cls = Processor._registry[processor_name]
     cfg_cls = getattr(processor_cls, "default_config", None)
-    cfg = cfg_cls(workdir=str(workdir), saved_job_path=str(jobs_path)) if cfg_cls else None
-    # Load pairs from saved jobs so retry() can re-queue them
+    cfg = cfg_cls(workdir=str(workdir), saved_job_path=str(jobs_path),
+                  hpc_mode=hpc_mode, dry_run=dry_run) if cfg_cls else None
     saved = json.loads(jobs_path.read_text())
     pairs = [(j["step"], j["step"]) for j in saved.get("jobs", {}).values()]
     return processor_cls(pairs=pairs or [("_", "_")], config=cfg)
@@ -1844,8 +1844,8 @@ def _proc_local_refresh(args):
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
-
-    _load_local_processor(processor_name, workdir, jobs_path).refresh()
+    hpc_mode = getattr(args, "hpc_mode", False)
+    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).refresh()
 
 
 def _proc_local_retry(args):
@@ -1855,8 +1855,10 @@ def _proc_local_retry(args):
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
-
-    _load_local_processor(processor_name, workdir, jobs_path).retry()
+    hpc_mode = getattr(args, "hpc_mode", False)
+    dry_run  = getattr(args, "dry_run", False)
+    _load_local_processor(processor_name, workdir, jobs_path,
+                          hpc_mode=hpc_mode, dry_run=dry_run).retry()
 
 
 def _proc_local_watch(args):

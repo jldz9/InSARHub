@@ -738,13 +738,18 @@ class ISCE_Base(LocalProcessor):
         print(f"{Fore.YELLOW}Retrying {len(to_retry)} step(s) "
               f"from {first_failed}…{Style.RESET_ALL}")
 
-        self._executor_thread = threading.Thread(
-            target=self._step_executor,
-            args=(to_retry,),
-            daemon=True,
-            name="stack-executor",
-        )
-        self._executor_thread.start()
+        hpc_mode = getattr(self.config, "hpc_mode", False)
+        dry_run  = getattr(self.config, "dry_run", False)
+        if hpc_mode or dry_run:
+            self._step_executor(to_retry)
+        else:
+            self._executor_thread = threading.Thread(
+                target=self._step_executor,
+                args=(to_retry,),
+                daemon=True,
+                name="stack-executor",
+            )
+            self._executor_thread.start()
         return self.jobs
 
     # ── Watch ─────────────────────────────────────────────────────────────────

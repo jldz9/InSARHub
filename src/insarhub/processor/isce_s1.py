@@ -330,13 +330,20 @@ class ISCE_S1(ISCE_Base):
         print(f"{Fore.GREEN}Registered {len(pending)} pending step(s) "
               f"({len(self.jobs)} total).{Style.RESET_ALL}")
 
-        self._executor_thread = threading.Thread(
-            target=self._step_executor,
-            args=(sorted(pending),),
-            daemon=True,
-            name="stack-executor",
-        )
-        self._executor_thread.start()
+        hpc_mode = getattr(self.config, "hpc_mode", False)
+        dry_run  = getattr(self.config, "dry_run", False)
+        if hpc_mode or dry_run:
+            # HPC/dry-run: just fires sbatch/writes scripts — blocking is safe and
+            # avoids daemon thread being killed before all steps are submitted.
+            self._step_executor(sorted(pending))
+        else:
+            self._executor_thread = threading.Thread(
+                target=self._step_executor,
+                args=(sorted(pending),),
+                daemon=True,
+                name="stack-executor",
+            )
+            self._executor_thread.start()
         self.save()
         return self.jobs
 

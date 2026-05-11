@@ -164,15 +164,18 @@ def _prepare_dem(config: ISCE_S1_Config, workdir: Path) -> Path:
     """Return path to an ISCE2-format DEM, downloading GLO-30 if needed."""
     raw = config.dem_path
     dem_dir = workdir / "dem"
-    if raw is not None and str(raw).strip().lower() not in ("", "none"):
+    _auto = raw is None or str(raw).strip().lower() in ("", "none", "auto")
+    _is_sentinel = (not _auto) and Path(str(raw)) == workdir / "dem"
+
+    if not _auto and not _is_sentinel:
         p = Path(str(raw))
-        if p.is_dir():
-            # dem_path is a directory — look for dem.wgs84 inside it
-            dem_dir = p
-        elif p.suffix.lower() in (".tif", ".tiff"):
+        if p.suffix.lower() in (".tif", ".tiff"):
             return _geotiff_to_isce_dem(p, workdir)
-        else:
+        if p.is_dir():
+            dem_dir = p
+        elif p.is_file():
             return p
+        # explicit path given but doesn't exist yet — fall through to download into dem_dir
 
     bbox: list[float] | None = (
         list(config.bbox) if config.bbox and len(config.bbox) == 4 else None

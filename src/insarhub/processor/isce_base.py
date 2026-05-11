@@ -14,7 +14,9 @@ import json
 import logging
 import os
 import re
+import signal
 import subprocess
+import sys
 import threading
 import time
 from collections import defaultdict
@@ -743,14 +745,80 @@ class ISCE_Base(LocalProcessor):
         if hpc_mode or dry_run:
             self._step_executor(to_retry)
         else:
-            self._executor_thread = threading.Thread(
-                target=self._step_executor,
-                args=(to_retry,),
-                daemon=True,
-                name="stack-executor",
-            )
-            self._executor_thread.start()
+            self._start_local_background(to_retry)
         return self.jobs
+
+    # ── Background local execution ────────────────────────────────────────────
+
+    def _start_local_background(self, pending_steps: list[str]) -> None:
+        """Fork a detached process to run steps; parent returns immediately."""
+        pid_file = self._run_files_dir / "executor.pid"
+        log_file = self._run_files_dir / "executor.log"
+        if os.name == "posix":
+            pid = os.fork()
+            if pid == 0:  # child — detach and run
+                try:
+                    os.setsid()
+                    with open(log_file, "w") as _lf:
+                        os.dup2(_lf.fileno(), sys.stdout.fileno())
+                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    self._step_executor(pending_steps)
+                finally:
+                    os._exit(0)
+            # parent
+            pid_file.write_text(str(pid))
+            print(f"{Fore.GREEN}Local executor running in background (PID {pid}).{Style.RESET_ALL}")
+            print(f"  log : {log_file}")
+            print(f"  Use 'refresh' to check status, 'cancel' to stop.")
+        else:
+            # Windows: no fork — run blocking
+            self._step_executor(pending_steps)
+
+    # ── Cancel ────────────────────────────────────────────────────────────────
+
+    def cancel(self) -> None:
+        """Cancel all running/pending jobs (HPC: scancel; local: SIGTERM by PID)."""
+        if getattr(self.config, "hpc_mode", False):
+            all_ids: list[str] = []
+            for meta in self.jobs.values():
+                ids = meta.get("slurm_job_ids") or (
+                    [meta["slurm_job_id"]] if meta.get("slurm_job_id") else []
+                )
+                all_ids.extend(ids)
+            valid_ids = [jid for jid in all_ids if jid and jid != "unknown"]
+            if not valid_ids:
+                print(f"{Fore.YELLOW}No SLURM job IDs found.{Style.RESET_ALL}")
+                return
+            result = subprocess.run(["scancel"] + valid_ids, capture_output=True, text=True)
+            if result.returncode == 0:
+                print(f"{Fore.GREEN}scancel: cancelled {len(valid_ids)} job(s).{Style.RESET_ALL}")
+            else:
+                print(f"{Fore.RED}scancel error: {result.stderr.strip()}{Style.RESET_ALL}")
+            for step, meta in self.jobs.items():
+                if meta.get("status") in (_PENDING, _RUNNING):
+                    meta["status"] = _FAILED
+                    _write_status(self._run_files_dir, step, _FAILED, "cancelled by user")
+            self.save(silent=True)
+        else:
+            pid_file = self._run_files_dir / "executor.pid"
+            if not pid_file.exists():
+                print(f"{Fore.YELLOW}No local executor running (no PID file).{Style.RESET_ALL}")
+                return
+            try:
+                pid = int(pid_file.read_text().strip())
+                try:
+                    os.killpg(os.getpgid(pid), signal.SIGTERM)
+                    print(f"{Fore.GREEN}Sent SIGTERM to executor (PID {pid}).{Style.RESET_ALL}")
+                except ProcessLookupError:
+                    print(f"{Fore.YELLOW}Process already finished.{Style.RESET_ALL}")
+                pid_file.unlink(missing_ok=True)
+                for step, meta in self.jobs.items():
+                    if meta.get("status") in (_RUNNING, _PENDING):
+                        meta["status"] = _FAILED
+                        _write_status(self._run_files_dir, step, _FAILED, "cancelled by user")
+                self.save(silent=True)
+            except Exception as e:
+                print(f"{Fore.RED}Cancel error: {e}{Style.RESET_ALL}", file=sys.stderr)
 
     # ── Watch ─────────────────────────────────────────────────────────────────
 

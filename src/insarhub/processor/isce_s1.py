@@ -333,17 +333,13 @@ class ISCE_S1(ISCE_Base):
         hpc_mode = getattr(self.config, "hpc_mode", False)
         dry_run  = getattr(self.config, "dry_run", False)
         if hpc_mode or dry_run:
-            # HPC/dry-run: just fires sbatch/writes scripts — blocking is safe and
-            # avoids daemon thread being killed before all steps are submitted.
+            # HPC/dry-run: sbatch calls are fast — run blocking so CLI doesn't
+            # exit before all jobs are submitted.
             self._step_executor(sorted(pending))
         else:
-            self._executor_thread = threading.Thread(
-                target=self._step_executor,
-                args=(sorted(pending),),
-                daemon=True,
-                name="stack-executor",
-            )
-            self._executor_thread.start()
+            # Local mode: fork a detached background process so CLI returns
+            # immediately; use refresh/cancel/retry to control execution.
+            self._start_local_background(sorted(pending))
         self.save()
         return self.jobs
 

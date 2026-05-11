@@ -179,9 +179,10 @@ def create_parser() -> argparse.ArgumentParser:
             "  watch            Poll until all jobs complete\n"
             "  credits          Show remaining HyP3 credits\n"
             "\nLocal processor actions (ISCE_S1):\n"
-            "  submit           Submit pairs to local ISCE2 processor\n"
+            "  submit           Submit pairs to local ISCE2 processor (runs in background)\n"
             "  refresh          Show current job statuses\n"
             "  retry            Resubmit failed pairs\n"
+            "  cancel           Kill background executor or scancel HPC jobs\n"
             "  watch            Poll until all pairs complete\n"
             "\nRun 'insarhub processor -N <name> <action> --help' for action details."
         ),
@@ -266,6 +267,12 @@ def create_parser() -> argparse.ArgumentParser:
     # --- credits  (HyP3) ----------------------------------------------- #
     p_proc_credits = proc_sub.add_parser("credits", help="Show remaining HyP3 processing credits")
     _add_credential_pool(p_proc_credits)
+
+    # --- cancel  (local / HPC) ----------------------------------------- #
+    proc_sub.add_parser(
+        "cancel",
+        help="Cancel all running/pending jobs (local: SIGTERM; HPC: scancel)"
+    )
 
     # ------------------------------------------------------------------ #
     # analyzer — prepare + run MintPy SBAS time-series analysis
@@ -1410,13 +1417,15 @@ def cmd_processor(args, extra_args: list[str]):
         # else: no action → help shown by main()
 
     elif is_local:
-        _LOCAL_ACTIONS = {"submit", "refresh", "retry", "watch"}
+        _LOCAL_ACTIONS = {"submit", "refresh", "retry", "watch", "cancel"}
         if action == "submit":
             _proc_local_submit(args, extra_args)
         elif action == "refresh":
             _proc_local_refresh(args)
         elif action == "retry":
             _proc_local_retry(args)
+        elif action == "cancel":
+            _proc_local_cancel(args)
         elif action == "watch":
             _proc_local_watch(args)
         # else: no action → help shown by main()
@@ -1859,6 +1868,17 @@ def _proc_local_retry(args):
     dry_run  = getattr(args, "dry_run", False)
     _load_local_processor(processor_name, workdir, jobs_path,
                           hpc_mode=hpc_mode, dry_run=dry_run).retry()
+
+
+def _proc_local_cancel(args):
+    processor_name = getattr(args, "processor_name", "ISCE_S1")
+    workdir        = _resolve_workdir(args.workdir)
+    jobs_path      = _find_jobs_file(workdir, pattern="isce_jobs*.json")
+    if jobs_path is None:
+        print("[ERROR] No isce_jobs.json found. Nothing to cancel.", file=sys.stderr)
+        sys.exit(1)
+    hpc_mode = getattr(args, "hpc_mode", False)
+    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).cancel()
 
 
 def _proc_local_watch(args):

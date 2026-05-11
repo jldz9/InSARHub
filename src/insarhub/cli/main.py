@@ -1782,6 +1782,11 @@ def _proc_local_submit(args, extra_args: list[str]):
 
     overrides["workdir"] = str(workdir)
 
+    # --dry-run is registered in the HyP3 submit subparser so argparse consumes
+    # it into args.dry_run before extra_args is built — pull it back in here.
+    if getattr(args, "dry_run", False):
+        overrides["dry_run"] = True
+
     # ── Load pairs (same helpers as Hyp3) ──────────────────────────────────
     pairs_data = _load_pairs(args, workdir)
     raw_pairs  = pairs_data if isinstance(pairs_data, list) else next(iter(pairs_data.values()), [])

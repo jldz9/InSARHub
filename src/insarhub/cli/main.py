@@ -1050,7 +1050,7 @@ def cmd_downloader(args, extra_args: list[str]):
                 cfg_path = _direct if _direct.exists() else _find_subfolder_config(workdir, "downloader_config.json")
             else:
                 cfg_path = None
-            values = _read_config_json(cfg_path) if cfg_path else {}
+            values = (_read_dl_config_from_folder(cfg_path.parent) or _read_config_json(cfg_path)) if cfg_path else {}
             if not values:
                 print(f"[INFO] No saved config found. Showing defaults.")
             _print_config_options(config_cls,
@@ -1065,7 +1065,7 @@ def cmd_downloader(args, extra_args: list[str]):
     _default_cfg_requested = (args.config == "__default__")
     if _cfg:
         cfg_path = Path(_cfg).expanduser().resolve()
-        saved_cfg = _read_config_json(cfg_path)
+        saved_cfg = _read_dl_config_from_folder(cfg_path.parent) or _read_config_json(cfg_path)
     elif _default_cfg_requested:
         # --config with no value: prefer insarhub_config.json (new format), fall back to
         # downloader_config.json (legacy), check workdir then p*_f* subdirs
@@ -1367,7 +1367,7 @@ def cmd_processor(args, extra_args: list[str]):
                 cfg_path = _direct if _direct.exists() else _find_subfolder_config(workdir, "processor_config.json")
             else:
                 cfg_path = None
-            values = _read_config_json(cfg_path) if cfg_path else {}
+            values = (_read_proc_config_from_folder(cfg_path.parent) or _read_config_json(cfg_path)) if cfg_path else {}
             if not values:
                 print(f"[INFO] No saved config found. Showing defaults.")
             _print_config_options(config_cls,
@@ -1427,7 +1427,7 @@ def _proc_submit(args, extra_args: list[str]):
     _default_cfg_requested = (args.config == "__default__")
     if _cfg:
         cfg_path = Path(_cfg).expanduser().resolve()
-        saved_cfg = _read_config_json(cfg_path)
+        saved_cfg = _read_proc_config_from_folder(cfg_path.parent) or _read_config_json(cfg_path)
     elif _default_cfg_requested:
         # --config with no value: prefer insarhub_config.json (new format), fall back to
         # processor_config.json (legacy), check workdir then p*_f* subdirs
@@ -1725,7 +1725,8 @@ def _proc_local_submit(args, extra_args: list[str]):
     _cfg = args.config if (args.config and args.config != "__default__") else None
     _default_cfg_requested = (args.config == "__default__")
     if _cfg:
-        saved_cfg = _read_config_json(Path(_cfg).expanduser().resolve())
+        _cfg_path = Path(_cfg).expanduser().resolve()
+        saved_cfg = _read_proc_config_from_folder(_cfg_path.parent) or _read_config_json(_cfg_path)
         print(f"[INFO] Loaded config from {_cfg}")
     elif _default_cfg_requested:
         saved_cfg = _read_proc_config_from_folder(workdir)

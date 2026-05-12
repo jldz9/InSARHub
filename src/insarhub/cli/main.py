@@ -277,7 +277,7 @@ def create_parser() -> argparse.ArgumentParser:
     # ------------------------------------------------------------------ #
     # analyzer — prepare + run MintPy SBAS time-series analysis
     #
-    # Actions: prep | run | cleanup
+    # Actions: prep_data | run | cleanup
     # Config fields for the chosen analyzer are passed as extra --KEY VALUE
     # flags (run only) and resolved dynamically at runtime.
     # ------------------------------------------------------------------ #
@@ -286,8 +286,8 @@ def create_parser() -> argparse.ArgumentParser:
         "\n"
         "  Keyword       Description\n"
         "  ----------    ----------------------------------------\n"
-        "  prep          Prepare HyP3 data (unzip, clip, configure)\n"
-        "  all           prep + all MintPy steps below (default if --step omitted)\n"
+        "  prep_data     Prepare data (unzip, clip, write .mintpy.cfg)\n"
+        "  all           prep_data + all MintPy steps below (default if --step omitted)\n"
         "\n"
         "  MintPy step             \n"
         "  --------------------\n"
@@ -1970,10 +1970,10 @@ def _az_run(args, extra_args: list[str]):
 
     run_prep = False
     mintpy_steps: list[str] | None = None
-    steps = getattr(args, 'step', None) or ['all']  # default: run everything including prep
+    steps = getattr(args, 'step', None) or ['all']  # default: run everything including prep_data
     expanded: list[str] = []
     for s in steps:
-        if s == 'prep':
+        if s == 'prep_data':
             run_prep = True
         elif s == 'all':
             run_prep = True
@@ -1991,7 +1991,7 @@ def _az_run(args, extra_args: list[str]):
                 label = analysis_dir.name if analysis_dir != workdir else workdir.name
                 if not cfg_path.exists():
                     print(f"[WARNING] No .mintpy.cfg in [{label}]. "
-                          f"Run '--step prep' first.", file=sys.stderr)
+                          f"Run '--step prep_data' first.", file=sys.stderr)
                     continue
                 _update_mintpy_cfg(cfg_path, overrides)
                 print(f"[{label}] Updated: {list(overrides.keys())}")
@@ -2006,7 +2006,7 @@ def _az_run(args, extra_args: list[str]):
             cfg_path = analysis_dir / ".mintpy.cfg"
             if not cfg_path.exists():
                 print(f"\n[WARNING] No .mintpy.cfg found in [{label}]. "
-                      f"Run 'insarhub analyzer -N {args.analyzer_name} -w {analysis_dir} run --step prep' first.\n",
+                      f"Run 'insarhub analyzer -N {args.analyzer_name} -w {analysis_dir} run --step prep_data' first.\n",
                       file=sys.stderr)
                 continue
             if overrides:
@@ -2022,7 +2022,7 @@ def _az_run(args, extra_args: list[str]):
     workdir = _resolve_workdir(args.workdir)
 
     # Build ordered step list for display
-    display_steps = (["prep"] if run_prep else []) + (mintpy_steps or [])
+    display_steps = (["prep_data"] if run_prep else []) + (mintpy_steps or [])
     total = len(display_steps)
 
     for analysis_dir in _iter_analysis_dirs(workdir):
@@ -2036,9 +2036,9 @@ def _az_run(args, extra_args: list[str]):
             print(f"\nStep {step_num}/{total}: prep_data")
             step_num += 1
             result = PrepDataCommand(analyzer).run()
-            _fail(result, f"prep {tag}".strip())
+            _fail(result, f"prep_data {tag}".strip())
             if mintpy_steps is None:
-                continue  # only 'prep' was requested for this dir
+                continue  # only 'prep_data' was requested for this dir
 
         # HPC mode: submit all MintPy steps as a single sbatch job
         if getattr(analyzer.config, "hpc_mode", False):

@@ -118,16 +118,17 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             **slurm_kwargs,
         )
 
-        py  = sys.executable
-        cfg = str(self.cfg_path)
-        d   = str(mintpy_dir)
+        import os
+        import shutil
 
-        if steps:
-            cmds = [f"{py} -m mintpy.smallbaselineApp {cfg} --dir {d} --dostep {s}"
-                    for s in steps]
-            body = "\n".join(f"{c} || exit 1" for c in cmds)
-        else:
-            body = f"{py} -m mintpy.smallbaselineApp {cfg} --dir {d}"
+        insarhub_bin = shutil.which("insarhub") or f"{Path(sys.executable).parent}/insarhub"
+        analyzer_name = type(self).name
+        current_path  = os.environ.get("PATH", "")
+
+        body = "\n".join([
+            f'export PATH="{current_path}"',
+            f"{insarhub_bin} analyzer -N {analyzer_name} -w {self.workdir} run",
+        ])
 
         lines = ["#!/bin/bash"] + slurm_cfg.to_header_lines() + ["", body, ""]
         sbatch_script = mintpy_dir / "mintpy_sbas.sbatch"

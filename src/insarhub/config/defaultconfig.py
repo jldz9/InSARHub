@@ -425,6 +425,8 @@ class Mintpy_SBAS_Base_Config:
          "fields": ["save_hdfEos5", "save_hdfEos5_update", "save_hdfEos5_subset"]},
         {"label": "Plot",
          "fields": ["plot", "plot_dpi", "plot_maxMemory"]},
+        {"label": "HPC (SLURM)",
+         "fields": ["hpc_mode", "hpc_sbatch_opts"]},
     ]
     _ui_fields: ClassVar[dict] = {
         # Compute Resources
@@ -655,12 +657,18 @@ class Mintpy_SBAS_Base_Config:
         "plot_dpi":            {"type": "auto_number", "hint": "Figure DPI for saved plots"},
         "plot_maxMemory":      {"type": "auto_number",
                                 "hint": "Maximum memory in GB for plot_smallbaseline.py"},
+        "hpc_mode":            {"type": "bool",
+                                "hint": "Submit the full MintPy run as a single sbatch job"},
+        "hpc_sbatch_opts":     {"type": "text",
+                                "hint": "SLURM resource overrides, e.g. {\"time\": \"24:00:00\", \"mem\": \"256G\", \"cpus_per_task\": 32}. Defaults: ntasks=1, cpus_per_task=16, mem=128G, time=12:00:00"},
     }
     # ─────────────────────────────────────────────────────────────────────────
 
     name: str = "Mintpy_SBAS_Base_Config"
     workdir: Path | str = field(default_factory=lambda: Path.cwd())
-    debug: bool = False 
+    debug: bool = False
+    hpc_mode: bool = False
+    hpc_sbatch_opts: dict = field(default_factory=dict)
 
     ## computing resource configuration
     compute_maxMemory : float | int = _env['memory']

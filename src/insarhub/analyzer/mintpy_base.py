@@ -1,7 +1,11 @@
 
+import dataclasses
 import getpass
+import json
 import requests
 import shutil
+import subprocess
+import sys
 from pathlib import Path
 
 import pyaps3
@@ -87,6 +91,71 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             print(f"{Fore.GREEN}Credentials saved to {cdsapirc_path}.\n")
             return True
     
+    def submit_hpc(self, steps: list[str] | None = None) -> str:
+        """Generate a sbatch script for the full MintPy run and submit it.
+
+        Returns the SLURM job ID string.
+        """
+        from insarhub.utils.tool import Slurmjob_Config
+
+        mintpy_dir = self.workdir / "mintpy"
+        mintpy_dir.mkdir(parents=True, exist_ok=True)
+
+        # Merge user opts over defaults
+        _defaults = {"time": "24:00:00", "ntasks": 1, "cpus_per_task": 16, "mem": "128G", "partition": "all"}
+        opts = {**_defaults, **(self.config.hpc_sbatch_opts or {})}
+
+        _slurm_fields = {f.name for f in dataclasses.fields(Slurmjob_Config)}
+        _skip = {"job_name", "output_file", "error_file", "command",
+                 "modules", "conda_env", "export_env", "array", "dependency"}
+        slurm_kwargs = {k: v for k, v in opts.items()
+                        if k in _slurm_fields and k not in _skip}
+
+        slurm_cfg = Slurmjob_Config(
+            job_name="mintpy_sbas",
+            output_file=str(mintpy_dir / "mintpy_slurm_%j.out"),
+            error_file=str(mintpy_dir / "mintpy_slurm_%j.err"),
+            **slurm_kwargs,
+        )
+
+        py  = sys.executable
+        cfg = str(self.cfg_path)
+        d   = str(mintpy_dir)
+
+        if steps:
+            cmds = [f"{py} -m mintpy.smallbaselineApp {cfg} --dir {d} --dostep {s}"
+                    for s in steps]
+            body = "\n".join(f"{c} || exit 1" for c in cmds)
+        else:
+            body = f"{py} -m mintpy.smallbaselineApp {cfg} --dir {d}"
+
+        lines = ["#!/bin/bash"] + slurm_cfg.to_header_lines() + ["", body, ""]
+        sbatch_script = mintpy_dir / "mintpy_sbas.sbatch"
+        sbatch_script.write_text("\n".join(lines) + "\n")
+        sbatch_script.chmod(0o755)
+
+        result = subprocess.run(
+            ["sbatch", "--parsable", str(sbatch_script)],
+            capture_output=True, text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"sbatch failed: {result.stderr.strip()}")
+
+        job_id = result.stdout.strip().split(";")[0]
+
+        job_file = mintpy_dir / "mintpy_job.json"
+        job_file.write_text(json.dumps({
+            "job_id":  job_id,
+            "status":  "PENDING",
+            "script":  str(sbatch_script),
+            "log":     str(mintpy_dir / f"mintpy_slurm_{job_id}.out"),
+        }, indent=2))
+
+        print(f"{Fore.GREEN}MintPy SBAS job submitted: {job_id}{Style.RESET_ALL}")
+        print(f"  script : {sbatch_script}")
+        print(f"  log    : {mintpy_dir}/mintpy_slurm_{job_id}.out")
+        return job_id
+
     def run(self, steps=None):
         """
         Run the MintPy SBAS time-series analysis workflow.

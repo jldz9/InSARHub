@@ -2040,6 +2040,12 @@ def _az_run(args, extra_args: list[str]):
             if mintpy_steps is None:
                 continue  # only 'prep' was requested for this dir
 
+        # HPC mode: submit all MintPy steps as a single sbatch job
+        if getattr(analyzer.config, "hpc_mode", False):
+            if mintpy_steps:
+                analyzer.submit_hpc(steps=mintpy_steps)
+            continue
+
         for step in (mintpy_steps or []):
             print(f"\nStep {step_num}/{total}: {step}")
             step_num += 1

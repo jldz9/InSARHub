@@ -169,123 +169,242 @@ insarhub processor [--list-processors] <action> [options]
 |------|-------------|
 | `--list-processors` | Print all registered processors and exit |
 
-### submit
+=== "Hyp3_S1"
 
-Submit pairs to a registered processor (default: `Hyp3_InSAR`).
+    Cloud processing via ASF HyP3 — no local ISCE2 needed.
 
-```bash
-insarhub processor submit [options]
-```
+    #### submit
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-N`, `--name` | `Hyp3_InSAR` | Processor to use |
-| `--list-options` | — | Print all config fields for the selected processor |
-| `-w`, `--workdir` | cwd | Working directory |
-| `--config` | `<workdir>/insarhub_config.json` | Path to a saved processor config JSON; omit the value to use the default path |
-| `--credential-pool` | `~/.credit_pool` | JSON file mapping `{username: password}` for multi-account HyP3 submission |
-| `--name-prefix` | `ifg` | Job name prefix |
-| `--max-workers` | `4` | Parallel submission workers |
-| `--dry-run` | — | Print what would be submitted without sending jobs |
-| `--pairs-file` | auto | JSON file from `downloader --select-pairs` |
-| `--pairs` | — | Inline pairs as `"reference,secondary"` strings |
+    Submit interferogram pairs to ASF HyP3 for cloud processing.
 
-After a successful submission or dry run, processor settings are saved to `insarhub_config.json` in `workdir`. On subsequent runs it is loaded automatically, so you only need to specify overrides:
+    ```bash
+    insarhub processor submit [options]
+    ```
 
-```bash
-# Run with overrides options
-insarhub processor submit -N Hyp3_InSAR -w /data/bryce --phase_filter_parameter 0.5 --dry-run
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-N`, `--name` | `Hyp3_S1` | Must be `Hyp3_S1` (default) |
+    | `--list-options` | — | Print all config fields |
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--config` | `<workdir>/insarhub_config.json` | Path to saved config; omit value to use default path |
+    | `--credential-pool` | `~/.credit_pool` | JSON `{username: password}` for multi-account submission |
+    | `--name-prefix` | `ifg` | Job name prefix |
+    | `--max-workers` | `4` | Parallel submission workers |
+    | `--dry-run` | — | Print what would be submitted without sending jobs |
+    | `--pairs-file` | auto | Pairs JSON from `downloader --select-pairs` |
+    | `--pairs` | — | Inline pairs as `"reference,secondary"` strings |
 
-# Submit with saved config (default to <workdir>/processor_config.json)
-insarhub processor submit -w /data/bryce --config
+    After submission, settings are saved to `insarhub_config.json`. Subsequent runs reload it automatically — only specify overrides:
 
-# Use a custom config file
-insarhub processor submit -w /data/bryce --config /other/config.json
-```
+    ```bash
+    # First submission
+    insarhub processor submit -N Hyp3_S1 -w /data/bryce
 
-When no `--pairs-file` is given, `submit` automatically looks for `stack_p<path>_f<frame>.json` files inside `p<path>_f<frame>/` subfolders under `workdir` (the layout produced by `downloader --select-pairs`). A separate HyP3 job batch is submitted for each group found, with outputs saved alongside the stack file.
+    # Dry run (recommended before first real submission)
+    insarhub processor submit -N Hyp3_S1 -w /data/bryce --dry-run
 
-```bash
-# Submit from auto-detected pairs.json in workdir
-insarhub processor submit -w /data/bryce --dry-run
+    # Override a field and resubmit
+    insarhub processor submit -N Hyp3_S1 -w /data/bryce --phase_filter_parameter 0.5 --dry-run
 
-# Submit with a specific pairs file, dry run first
-insarhub processor submit -w /data/bryce --pairs-file /data/pairs.json 
+    # Auto-detect pairs from p*_f* subfolders
+    insarhub processor submit -w /data/bryce --dry-run
 
-# Inline pairs
-insarhub processor submit -w /data/bryce --pairs "S1A_20200101,S1A_20200113"
-```
+    # Specific pairs file
+    insarhub processor submit -w /data/bryce --pairs-file /data/pairs.json
 
-### refresh
+    # Inline pairs
+    insarhub processor submit -w /data/bryce --pairs "S1A_20200101,S1A_20200113"
+    ```
 
-Pull the latest job statuses from HyP3.
+    When no `--pairs-file` is given, `submit` automatically looks for `stack_p<path>_f<frame>.json` files inside `p<path>_f<frame>/` subfolders under `workdir` (the layout produced by `downloader --select-pairs`).
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-w`, `--workdir` | cwd | Working directory |
-| `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
+    #### refresh
 
-```bash
-insarhub processor refresh -w /data/bryce
-insarhub processor refresh -w /data/bryce --job-file /data/bryce/hyp3_jobs.json
-```
+    Pull latest job statuses from HyP3.
 
-### download
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
 
-Download all completed HyP3 job outputs.
+    ```bash
+    insarhub processor refresh -w /data/bryce
+    ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-w`, `--workdir` | cwd | Working directory |
-| `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
+    #### download
 
-```bash
-insarhub processor download -w /data/bryce
-```
+    Download all completed HyP3 outputs.
 
-### retry
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
 
-Resubmit all failed jobs.
+    ```bash
+    insarhub processor download -w /data/bryce
+    ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `-w`, `--workdir` | cwd | Working directory |
-| `--job-file` | `<workdir>/hyp3_jobs.json` | Path to saved job IDs JSON |
+    #### retry
 
-```bash
-insarhub processor retry -w /data/bryce
-```
+    Resubmit all failed HyP3 jobs.
 
-### watch
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--job-file` | auto | Saved job file |
 
-Poll HyP3 at regular intervals until all jobs complete, downloading results as they succeed.
+    ```bash
+    insarhub processor retry -w /data/bryce
+    ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--interval` | `300` | Seconds between refresh polls |
+    #### watch
 
-```bash
-insarhub processor watch -w /data/bryce --interval 600
-```
+    Poll HyP3 at regular intervals; downloads results as jobs succeed.
 
-### credits
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `--interval` | `300` | Seconds between polls |
+    | `-w`, `--workdir` | cwd | Working directory |
 
-Show remaining HyP3 processing credits for all accounts.
+    ```bash
+    insarhub processor watch -w /data/bryce --interval 600
+    ```
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--credential-pool` | `~/.credit_pool` | JSON file mapping `{username: password}` to check multiple accounts |
+    #### credits
 
-```bash
-insarhub processor credits
-insarhub processor credits --credential-pool ~/.credit_pool
-```
+    Show remaining HyP3 processing credits for all accounts.
+
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `--credential-pool` | `~/.credit_pool` | JSON `{username: password}` for multiple accounts |
+
+    ```bash
+    insarhub processor credits
+    insarhub processor credits --credential-pool ~/.credit_pool
+    ```
+
+=== "ISCE_S1"
+
+    Local or HPC processing using ISCE2 `stackSentinel` — requires ISCE2 installed. SLC `.SAFE` files must be downloaded first (use `insarhub downloader -d`).
+
+    #### submit
+
+    Generate ISCE2 run scripts and start execution.
+
+    ```bash
+    insarhub processor submit -N ISCE_S1 [options]
+    ```
+
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-N`, `--name` | — | Must be `ISCE_S1` |
+    | `--list-options` | — | Print all config fields |
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--config` | `<workdir>/insarhub_config.json` | Path to saved config |
+    | `--bbox` | — | Bounding box `S N W E` in decimal degrees |
+    | `--slc_dir` | `<workdir>/slc` | Directory containing SLC `.SAFE` files |
+    | `--orbit_dir` | `<workdir>/slc` | Directory containing `.EOF` orbit files |
+    | `--hpc_mode` | `False` | Submit each step as a separate SLURM `sbatch` job |
+    | `--coregistration` | `NESD` | `NESD` (recommended) or `geometry` |
+    | `--looks_range` | `20` | Range looks |
+    | `--looks_azimuth` | `4` | Azimuth looks |
+    | `--dry-run` | — | Preview run scripts and path checks without executing |
+    | `--pairs-file` | auto | Pairs JSON from `downloader --select-pairs` |
+
+    ```bash
+    # Dry run first (recommended)
+    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+        --bbox 33.0 38.0 -120.0 -115.0 --dry-run
+
+    # Local execution (runs in background)
+    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+        --bbox 33.0 38.0 -120.0 -115.0
+
+    # HPC / SLURM mode
+    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+        --bbox 33.0 38.0 -120.0 -115.0 --hpc_mode True
+    ```
+
+    !!! note "HPC mode and `sbatch_options.json`"
+        When `--hpc_mode True` is set, `submit` automatically loads `<workdir>/sbatch_options.json` to
+        configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.).
+
+        - If `sbatch_options.json` is **not found**, a default 16-step template is created at that path and
+          `submit` prints a reminder to edit it before resubmitting.
+        - If `srun_options.json` exists from an older run, it is migrated to `sbatch_options.json` automatically.
+
+        Edit `sbatch_options.json` to set resources per step, then re-run `submit`.
+
+    #### refresh
+
+    Read step and command statuses from disk.
+
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--job-file` | auto | `<workdir>/isce/isce_jobs_*.json` |
+
+    ```bash
+    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+    ```
+
+    ??? output
+        ```
+          STEP                                          STATUS
+        -----------------------------------------------------------------
+          - run_01_unpack_topo_reference                SUCCEEDED
+          - run_02_unpack_secondary_slc                 RUNNING
+              cmd_0000  SUCCEEDED
+              cmd_0001  RUNNING
+              cmd_0002  PENDING
+          - run_03_average_baseline                     PENDING
+          ...
+        ```
+
+    #### retry
+
+    Re-run all failed steps.
+
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--job-file` | auto | Saved job file |
+
+    ```bash
+    insarhub processor retry -N ISCE_S1 -w /data/p100_f466
+    ```
+
+    #### cancel
+
+    Terminate running steps. Local mode sends SIGTERM to the background process; HPC mode runs `scancel` on all active SLURM job IDs.
+
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `-w`, `--workdir` | cwd | Working directory |
+    | `--job-file` | auto | Saved job file |
+
+    ```bash
+    insarhub processor cancel -N ISCE_S1 -w /data/p100_f466
+    ```
+
+    #### watch
+
+    Poll step statuses until all steps complete.
+
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `--interval` | `300` | Seconds between polls |
+    | `-w`, `--workdir` | cwd | Working directory |
+
+    ```bash
+    insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
+    ```
 
 ---
 
 ## analyzer
 
-Prepare HyP3 data and run MintPy SBAS time-series analysis.
+Run MintPy SBAS time-series analysis on interferogram outputs.
 
 ```bash
 insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [options]
@@ -293,94 +412,199 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-N`, `--name` | `Hyp3_SBAS` | Analyzer to use (see `--list-analyzers`) |
-| `-w`, `--workdir` | cwd | Working directory containing HyP3 results |
+| `-N`, `--name` | `Hyp3_SBAS` | Analyzer to use (`Hyp3_SBAS` or `ISCE_SBAS`) |
+| `-w`, `--workdir` | cwd | Working directory |
 | `--list-analyzers` | — | Print all registered analyzers and exit |
 | `--list-options` | — | Print all config fields for the selected analyzer |
 
-### Config overrides
+| Analyzer | Processor | Input |
+|---|---|---|
+| `Hyp3_SBAS` | [`Hyp3_S1`](#hyp3_s1) | HyP3 zip outputs |
+| `ISCE_SBAS` | [`ISCE_S1`](#isce_s1) | ISCE2 `merged/interferograms/` |
 
-Any field shown by `--list-options` can be overridden directly on the `analyzer` command before specifying an action. The value is written into `mintpy.cfg` so it persists across runs.
+Any field shown by `--list-options` can be overridden on the command line before the action. Values are written into `mintpy.cfg` and persist across runs. If `workdir` contains multiple `p*_f*` subfolders, overrides and analysis are applied to each in sequence.
 
-```bash
-# See current config values (reads mintpy.cfg if it exists)
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce --list-options
+=== "Hyp3_SBAS"
 
-# Override a single field without running any steps
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce --compute_maxMemory 30
+    ### run
 
-# Override and then run
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce --compute_maxMemory 30 run
-```
+    Run the analysis workflow. Omitting `--step` runs the full pipeline (`prep` + all MintPy steps).
 
-If `workdir` contains multiple `p*_f*` subfolders (one per track/frame), config overrides and analysis are applied to each subfolder in sequence.
+    ```bash
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run [--step STEP...] [--debug]
+    ```
 
-### run
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `--step` | all | Step(s) to run (space-separated) |
+    | `--debug` | — | Enable MintPy debug mode |
+    | `--hpc_mode` | `False` | Submit the full MintPy run as a single SLURM `sbatch` job instead of running locally |
 
-Run the analysis workflow. Omitting `--step` runs the full pipeline (`prep` + all MintPy steps).
+    | Step keyword | Description |
+    |---|---|
+    | `prep` | Unzip and clip HyP3 products, write MintPy config |
+    | `all` | `prep` + all MintPy steps (default) |
+    | `load_data` | Load interferograms and geometry into MintPy HDF5 |
+    | `modify_network` | Apply network modification rules |
+    | `reference_point` | Select reference pixel |
+    | `invert_network` | Invert the interferogram network (SBAS) |
+    | `correct_LOD` | Correct for local oscillator drift |
+    | `correct_SET` | Correct for solid Earth tides |
+    | `correct_ionosphere` | Correct ionospheric delay |
+    | `correct_troposphere` | Correct tropospheric delay |
+    | `deramp` | Remove orbital/ramp signal |
+    | `correct_topography` | Correct topographic residuals |
+    | `residual_RMS` | Compute residual RMS for outlier detection |
+    | `reference_date` | Select reference date |
+    | `velocity` | Estimate linear velocity |
+    | `geocode` | Geocode outputs to geographic coordinates |
+    | `google_earth` | Generate Google Earth KMZ |
+    | `hdfeos5` | Export to HDF-EOS5 format |
 
-```bash
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce run [--step STEP...] [--debug]
-```
+    ```bash
+    # Full pipeline
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--step` | all | Step(s) to run (space-separated; see table below) |
-| `--debug` | — | Enable MintPy debug mode |
+    # Prep only
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step prep
 
-#### Available steps
+    # Single step
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step velocity
 
-| Step keyword | Description |
-|---|---|
-| `prep` | Prepare HyP3 data (unzip, clip, configure MintPy) |
-| `all` | `prep` + all MintPy steps below (default when `--step` is omitted) |
-| `load_data` | Load interferograms and geometry into MintPy HDF5 |
-| `modify_network` | Apply network modification rules |
-| `reference_point` | Select reference pixel |
-| `invert_network` | Invert the interferogram network (SBAS) |
-| `correct_LOD` | Correct for local oscillator drift |
-| `correct_SET` | Correct for solid Earth tides |
-| `correct_ionosphere` | Correct ionospheric delay |
-| `correct_troposphere` | Correct tropospheric delay |
-| `deramp` | Remove orbital/ramp signal |
-| `correct_topography` | Correct topographic residuals |
-| `residual_RMS` | Compute residual RMS for outlier detection |
-| `reference_date` | Select reference date |
-| `velocity` | Estimate linear velocity |
-| `geocode` | Geocode outputs to geographic coordinates |
-| `google_earth` | Generate Google Earth KMZ |
-| `hdfeos5` | Export to HDF-EOS5 format |
+    # Multiple steps
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step geocode velocity
 
-```bash
-# Full pipeline (default)
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce run
+    # Override config and run
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce --compute_maxMemory 30 run
+    ```
 
-# Prepare data only
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step prep
+    Each executing step prints `Step N/Total: step_name` for batch log visibility.
 
-# Run a single MintPy step
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step velocity
+    #### HPC mode
 
-# Run multiple steps
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --step geocode velocity
+    When `--hpc_mode True` is set, a single `sbatch` script covering all selected steps is generated and submitted to SLURM instead of running locally.
 
-# Override config and run
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce --compute_maxMemory 30 run
-```
+    ```bash
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --hpc_mode True
 
-Each executing step is printed as `Step N/Total: step_name` so progress is visible in batch logs.
+    # Specific steps on HPC
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce run --hpc_mode True --step velocity geocode
+    ```
 
-### cleanup
+    Script written to `<workdir>/mintpy/mintpy_sbas.sbatch`, job state to `mintpy/mintpy_job.json`.
 
-Remove temporary files and zip archives generated during processing.
+    Default SLURM resources: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`. Override via `--hpc_sbatch_opts`:
 
-```bash
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce cleanup
-```
+    ```bash
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce \
+        --hpc_sbatch_opts '{"time": "48:00:00", "mem": "256G", "partition": "gpu"}' \
+        run --hpc_mode True
+    ```
 
-| Flag | Description |
-|------|-------------|
-| `--debug` | Dry-run mode — print what would be removed without deleting anything |
+    ### cleanup
+
+    Remove intermediate files no longer needed after MintPy has loaded all data into HDF5.
+
+    ```bash
+    insarhub analyzer -N Hyp3_SBAS -w /data/bryce cleanup
+    ```
+
+    | Flag | Description |
+    |------|-------------|
+    | `--debug` | Dry-run — print what would be removed without deleting |
+
+    Removes: `tmp/`, `clip/`, all `.zip` files in workdir.
+
+=== "ISCE_SBAS"
+
+    ### run
+
+    Run the analysis workflow. Omitting `--step` runs the full pipeline (`prep` + all MintPy steps).
+
+    ```bash
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run [--step STEP...] [--debug]
+    ```
+
+    | Flag | Default | Description |
+    |------|---------|-------------|
+    | `--step` | all | Step(s) to run (space-separated) |
+    | `--debug` | — | Enable MintPy debug mode |
+    | `--hpc_mode` | `False` | Submit the full MintPy run as a single SLURM `sbatch` job instead of running locally |
+
+    | Step keyword | Description |
+    |---|---|
+    | `prep` | Auto-discover ISCE2 outputs, write MintPy config |
+    | `all` | `prep` + all MintPy steps (default) |
+    | `load_data` | Load interferograms and geometry into MintPy HDF5 |
+    | `modify_network` | Apply network modification rules |
+    | `reference_point` | Select reference pixel |
+    | `invert_network` | Invert the interferogram network (SBAS) |
+    | `correct_LOD` | Correct for local oscillator drift |
+    | `correct_SET` | Correct for solid Earth tides |
+    | `correct_ionosphere` | Correct ionospheric delay |
+    | `correct_troposphere` | Correct tropospheric delay |
+    | `deramp` | Remove orbital/ramp signal |
+    | `correct_topography` | Correct topographic residuals |
+    | `residual_RMS` | Compute residual RMS for outlier detection |
+    | `reference_date` | Select reference date |
+    | `velocity` | Estimate linear velocity |
+    | `geocode` | Geocode outputs to geographic coordinates |
+    | `google_earth` | Generate Google Earth KMZ |
+    | `hdfeos5` | Export to HDF-EOS5 format |
+
+    ```bash
+    # Full pipeline
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run
+
+    # Prep only
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step prep
+
+    # Single step
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step velocity
+
+    # Multiple steps
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --step geocode velocity
+
+    # Override config and run
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 --compute_maxMemory 30 run
+    ```
+
+    Each executing step prints `Step N/Total: step_name` for batch log visibility.
+
+    #### HPC mode
+
+    When `--hpc_mode True` is set, a single `sbatch` script covering all selected steps is generated and submitted to SLURM instead of running locally.
+
+    ```bash
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --hpc_mode True
+
+    # Specific steps on HPC
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run --hpc_mode True --step velocity geocode
+    ```
+
+    Script written to `<workdir>/mintpy/mintpy_sbas.sbatch`, job state to `mintpy/mintpy_job.json`.
+
+    Default SLURM resources: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`. Override via `--hpc_sbatch_opts`:
+
+    ```bash
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 \
+        --hpc_sbatch_opts '{"time": "48:00:00", "mem": "256G", "partition": "gpu"}' \
+        run --hpc_mode True
+    ```
+
+    ### cleanup
+
+    Remove intermediate files no longer needed after MintPy has loaded all data into HDF5.
+
+    ```bash
+    insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 cleanup
+    ```
+
+    | Flag | Description |
+    |------|-------------|
+    | `--debug` | Dry-run — print what would be removed without deleting |
+
+    Removes: `isce/coarse_interferograms/`, `isce/ESD/`, `isce/coreg_secondarys/`, `isce/interferograms/`, `slc/`, `dem/`.
 
 ---
 
@@ -508,9 +732,9 @@ Already-downloaded files are skipped automatically, so the command is safe to re
 
 ---
 
-## End-to-end example
+## End-to-end example — HyP3
 
-The complete pipeline from search to time-series analysis:
+The complete pipeline from search to time-series analysis using cloud HyP3 processing:
 
 ```bash
 # 1. Search and select pairs
@@ -532,6 +756,42 @@ insarhub analyzer -N Hyp3_SBAS -w /data/bryce run
 
 # 5. Export velocity to GeoTIFF
 insarhub utils h5-to-raster -i /data/bryce/p100_f466/velocity.h5
+```
+
+---
+
+## End-to-end example — ISCE_S1 (local)
+
+The complete pipeline using local ISCE2 processing and ISCE_SBAS time-series analysis:
+
+```bash
+# 1. Search and download SLC scenes (saves to workdir/slc/ by default)
+insarhub downloader -N S1_SLC \
+    --AOI -113.05 37.74 -112.68 38.00 \
+    --start 2020-01-01 --end 2020-12-31 \
+    --stacks 100:466 \
+    -w /data/p100_f466 \
+    --select-pairs --download -O
+
+# 2. Dry run to verify paths and bbox
+insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    --bbox 37.74 38.00 -113.05 -112.68 --dry-run
+
+# 3. Submit local processing (runs in background)
+insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    --bbox 37.74 38.00 -113.05 -112.68
+
+# 4. Monitor progress
+insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+
+# 5. Watch until all steps complete
+insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
+
+# 6. Run ISCE_SBAS time-series analysis
+insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run
+
+# 7. Export velocity to GeoTIFF
+insarhub utils h5-to-raster -i /data/p100_f466/mintpy/geo/geo_velocity.h5
 ```
 
 *[HPC]: High Performance Computing

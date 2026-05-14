@@ -20,6 +20,7 @@ theme:
     - search.suggest
     - search.highlight
     - content.code.copy
+    - content.tabs.link
     - announce.dismiss
   palette:
     - media: "(prefers-color-scheme: light)"
@@ -91,6 +92,11 @@ markdown_extensions:
         - name: mermaid
           class: mermaid
           format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+      slugify: !!python/object/apply:pymdownx.slugs.slugify
+        kwds:
+          case: lower
   - tables
   - md_in_html
   - pymdownx.blocks.caption
@@ -99,6 +105,36 @@ extra_css:
   - stylesheets/extra.css
 plugins:
   - search
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: en
+          default: true
+          name: English
+          build: true
+        - locale: zh
+          name: 中文
+          build: true
+          nav_translations:
+            Home: 主页
+            QuickStart: 快速开始
+            Installation: 安装
+            API Setup: API 配置
+            Running: 运行
+            API: API
+            CLI: 命令行
+            Web UI: Web 界面
+            Overview: 概览
+            Search & Download: 搜索与下载
+            Processor: 处理器
+            Analyzer: 分析器
+            Results Viewer: 结果查看器
+            Advanced: 高级
+            File Structure: 文件结构
+            Downloader: 下载器
+            Utilities: 工具集
+            Pair Quality Scoring: 配对质量评分
+            Frontend Reference: 前端参考
   - glightbox
   - mkdocstrings:
        handlers:

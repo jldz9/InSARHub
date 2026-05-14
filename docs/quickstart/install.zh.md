@@ -1,38 +1,40 @@
-=== "Default"
+=== "默认"
 
-    ??? note "Create a fresh environment (recommended)"
+    ??? note "创建新环境（推荐）"
 
         ```bash
         conda create -n insarhub python=3.12
         conda activate insarhub
         ```
 
+    从 conda-forge 安装最新版本：
+
     ```bash
     conda install insarhub -c conda-forge
     ```
 
-    Or from pip (GDAL must be installed via conda first):
+    或通过 pip 安装（需先通过 conda 安装 GDAL）：
 
     ```bash
     conda install gdal
     pip install insarhub
     ```
 
-=== "ISCE2 Processor"
+=== "ISCE2 处理器"
 
-    Adds local on-premise interferogram processing via ISCE2 `stackSentinel`.
+    使用 ISCE2 `stackSentinel` 进行本地干涉图处理。
 
-    !!! note "Platform availability"
-        ISCE2 is only available on Linux and macOS (x86_64). Not available for Windows or Apple Silicon natively — use WSL2 or a Linux HPC cluster.
+    !!! note "平台支持"
+        ISCE2 仅支持 Linux 和 macOS (x86_64)，不支持 Windows 或 Apple Silicon，请使用 WSL2 或 Linux HPC 集群。
 
-    Install InSARHub first, then add ISCE2 into the same environment:
+    先安装 InSARHub，再在同一环境中安装 ISCE2：
 
     ```bash
     conda install insarhub -c conda-forge
     conda install isce2 -c conda-forge
     ```
 
-    Verify ISCE2 installed correctly:
+    验证 ISCE2 安装：
 
     ```bash
     python -c "import isce; print(isce.__version__)"
@@ -40,9 +42,9 @@
 
 ---
 
-### Development Setup
+### 开发环境配置
 
-=== "Default"
+=== "默认"
 
     ```bash
     git clone https://github.com/jldz9/InSARHub.git
@@ -52,7 +54,7 @@
     pip install -e .
     ```
 
-=== "ISCE2 Processor"
+=== "ISCE2 处理器"
 
     ```bash
     git clone https://github.com/jldz9/InSARHub.git
@@ -62,6 +64,6 @@
     pip install -e .
     ```
 
-??? note "Using mamba for faster solves"
+??? note "使用 mamba 加速依赖解析"
 
-    Replace `conda` with `mamba` in any of the above commands if you have [mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html) installed.
+    将以上命令中的 `conda` 替换为 `mamba`（如已安装 [mamba](https://mamba.readthedocs.io/en/latest/installation/mamba-installation.html)）。

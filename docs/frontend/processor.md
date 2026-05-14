@@ -9,6 +9,9 @@ Once you have added a job via **Add Job** in the Search panel, the job folder ap
 The **Jobs** button in the top-right toolbar opens the Job Folders drawer.
 ///
 
+
+---
+
 Then click the downloader tag (e.g. **S1_SLC**) on the job folder to open its detail panel.
 
 <!-- screenshot: clicking downloader tag on job folder -->
@@ -143,14 +146,14 @@ Click **Process** to submit interferogram pairs to HyP3.
 ![Processor Selection](fig/processor_dialog_light.png#only-light){: .doc-img style="width: 60%"}
 ![Processor Selection](fig/processor_dialog_dark.png#only-dark){: .doc-img style="width: 60%"}
 /// caption
-Processor selection dialog. Choose a processor (e.g. `Hyp3_InSAR`) and confirm to submit all pairs to HyP3.
+Processor selection dialog. Choose a processor (e.g. `Hyp3_S1`) and confirm to submit all pairs to HyP3.
 ///
 
 !!! tip "Test before submitting"
     For submitting jobs to an external server, check **Dry Run** in the processor dialog to validate your environment and credentials without submitting real jobs. A successful dry run produces output similar to:
 
     ```
-    [Dry run] Would submit 65 pairs via Hyp3_InSAR from p93_f121
+    [Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
     ```
 
     This is recommended before your first submission to ensure everything is configured correctly.
@@ -207,5 +210,7 @@ If any jobs have `FAILED`, click **Retry** to resubmit them. Once jobs show `SUC
 Once all jobs have succeeded and interferograms are downloaded, proceed to the Analyzer panel to run time-series InSAR analysis.
 
 [Analyzer](analyzer.md){.md-button}
+
+
 
 

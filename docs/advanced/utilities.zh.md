@@ -1,9 +1,9 @@
-Utilities are sets of tools designed to support and streamline InSAR processing workflows.
+工具集是一组用于支持和简化 InSAR 处理工作流的工具。
 
 
-### Select Pairs
+### 选择配对
 
-Select interferogram pairs from ASF search results based on temporal and perpendicular baseline criteria.
+根据时间和垂直基线标准，从 ASF 搜索结果中选择干涉图配对。
 
 ```python
 from insarhub import Downloader
@@ -27,9 +27,9 @@ pairs, baselines, scene_bperp, _ = select_pairs(search_results=results)
         heading_level: 0
 
 
-### Plot Pair Network
+### 绘制配对网络
 
-Plot the SBAS interferogram network returned by `select_pairs`.
+绘制由 `select_pairs` 返回的 SBAS 干涉图网络。
 
 ```python
 from insarhub.utils import plot_pair_network
@@ -38,7 +38,7 @@ fig = plot_pair_network(pairs=pairs, baselines=baselines, scene_baselines=scene_
 fig.show()
 ```
 
-Example: 
+示例：
 
 ![networks](../quickstart/fig/ifgs_network.png){:  margin: auto;" }
 
@@ -48,9 +48,9 @@ Example:
         members: false
         heading_level: 0
 
-### ERA5 Downloader
+### ERA5 下载器
 
-Download ERA5 pressure-level weather data for MintPy tropospheric correction. Automatically determines required acquisition dates and spatial extents from HyP3 zip files and saves files using MintPy-compatible naming (`ERA5_S*_N*_W*_E*_YYYYMMDD_HH.grb`). Requires a `~/.cdsapirc` file with your [CDS API](https://cds.climate.copernicus.eu/api-how-to) credentials.
+下载用于 MintPy 大气延迟校正的 ERA5 压力层天气数据。自动从 HyP3 zip 文件中确定所需的获取日期和空间范围，并使用 MintPy 兼容命名规则（`ERA5_S*_N*_W*_E*_YYYYMMDD_HH.grb`）保存文件。需要包含 [CDS API](https://cds.climate.copernicus.eu/api-how-to) 凭据的 `~/.cdsapirc` 文件。
 
 ```python
 from insarhub.utils import ERA5Downloader
@@ -65,19 +65,19 @@ era5.download_batch(batch_dir='path/to/hyp3/outputs')
             - download_batch
         heading_level: 0
 
-### Earth Credit Pool
+### Earthdata 凭据池
 
-If user have multiple Earthdata credentials, user may storage it under ~/.credit_pool with format 
+如果用户拥有多个 Earthdata 凭据，可将其存储在 `~/.credit_pool` 中，格式为：
 ```bash
 username1:password1
 username2:password2
 ```
-then read use:
+然后读取使用：
 ```python
 from insarhub.utils import earth_credit_pool
 ec_pool = earth_credit_pool()
 ```
-You may then pass this into processor for seameless switch across multiple Earthdata credentials
+可将其传入处理器，实现多个 Earthdata 凭据之间的无缝切换：
 
 ```python
 from insarhub import Processor
@@ -89,11 +89,9 @@ processor= Processor.create('Hyp3_S1', earthdata_credentials_pool=ec_pool, ....)
         members: false
         heading_level: 0
 
-### Slurm Job Config
+### SLURM 任务配置
 
-This class encapsulates all parameters needed to generate a SLURM batch script,
-    including resource allocation, job settings, environment configuration, and
-    execution commands.
+此类封装了生成 SLURM 批处理脚本所需的所有参数，包括资源分配、任务设置、环境配置和执行命令。
 
 ```python
 from insarhub.utils import Slurmjob_Config
@@ -109,4 +107,3 @@ config.to_script("analysis.slurm")
     options:
         members: false
         heading_level: 0
-

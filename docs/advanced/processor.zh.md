@@ -1,43 +1,43 @@
-The InSARHub Processor module provides functionality specifically for interferogram processing.
+InSARHub 处理器模块专门提供干涉图处理功能。
 
-- **Import processor**
+- **导入处理器**
 
-    Import the Processor class to access all processor functionality
+    导入 Processor 类以访问所有处理器功能
 ```python
 from insarhub import Processor
 ```
 
-- **View available processors**
+- **查看可用处理器**
 
-    List all registered processors
+    列出所有已注册的处理器
 ```python
 Processor.available()
 ```
 
-## Available Processors
+## 可用处理器
 
 === "Hyp3_S1"
 
-    The HyP3 InSAR processor is a cloud-based processing service provided by the ASF HyP3 system for generating interferograms from Sentinel-1 SAR data.
-    InSARHub wrapped [hyp3_sdk](https://github.com/ASFHyP3/hyp3-sdk) as one of its process backends.
+    HyP3 InSAR 处理器是 ASF HyP3 系统提供的基于云端的处理服务，用于从 Sentinel-1 SAR 数据生成干涉图。
+    InSARHub 将 [hyp3_sdk](https://github.com/ASFHyP3/hyp3-sdk) 封装为其处理后端之一。
 
-    The `Hyp3_S1` specifically wraps `insar_job` in hyp3_sdk to provide InSAR SLC processing workflows.
+    `Hyp3_S1` 专门封装了 hyp3_sdk 中的 `insar_job`，提供 InSAR SLC 处理工作流。
 
     ::: insarhub.processor.hyp3_s1.Hyp3_S1
         options:
             heading_level: 0
             members: false
 
-    ### Usage
+    ### 使用方法
 
-    - **Create Processor with Parameters**
+    - **使用参数创建处理器**
 
-        Initialize a processor instance with search criteria
+        使用搜索条件初始化处理器实例
 
         ```python
         processor = Processor.create('Hyp3_S1', workdir='/your/work/path', pairs=pairs)
         ```
-        OR
+        或
         ```python
         params = {
             "workdir": '/your/work/path',
@@ -45,7 +45,7 @@ Processor.available()
         }
         processor = Processor.create('Hyp3_S1', **params)
         ```
-        OR
+        或
         ```python
         from insarhub.config.defaultconfig import Hyp3_S1_Config
         cfg = Hyp3_S1_Config(workdir='/your/work/path', pairs=pairs)
@@ -63,9 +63,9 @@ Processor.available()
                 members: false
                 heading_level: 0
 
-    - **Submit Jobs**
+    - **提交任务**
 
-        Submit InSAR jobs to HyP3 based on the current configuration.
+        根据当前配置向 HyP3 提交 InSAR 任务。
 
         ```python
         jobs = processor.submit()
@@ -77,9 +77,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Refresh Jobs**
+    - **刷新任务**
 
-        Refresh the status of all jobs.
+        刷新所有任务的状态。
 
         ```python
         jobs = processor.refresh()
@@ -91,9 +91,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Retry Failed Jobs**
+    - **重试失败任务**
 
-        Retry all failed jobs by re-submitting them.
+        通过重新提交来重试所有失败的任务。
 
         ```python
         jobs = processor.retry()
@@ -105,9 +105,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Download Succeeded Jobs**
+    - **下载成功任务**
 
-        Download all succeeded jobs for all users.
+        下载所有用户的已成功任务。
 
         ```python
         processor.download()
@@ -119,9 +119,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Save Current Jobs**
+    - **保存当前任务**
 
-        Save the current job batch information to a JSON file.
+        将当前任务批次信息保存到 JSON 文件。
 
         ```python
         processor.save()
@@ -133,9 +133,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Watch Jobs**
+    - **监控任务**
 
-        Continuously monitor jobs and download completed outputs.
+        持续监控任务并下载已完成的输出。
 
         ```python
         processor.watch()
@@ -147,34 +147,34 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Load Saved Job**
+    - **加载已保存任务**
 
-        Load a previously saved JSON file and resume work.
+        加载之前保存的 JSON 文件并恢复工作。
 
         ```python
         processor = Processor.create('Hyp3_S1', saved_job_path='path/to/your/json/file.json')
         ```
 
-        When loaded, you can resume checking or downloading jobs submitted to the HyP3 server.
+        加载后可恢复检查/下载提交至 HyP3 服务器的任务。
 
 === "ISCE_S1"
 
-    The ISCE_S1 processor runs ISCE2 `stackSentinel` locally to generate Sentinel-1 interferograms from downloaded SLC `.SAFE` files. It generates a numbered sequence of run scripts and executes them sequentially, parallelising independent commands within each step.
+    ISCE_S1 处理器在本地运行 ISCE2 `stackSentinel`，从下载的 SLC `.SAFE` 文件生成 Sentinel-1 干涉图。它生成一系列编号运行脚本并顺序执行，在每个步骤内并行运行独立命令。
 
-    - **Import processor**
+    - **导入处理器**
 
         ```python
         from insarhub import Processor
         ```
 
-    - **Create processor**
+    - **创建处理器**
 
         ```python
         from insarhub.config import ISCE_S1_Config
 
         cfg = ISCE_S1_Config(
             workdir='/data/p100_f466',
-            bbox=[33.0, 38.0, -120.0, -115.0],   # [S, N, W, E]
+            bbox=[33.0, 38.0, -120.0, -115.0],   # [南, 北, 西, 东]
         )
         pairs = [('20200101', '20200113'), ('20200113', '20200125')]
         processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
@@ -186,9 +186,9 @@ Processor.available()
                 show_source: false
                 heading_level: 0
 
-    - **Submit (local mode)**
+    - **提交（本地模式）**
 
-        Generate run scripts and start sequential execution in a background process. Returns immediately; use `refresh()` to monitor progress.
+        生成运行脚本并在后台进程中开始顺序执行。立即返回；使用 `refresh()` 监控进度。
 
         ```python
         jobs = processor.submit()
@@ -200,9 +200,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Submit (HPC / SLURM mode)**
+    - **提交（HPC / SLURM 模式）**
 
-        Set `hpc_mode=True` in the config to submit each step as a separate `sbatch` job instead of running locally.
+        在配置中设置 `hpc_mode=True`，将每个步骤作为单独的 `sbatch` 任务提交。
 
         ```python
         cfg = ISCE_S1_Config(
@@ -214,9 +214,9 @@ Processor.available()
         processor.submit()
         ```
 
-    - **Dry run**
+    - **试运行**
 
-        Preview the run scripts and path checks without executing anything.
+        预览运行脚本和路径检查，不执行任何操作。
 
         ```python
         cfg = ISCE_S1_Config(
@@ -228,9 +228,9 @@ Processor.available()
         processor.submit()
         ```
 
-    - **Refresh**
+    - **刷新**
 
-        Read step and command statuses from disk.
+        从磁盘读取步骤和命令状态。
 
         ```python
         jobs = processor.refresh()
@@ -242,9 +242,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Retry failed steps**
+    - **重试失败步骤**
 
-        Re-run all steps that have `FAILED` status.
+        重新运行所有状态为 `FAILED` 的步骤。
 
         ```python
         processor.retry()
@@ -256,9 +256,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Cancel**
+    - **取消**
 
-        Terminate the running background process (local mode) or `scancel` all active SLURM jobs (HPC mode).
+        终止正在运行的后台进程（本地模式）或对所有活动 SLURM 任务执行 `scancel`（HPC 模式）。
 
         ```python
         processor.cancel()
@@ -270,9 +270,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Watch**
+    - **监控**
 
-        Poll step statuses at regular intervals until all steps complete.
+        定期轮询步骤状态，直到所有步骤完成。
 
         ```python
         processor.watch(refresh_interval=60)
@@ -284,9 +284,9 @@ Processor.available()
                 show_source: false
                 heading_level: 5
 
-    - **Save / Load**
+    - **保存 / 加载**
 
-        Job state is saved automatically after `submit()`. To reload and resume from a saved job file:
+        任务状态在 `submit()` 后自动保存。从已保存的任务文件重新加载并恢复：
 
         ```python
         cfg = ISCE_S1_Config(
@@ -294,7 +294,7 @@ Processor.available()
             saved_job_path='/data/p100_f466/isce/isce_jobs_<timestamp>.json',
         )
         processor = Processor.create('ISCE_S1', pairs=[], config=cfg)
-        processor.refresh()   # or .retry(), .cancel(), .watch()
+        processor.refresh()   # 或 .retry()、.cancel()、.watch()
         ```
 
 *[HyP3]: Hybrid Pluggable Processing Pipeline

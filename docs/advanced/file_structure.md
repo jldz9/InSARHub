@@ -137,7 +137,7 @@ Central pipeline config that accumulates as each stage runs. All keys are option
     }
   },
   "processor": {
-    "type": "Hyp3_InSAR",
+    "type": "Hyp3_S1",
     "config": {
       "phase_filter_parameter": 0.6,
       "looks": "20x4"

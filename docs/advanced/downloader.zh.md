@@ -1,35 +1,35 @@
-The InSARHub Downloader module provides a streamlined interface for searching and downloading satellite data.
+InSARHub 下载器模块提供了搜索和下载卫星数据的流线化接口。
 
-- **Import downloader**
+- **导入下载器**
 
-    Import the Downloader class to access all downloader functionality
+    导入 Downloader 类以访问所有下载器功能
 ```python
 from insarhub import Downloader
 ```
 
-- **View available downloaders**
+- **查看可用下载器**
 
-    List all registered downloaders
+    列出所有已注册的下载器
 ```python
 Downloader.available()
 ```
 
-## Available Downloaders
+## 可用下载器
 
 === "ASF_Base_Downloader"
 
-    InSARHub wrapped [asf_search](https://github.com/asfadmin/Discovery-asf_search) as one of its download backends. The `ASF_Base_Downloader` is implemented on top of a reusable base configuration class, which provides the full searching, filtering, and downloading logic of asf_search.
+    InSARHub 将 [asf_search](https://github.com/asfadmin/Discovery-asf_search) 封装为其下载后端之一。`ASF_Base_Downloader` 基于可复用的基础配置类实现，提供 asf_search 的完整搜索、过滤和下载逻辑。
 
     ::: insarhub.downloader.asf_base.ASF_Base_Downloader
         options:
             heading_level: 0
             members: false
 
-    ### Usage
+    ### 使用方法
 
-    - **Create downloader with parameters**
+    - **使用参数创建下载器**
 
-        Initialize a downloader instance with search criteria
+        使用搜索条件初始化下载器实例
 
         ```python
         s1 = Downloader.create('ASF_Base_Downloader',
@@ -45,7 +45,7 @@ Downloader.available()
                                 frame=466,
                                 workdir='path/to/dir')
         ```
-        OR
+        或
         ```python
         params = {
             "intersectsWith": [-113.05, 37.74, -112.68, 38.00],
@@ -62,7 +62,7 @@ Downloader.available()
         }
         dl = Downloader.create('ASF_Base_Downloader', **params)
         ```
-        OR
+        或
         ```python
         from insarhub.config import ASF_Base_Config
         cfg = ASF_Base_Config(intersectsWith=[-113.05, 37.74, -112.68, 38.00],
@@ -79,16 +79,16 @@ Downloader.available()
         dl = Downloader.create('ASF_Base_Downloader', config=cfg)
         ```
 
-        The base config `ASF_Base_Config` contains all parameters from asf_search keywords. For detailed descriptions refer to the [official ASF Search documentation](https://docs.asf.alaska.edu/asf_search/searching/#searching).
+        基础配置 `ASF_Base_Config` 包含 asf_search 的所有关键词参数。有关每个参数的详细说明，请参阅 [ASF Search 官方文档](https://docs.asf.alaska.edu/asf_search/searching/#searching)。
 
         ::: insarhub.config.ASF_Base_Config
             options:
                 heading_level: 0
                 members: false
 
-    - **Search**
+    - **搜索**
 
-        Query the satellite archive and retrieve available scenes matching your criteria
+        查询卫星档案并检索符合条件的可用场景
 
         ```python
         results = dl.search()
@@ -99,9 +99,9 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Filter**
+    - **过滤**
 
-        Refine existing search results by applying additional constraints
+        通过添加额外约束来细化现有搜索结果
 
         ```python
         filter_result = dl.filter(start='2020-02-01')
@@ -112,9 +112,9 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Reset filter**
+    - **重置过滤器**
 
-        Restore search results to the original unfiltered state
+        将搜索结果恢复至原始未过滤状态
 
         ```python
         dl.reset()
@@ -125,9 +125,9 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Summary**
+    - **摘要**
 
-        Display statistics and overview of current search results
+        显示当前搜索结果的统计和概览
 
         ```python
         dl.summary()
@@ -138,9 +138,9 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **View Footprint**
+    - **查看覆盖范围**
 
-        Visualize geographic coverage of search results on an interactive map
+        在交互式地图上可视化搜索结果的地理覆盖范围
 
         ```python
         dl.footprint()
@@ -151,9 +151,9 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Download**
+    - **下载**
 
-        Download all scenes from current search results to local storage
+        将当前搜索结果中的所有场景下载到本地存储
 
         ```python
         dl.download()
@@ -164,9 +164,9 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **DEM Download**
+    - **下载 DEM**
 
-        Download DEM covering all scenes from current search results
+        下载覆盖当前搜索结果所有场景的 DEM
 
         ```python
         dl.dem()
@@ -177,9 +177,9 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Select Pairs**
+    - **选择配对**
 
-        Compute interferogram pairs for all active stacks based on temporal and perpendicular baseline constraints. Scenes with poor acquisition conditions (heavy rain, snow) are excluded automatically when `avoid_low_quality_days=True` (default).
+        根据时间和垂直基线约束，为所有活动堆叠计算干涉图配对。当 `avoid_low_quality_days=True`（默认）时，自动排除获取条件较差（大雨、积雪）的场景。
 
         ```python
         from insarhub.utils import plot_pair_network
@@ -206,7 +206,7 @@ Downloader.available()
 
 === "S1_SLC"
 
-    `S1_SLC` is a specialized downloader that extends `ASF_Base_Downloader`, preconfigured specifically for downloading Sentinel-1 SLC data.
+    `S1_SLC` 是一个专门用于下载 Sentinel-1 SLC 数据的下载器，扩展自 `ASF_Base_Downloader`。
 
     ::: insarhub.downloader.s1_slc.S1_SLC
         options:
@@ -214,11 +214,11 @@ Downloader.available()
             heading_level: 0
             members: false
 
-    ### Usage
+    ### 使用方法
 
-    - **Create downloader with parameters**
+    - **使用参数创建下载器**
 
-        Initialize a downloader instance with search criteria
+        使用搜索条件初始化下载器实例
 
         ```python
         s1 = Downloader.create('S1_SLC',
@@ -229,7 +229,7 @@ Downloader.available()
                                 frame=466,
                                 workdir='path/to/dir')
         ```
-        OR
+        或
         ```python
         params = {
             "intersectsWith": [-113.05, 37.74, -112.68, 38.00],
@@ -241,7 +241,7 @@ Downloader.available()
         }
         dl = Downloader.create('S1_SLC', **params)
         ```
-        OR
+        或
         ```python
         from insarhub.config import S1_SLC_Config
         cfg = S1_SLC_Config(intersectsWith=[-113.05, 37.74, -112.68, 38.00],
@@ -253,14 +253,14 @@ Downloader.available()
         dl = Downloader.create('S1_SLC', config=cfg)
         ```
 
-        The config `S1_SLC_Config` contains pre-defined parameters specifically for Sentinel-1 data. For detailed descriptions refer to the [official ASF Search documentation](https://docs.asf.alaska.edu/asf_search/searching/#searching).
+        配置 `S1_SLC_Config` 包含专门针对 Sentinel-1 数据的预定义参数。详情请参阅 [ASF Search 官方文档](https://docs.asf.alaska.edu/asf_search/searching/#searching)。
 
         ::: insarhub.downloader.s1_slc.S1_SLC_Config
             options:
                 heading_level: 0
                 members: false
 
-    - **Search**
+    - **搜索**
 
         ```python
         results = dl.search()
@@ -271,7 +271,7 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Filter**
+    - **过滤**
 
         ```python
         filter_result = dl.filter(start='2020-02-01')
@@ -282,7 +282,7 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Reset filter**
+    - **重置过滤器**
 
         ```python
         dl.reset()
@@ -293,7 +293,7 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Summary**
+    - **摘要**
 
         ```python
         dl.summary()
@@ -304,7 +304,7 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **View Footprint**
+    - **查看覆盖范围**
 
         ```python
         dl.footprint()
@@ -315,7 +315,7 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Download**
+    - **下载**
 
         ```python
         dl.download()
@@ -326,7 +326,7 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **DEM Download**
+    - **下载 DEM**
 
         ```python
         dl.dem()
@@ -337,7 +337,7 @@ Downloader.available()
                 show_source: false
                 heading_level: 5
 
-    - **Select Pairs**
+    - **选择配对**
 
         ```python
         from insarhub.utils import plot_pair_network

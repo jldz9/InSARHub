@@ -59,6 +59,10 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
 
             proc_cfg = {k: v for k, v in dataclasses.asdict(cfg).items() if k not in ("workdir", "pairs")}
 
+            import inspect as _inspect
+            _sig = _inspect.signature(proc_cls.__init__).parameters
+            is_local = "pairs" in _sig
+
             if req.dry_run:
                 n = len(pairs)
                 write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
@@ -70,17 +74,32 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                 return
 
             state._jobs[job_id]["message"] = "Submitting jobs…"
-            processor = Processor.create(req.processor_type, cfg)
-            submit_result = SubmitCommand(processor, progress_callback=state._make_progress(job_id)).run()
-            if not submit_result.success:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": submit_result.message, "data": None}
-                return
-
-            state._jobs[job_id]["message"] = "Saving job IDs…"
-            SaveJobsCommand(processor, progress_callback=state._make_progress(job_id)).run()
-
-            write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
-            _finish_job(job_id, status="done", message=submit_result.message)
+            if is_local:
+                # Local processor (e.g. ISCE_S1): load sbatch options, submit directly
+                sbatch_path = folder / "sbatch_options.json"
+                if not sbatch_path.exists():
+                    sbatch_path = folder / "srun_options.json"
+                if sbatch_path.exists():
+                    try:
+                        cfg.sbatch_options_per_step = json.loads(sbatch_path.read_text())
+                    except Exception:
+                        pass
+                processor = proc_cls(pairs=pairs, config=cfg)
+                jobs = processor.submit()
+                n_steps = len(jobs) if isinstance(jobs, dict) else len(pairs)
+                write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
+                _finish_job(job_id, status="done", progress=100,
+                            message=f"Submitted {n_steps} step(s) via {req.processor_type}. Processing running in background.")
+            else:
+                processor = Processor.create(req.processor_type, cfg)
+                submit_result = SubmitCommand(processor, progress_callback=state._make_progress(job_id)).run()
+                if not submit_result.success:
+                    state._jobs[job_id] = {"status": "error", "progress": 0, "message": submit_result.message, "data": None}
+                    return
+                state._jobs[job_id]["message"] = "Saving job IDs…"
+                SaveJobsCommand(processor, progress_callback=state._make_progress(job_id)).run()
+                write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
+                _finish_job(job_id, status="done", message=submit_result.message)
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
 
@@ -298,6 +317,11 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
                 state._jobs[job_id]["message"] = "Retrying failed pairs…"
                 processor.retry()
                 state._finish_job(job_id, status="done", message="Retry submitted. New job file saved.")
+
+            elif req.action == "cancel":
+                state._jobs[job_id]["message"] = "Cancelling jobs…"
+                processor.cancel()
+                state._finish_job(job_id, status="done", message="Cancel sent.")
 
             else:
                 state._finish_job(job_id, status="error", progress=0, message=f"Unknown action: {req.action}")

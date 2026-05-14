@@ -499,7 +499,12 @@ async def mintpy_check(path: str):
     """Return whether velocity.h5 exists and list all available timeseries*.h5 files."""
     folder = _resolve_mintpy_folder(path)
     has_velocity = (folder / 'velocity.h5').exists() or (folder / 'geo' / 'geo_velocity.h5').exists()
-    ts_files = [n for n in _TS_PRIORITY if (folder / n).exists()]
+    all_ts = [n for n in _TS_PRIORITY if (folder / n).exists()]
+    # If geocoded geo/ timeseries exist, exclude radar-coord root-level ones.
+    # Root-level files are only returned when no geo/ versions exist (HyP3_SBAS /
+    # ISCE_SBAS with already-geocoded .geo inputs — those files have Y_FIRST set).
+    geo_ts  = [n for n in all_ts if n.startswith('geo/')]
+    ts_files = geo_ts if geo_ts else [n for n in all_ts if not n.startswith('geo/')]
     has_overview = (folder / 'numTriNonzeroIntAmbiguity.h5').exists() or (folder / 'geo' / 'geo_numTriNonzeroIntAmbiguity.h5').exists()
     has_network  = (folder / 'coherenceSpatialAvg.txt').exists()
     return {"has_velocity": has_velocity, "timeseries_files": ts_files,
@@ -746,6 +751,20 @@ async def render_velocity(path: str):
     }
 
 
+def _geocode_diag_file(src: Path, geo_dir: Path, expected_out: Path) -> None:
+    """Geocode a single radar-coord diagnostic HDF5 to geo_dir using MintPy."""
+    try:
+        from mintpy.utils import utils as _mut
+        import mintpy.cli.geocode as _geo_cli
+        _, _, lookup_file = _mut.check_loaded_dataset(str(src.parent), print_msg=False)[:3]
+        if not lookup_file:
+            return
+        geo_dir.mkdir(parents=True, exist_ok=True)
+        _geo_cli.main([str(src), '-l', lookup_file, '--outdir', str(geo_dir), '--update'])
+    except Exception:
+        pass
+
+
 # ── MintPy diagnostic file renderer ──────────────────────────────────────────
 
 _DIAG_META = {
@@ -788,9 +807,21 @@ async def render_mintpy_diag(path: str, name: str):
 
     meta    = _DIAG_META[name]
     _base   = Path(path).expanduser().resolve()
-    h5_path = _base / 'geo' / f"geo_{meta['file']}"
-    if not h5_path.exists():
-        h5_path = _base / meta['file']
+    geo_path   = _base / 'geo' / f"geo_{meta['file']}"
+    plain_path = _base / meta['file']
+
+    # On-the-fly geocode for radar-coord data: check if plain file lacks Y_FIRST
+    if not geo_path.exists() and plain_path.exists():
+        try:
+            import h5py as _h5
+            with _h5.File(plain_path, 'r') as _f:
+                _has_geo = 'Y_FIRST' in _f.attrs
+            if not _has_geo:
+                _geocode_diag_file(plain_path, _base / 'geo', geo_path)
+        except Exception:
+            pass
+
+    h5_path = geo_path if geo_path.exists() else plain_path
     if not h5_path.exists():
         raise HTTPException(status_code=404, detail=f"{meta['file']} not found")
 
@@ -912,7 +943,10 @@ async def timeseries_pixel(path: str, lat: float, lon: float, ts_file: str | Non
     if ts_file:
         ts_name = ts_file if (folder / ts_file).exists() else None
     else:
-        ts_name = next((n for n in _TS_PRIORITY if (folder / n).exists()), None)
+        _all = [n for n in _TS_PRIORITY if (folder / n).exists()]
+        _geo = [n for n in _all if n.startswith('geo/')]
+        _candidates = _geo if _geo else [n for n in _all if not n.startswith('geo/')]
+        ts_name = _candidates[0] if _candidates else None
     if ts_name is None:
         raise HTTPException(status_code=404, detail='No timeseries file found')
     try:

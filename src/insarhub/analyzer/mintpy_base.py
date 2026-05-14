@@ -203,6 +203,46 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.workdir.as_posix())
         app.open()
         app.run(steps=run_steps)
+        if 'geocode' in run_steps:
+            self._geocode_diagnostic_files(self.cfg_path.parent)
+
+    def _geocode_diagnostic_files(self, mintpy_work: Path) -> None:
+        """Geocode diagnostic files omitted from MintPy's default geocode step.
+
+        MintPy only geocodes temporalCoherence, avgSpatialCoh, timeseries, velocity.
+        avgPhaseVelocity, numTriNonzeroIntAmbiguity, and maskConnComp are left in
+        radar coordinates. This method geocodes them into geo/ when a lookup table
+        is available (radar-coord inputs). For already-geocoded inputs the method
+        is a no-op.
+        """
+        geo_dir = mintpy_work / 'geo'
+        if not geo_dir.exists():
+            return  # geocode step skipped by MintPy (inputs already geocoded)
+
+        try:
+            from mintpy.utils import utils as _mut
+            _, _, lookup_file = _mut.check_loaded_dataset(str(mintpy_work), print_msg=False)[:3]
+        except Exception:
+            return
+
+        if not lookup_file:
+            return  # geocoded inputs — no lookup table
+
+        _DIAG = ['avgPhaseVelocity.h5', 'numTriNonzeroIntAmbiguity.h5', 'maskConnComp.h5']
+        to_geo = [
+            str(mintpy_work / f) for f in _DIAG
+            if (mintpy_work / f).exists() and not (geo_dir / f'geo_{f}').exists()
+        ]
+        if not to_geo:
+            return
+
+        try:
+            import mintpy.cli.geocode as _geo_cli
+            iargs = to_geo + ['-l', lookup_file, '--outdir', str(geo_dir), '--update']
+            print(f'{Fore.CYAN}Geocoding diagnostic files: {[Path(f).name for f in to_geo]}{Fore.RESET}')
+            _geo_cli.main(iargs)
+        except Exception as e:
+            print(f'{Fore.YELLOW}Warning: could not geocode diagnostic files: {e}{Fore.RESET}')
 
     def cleanup(self):
         """

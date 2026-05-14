@@ -86,30 +86,87 @@ async def pick_folder():
     return {"path": None}
 
 
+def _scan_folder_jobs(scan_dir: Path) -> list[dict]:
+    """Return folder and file dicts for direct children of scan_dir."""
+    items = []
+    files: list[dict] = []
+    try:
+        children = sorted(scan_dir.iterdir())
+    except OSError:
+        return items
+    for child in children:
+        if child.name.startswith('.'):
+            continue
+        if child.is_dir():
+            cfg = read_insarhub_config(child)
+            tags: list[str] = []
+            if (child / "hyp3_jobs.json").exists() or list(child.glob("hyp3_retry_jobs_*.json")):
+                tags.append("HyP3")
+            if (child / ".mintpy.cfg").exists() or cfg.get("analyzer"):
+                tags.append("MintPy")
+            if list(child.glob("stack_p*_f*.json")):
+                tags.append("SBAS")
+            if list(child.glob("isce_jobs*.json")) or (child / "isce").is_dir():
+                tags.append("ISCE")
+            workflow = {
+                "downloader": cfg.get("downloader", {}).get("type", ""),
+                "processor":  cfg.get("processor",  {}).get("type", ""),
+                "analyzer":   cfg.get("analyzer",   {}).get("type", ""),
+            }
+            try:
+                has_children = any(p.is_dir() for p in child.iterdir())
+            except OSError:
+                has_children = False
+            items.append({
+                "type": "folder",
+                "name": child.name,
+                "path": str(child),
+                "tags": tags,
+                "workflow": workflow,
+                "has_children": has_children,
+            })
+        elif child.is_file():
+            try:
+                size = child.stat().st_size
+            except OSError:
+                size = 0
+            files.append({
+                "type": "file",
+                "name": child.name,
+                "path": str(child),
+                "size": size,
+                "tags": [],
+                "workflow": {},
+                "has_children": False,
+            })
+    # folders first, then files
+    return items + files
+
+
 @router.get("/api/job-folders")
 async def get_job_folders():
     workdir = Path(state._settings["workdir"])
     if not workdir.exists():
         return {"jobs": []}
-    jobs = []
-    for subfolder in sorted(workdir.iterdir()):
-        if not subfolder.is_dir():
-            continue
-        cfg = read_insarhub_config(subfolder)
-        tags: list[str] = []
-        if (subfolder / "hyp3_jobs.json").exists() or list(subfolder.glob("hyp3_retry_jobs_*.json")):
-            tags.append("HyP3")
-        if (subfolder / ".mintpy.cfg").exists() or cfg.get("analyzer"):
-            tags.append("MintPy")
-        if list(subfolder.glob("stack_p*_f*.json")):
-            tags.append("SBAS")
-        workflow = {
-            "downloader": cfg.get("downloader", {}).get("type", ""),
-            "processor":  cfg.get("processor",  {}).get("type", ""),
-            "analyzer":   cfg.get("analyzer",   {}).get("type", ""),
-        }
-        jobs.append({"name": subfolder.name, "path": str(subfolder), "tags": tags, "workflow": workflow})
-    return {"jobs": jobs}
+    return {"jobs": _scan_folder_jobs(workdir)}
+
+
+@router.get("/api/browse-subfolders")
+async def browse_subfolders(path: str):
+    """Return job-folder entries for direct subfolders of any path."""
+    folder = Path(path).expanduser().resolve()
+    if not folder.exists() or not folder.is_dir():
+        raise HTTPException(status_code=404, detail="Path not found")
+    raw_wd = state._settings.get("workdir", "")
+    if not raw_wd:
+        raise HTTPException(status_code=400, detail="workdir not configured")
+    workdir = Path(raw_wd).expanduser().resolve()
+    # Prevent escaping above workdir
+    try:
+        folder.relative_to(workdir)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Path is outside workdir")
+    return {"jobs": _scan_folder_jobs(folder), "path": str(folder), "workdir": str(workdir)}
 
 
 @router.get("/api/folder-config")

@@ -57,10 +57,13 @@ const _dlJobs:    Map<string, string> = new Map()
 const _orbitJobs: Map<string, string> = new Map()
 
 interface JobFolder {
-  name:     string
-  path:     string
-  tags:     string[]
-  workflow: Record<string, string>
+  type:         'folder' | 'file'
+  name:         string
+  path:         string
+  tags:         string[]
+  workflow:     Record<string, string>
+  has_children: boolean
+  size?:        number
 }
 
 interface FolderDetails {
@@ -1323,7 +1326,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
     setCurrentAction(action)
     setActionStat('running')
     setActionProgress(0)
-    setActionMsg(action === 'refresh' ? 'Refreshing…' : action === 'retry' ? 'Retrying…' : 'Downloading…')
+    setActionMsg(action === 'refresh' ? 'Refreshing…' : action === 'retry' ? 'Retrying…' : action === 'cancel' ? 'Cancelling…' : 'Downloading…')
     const actionEndpoint = isLocal ? `${API}/api/folder-local-action` : `${API}/api/folder-hyp3-action`
     fetch(actionEndpoint, {
       method: 'POST',
@@ -1400,6 +1403,12 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
             <button disabled={busy} onClick={() => runAction('retry')} style={btnStyle(false)}>
               Retry
             </button>
+            {isLocal && (
+              <button disabled={busy} onClick={() => runAction('cancel')}
+                style={{ ...btnStyle(false), color: '#e53935', borderColor: '#e53935' }}>
+                Cancel
+              </button>
+            )}
             {!isLocal && (
               currentAction === 'download' && actionStat === 'running' ? (
                 <button onClick={stopDownload} style={{ ...btnStyle(true), background: '#e53935', borderColor: '#e53935', color: '#fff' }}>
@@ -2566,17 +2575,39 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
   const [l2Visible, setL2Visible] = useState(false)
   const [minimized, setMinimized] = useState(false)
   const l2VisibleBeforeMinimize   = useRef(false)
+  const [browsePath, setBrowsePath] = useState<string | null>(null)  // null = workdir root
 
-  const loadJobs = () => {
+  const effectivePath = browsePath ?? workdir
+
+  // path=undefined → use current browsePath; path=null → root; path=string → that path
+  const loadJobs = (path?: string | null) => {
     setLoading(true)
     setError('')
-    fetch(`${API}/api/job-folders`)
+    const target = path !== undefined ? path : (browsePath ?? null)
+    const url = target
+      ? `${API}/api/browse-subfolders?path=${encodeURIComponent(target)}`
+      : `${API}/api/job-folders`
+    fetch(url)
       .then(r => r.json())
       .then(d => { setJobs(d.jobs ?? []); setLoading(false) })
       .catch(e => { setError(String(e)); setLoading(false) })
   }
 
-  useEffect(() => { loadJobs() }, [workdir])
+  const navigateTo = (path: string) => {
+    setBrowsePath(path)
+    if (l2?.job && !path.startsWith(l2.job.path)) { setL2(null); setL2Visible(false) }
+    loadJobs(path)
+  }
+
+  const navigateUp = () => {
+    if (!browsePath || browsePath === workdir) { setBrowsePath(null); loadJobs(null); return }
+    const parent = browsePath.split('/').slice(0, -1).join('/') || '/'
+    const next = parent === workdir || !parent.startsWith(workdir) ? null : parent
+    setBrowsePath(next)
+    loadJobs(next)  // pass null/string directly — no stale state read
+  }
+
+  useEffect(() => { setBrowsePath(null); loadJobs(null) }, [workdir])
 
   return (
     <>
@@ -2637,17 +2668,37 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '12px 16px', borderBottom: `1px solid ${t.border}`,
-          background: t.bg2, flexShrink: 0,
+          padding: '10px 16px', borderBottom: `1px solid ${t.border}`,
+          background: t.bg2, flexShrink: 0, gap: 6,
         }}>
-          <div>
-            <span style={{ color: t.text, fontWeight: 700, fontSize: 14 }}>Job Folders</span>
-            <span style={{ color: t.textMuted, fontSize: 11, marginLeft: 8 }}>{workdir}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              {browsePath && (
+                <button onClick={navigateUp} title="Go up" style={{
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: t.accent, fontSize: 14, padding: '0 2px', flexShrink: 0,
+                }}>↑</button>
+              )}
+              <span style={{ color: t.text, fontWeight: 700, fontSize: 14, flexShrink: 0 }}>Job Folders</span>
+            </div>
+            <div style={{
+              color: t.textMuted, fontSize: 10, marginTop: 1,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }} title={effectivePath}>
+              {browsePath
+                ? (() => {
+                    const rel = browsePath.startsWith(workdir)
+                      ? browsePath.slice(workdir.length).replace(/^\//, '')
+                      : browsePath
+                    return rel || workdir
+                  })()
+                : workdir}
+            </div>
           </div>
           <button
             onClick={() => { setL2(null); setL2Visible(false); onClose() }}
             style={{ background: 'none', border: 'none', cursor: 'pointer',
-                     color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px' }}
+                     color: t.textMuted, fontSize: 20, lineHeight: 1, padding: '0 4px', flexShrink: 0 }}
           >×</button>
         </div>
 
@@ -2664,17 +2715,42 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
               No subfolders found in workdir.
             </div>
           ) : jobs.map(job => {
-            const wfEntries = Object.entries(job.workflow).filter(([k]) => k !== 'updated_at')
+            if (job.type === 'file') {
+              const kb = job.size != null ? (job.size < 1024 * 1024
+                ? `${(job.size / 1024).toFixed(1)} KB`
+                : `${(job.size / 1024 / 1024).toFixed(1)} MB`) : ''
+              return (
+                <div key={job.path} style={{
+                  padding: '4px 16px', borderBottom: `1px solid ${t.divider}`,
+                  display: 'flex', alignItems: 'center', gap: 6,
+                }}>
+                  <span style={{ fontSize: 12 }}>📄</span>
+                  <span style={{ fontSize: 11, fontFamily: 'monospace', color: t.text, flex: 1,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                    title={job.path}>{job.name}</span>
+                  {kb && <span style={{ fontSize: 10, color: t.textMuted, flexShrink: 0 }}>{kb}</span>}
+                </div>
+              )
+            }
+            const wfRoles = (['downloader', 'processor', 'analyzer'] as const).filter(r => job.workflow[r])
+            const hasWorkflow = wfRoles.length > 0
             return (
-              <div key={job.path} style={{ padding: '10px 16px', borderBottom: `1px solid ${t.divider}` }}>
-                {/* Folder name + remove button */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: wfEntries.length ? 6 : 0 }}>
-                  <span style={{
-                    color: t.text, fontSize: 12, fontFamily: 'monospace',
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
-                  }} title={job.path}>
-                    {job.name}
-                  </span>
+              <div key={job.path} style={{ padding: '8px 16px', borderBottom: `1px solid ${t.divider}` }}>
+                {/* Folder name row */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: hasWorkflow ? 5 : 0 }}>
+                  <button
+                    title={job.path}
+                    onClick={() => navigateTo(job.path)}
+                    style={{
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      color: t.accent,
+                      fontSize: 12, fontFamily: 'monospace', textAlign: 'left',
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1,
+                      padding: 0,
+                    }}
+                  >
+                    {'📁 '}{job.name}
+                  </button>
                   <button
                     title="Remove job folder"
                     onClick={() => {
@@ -2691,43 +2767,37 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
                 </div>
 
                 {/* Clickable role tags — ordered downloader → processor → analyzer */}
-                {wfEntries.length > 0 && (
+                {hasWorkflow && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                    {(['downloader', 'processor', 'analyzer'] as const)
-                      .filter(role => job.workflow[role])
-                      .map((role, idx) => {
-                        const cls     = job.workflow[role]
-                        const rc      = ROLE_COLORS[role] ?? ROLE_FALLBACK
-                        const isActive = l2?.job.path === job.path && l2?.role === role
-                        return (
-                          <div key={role} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                            {idx > 0 && (
-                              <span style={{ color: t.textMuted, fontSize: 10, userSelect: 'none' }}>→</span>
-                            )}
-                            <button
-                              onClick={() => {
-                                if (isActive && l2Visible) {
-                                  setL2Visible(false)
-                                } else {
-                                  setL2({ job, role, cls })
-                                  setL2Visible(true)
-                                }
-                              }}
-                              title={`${role}: ${cls}`}
-                              style={{
-                                fontSize: 10, fontWeight: 600,
-                                padding: '2px 7px', borderRadius: 3,
-                                background: isActive ? rc.color : rc.bg,
-                                color:      isActive ? rc.bg    : rc.color,
-                                border:     `1px solid ${rc.border}`,
-                                cursor: 'pointer',
-                              }}
-                            >
-                              {cls}
-                            </button>
-                          </div>
-                        )
-                      })}
+                    {wfRoles.map((role, idx) => {
+                      const cls      = job.workflow[role]
+                      const rc       = ROLE_COLORS[role] ?? ROLE_FALLBACK
+                      const isActive = l2?.job.path === job.path && l2?.role === role
+                      return (
+                        <div key={role} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          {idx > 0 && (
+                            <span style={{ color: t.textMuted, fontSize: 10, userSelect: 'none' }}>→</span>
+                          )}
+                          <button
+                            onClick={() => {
+                              if (isActive && l2Visible) { setL2Visible(false) }
+                              else { setL2({ job, role, cls }); setL2Visible(true) }
+                            }}
+                            title={`${role}: ${cls}`}
+                            style={{
+                              fontSize: 10, fontWeight: 600,
+                              padding: '2px 7px', borderRadius: 3,
+                              background: isActive ? rc.color : rc.bg,
+                              color:      isActive ? rc.bg    : rc.color,
+                              border:     `1px solid ${rc.border}`,
+                              cursor: 'pointer',
+                            }}
+                          >
+                            {cls}
+                          </button>
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
               </div>
@@ -2740,18 +2810,27 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
           padding: '10px 16px', borderTop: `1px solid ${t.border}`,
           background: t.bg2, flexShrink: 0,
         }}>
-          <button
-            onClick={loadJobs}
-            disabled={loading}
-            style={{
-              width: '100%', padding: '6px 0', fontSize: 12,
-              background: 'transparent', color: loading ? t.textMuted : t.accent,
-              border: `1px solid ${loading ? t.border : t.btnActiveBorder}`,
-              borderRadius: 5, cursor: loading ? 'wait' : 'pointer',
-            }}
-          >
-            {loading ? 'Loading…' : 'Refresh'}
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {browsePath && (
+              <button onClick={navigateUp} disabled={loading} style={{
+                padding: '6px 10px', fontSize: 12,
+                background: 'transparent', color: loading ? t.textMuted : t.text,
+                border: `1px solid ${t.border}`, borderRadius: 5, cursor: loading ? 'wait' : 'pointer',
+              }}>↑ Up</button>
+            )}
+            <button
+              onClick={() => loadJobs()}
+              disabled={loading}
+              style={{
+                flex: 1, padding: '6px 0', fontSize: 12,
+                background: 'transparent', color: loading ? t.textMuted : t.accent,
+                border: `1px solid ${loading ? t.border : t.btnActiveBorder}`,
+                borderRadius: 5, cursor: loading ? 'wait' : 'pointer',
+              }}
+            >
+              {loading ? 'Loading…' : 'Refresh'}
+            </button>
+          </div>
         </div>
       </div>
     </>

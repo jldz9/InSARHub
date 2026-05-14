@@ -99,6 +99,8 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), str(self.mintpy_dir))
         app.open()
         app.run(steps=run_steps)
+        if 'geocode' in run_steps:
+            self._geocode_diagnostic_files(self.mintpy_dir)
 
     # ── Path discovery ────────────────────────────────────────────────────────
 

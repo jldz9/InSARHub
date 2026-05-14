@@ -841,9 +841,14 @@ class ISCE_Base(LocalProcessor):
                         print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}  [job {jid}]")
                 else:
                     # Old HPC format or local mode: scan done/fail files
+                    def _idx(f):
+                        try: return int(f.stem.split("_", 1)[1])
+                        except (ValueError, IndexError): return None
                     indices = sorted(
-                        {int(f.stem.split("_", 1)[1]) for f in log_dir_p.glob("cmd_????.done")}
-                        | {int(f.stem.split("_", 1)[1]) for f in log_dir_p.glob("cmd_????.fail")}
+                        i for i in (
+                            {_idx(f) for f in log_dir_p.glob("cmd_????.done")}
+                            | {_idx(f) for f in log_dir_p.glob("cmd_????.fail")}
+                        ) if i is not None
                     )
                     if len(indices) > 1:
                         for i in indices:

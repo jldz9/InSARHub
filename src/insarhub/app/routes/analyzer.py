@@ -183,9 +183,10 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
             cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
             write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": cfg_dict}})
 
-            # Always write .mintpy.cfg so MintPy picks up current config
-            cfg_path = folder / ".mintpy.cfg"
+            # Use the analyzer's own cfg_path (e.g. ISCE_SBAS writes to mintpy/.mintpy.cfg)
+            cfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
             if hasattr(cfg, "write_mintpy_config"):
+                cfg_path.parent.mkdir(parents=True, exist_ok=True)
                 cfg.write_mintpy_config(cfg_path)
 
             total = len(req.steps)
@@ -203,16 +204,18 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                         # next run (e.g. load_data only) can read them from disk.
                         _post_cfg = {k: v for k, v in dataclasses.asdict(analyzer.config).items() if k != 'workdir'}
                         write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": _post_cfg}})
-                        cfg_path = folder / ".mintpy.cfg"
+                        _acfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
                         if hasattr(analyzer.config, "write_mintpy_config"):
-                            analyzer.config.write_mintpy_config(cfg_path)
+                            _acfg_path.parent.mkdir(parents=True, exist_ok=True)
+                            analyzer.config.write_mintpy_config(_acfg_path)
                     elif step == 'modify_network':
                         # For geocoded (UTM) stacks, convert aoiLALO → aoiYX
                         # because MintPy can't do the projection itself.
                         _resolve_aoi_yx(analyzer.config, folder)
-                        cfg_path = folder / ".mintpy.cfg"
+                        _acfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
                         if hasattr(analyzer.config, "write_mintpy_config"):
-                            analyzer.config.write_mintpy_config(cfg_path)
+                            _acfg_path.parent.mkdir(parents=True, exist_ok=True)
+                            analyzer.config.write_mintpy_config(_acfg_path)
                         analyzer.run(steps=[step])
                     else:
                         analyzer.run(steps=[step])

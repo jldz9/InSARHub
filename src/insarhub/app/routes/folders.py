@@ -322,6 +322,18 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
                     cfg_dict['relativeOrbit'] = path
                     cfg_dict['frame'] = frame
+                    # When intersectsWith is absent, derive AOI from scene footprints so
+                    # quality scoring has a valid region without falling back to a hardcoded default.
+                    if not cfg_dict.get('intersectsWith'):
+                        try:
+                            from shapely.ops import unary_union
+                            from shapely.geometry import shape as _shape
+                            stack_results = downloader.active_results.get((path, frame), [])
+                            geoms = [_shape(r.geometry) for r in stack_results if getattr(r, 'geometry', None)]
+                            if geoms:
+                                cfg_dict['scene_footprint_wkt'] = unary_union(geoms).wkt
+                        except Exception as _fp_exc:
+                            logger.warning("Could not compute scene footprint for P%s/F%s: %s", path, frame, _fp_exc)
                     write_insarhub_config(subdir, {"downloader": {"type": dl_type, "config": cfg_dict}})
                     sp = scene_bperp.get((path, frame)) or {}
                     stack_scenes = scenes_by_stack.get((path, frame), [])
@@ -353,6 +365,16 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                         db_job_ids.append(db_jid)
             else:
                 cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
+                if not cfg_dict.get('intersectsWith'):
+                    try:
+                        from shapely.ops import unary_union
+                        from shapely.geometry import shape as _shape
+                        all_results = [r for rs in downloader.active_results.values() for r in rs]
+                        geoms = [_shape(r.geometry) for r in all_results if getattr(r, 'geometry', None)]
+                        if geoms:
+                            cfg_dict['scene_footprint_wkt'] = unary_union(geoms).wkt
+                    except Exception as _fp_exc:
+                        logger.warning("Could not compute scene footprint: %s", _fp_exc)
                 write_insarhub_config(folder, {"downloader": {"type": dl_type, "config": cfg_dict}})
                 sp = scene_bperp if isinstance(scene_bperp, dict) else {}
                 stack_scenes = scenes_by_stack.get((0, 0), [])

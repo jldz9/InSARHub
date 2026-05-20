@@ -28,7 +28,6 @@ from pathlib import Path
 from insarhub.utils.pair_quality._cache import CacheManager
 from insarhub.utils.pair_quality._feature_assembler import FeatureAssembler
 from insarhub.utils.pair_quality import _classifier
-from insarhub.utils.defaults import FALLBACK_AOI as _FALLBACK_AOI
 
 logger = logging.getLogger(__name__)
 
@@ -56,12 +55,17 @@ def _wkt_centroid(wkt: str) -> tuple[float, float]:
 
 
 def _load_aoi(folder: Path) -> tuple[float, float, str]:
-    """Return (lat, lon, wkt) from insarhub_config.json or downloader_config.json."""
+    """Return (lat, lon, wkt) from insarhub_config.json or downloader_config.json.
+
+    Tries intersectsWith first (user-drawn AOI), then scene_footprint_wkt (derived
+    from scene footprints during select_pairs when no AOI was drawn).
+    """
     # Primary: insarhub_config.json (current format)
     insarhub_cfg = folder / "insarhub_config.json"
     if insarhub_cfg.exists():
         cfg = json.loads(insarhub_cfg.read_text())
-        wkt = cfg.get("downloader", {}).get("config", {}).get("intersectsWith")
+        dl_cfg = cfg.get("downloader", {}).get("config", {})
+        wkt = dl_cfg.get("intersectsWith") or dl_cfg.get("scene_footprint_wkt")
         if wkt:
             lat, lon = _wkt_centroid(wkt)
             return lat, lon, wkt
@@ -178,8 +182,8 @@ class PairQuality:
         try:
             lat, lon, wkt = _load_aoi(self.folder)
         except Exception as exc:
-            logger.warning("Could not determine AOI: %s — using lat=45, lon=0", exc)
-            lat, lon, wkt = _FALLBACK_AOI["lat"], _FALLBACK_AOI["lon"], _FALLBACK_AOI["wkt"]
+            logger.error("Cannot determine AOI for quality scoring: %s", exc)
+            return QualityResult(scores={}, factors={}, ndvi_source="n/a", snow_fetched=0, cached=False)
 
         cache = CacheManager(self.folder, force_refresh=self.force_refresh)
         assembler = FeatureAssembler(

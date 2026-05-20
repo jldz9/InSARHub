@@ -42,7 +42,8 @@ async def get_pair_quality(path: str, force_refresh: bool = False):
     if _cfg_file.exists():
         try:
             _cfg = _json.loads(_cfg_file.read_text())
-            _has_aoi = bool(_cfg.get("downloader", {}).get("config", {}).get("intersectsWith"))
+            _dl_cfg = _cfg.get("downloader", {}).get("config", {})
+            _has_aoi = bool(_dl_cfg.get("intersectsWith") or _dl_cfg.get("scene_footprint_wkt"))
         except Exception:
             pass
     if not _has_aoi:

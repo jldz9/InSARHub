@@ -855,6 +855,7 @@ class Mintpy_SBAS_Base_Config:
         parameters that MintPy doesn't recognize.
         """
         outpath = Path(outpath).expanduser().resolve()
+        outpath.parent.mkdir(parents=True, exist_ok=True)
         exclude_fields = ['name', 'workdir', 'debug']
 
         with open(outpath, 'w') as f:

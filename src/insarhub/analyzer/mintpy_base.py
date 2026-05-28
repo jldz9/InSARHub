@@ -197,6 +197,12 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             'velocity', 'geocode', 'google_earth', 'hdfeos5'
         ]
 
+        if not self.cfg_path.exists():
+            print(f"{Fore.YELLOW}Warning: .mintpy.cfg not found — writing config now. "
+                  f"If this is a Hyp3_SBAS run, make sure 'prep_data' (or '--step prep') "
+                  f"was completed first so load parameters are correct.{Fore.RESET}")
+            self.config.write_mintpy_config(self.cfg_path)
+
         if self.config.troposphericDelay_method == 'pyaps' and 'correct_troposphere' in run_steps:
             self._cds_authorize()
         print(f'{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis...{Fore.RESET}')
@@ -281,7 +287,8 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
                 except Exception as e:
                     print(f"{Fore.RED}  Failed to remove {folder}: {e}{Fore.RESET}")
                     
-        zips = list(self.workdir.glob('*.zip'))
+        _hyp3_dir = self.workdir / "hyp3"
+        zips = list(_hyp3_dir.glob('*.zip')) if _hyp3_dir.exists() else list(self.workdir.glob('*.zip'))
         if zips:
             print(f"{Fore.CYAN}Step: Removing zip archives...{Fore.RESET}")
             for zf in zips:

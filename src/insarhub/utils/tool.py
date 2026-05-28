@@ -1162,43 +1162,45 @@ def plot_pair_network(
     )
     nx.draw_networkx_labels(
         G, pos,
-        labels={s: s[-8:] for s in G.nodes()},
+        labels={s: id_time[s].strftime("%Y-%m-%d") for s in G.nodes()},
         ax=ax_net,
-        font_size=5,
+        font_size=9,
     )
 
     # ── 7. Network axes ───────────────────────────────────────────────────
-    ax_net.set_xlabel("Days since first acquisition", fontsize=11)
-    ax_net.set_ylabel("Perpendicular baseline [m]", fontsize=11)    # ✅ real unit
-    ax_net.set_title(
-        f"{title}\n{subtitle}\n"
-        f"{len(scenes)} scenes · {len(flat_pairs)} pairs · "
-        f"mean degree {np.mean(list(degrees.values())):.1f}",
-        fontsize=11,
-    )
-    ax_net.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+    ax_net.set_xlabel("Acquisition date (UTC)", fontsize=15)
+    ax_net.set_ylabel("Perpendicular baseline [m]", fontsize=15)
+    ax_net.set_title("")
+    ax_net.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True, labelsize=12)
     ax_net.set_frame_on(True)
 
-    # real date ticks on top axis
+    # bottom axis: real acquisition dates
     x_vals  = [p[0] for p in pos.values()]
     x_ticks = np.linspace(min(x_vals), max(x_vals), min(8, len(pos)))
-    ax2 = ax_net.twiny()
-    ax2.set_xlim(ax_net.get_xlim())
-    ax2.set_xticks(x_ticks)
-    ax2.set_xticklabels(
+    ax_net.set_xticks(x_ticks)
+    ax_net.set_xticklabels(
         [
             (t0 + __import__("datetime").timedelta(days=d)).strftime("%Y-%m-%d")
             for d in x_ticks
         ],
-        rotation=30, ha="left", fontsize=7,
+        rotation=30, ha="right", fontsize=12,
     )
-    ax2.set_xlabel("Acquisition date (UTC)", fontsize=9)
+
+    # top axis: days since first acquisition
+    ax2 = ax_net.twiny()
+    ax2.set_xlim(ax_net.get_xlim())
+    ax2.set_xticks(x_ticks)
+    ax2.set_xticklabels(
+        [f"{int(round(d))}d" for d in x_ticks],
+        rotation=0, ha="center", fontsize=12,
+    )
+    ax2.set_xlabel("Days since first acquisition", fontsize=15)
 
     # ── 8. Per-scene connection histogram ─────────────────────────────────
     # Sort scenes by date so the histogram reads chronologically top→bottom
     sorted_scene_names = sorted(scenes, key=lambda s: id_days[s])
     scene_degrees      = [degrees[s] for s in sorted_scene_names]
-    short_names        = [s[-12:] for s in sorted_scene_names]   # trim for readability
+    date_labels        = [id_time[s].strftime("%Y-%m-%d") for s in sorted_scene_names]
     y_positions        = range(len(sorted_scene_names))
 
     bar_colours = [plt.cm.RdYlGn(degrees[s] / max_deg) for s in sorted_scene_names]
@@ -1218,7 +1220,7 @@ def plot_pair_network(
             bar.get_width() + 0.1,
             bar.get_y() + bar.get_height() / 2,
             str(count),
-            va="center", fontsize=7,
+            va="center", fontsize=11,
         )
 
     # vertical line at mean degree
@@ -1229,7 +1231,7 @@ def plot_pair_network(
     ax_hist.text(
         mean_deg + 0.1, len(sorted_scene_names) - 0.5,
         f"mean\n{mean_deg:.1f}",
-        color="steelblue", fontsize=7, va="top",
+        color="steelblue", fontsize=11, va="top",
     )
 
     # mark scenes below min connectivity in red
@@ -1239,10 +1241,11 @@ def plot_pair_network(
             ax_hist.get_children()[i].set_linewidth(1.5)
 
     ax_hist.set_yticks(y_positions)
-    ax_hist.set_yticklabels(short_names, fontsize=6)
-    ax_hist.set_xlabel("Number of connections", fontsize=9)
-    ax_hist.set_title("Connections\nper scene", fontsize=10)
+    ax_hist.set_yticklabels(date_labels, fontsize=11)
+    ax_hist.set_xlabel("Number of connections", fontsize=13)
+    ax_hist.set_title("Connections\nper scene", fontsize=14)
     ax_hist.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    ax_hist.tick_params(axis="x", labelsize=11)
     ax_hist.set_frame_on(True)
     # match vertical order to network: earliest at top
     ax_hist.invert_yaxis()
@@ -1253,7 +1256,7 @@ def plot_pair_network(
             mpatches.Patch(color=plt.cm.RdYlGn(v / max_deg), label=f"degree {v}")
             for v in sorted(set(degrees.values()))
         ],
-        title="Node degree", loc="upper left", fontsize=7, title_fontsize=8,
+        title="Node degree", loc="upper left", fontsize=11, title_fontsize=12,
     )
     ax_net.add_artist(deg_legend)
 
@@ -1265,7 +1268,7 @@ def plot_pair_network(
                 mpatches.Patch(color=_Q_BAD,   label="Bad"),
                 mpatches.Patch(color=_Q_NONE,  label="Unscored"),
             ],
-            title="Pair quality", loc="lower right", fontsize=7, title_fontsize=8,
+            title="Pair quality", loc="lower right", fontsize=11, title_fontsize=12,
         )
     else:
         ax_net.legend(
@@ -1275,7 +1278,7 @@ def plot_pair_network(
                 )
                 for v in [0, max_dt * 0.33, max_dt * 0.66, max_dt]
             ],
-            title="Temporal baseline", loc="lower right", fontsize=7, title_fontsize=8,
+            title="Temporal baseline", loc="lower right", fontsize=11, title_fontsize=12,
         )
 
     if isinstance(pairs, dict):
@@ -1288,7 +1291,7 @@ def plot_pair_network(
                     )
                     for k in group_keys
                 ],
-                title="Path / Frame", loc="upper right", fontsize=7, title_fontsize=8,
+                title="Path / Frame", loc="upper right", fontsize=11, title_fontsize=12,
             )
         )
 
@@ -1466,7 +1469,8 @@ def clip_hyp3_s1(workdir: Path | str, aoi: list[float] | str | Path, file_suffix
 
     outdir = workdir.joinpath('clipped')
     outdir.mkdir(exist_ok=True)
-    zip_files = list(workdir.glob("*.zip"))
+    _hyp3_sub = workdir / "hyp3"
+    zip_files = list(_hyp3_sub.glob("*.zip")) if _hyp3_sub.exists() else list(workdir.glob("*.zip"))
 
     with tqdm(zip_files, unit="zip") as pbar:
 

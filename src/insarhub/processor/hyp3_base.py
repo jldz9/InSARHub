@@ -56,19 +56,24 @@ class Hyp3Base(Hyp3Processor):
                 saved_out = data.get("out_dir")
                 if saved_out:
                     resolved = Path(saved_out).expanduser().resolve()
-                    if not resolved.exists():
-                        print(f"{Fore.YELLOW}Warning: saved out_dir '{resolved}' does not exist. "
+                    try:
+                        resolved.relative_to(self.config.workdir)
+                        path_ok = resolved.exists()
+                    except ValueError:
+                        path_ok = False
+                    if not path_ok:
+                        print(f"{Fore.YELLOW}Warning: saved out_dir '{resolved}' is missing or outside workdir. "
                               f"Using config workdir instead.{Fore.RESET}")
-                        self.output_dir = self.config.workdir
+                        self.output_dir = self.config.workdir / "hyp3"
                     else:
                         self.output_dir = resolved
                 else:
-                    self.output_dir = self.config.workdir
+                    self.output_dir = self.config.workdir / "hyp3"
             else:
                 raise ValueError(f"{Fore.RED}Job file {self.config.saved_job_path} not found.\n")
         else:
             self.job_ids = defaultdict(list)
-            self.output_dir = self.config.workdir
+            self.output_dir = self.config.workdir / "hyp3"
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.batchs = defaultdict(list)
@@ -78,7 +83,7 @@ class Hyp3Base(Hyp3Processor):
         _dl = getattr(type(self), "compatible_downloader", None)
         if _dl and _dl != "all":
             _roles["downloader"] = _dl
-        write_workflow_marker(self.output_dir, **_roles)
+        write_workflow_marker(self.config.workdir, **_roles)
 
     def _hyp3_authorize(self, pool: dict[str, str] | None = None):
         """Authorize the HyP3 client."""

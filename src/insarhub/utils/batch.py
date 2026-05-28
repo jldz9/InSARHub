@@ -231,14 +231,16 @@ class ERA5Downloader:
         """
         batch_path = Path(batch_dir).expanduser().resolve()
 
-        # If zips are directly in batch_dir, treat it as a single group
-        direct_zips = list(batch_path.glob('*.zip'))
+        # If zips are in batch_dir or its hyp3/ subdir, treat it as a single group
+        _hyp3_sub = batch_path / "hyp3"
+        direct_zips = list(_hyp3_sub.glob('*.zip')) if _hyp3_sub.is_dir() else list(batch_path.glob('*.zip'))
         folders_to_scan = [batch_path] if direct_zips else [
             s for s in batch_path.iterdir() if s.is_dir()
         ]
 
         for subfolder in tqdm(folders_to_scan, desc="Folders", position=0):
-            zip_files = list(subfolder.glob('*.zip'))
+            _sub_hyp3 = subfolder / "hyp3"
+            zip_files = list(_sub_hyp3.glob('*.zip')) if _sub_hyp3.is_dir() else list(subfolder.glob('*.zip'))
             if not zip_files:
                 continue
 

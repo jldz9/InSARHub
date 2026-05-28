@@ -57,7 +57,9 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
     def _unzip_hyp3(self):
         print(f'{Fore.CYAN}Unzipping HyP3 Products...{Fore.RESET}')
 
-        hyp3_results = list(self.workdir.rglob('*.zip'))
+        hyp3_dir = self.workdir / "hyp3"
+        search_root = hyp3_dir if hyp3_dir.exists() else self.workdir
+        hyp3_results = list(search_root.rglob('*.zip'))
         self.tmp_dir.mkdir(parents=True, exist_ok=True)
 
         with tqdm(hyp3_results, desc="Processing", unit="file") as pbar:

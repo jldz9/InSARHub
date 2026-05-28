@@ -498,6 +498,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supported-satellites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported Satellites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#system-requirement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1267,6 +1278,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#supported-satellites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Supported Satellites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#system-requirement" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1333,6 +1355,37 @@ The primary goal of this package is to provide a streamlined and user-friendly I
 <p>InSARHub web UI — search, download, process, and visualize InSAR data in one place.</p>
 </figcaption>
 </figure>
+<h2 id="supported-satellites">Supported Satellites</h2>
+<table>
+<thead>
+<tr>
+<th>Satellite</th>
+<th>Mode</th>
+<th>Downloader</th>
+<th>Processor</th>
+<th>Analyzer</th>
+<th>Backend</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sentinel-1</td>
+<td>IW SLC</td>
+<td><code>S1_SLC</code></td>
+<td><code>Hyp3_S1</code></td>
+<td><code>Hyp3_SBAS</code></td>
+<td>Cloud (ASF HyP3)</td>
+</tr>
+<tr>
+<td>Sentinel-1</td>
+<td>IW SLC</td>
+<td><code>S1_SLC</code></td>
+<td><code>ISCE_S1</code></td>
+<td><code>ISCE_SBAS</code></td>
+<td>Local / HPC (ISCE2)</td>
+</tr>
+</tbody>
+</table>
 <p>This document will assume you have fundamental understanding of:</p>
 <ul>
 <li><a href="https://www.w3schools.com/python/">Python</a></li>

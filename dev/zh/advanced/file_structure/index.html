@@ -1565,8 +1565,10 @@
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── S1_coherence_decay_spring_vv.tif
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── S1_coherence_decay_summer_vv.tif
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── S1_coherence_decay_fall_vv.tif
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── tmp/                               # 解压的 zip 内容（清理时删除）
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── clip/                              # AOI 裁剪数据（清理时删除）
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── hyp3/                              # HyP3 下载的 ZIP 产品（处理器下载后）
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   └── S1AA_*_INT20_*.zip
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── tmp/                               # 解压的 zip 内容（清理时删除）
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>└── clip/                              # AOI 裁剪数据（清理时删除）
 </span></code></pre></div>
 <p><strong>多堆叠运行</strong> — 搜索覆盖多个轨道/帧时，每个组获得自己的 <code>p{path}_f{frame}/</code> 子文件夹，结构与单堆叠布局完全相同。</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>workdir/
@@ -1747,7 +1749,7 @@
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">"username1"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"job-id-aaa"</span><span class="p">,</span><span class="w"> </span><span class="s2">"job-id-bbb"</span><span class="p">],</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">"username2"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"job-id-ccc"</span><span class="p">]</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="p">},</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466"</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466/hyp3"</span>
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">}</span>
 </span></code></pre></div>
 <hr>

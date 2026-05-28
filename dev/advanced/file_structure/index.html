@@ -1651,8 +1651,10 @@
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── S1_coherence_decay_spring_vv.tif
 </span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── S1_coherence_decay_summer_vv.tif
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   └── S1_coherence_decay_fall_vv.tif
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── tmp/                               # extracted zip contents  (removed by cleanup)
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>└── clip/                              # AOI-clipped data        (removed by cleanup)
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>├── hyp3/                              # HyP3 downloaded ZIP products (after processor download)
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   └── S1AA_*_INT20_*.zip
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── tmp/                               # extracted zip contents  (removed by cleanup)
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>└── clip/                              # AOI-clipped data        (removed by cleanup)
 </span></code></pre></div>
 <p><strong>Multi-stack run</strong> — when the search covers more than one track/frame, each group gets its own <code>p{path}_f{frame}/</code> subfolder. Each subfolder contains exactly the same file structure as the single-stack layout above; nothing is written to the top-level workdir.</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>workdir/
@@ -1881,7 +1883,7 @@
 </span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">"username1"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"job-id-aaa"</span><span class="p">,</span><span class="w"> </span><span class="s2">"job-id-bbb"</span><span class="p">],</span>
 </span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">    </span><span class="nt">"username2"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"job-id-ccc"</span><span class="p">]</span>
 </span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="p">},</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466"</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466/hyp3"</span>
 </span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="p">}</span>
 </span></code></pre></div>
 <hr>
@@ -1893,7 +1895,7 @@
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">"filenames"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="s2">"S1AA_20200101T000000_20200113T000000_VVP012_INT20_G_ueF_1234.zip"</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">  </span><span class="p">],</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466"</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">  </span><span class="nt">"out_dir"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/data/bryce/p100_f466/hyp3"</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="insarhub_quality_cachejson"><code>.insarhub_quality_cache.json</code></h3>

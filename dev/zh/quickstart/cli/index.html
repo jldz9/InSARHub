@@ -2349,7 +2349,7 @@
 <tr>
 <td><code>--credential-pool</code></td>
 <td><code>~/.credit_pool</code></td>
-<td>用于多账户提交的 JSON <code>{username: password}</code></td>
+<td>每行一条 <code>username:password</code> 的纯文本文件，用于多账户提交</td>
 </tr>
 <tr>
 <td><code>--name-prefix</code></td>
@@ -2512,7 +2512,7 @@
 <tr>
 <td><code>--credential-pool</code></td>
 <td><code>~/.credit_pool</code></td>
-<td>用于多账户的 JSON <code>{username: password}</code></td>
+<td>每行一条 <code>username:password</code> 的纯文本文件，用于多账户</td>
 </tr>
 </tbody>
 </table>
@@ -2803,7 +2803,7 @@
 <div class="tabbed-content">
 <div class="tabbed-block">
 <h3 id="run">run</h3>
-<p>运行分析工作流。省略 <code>--step</code> 则运行完整流程（<code>prep</code> + 所有 MintPy 步骤）。</p>
+<p>运行分析工作流。省略 <code>--step</code> 则运行完整流程（<code>prep_data</code> + 所有 MintPy 步骤）。</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
 </span></code></pre></div>
 <table>
@@ -2841,12 +2841,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>prep</code></td>
+<td><code>prep_data</code></td>
 <td>解压/裁剪 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 产品，写入 MintPy 配置</td>
 </tr>
 <tr>
 <td><code>all</code></td>
-<td><code>prep</code> + 所有 MintPy 步骤（默认）</td>
+<td><code>prep_data</code> + 所有 MintPy 步骤（默认）</td>
 </tr>
 <tr>
 <td><code>load_data</code></td>
@@ -2918,7 +2918,7 @@
 </span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
 </span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
 </span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="c1"># 仅执行 prep</span>
-</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep
+</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
 </span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
 </span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="c1"># 单个步骤</span>
 </span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
@@ -2965,7 +2965,7 @@
 </div>
 <div class="tabbed-block">
 <h3 id="run_1">run</h3>
-<p>运行分析工作流。省略 <code>--step</code> 则运行完整流程（<code>prep</code> + 所有 MintPy 步骤）。</p>
+<p>运行分析工作流。省略 <code>--step</code> 则运行完整流程（<code>prep_data</code> + 所有 MintPy 步骤）。</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
 </span></code></pre></div>
 <table>
@@ -3003,12 +3003,12 @@
 </thead>
 <tbody>
 <tr>
-<td><code>prep</code></td>
+<td><code>prep_data</code></td>
 <td>自动发现 ISCE2 输出，写入 MintPy 配置</td>
 </tr>
 <tr>
 <td><code>all</code></td>
-<td><code>prep</code> + 所有 MintPy 步骤（默认）</td>
+<td><code>prep_data</code> + 所有 MintPy 步骤（默认）</td>
 </tr>
 <tr>
 <td><code>load_data</code></td>
@@ -3080,7 +3080,7 @@
 </span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
 </span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>
 </span><span id="__span-31-4"><a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="c1"># 仅执行 prep</span>
-</span><span id="__span-31-5"><a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep
+</span><span id="__span-31-5"><a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
 </span><span id="__span-31-6"><a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>
 </span><span id="__span-31-7"><a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="c1"># 单个步骤</span>
 </span><span id="__span-31-8"><a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity

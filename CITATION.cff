@@ -1,0 +1,53 @@
+cff-version: 1.2.0
+message: "If you use InSARHub in your research, please cite it as below."
+type: software
+title: "InSARHub: A Modular Python Framework for Automated InSAR and Time-Series Processing with a Built-in Web GUI"
+version: 0.3.0
+date-released: "2026-05-14"
+doi: 10.5281/zenodo.20190966
+url: "https://github.com/jldz9/InSARHub"
+repository-code: "https://github.com/jldz9/InSARHub"
+license: MIT
+abstract: >
+  InSARHub is an open-source Python framework that automates the full
+  Interferometric Synthetic Aperture Radar (InSAR) processing pipeline —
+  from Sentinel-1 data search and download through interferogram generation
+  and SBAS time-series analysis — with a built-in web GUI, Python API,
+  and CLI. It supports HyP3 cloud processing and ISCE2 local/HPC backends,
+  with MintPy for time-series inversion.
+authors:
+  - family-names: Li
+    given-names: Jiawei
+    orcid: "https://orcid.org/0000-0001-6678-4045"
+    affiliation: "Department of Civil and Environmental Engineering, Colorado State University, Fort Collins, CO, USA"
+  - family-names: Mirzadeh
+    given-names: Sayyed Mohammad Javad
+    orcid: "https://orcid.org/0000-0002-3809-882X"
+    affiliation: "Department of Civil and Environmental Engineering, Colorado State University, Fort Collins, CO, USA"
+  - family-names: Smith
+    given-names: Ryan
+    affiliation: "Department of Civil and Environmental Engineering, Colorado State University, Fort Collins, CO, USA"
+keywords:
+  - InSAR
+  - Sentinel-1
+  - remote sensing
+  - geodesy
+  - ground deformation
+  - groundwater
+  - time-series analysis
+  - Python
+preferred-citation:
+  type: article
+  title: "InSARHub: A Modular Python Framework for Automated InSAR and Time-Series Processing with a Built-in Web GUI"
+  authors:
+    - family-names: Li
+      given-names: Jiawei
+      orcid: "https://orcid.org/0000-0001-6678-4045"
+    - family-names: Mirzadeh
+      given-names: Sayyed Mohammad Javad
+      orcid: "https://orcid.org/0000-0002-3809-882X"
+    - family-names: Smith
+      given-names: Ryan
+  journal: "Journal of Open Source Software"
+  year: 2026
+  doi: 10.21105/joss.XXXXX

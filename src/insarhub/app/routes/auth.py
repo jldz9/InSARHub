@@ -120,18 +120,27 @@ def _check_hyp3_account(username: str | None = None, password: str | None = None
 
 
 def _build_auth_status() -> dict:
-    earthdata_connected = _netrc_has("urs.earthdata.nasa.gov")
-    cdse_connected      = _check_cdse_connected()
-    pool_pairs          = _read_credit_pool_pairs()
-    hyp3_main           = _check_hyp3_account()
-    credit_pool         = [_check_hyp3_account(u, p) for u, p in pool_pairs]
-    cds_connected       = _check_cds_connected()
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+    pool_pairs = _read_credit_pool_pairs()
+    tasks = {
+        "earthdata": lambda: _netrc_has("urs.earthdata.nasa.gov"),
+        "cdse":      _check_cdse_connected,
+        "cds":       _check_cds_connected,
+        "hyp3_main": _check_hyp3_account,
+        **{f"pool_{i}": (lambda u, p: lambda: _check_hyp3_account(u, p))(u, p)
+           for i, (u, p) in enumerate(pool_pairs)},
+    }
+    results = {}
+    with ThreadPoolExecutor(max_workers=len(tasks) or 1) as ex:
+        futures = {ex.submit(fn): key for key, fn in tasks.items()}
+        for fut in as_completed(futures):
+            results[futures[fut]] = fut.result()
     return {
-        "earthdata_connected": earthdata_connected,
-        "cdse_connected":      cdse_connected,
-        "cds_connected":       cds_connected,
-        "hyp3":                hyp3_main,
-        "credit_pool":         credit_pool,
+        "earthdata_connected": results["earthdata"],
+        "cdse_connected":      results["cdse"],
+        "cds_connected":       results["cds"],
+        "hyp3":                results["hyp3_main"],
+        "credit_pool":         [results[f"pool_{i}"] for i in range(len(pool_pairs))],
         "credit_pool_exists":  state._CREDIT_POOL.is_file() and bool(pool_pairs),
     }
 

@@ -6,10 +6,10 @@ Exposes the existing commands layer as REST endpoints.
 React frontend calls these endpoints over HTTP.
 
 Run with:
-    uvicorn insarhub.app.api:app --reload --port 8000
+    uvicorn insarhub.app.api:app --reload --port 8080
 
 Interactive API docs (test without any frontend):
-    http://localhost:8000/docs
+    http://localhost:8080/docs
 """
 
 import asyncio

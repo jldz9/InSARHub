@@ -8,7 +8,7 @@ interface Props {
   onClose: () => void
 }
 
-const API = import.meta.env.DEV ? 'http://localhost:8000' : ''
+const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 function fmtTime(iso: string | undefined | null): string {
   if (!iso) return '—'

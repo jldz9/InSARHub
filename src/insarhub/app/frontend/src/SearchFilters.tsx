@@ -42,7 +42,7 @@ interface Props {
   onApply: (f: Filters) => void
 }
 
-const API = import.meta.env.DEV ? 'http://localhost:8000' : ''
+const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 export default function SearchFilters({ open, filters, theme: t, onClose, onApply }: Props) {
   const [draft, setDraft]           = useState<Filters>(filters)

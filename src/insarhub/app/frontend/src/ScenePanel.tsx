@@ -7,7 +7,7 @@ export function parseStack(s: string): { path: number; frame: number } | null {
   return { path: parseInt(m[1]), frame: parseInt(m[2]) }
 }
 
-const API = import.meta.env.DEV ? 'http://localhost:8000' : ''
+const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 // Persist active job IDs across ScenePanel unmount/remount, keyed by stack key "(path, frame)"
 const _dlJobs:    Map<string, string> = new Map()

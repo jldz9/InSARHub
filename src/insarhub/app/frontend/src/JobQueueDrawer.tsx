@@ -19,7 +19,7 @@ export interface RasterOverlay {
   source?:   { kind: 'mintpy'; folderPath: string; tsFile: string | null }
 }
 
-const API = import.meta.env.DEV ? 'http://localhost:8000' : ''
+const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 // ── Resizable drawer width ─────────────────────────────────────────────────
 function useResizable(initial: number, min = 160, max = 700) {

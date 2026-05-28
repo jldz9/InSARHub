@@ -286,7 +286,7 @@ def create_parser() -> argparse.ArgumentParser:
         "\n"
         "  Keyword       Description\n"
         "  ----------    ----------------------------------------\n"
-        "  prep_data     Prepare data (unzip, clip, write .mintpy.cfg)\n"
+        "  prep_data     Prepare data (unzip, clip, write .mintpy.cfg)  [alias: prep]\n"
         "  all           prep_data + all MintPy steps below (default if --step omitted)\n"
         "\n"
         "  MintPy step             \n"
@@ -575,9 +575,13 @@ def _iter_analysis_dirs(workdir: Path) -> list[Path]:
     """
     if (workdir / "insarhub_config.json").exists():
         return [workdir]
+    def _has_zips(d: Path) -> bool:
+        hyp3_sub = d / "hyp3"
+        return any(hyp3_sub.glob("*.zip")) if hyp3_sub.is_dir() else any(d.glob("*.zip"))
+
     subdirs = sorted(
         d for d in workdir.iterdir()
-        if d.is_dir() and _parse_group_key(d.name) and any(d.glob("*.zip"))
+        if d.is_dir() and _parse_group_key(d.name) and _has_zips(d)
     )
     return subdirs if subdirs else [workdir]
 
@@ -1973,7 +1977,7 @@ def _az_run(args, extra_args: list[str]):
     steps = getattr(args, 'step', None) or ['all']  # default: run everything including prep_data
     expanded: list[str] = []
     for s in steps:
-        if s == 'prep_data':
+        if s in ('prep_data', 'prep'):  # 'prep' is accepted as alias for 'prep_data'
             run_prep = True
         elif s == 'all':
             run_prep = True

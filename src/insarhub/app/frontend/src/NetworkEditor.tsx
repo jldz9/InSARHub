@@ -7,7 +7,7 @@ import {
   Application, Container, Graphics, Text, TextStyle, Point, Rectangle,
 } from 'pixi.js'
 
-const API = import.meta.env.DEV ? 'http://localhost:8000' : ''
+const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

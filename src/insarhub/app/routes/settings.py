@@ -26,34 +26,119 @@ async def get_workdir():
     return {"workdir": state._settings["workdir"]}
 
 
+_PS_MODERN_FOLDER_SCRIPT = """\
+$OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+[ComImport, ClassInterface(ClassInterfaceType.None), Guid("DC1C5A9C-E88A-4dde-A5A1-60F82A20AEF7")]
+public class FileOpenDialog {}
+[ComImport, Guid("42F85136-DB7E-439C-85F1-E4075D135FC8"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IFileDialog {
+    [PreserveSig] int Show(IntPtr h);
+    [PreserveSig] int SetFileTypes(uint n, IntPtr p);
+    [PreserveSig] int SetFileTypeIndex(uint i);
+    [PreserveSig] int GetFileTypeIndex(out uint i);
+    [PreserveSig] int Advise(IntPtr p, out uint c);
+    [PreserveSig] int Unadvise(uint c);
+    [PreserveSig] int SetOptions(uint f);
+    [PreserveSig] int GetOptions(out uint f);
+    [PreserveSig] int SetDefaultFolder(IntPtr p);
+    [PreserveSig] int SetFolder(IntPtr p);
+    [PreserveSig] int GetFolder(out IntPtr p);
+    [PreserveSig] int GetCurrentSelection(out IntPtr p);
+    [PreserveSig] int SetFileName([MarshalAs(UnmanagedType.LPWStr)] string n);
+    [PreserveSig] int GetFileName([MarshalAs(UnmanagedType.LPWStr)] out string n);
+    [PreserveSig] int SetTitle([MarshalAs(UnmanagedType.LPWStr)] string t);
+    [PreserveSig] int SetOkButtonLabel([MarshalAs(UnmanagedType.LPWStr)] string t);
+    [PreserveSig] int SetFileNameLabel([MarshalAs(UnmanagedType.LPWStr)] string t);
+    [PreserveSig] int GetResult(out IntPtr p);
+    [PreserveSig] int AddPlace(IntPtr p, uint f);
+    [PreserveSig] int SetDefaultExtension([MarshalAs(UnmanagedType.LPWStr)] string e);
+    [PreserveSig] int Close(int hr);
+    [PreserveSig] int SetClientGuid(ref Guid g);
+    [PreserveSig] int ClearClientData();
+    [PreserveSig] int SetFilter(IntPtr p);
+}
+[ComImport, Guid("43826D1E-E718-42EE-BC55-A1E261C37BFE"), InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IShellItem {
+    [PreserveSig] int BindToHandler(IntPtr p, ref Guid b, ref Guid r, out IntPtr v);
+    [PreserveSig] int GetParent(out IntPtr p);
+    [PreserveSig] int GetDisplayName(uint s, [MarshalAs(UnmanagedType.LPWStr)] out string n);
+    [PreserveSig] int GetAttributes(uint m, out uint a);
+    [PreserveSig] int Compare(IntPtr p, uint h, out int o);
+}
+public static class FolderPicker {
+    [DllImport("user32.dll")] static extern bool SetProcessDpiAwarenessContext(IntPtr v);
+    [DllImport("shcore.dll")] static extern int SetProcessDpiAwareness(int v);
+    static void _setDpi() {
+        // DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2 = -4 (Windows 10 1703+)
+        if (!SetProcessDpiAwarenessContext(new IntPtr(-4)))
+            SetProcessDpiAwareness(2); // PROCESS_PER_MONITOR_DPI_AWARE fallback
+    }
+    public static string Pick(string title) {
+        _setDpi();
+        var d = (IFileDialog)new FileOpenDialog();
+        uint o; d.GetOptions(out o);
+        d.SetOptions(o | 0x20u | 0x800u); // FOS_PICKFOLDERS | FOS_PATHMUSTEXIST
+        d.SetTitle(title);
+        if (d.Show(IntPtr.Zero) != 0) return null;
+        IntPtr p; d.GetResult(out p);
+        var si = (IShellItem)Marshal.GetTypedObjectForIUnknown(p, typeof(IShellItem));
+        string name; si.GetDisplayName(0x80058000u, out name);
+        return name;
+    }
+}
+"@ -Language CSharp
+[FolderPicker]::Pick('Select work directory')
+"""
+
+
+def _run_ps_folder_picker(is_wsl: bool) -> str | None:
+    """Write the modern folder picker script to a temp PS1 file and run it."""
+    import os
+    import tempfile
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".ps1", delete=False, encoding="utf-8") as f:
+        f.write(_PS_MODERN_FOLDER_SCRIPT)
+        tmp_path = f.name
+    try:
+        if is_wsl:
+            wp = subprocess.run(["wslpath", "-w", tmp_path], capture_output=True, text=True)
+            win_tmp = wp.stdout.strip()
+            if wp.returncode != 0 or not win_tmp:
+                return None
+            res = subprocess.run(
+                ["powershell.exe", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-InputFormat", "None", "-File", win_tmp],
+                capture_output=True, encoding="utf-8",
+            )
+        else:
+            res = subprocess.run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                 "-InputFormat", "None", "-File", tmp_path],
+                capture_output=True, encoding="utf-8",
+            )
+        return res.stdout.strip() or None
+    finally:
+        os.unlink(tmp_path)
+
+
 @router.get("/api/pick-folder")
 async def pick_folder():
     """Open a native folder-picker dialog and return the selected path."""
     is_wsl = Path("/proc/version").exists() and \
              "microsoft" in Path("/proc/version").read_text().lower()
-    _PS_FOLDER_SCRIPT = (
-        "Add-Type -AssemblyName System.Windows.Forms; "
-        "$f = New-Object System.Windows.Forms.FolderBrowserDialog; "
-        "$f.Description = 'Select work directory'; "
-        "$f.UseDescriptionForTitle = $true; "
-        "$f.AutoUpgradeEnabled = $true; "
-        "$null = $f.ShowDialog(); "
-        "Write-Output $f.SelectedPath"
-    )
 
     if is_wsl:
-        res = subprocess.run(["powershell.exe", "-NoProfile", "-Command", _PS_FOLDER_SCRIPT],
-                             capture_output=True, text=True)
-        win_path = res.stdout.strip()
+        win_path = _run_ps_folder_picker(is_wsl=True)
         if not win_path:
             return {"path": None}
         conv = subprocess.run(["wslpath", "-u", win_path], capture_output=True, text=True)
         return {"path": conv.stdout.strip() or None}
 
     if sys.platform == "win32":
-        res = subprocess.run(["powershell", "-NoProfile", "-Command", _PS_FOLDER_SCRIPT],
-                             capture_output=True, text=True)
-        return {"path": res.stdout.strip() or None}
+        return {"path": _run_ps_folder_picker(is_wsl=False)}
 
     if sys.platform == "darwin":
         res = subprocess.run(
@@ -87,60 +172,43 @@ async def pick_folder():
 
 
 def _scan_folder_jobs(scan_dir: Path) -> list[dict]:
-    """Return folder and file dicts for direct children of scan_dir."""
+    """Return folder dicts for direct children of scan_dir.
+
+    Only reads insarhub_config.json per folder (single file I/O) to derive
+    workflow tags. All glob/stat/has_children checks removed for SSH speed.
+    """
     items = []
-    files: list[dict] = []
     try:
         children = sorted(scan_dir.iterdir())
     except OSError:
         return items
     for child in children:
-        if child.name.startswith('.'):
+        if child.name.startswith('.') or not child.is_dir():
             continue
-        if child.is_dir():
-            cfg = read_insarhub_config(child)
-            tags: list[str] = []
-            if (child / "hyp3_jobs.json").exists() or list(child.glob("hyp3_retry_jobs_*.json")):
-                tags.append("HyP3")
-            if (child / ".mintpy.cfg").exists() or cfg.get("analyzer"):
-                tags.append("MintPy")
-            if list(child.glob("stack_p*_f*.json")):
-                tags.append("SBAS")
-            if list(child.glob("isce_jobs*.json")) or (child / "isce").is_dir():
-                tags.append("ISCE")
-            workflow = {
-                "downloader": cfg.get("downloader", {}).get("type", ""),
-                "processor":  cfg.get("processor",  {}).get("type", ""),
-                "analyzer":   cfg.get("analyzer",   {}).get("type", ""),
-            }
-            try:
-                has_children = any(p.is_dir() for p in child.iterdir())
-            except OSError:
-                has_children = False
-            items.append({
-                "type": "folder",
-                "name": child.name,
-                "path": str(child),
-                "tags": tags,
-                "workflow": workflow,
-                "has_children": has_children,
-            })
-        elif child.is_file():
-            try:
-                size = child.stat().st_size
-            except OSError:
-                size = 0
-            files.append({
-                "type": "file",
-                "name": child.name,
-                "path": str(child),
-                "size": size,
-                "tags": [],
-                "workflow": {},
-                "has_children": False,
-            })
-    # folders first, then files
-    return items + files
+        cfg = read_insarhub_config(child)
+        proc_type = cfg.get("processor", {}).get("type", "")
+        az_type   = cfg.get("analyzer",  {}).get("type", "")
+        tags: list[str] = []
+        if proc_type.startswith("Hyp3"):
+            tags.append("HyP3")
+        if proc_type.startswith("ISCE"):
+            tags.append("ISCE")
+        if az_type:
+            tags.append("MintPy")
+        workflow = {
+            "downloader": cfg.get("downloader", {}).get("type", ""),
+            "processor":  cfg.get("processor",  {}).get("type", ""),
+            "analyzer":   cfg.get("analyzer",   {}).get("type", ""),
+        }
+        items.append({
+            "type": "folder",
+            "name": child.name,
+            "path": str(child),
+            "tags": tags,
+            "workflow": workflow,
+            "has_children": True,
+        })
+    return items
 
 
 @router.get("/api/job-folders")

@@ -59,12 +59,12 @@ class DownloadResultsCommand(BaseCommand):
     def run(self) -> CommandResult:
         try:
             self.progress("Downloading HyP3 results...", 0)
-            output_dir = self.processor.download()
+            output_dir, dl_stats = self.processor.download()
             self.progress("Download complete", 100)
             return CommandResult(
                 success=True,
                 message=f"Results saved to {output_dir}",
-                data=output_dir,
+                data={"output_dir": str(output_dir), **dl_stats},
                 output_files=[output_dir] if output_dir else [],
             )
         except Exception as e:

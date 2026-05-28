@@ -8,7 +8,7 @@ import importlib.resources
 from pathlib import Path
 
 
-def serve(host: str = "127.0.0.1", port: int = 8000, reload: bool = False, workdir: str | None = None) -> None:
+def serve(host: str = "127.0.0.1", port: int = 8080, reload: bool = False, workdir: str | None = None) -> None:
     import uvicorn
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
@@ -57,7 +57,7 @@ def main() -> None:
     import argparse
     parser = argparse.ArgumentParser(description="InSARHub web application")
     parser.add_argument("--host", default="127.0.0.1")
-    parser.add_argument("--port", type=int, default=8000)
+    parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev only)")
     parser.add_argument("-w", "--workdir", default=None, help="Working directory (default: current directory)")
     parser.add_argument("-v", "--version", action="store_true", help="Print version and exit")

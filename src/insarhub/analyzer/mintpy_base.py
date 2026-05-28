@@ -30,10 +30,11 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
     def __init__(self, config: Mintpy_SBAS_Base_Config | None = None):
         super().__init__(config)
 
-        self.workdir = self.config.workdir
-        self.tmp_dir = self.workdir.joinpath('tmp')
-        self.clip_dir = self.workdir.joinpath('clip')
-        self.cfg_path = self.workdir.joinpath('.mintpy.cfg')
+        self.workdir   = self.config.workdir
+        self.mintpy_dir = self.workdir / "mintpy"
+        self.tmp_dir   = self.mintpy_dir / "tmp"
+        self.clip_dir  = self.mintpy_dir / "clip"
+        self.cfg_path  = self.workdir.joinpath('.mintpy.cfg')
         write_workflow_marker(self.workdir, analyzer=type(self).name)
 
     def prep_data(self):

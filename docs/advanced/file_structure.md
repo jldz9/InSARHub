@@ -6,32 +6,62 @@ InSARHub writes a consistent set of files to disk as the pipeline progresses. Ea
 
 ## Directory Layout
 
-**Single-stack (flat) run** — when only one track/frame is found, all files are written directly into `workdir/`:
+**HyP3 pipeline (single-stack)** — when only one track/frame is found, all files are written directly into `workdir/`:
 
 ```
 workdir/
 ├── insarhub_config.json               # pipeline config (accumulates each stage)
 ├── stack_p0_f0.json                   # pairs, baselines, scenes, quality scores
 ├── network_p0_f0.png                  # interferogram network graph image
-├── dem_p0_f0.tif                      # DEM raster (after downloader dem)
 ├── hyp3_jobs.json                     # submitted job IDs  (after processor submit)
 ├── hyp3_retry_jobs_*.json             # retry batches      (after processor retry)
-├── .mintpy.cfg                        # MintPy config written by InSARHub (after analyzer init)
 ├── .insarhub_cache.json               # processor result cache (filenames + out_dir)
 ├── .insarhub_quality_cache.json       # weather, snow, landcover, coherence feature cache
 ├── .insarhub_pair_quality_db.json     # pre-scored quality for all N×(N-1)/2 scene pairs
 ├── decay_maps/                        # S1 coherence pixel decay GeoTIFFs (one per season)
-│   ├── S1_coherence_decay_winter_vv.tif
-│   ├── S1_coherence_decay_spring_vv.tif
-│   ├── S1_coherence_decay_summer_vv.tif
-│   └── S1_coherence_decay_fall_vv.tif
+│   └── S1_coherence_decay_*.tif
 ├── hyp3/                              # HyP3 downloaded ZIP products (after processor download)
 │   └── S1AA_*_INT20_*.zip
-├── tmp/                               # extracted zip contents  (removed by cleanup)
-└── clip/                              # AOI-clipped data        (removed by cleanup)
+├── mintpy/                            # MintPy analysis outputs (after analyzer run)
+│   ├── .mintpy.cfg
+│   ├── inputs/
+│   ├── geo/
+│   ├── tmp/                           # extracted zip contents  (removed by cleanup)
+│   ├── clip/                          # AOI-clipped interferograms (removed by cleanup)
+│   └── timeseries*.h5, velocity.h5, ...
 ```
 
-**Multi-stack run** — when the search covers more than one track/frame, each group gets its own `p{path}_f{frame}/` subfolder. Each subfolder contains exactly the same file structure as the single-stack layout above; nothing is written to the top-level workdir.
+**ISCE2 pipeline (single-stack)**:
+
+```
+workdir/
+├── insarhub_config.json
+├── stack_p0_f0.json
+├── network_p0_f0.png
+├── .insarhub_quality_cache.json
+├── .insarhub_pair_quality_db.json
+├── decay_maps/
+│   └── S1_coherence_decay_*.tif
+├── slc/                               # downloaded SLC .SAFE files and orbit .EOF files
+│   ├── S1A_IW_SLC__*.SAFE/
+│   └── *.EOF
+├── dem/                               # ISCE2-format DEM (GLO-30 auto-downloaded)
+│   ├── dem.wgs84
+│   └── dem.wgs84.xml
+├── isce/                              # ISCE2 stackSentinel working directory
+│   ├── run_files/
+│   ├── merged/
+│   │   ├── interferograms/
+│   │   └── geom_reference/
+│   └── ...
+└── mintpy/                            # MintPy analysis outputs (after analyzer run)
+    ├── .mintpy.cfg
+    ├── inputs/
+    ├── geo/
+    └── timeseries*.h5, velocity.h5, ...
+```
+
+**Multi-stack run** — when the search covers more than one track/frame, each group gets its own `p{path}_f{frame}/` subfolder. Each subfolder contains exactly the same file structure as the relevant single-stack layout above; nothing is written to the top-level workdir.
 
 ```
 workdir/
@@ -45,8 +75,6 @@ workdir/
 ├── p93_f121/
 │   └── ...                       # same structure as single-stack
 ```
-
-MintPy inputs (`inputs/ifgramStack.h5`, etc.) and outputs (`timeseries*.h5`, `velocity.h5`, `velocity.tif`, etc.) are all written by MintPy and are not listed here. See the [MintPy documentation](https://mintpy.readthedocs.io) for details.
 
 ---
 
@@ -96,14 +124,14 @@ Produced by `insarhub analyzer run` or GUI **Run Analyzer**.
 |------|-------------|
 | `insarhub_config.json` | Updated with analyzer type |
 | `.mintpy.cfg` | MintPy `smallbaselineApp` configuration written by InSARHub |
-| `tmp/` | Unzipped HyP3 product contents (temporary) |
-| `clip/` | AOI-clipped interferograms (temporary) |
+| `mintpy/tmp/` | Unzipped HyP3 product contents (temporary) |
+| `mintpy/clip/` | AOI-clipped interferograms (temporary) |
 
 All MintPy inputs and outputs are produced by MintPy. See the [MintPy documentation](https://mintpy.readthedocs.io) for the full list.
 
 **After `cleanup`:**
 
-`tmp/` and `clip/` are deleted. `insarhub_config.json`, `.mintpy.cfg`, and all MintPy outputs are preserved.
+`mintpy/tmp/` and `mintpy/clip/` are deleted. `insarhub_config.json`, `.mintpy.cfg`, and all MintPy outputs are preserved.
 
 ### Export Utilities
 

@@ -823,6 +823,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-on-hpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running on HPC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#interface-overview" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1361,6 +1372,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#running-on-hpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running on HPC
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#interface-overview" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1482,6 +1504,23 @@
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>insarhub-app<span class="w"> </span>--version<span class="w">         </span><span class="c1"># print version and exit</span>
 </span></code></pre></div>
 <p>The <code>-w</code> / <code>--workdir</code> flag pre-sets the working directory so you do not need to configure it in the Settings panel after launch. If omitted, the directory where you run <code>insarhub-app</code> is used.</p>
+<h2 id="running-on-hpc">Running on HPC</h2>
+<p>InSARHub backend is hosted by FastAPI which means you may run backend on HPC and use port forwarding to open the frontend on you local machine</p>
+<p><strong>Steps:</strong></p>
+<ol>
+<li>Install the <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh">Remote - SSH</a> extension in VS Code</li>
+<li>Connect to your HPC login node: <strong>Connect to Host → + → <code>user@hpc.example.edu</code></strong></li>
+<li>Open a terminal in VS Code (now running on the HPC) and start InSARHub:
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>insarhub-app<span class="w"> </span>-w<span class="w"> </span>/your/hpc/workdir
+</span></code></pre></div></li>
+<li>VS Code detects the open port and offers to forward it — click <strong>Open in Browser</strong>, or manually add port <code>8080</code> under <strong>Ports</strong> tab</li>
+<li>Open <strong><a href="http://127.0.0.1:8080">http://127.0.0.1:8080</a></strong> in your local browser</li>
+</ol>
+<p>The UI runs locally in your browser; all data, processing, and file I/O happen on the HPC node.</p>
+<div class="admonition tip">
+<p class="admonition-title">Submit node vs login node</p>
+<p>When start <code>insarhub-app</code> on a login node. We recommend to use <strong>HPC mode</strong> in the Processor and Analyzer panels to submit processing steps as <code>sbatch</code> jobs to the cluster. Or you may causing admin ban due to stress of login cluster.</p>
+</div>
 <hr>
 <h2 id="interface-overview">Interface Overview</h2>
 <!-- screenshot: full app overview -->

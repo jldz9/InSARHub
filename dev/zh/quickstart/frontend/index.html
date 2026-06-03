@@ -825,6 +825,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        在 HPC 上运行
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1363,6 +1374,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#hpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        在 HPC 上运行
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_2" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1484,6 +1506,23 @@
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>insarhub-app<span class="w"> </span>--version<span class="w">         </span><span class="c1"># 打印版本并退出</span>
 </span></code></pre></div>
 <p><code>-w</code> / <code>--workdir</code> 参数预设工作目录，无需在启动后手动配置。若省略，则使用运行 <code>insarhub-app</code> 时所在的目录。</p>
+<h2 id="hpc">在 HPC 上运行</h2>
+<p>InSARHub 后端使用FastAPI, 所以您可以使用端口转发来在HPC上运行后端而使用本地管理前端</p>
+<p><strong>步骤：</strong></p>
+<ol>
+<li>在 VS Code 中安装 <a href="https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh">Remote - SSH</a> 扩展</li>
+<li>连接到 HPC 登录节点：<strong>Connect to Host → + → <code>user@hpc.example.edu</code></strong></li>
+<li>在 VS Code 终端（现在运行于 HPC 上）启动 InSARHub：
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>insarhub-app<span class="w"> </span>-w<span class="w"> </span>/your/hpc/workdir
+</span></code></pre></div></li>
+<li>VS Code 检测到开放端口后会提示转发 — 点击<strong>在浏览器中打开</strong>，或在 <strong>端口</strong> 标签页手动添加端口 <code>8080</code></li>
+<li>在本地浏览器打开 <strong><a href="http://127.0.0.1:8080">http://127.0.0.1:8080</a></strong></li>
+</ol>
+<p>UI 在本地浏览器中运行，所有数据、处理和文件 I/O 均在 HPC 节点上执行。</p>
+<div class="admonition tip">
+<p class="admonition-title">计算节点 vs 登录节点</p>
+<p>在登录节点启动 <code>insarhub-app</code> 时，建议在处理器和分析器面板中启用 <strong>HPC 模式</strong>，将处理步骤以 <code>sbatch</code> 任务提交至集群。否则在登录节点上直接运行大量计算可能导致管理员封禁账号。</p>
+</div>
 <hr>
 <h2 id="_2">界面概览</h2>
 <!-- screenshot: full app overview -->

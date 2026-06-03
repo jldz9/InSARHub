@@ -1,0 +1,39 @@
+.md-sidebar--primary {
+    flex: 0 0 200px;
+}
+
+/* Move palette toggle to the right of the repo (git) button */
+.md-header__source {
+    order: 1;
+    margin-left: 0;
+    min-width: 0;
+    width: auto;
+}
+.md-header__source .md-source {
+    padding: 0 0.4rem;
+    min-width: 0;
+    width: auto;
+}
+.md-header__source .md-source__repository {
+    max-width: none;
+}
+[data-md-component="palette"] {
+    order: 2;
+}
+
+.md-content {
+    flex: 1 1 auto;
+}
+
+.md-grid {
+    max-width: 90vw;
+}
+/* Center screenshots without overriding only-light/only-dark display:none */
+.doc-img {
+    width: 700px;
+    margin: 0 auto;
+}
+.doc-img-wide {
+    width: 800px;
+    margin: 0 auto;
+}

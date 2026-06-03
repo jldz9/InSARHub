@@ -6,60 +6,62 @@ InSARHub writes a consistent set of files to disk as the pipeline progresses. Ea
 
 ## Directory Layout
 
-**HyP3 pipeline (single-stack)** — when only one track/frame is found, all files are written directly into `workdir/`:
+Single-stack layout — when only one track/frame is found, all files are written directly into `workdir/`:
 
-```
-workdir/
-├── insarhub_config.json               # pipeline config (accumulates each stage)
-├── stack_p0_f0.json                   # pairs, baselines, scenes, quality scores
-├── network_p0_f0.png                  # interferogram network graph image
-├── hyp3_jobs.json                     # submitted job IDs  (after processor submit)
-├── hyp3_retry_jobs_*.json             # retry batches      (after processor retry)
-├── .insarhub_cache.json               # processor result cache (filenames + out_dir)
-├── .insarhub_quality_cache.json       # weather, snow, landcover, coherence feature cache
-├── .insarhub_pair_quality_db.json     # pre-scored quality for all N×(N-1)/2 scene pairs
-├── decay_maps/                        # S1 coherence pixel decay GeoTIFFs (one per season)
-│   └── S1_coherence_decay_*.tif
-├── hyp3/                              # HyP3 downloaded ZIP products (after processor download)
-│   └── S1AA_*_INT20_*.zip
-├── mintpy/                            # MintPy analysis outputs (after analyzer run)
-│   ├── .mintpy.cfg
-│   ├── inputs/
-│   ├── geo/
-│   ├── tmp/                           # extracted zip contents  (removed by cleanup)
-│   ├── clip/                          # AOI-clipped interferograms (removed by cleanup)
-│   └── timeseries*.h5, velocity.h5, ...
-```
+=== "HyP3"
 
-**ISCE2 pipeline (single-stack)**:
+    ```
+    workdir/
+    ├── insarhub_config.json               # pipeline config (accumulates each stage)
+    ├── stack_p0_f0.json                   # pairs, baselines, scenes, quality scores
+    ├── network_p0_f0.png                  # interferogram network graph image
+    ├── hyp3_jobs.json                     # submitted job IDs  (after processor submit)
+    ├── hyp3_retry_jobs_*.json             # retry batches      (after processor retry)
+    ├── .insarhub_cache.json               # processor result cache (filenames + out_dir)
+    ├── .insarhub_quality_cache.json       # weather, snow, landcover, coherence feature cache
+    ├── .insarhub_pair_quality_db.json     # pre-scored quality for all N×(N-1)/2 scene pairs
+    ├── decay_maps/                        # S1 coherence pixel decay GeoTIFFs (one per season)
+    │   └── S1_coherence_decay_*.tif
+    ├── hyp3/                              # HyP3 downloaded ZIP products (after processor download)
+    │   └── S1AA_*_INT20_*.zip
+    └── mintpy/                            # MintPy analysis outputs (after analyzer run)
+        ├── .mintpy.cfg
+        ├── inputs/
+        ├── geo/
+        ├── tmp/                           # extracted zip contents  (removed by cleanup)
+        ├── clip/                          # AOI-clipped interferograms (removed by cleanup)
+        └── timeseries*.h5, velocity.h5, ...
+    ```
 
-```
-workdir/
-├── insarhub_config.json
-├── stack_p0_f0.json
-├── network_p0_f0.png
-├── .insarhub_quality_cache.json
-├── .insarhub_pair_quality_db.json
-├── decay_maps/
-│   └── S1_coherence_decay_*.tif
-├── slc/                               # downloaded SLC .SAFE files and orbit .EOF files
-│   ├── S1A_IW_SLC__*.SAFE/
-│   └── *.EOF
-├── dem/                               # ISCE2-format DEM (GLO-30 auto-downloaded)
-│   ├── dem.wgs84
-│   └── dem.wgs84.xml
-├── isce/                              # ISCE2 stackSentinel working directory
-│   ├── run_files/
-│   ├── merged/
-│   │   ├── interferograms/
-│   │   └── geom_reference/
-│   └── ...
-└── mintpy/                            # MintPy analysis outputs (after analyzer run)
-    ├── .mintpy.cfg
-    ├── inputs/
-    ├── geo/
-    └── timeseries*.h5, velocity.h5, ...
-```
+=== "ISCE2"
+
+    ```
+    workdir/
+    ├── insarhub_config.json
+    ├── stack_p0_f0.json
+    ├── network_p0_f0.png
+    ├── .insarhub_quality_cache.json
+    ├── .insarhub_pair_quality_db.json
+    ├── decay_maps/
+    │   └── S1_coherence_decay_*.tif
+    ├── slc/                               # downloaded SLC .SAFE files and orbit .EOF files
+    │   ├── S1A_IW_SLC__*.SAFE/
+    │   └── *.EOF
+    ├── dem/                               # ISCE2-format DEM (GLO-30 auto-downloaded)
+    │   ├── dem.wgs84
+    │   └── dem.wgs84.xml
+    ├── isce/                              # ISCE2 stackSentinel working directory
+    │   ├── run_files/
+    │   ├── merged/
+    │   │   ├── interferograms/
+    │   │   └── geom_reference/
+    │   └── ...
+    └── mintpy/                            # MintPy analysis outputs (after analyzer run)
+        ├── .mintpy.cfg
+        ├── inputs/
+        ├── geo/
+        └── timeseries*.h5, velocity.h5, ...
+    ```
 
 **Multi-stack run** — when the search covers more than one track/frame, each group gets its own `p{path}_f{frame}/` subfolder. Each subfolder contains exactly the same file structure as the relevant single-stack layout above; nothing is written to the top-level workdir.
 

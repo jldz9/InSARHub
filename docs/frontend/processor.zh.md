@@ -103,6 +103,9 @@
 
 干涉图下载完成后，点击处理器面板中的**查看数据**打开数据浏览器。这列出了从下载的 `.zip` 压缩包中提取的所有 HyP3 产品文件，并可直接在地图上叠加显示。
 
+!!! warning "不支持 ISCE2"
+    **查看数据**仅适用于 HyP3 输出。ISCE2 干涉图存储在雷达（距离/方位角）坐标系中，在 MintPy 完成地理编码之前不具备地理坐标系统，无法直接叠加显示。请使用**分析器**面板对 ISCE2 结果进行地理编码和查看。
+
 ![查看数据按钮](fig/view_data_button_light.png#only-light){: .doc-img style="width: 60%"}
 ![查看数据按钮](fig/view_data_button_dark.png#only-dark){: .doc-img style="width: 60%"}
 /// caption
@@ -134,78 +137,120 @@
 
 配对网络审核满意后，点击**处理**打开处理器选择对话框。
 
-<!-- screenshot: click process button -->
 ![处理按钮](fig/process_button_light.png#only-light){: .doc-img style="width: 60%"}
 ![处理按钮](fig/process_button_dark.png#only-dark){: .doc-img style="width: 60%"}
 /// caption
-点击**处理**将干涉图配对提交至 HyP3。
+点击**处理**打开处理器选择对话框。
 ///
 
-<!-- screenshot: processor selection dialog -->
-![处理器选择](fig/processor_dialog_light.png#only-light){: .doc-img style="width: 60%"}
-![处理器选择](fig/processor_dialog_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-处理器选择对话框。选择处理器（例如 `Hyp3_S1`）并确认以将所有配对提交至 HyP3。
-///
+=== "HyP3"
 
-!!! tip "提交前先测试"
-    对于向外部服务器提交任务，在处理器对话框中勾选**试运行**，可在不提交真实任务的情况下验证环境和凭据。成功的试运行输出类似于：
+    ![处理器选择](fig/processor_dialog_light.png#only-light){: .doc-img style="width: 60%"}
+    ![处理器选择](fig/processor_dialog_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    选择 `Hyp3_S1` 通过 ASF HyP3 进行云端处理。
+    ///
 
-    ```
-    [Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
-    ```
+    选择 `Hyp3_S1` 并确认，将所有配对提交至 ASF HyP3 云端处理。无需本地 SAR 软件。
 
-    建议在首次提交前执行此操作以确保一切配置正确。
+    !!! tip "提交前先测试"
+        在对话框中勾选**试运行**，可在不提交真实任务的情况下验证凭据。成功的试运行输出类似于：
+        ```
+        [Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
+        ```
 
-有关所有处理器参数和选项的完整说明，请参阅[处理器参考](../advanced/processor.md)。
+    提交成功后，任务文件夹抽屉中会出现**处理器**标签。
 
-任务成功提交后，任务文件夹面板中会出现带有处理器名称的**处理器**标签，表示该堆叠的 HyP3 处理已激活。
+    ![处理器标签](fig/processor_tab_light.png#only-light){: .doc-img style="width: 60%"}
+    ![处理器标签](fig/processor_tab_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    任务成功提交后出现**处理器**标签。
+    ///
 
-<!-- screenshot: processor tab appears -->
-![处理器标签](fig/processor_tab_light.png#only-light){: .doc-img style="width: 60%"}
-![处理器标签](fig/processor_tab_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-任务成功提交后，任务文件夹面板中出现**处理器**标签。
-///
+=== "ISCE2"
+
+    ![处理器选择](fig/processor_dialog_ISCE_light.png#only-light){: .doc-img style="width: 60%"}
+    ![处理器选择](fig/processor_dialog_ISCE_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    选择 `ISCE_S1` 通过 ISCE2 进行本地 / HPC 处理。
+    ///
+
+    选择 `ISCE_S1` 并配置所需参数 — 边界框（南北西东）、SLC 目录，以及可选的 HPC 模式。点击**提交**在后台本地启动 `stackSentinel`，或启用 **HPC 模式**将步骤提交至 SLURM。
+
+    !!! tip "先执行试运行"
+        启用**试运行**可预览运行脚本并验证路径，而不实际执行。建议在首次真实提交前执行。
+
+    !!! note "需要 SLC 文件"
+        ISCE2 在本地处理 SLC `.SAFE` 文件。提交前请确保场景已下载到 SLC 目录。
+
+    提交成功后，任务文件夹抽屉中会出现**处理器**标签。
+
+有关所有参数的完整说明，请参阅[处理器参考](../advanced/processor.md)。
 
 ---
 
 ## 监控任务
 
-任务提交后，任务文件会自动保存到任务文件夹，下次打开处理器面板时默认加载。即使关闭应用程序后也可恢复监控。
+=== "HyP3"
 
-处理器面板顶部的下拉菜单列出了任务文件夹下找到的所有任务文件，包括初始提交文件（`hyp3_jobs.json`）和后续**重试**操作生成的重试文件。从列表中选择不同文件可检查或监控特定提交。
+    任务文件（`hyp3_jobs.json`）自动保存到任务文件夹。面板顶部下拉菜单列出所有任务文件，包括重试文件。选择文件可检查特定提交。
 
-点击**刷新**检查 HyP3 所有已提交任务的最新状态。每个任务显示以下状态之一：
+    点击**刷新**从 HyP3 获取最新状态：
 
-| 状态 | 含义 |
-|--------|---------|
-| `RUNNING` | 任务正在 HyP3 上积极处理 |
-| `SUCCEEDED` | 处理成功完成 |
-| `FAILED` | 处理失败 |
+    | 状态 | 含义 |
+    |--------|---------|
+    | `RUNNING` | 任务正在 HyP3 上处理 |
+    | `SUCCEEDED` | 处理成功完成 |
+    | `FAILED` | 处理失败 |
 
-<!-- screenshot: job status list -->
-![任务状态](fig/processor_status_light.png#only-light){: .doc-img style="width: 80%"}
-![任务状态](fig/processor_status_dark.png#only-dark){: .doc-img style="width: 80%"}
-/// caption
-处理器任务面板
-///
+    ![任务状态](fig/processor_status_light.png#only-light){: .doc-img style="width: 80%"}
+    ![任务状态](fig/processor_status_dark.png#only-dark){: .doc-img style="width: 80%"}
+    /// caption
+    处理器任务面板（HyP3 任务状态）。
+    ///
 
-如有任务显示 `FAILED`，点击**重试**重新提交。任务显示 `SUCCEEDED` 后，点击**下载**将处理好的干涉图获取到工作目录。
+    如有任务显示 `FAILED`，点击**重试**重新提交。全部显示 `SUCCEEDED` 后，点击**下载**获取干涉图。
+
+=== "ISCE2"
+
+    点击**刷新**从磁盘读取当前步骤和命令状态：
+
+    | 状态 | 含义 |
+    |--------|---------|
+    | `RUNNING` | 步骤正在执行 |
+    | `SUCCEEDED` | 步骤成功完成 |
+    | `FAILED` | 步骤失败 — 点击**重试**重新运行 |
+    | `PENDING` | 步骤等待前序步骤完成 |
+
+    每个步骤可能包含多个命令（如每个 SLC 一个）。展开步骤可查看逐命令状态。
+
+    如有步骤显示 `FAILED`，点击**重试**重新运行。点击**取消**可停止本地进程或取消 SLURM 任务。
 
 ---
 
 ## 其他操作
 
-| 按钮 | 说明 |
-|--------|-------------|
-| **重试** | 将所有失败任务重新提交至 HyP3 |
-| **下载** | 将所有成功的干涉图下载到工作目录 |
-| **监控** | 持续轮询 HyP3 直到所有任务完成，然后自动下载 |
-| **积分** | 查看剩余的 HyP3 处理积分 |
+=== "HyP3"
+
+    | 按钮 | 说明 |
+    |--------|-------------|
+    | **刷新** | 从 HyP3 获取最新任务状态 |
+    | **重试** | 重新提交所有失败任务 |
+    | **下载** | 下载所有成功的干涉图 |
+    | **监控** | 持续轮询 HyP3 直到所有任务完成后自动下载 |
+    | **积分** | 查看剩余 HyP3 处理积分 |
+
+=== "ISCE2"
+
+    | 按钮 | 说明 |
+    |--------|-------------|
+    | **刷新** | 从磁盘读取步骤/命令状态 |
+    | **重试** | 重新运行所有失败步骤 |
+    | **取消** | 停止本地进程或取消 SLURM 任务 |
+    | **监控** | 持续轮询步骤状态直到所有步骤完成 |
 
 ---
 
-所有任务成功且干涉图下载完成后，前往分析器面板运行 InSAR 时序分析。
+处理完成且干涉图就绪后，前往分析器面板运行 InSAR 时序分析。
 
 [分析器](analyzer.md){.md-button}

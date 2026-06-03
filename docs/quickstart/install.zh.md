@@ -34,6 +34,14 @@
     conda install isce2 -c conda-forge
     ```
 
+    通过pip安装：
+
+    ```bash
+    conda install gdal isce2
+    pip install insarhub
+    ```
+
+
     验证 ISCE2 安装：
 
     ```bash

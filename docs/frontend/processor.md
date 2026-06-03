@@ -104,6 +104,9 @@ Click the same button again to hide the overlay. Click a different band to switc
 
 Once interferograms have been downloaded, click **View Data** in the Processor panel to open the data browser. This lists all HyP3 product files extracted from the downloaded `.zip` archives and lets you overlay any of them directly on the map.
 
+!!! warning "ISCE2 not supported"
+    **View Data** is only available for HyP3 outputs. ISCE2 interferograms are stored in radar (range/azimuth) coordinates and do not have a geographic coordinate system until geocoded by MintPy. Use the **Analyzer** panel to geocode and view ISCE2 results.
+
 ![View Data Button](fig/view_data_button_light.png#only-light){: .doc-img style="width: 60%"}
 ![View Data Button](fig/view_data_button_dark.png#only-dark){: .doc-img style="width: 60%"}
 /// caption
@@ -135,79 +138,121 @@ HyP3 interferogram product overlaid on the basemap.
 
 Once the pair network is reviewed and satisfactory, click **Process** to open the processor selection dialog.
 
-<!-- screenshot: click process button -->
 ![Process Button](fig/process_button_light.png#only-light){: .doc-img style="width: 60%"}
 ![Process Button](fig/process_button_dark.png#only-dark){: .doc-img style="width: 60%"}
 /// caption
-Click **Process** to submit interferogram pairs to HyP3.
+Click **Process** to open the processor selection dialog.
 ///
 
-<!-- screenshot: processor selection dialog -->
-![Processor Selection](fig/processor_dialog_light.png#only-light){: .doc-img style="width: 60%"}
-![Processor Selection](fig/processor_dialog_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-Processor selection dialog. Choose a processor (e.g. `Hyp3_S1`) and confirm to submit all pairs to HyP3.
-///
+=== "HyP3"
 
-!!! tip "Test before submitting"
-    For submitting jobs to an external server, check **Dry Run** in the processor dialog to validate your environment and credentials without submitting real jobs. A successful dry run produces output similar to:
+    ![Processor Selection](fig/processor_dialog_light.png#only-light){: .doc-img style="width: 60%"}
+    ![Processor Selection](fig/processor_dialog_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    Select `Hyp3_S1` for cloud processing via ASF HyP3.
+    ///
 
-    ```
-    [Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
-    ```
+    Select `Hyp3_S1` and confirm to submit all pairs to ASF HyP3 for cloud processing. No local SAR software required.
 
-    This is recommended before your first submission to ensure everything is configured correctly.
+    !!! tip "Test before submitting"
+        Check **Dry Run** in the dialog to validate credentials without submitting real jobs. A successful dry run produces:
+        ```
+        [Dry run] Would submit 65 pairs via Hyp3_S1 from p93_f121
+        ```
 
-For a full description of all processor parameters and options, see the [Processor Reference](../advanced/processor.md).
+    Once submitted, a **Processor** tag appears on the job folder in the drawer.
 
-Once jobs are successfully submitted, a **Processor** tag with your processor name will appear in the job folder panel, indicating that HyP3 processing is active for this stack.
+    ![Processor Tab](fig/processor_tab_light.png#only-light){: .doc-img style="width: 60%"}
+    ![Processor Tab](fig/processor_tab_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    The **Processor** tag appears after jobs are successfully submitted.
+    ///
 
-<!-- screenshot: processor tab appears -->
-![Processor Tab](fig/processor_tab_light.png#only-light){: .doc-img style="width: 60%"}
-![Processor Tab](fig/processor_tab_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-The **Processor** tab appears in the job folder panel after jobs are successfully submitted.
-///
+=== "ISCE2"
+
+    ![Processor Selection](fig/processor_dialog_ISCE_light.png#only-light){: .doc-img style="width: 60%"}
+    ![Processor Selection](fig/processor_dialog_ISCE_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    Select `ISCE_S1` for local / HPC processing via ISCE2.
+    ///
+
+    Select `ISCE_S1` and configure the required parameters — bounding box (`S N W E`), SLC directory, and optionally HPC mode. Click **Submit** to start `stackSentinel` locally in the background, or submit steps to SLURM with **HPC Mode** enabled.
+
+    !!! tip "Dry run first"
+        Enable **Dry Run** to preview run scripts and verify paths without executing. Recommended before the first real submission.
+
+    !!! note "SLC files required"
+        ISCE2 processes SLC `.SAFE` files locally. Make sure scenes are downloaded to the SLC directory before submitting.
+
+    Once submitted, a **Processor** tag appears on the job folder in the drawer.
+
+For a full description of all parameters, see the [Processor Reference](../advanced/processor.md).
 
 ---
 
 ## Monitoring Jobs
 
-Once jobs are submitted, a job file is automatically saved to the job folder and loaded by default the next time you open the Processor panel. This allows you to resume monitoring even after closing the application.
+=== "HyP3"
 
-A drop-down menu at the top of the Processor panel lists all job files found under the job folder, including the initial submission file (`hyp3_jobs.json`) and any retry files generated by subsequent **Retry** actions (e.g. `hyp3_retry_jobs_20260306t095505.json`). Select a different file from the list to inspect or monitor a specific submission.
+    A job file (`hyp3_jobs.json`) is saved to the job folder automatically. A drop-down at the top of the panel lists all job files, including retry files (e.g. `hyp3_retry_jobs_*.json`). Select a file to inspect a specific submission.
 
-Click **Refresh** to check the latest status of all submitted jobs from HyP3. Each job displays one of the following statuses:
+    Click **Refresh** to poll the latest statuses from HyP3:
 
-| Status | Meaning |
-|--------|---------|
-| `RUNNING` | Job is actively being processed on HyP3 |
-| `SUCCEEDED` | Processing completed successfully |
-| `FAILED` | Processing failed |
+    | Status | Meaning |
+    |--------|---------|
+    | `RUNNING` | Job is actively processing on HyP3 |
+    | `SUCCEEDED` | Processing completed successfully |
+    | `FAILED` | Processing failed |
 
-<!-- screenshot: job status list -->
-![Job Status](fig/processor_status_light.png#only-light){: .doc-img style="width: 80%"}
-![Job Status](fig/processor_status_dark.png#only-dark){: .doc-img style="width: 80%"}
-/// caption
-The processor job panel
-///
+    ![Job Status](fig/processor_status_light.png#only-light){: .doc-img style="width: 80%"}
+    ![Job Status](fig/processor_status_dark.png#only-dark){: .doc-img style="width: 80%"}
+    /// caption
+    The processor job panel showing HyP3 job statuses.
+    ///
 
-If any jobs have `FAILED`, click **Retry** to resubmit them. Once jobs show `SUCCEEDED`, click **Download** to fetch the processed interferograms to the work directory.
+    If any jobs show `FAILED`, click **Retry** to resubmit them. Once all show `SUCCEEDED`, click **Download** to fetch the interferograms.
+
+=== "ISCE2"
+
+    Click **Refresh** to read the current step and command statuses from disk:
+
+    | Status | Meaning |
+    |--------|---------|
+    | `RUNNING` | Step is actively executing |
+    | `SUCCEEDED` | Step completed successfully |
+    | `FAILED` | Step failed — click **Retry** to re-run |
+    | `PENDING` | Step is waiting for a prior step to finish |
+
+    Each step may contain multiple commands (e.g. one per SLC). Per-command status is shown when a step is expanded.
+
+    If any steps show `FAILED`, click **Retry** to re-run them. Click **Cancel** to stop a running local process or scancel active SLURM jobs.
 
 ---
 
 ## Other Actions
 
-| Button | Description |
-|--------|-------------|
-| **Retry** | Resubmit all failed jobs to HyP3 |
-| **Download** | Download all succeeded interferograms to the work directory |
-| **Watch** | Continuously poll HyP3 until all jobs complete, then download automatically |
-| **Credits** | Check remaining HyP3 processing credits |
+=== "HyP3"
+
+    | Button | Description |
+    |--------|-------------|
+    | **Refresh** | Poll HyP3 for latest job statuses |
+    | **Retry** | Resubmit all failed jobs |
+    | **Download** | Download all succeeded interferograms |
+    | **Watch** | Poll HyP3 continuously until all jobs complete, then download automatically |
+    | **Credits** | Check remaining HyP3 processing credits |
+
+=== "ISCE2"
+
+    | Button | Description |
+    |--------|-------------|
+    | **Refresh** | Read step/command statuses from disk |
+    | **Retry** | Re-run all failed steps |
+    | **Cancel** | Stop running local process or scancel SLURM jobs |
+    | **Watch** | Poll step statuses until all steps complete |
 
 ---
 
-Once all jobs have succeeded and interferograms are downloaded, proceed to the Analyzer panel to run time-series InSAR analysis.
+Once processing is complete and interferograms are ready, proceed to the Analyzer panel to run time-series InSAR analysis.
 
 [Analyzer](analyzer.md){.md-button}
 

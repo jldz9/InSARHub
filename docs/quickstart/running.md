@@ -1,6 +1,6 @@
 This section provides an overview of the complete InSAR time-series processing workflow using Python API, guiding you through each stage of the analysis pipeline.
 
- [![Try Live Demo](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jldz9/InSARHub/blob/tutorial/insarhub_tutorial_v0.2.4.ipynb)
+ [![Try Live Demo](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jldz9/InSARHub/blob/tutorial/insarhub_tutorial_v0.3.0.ipynb)
 
 
 ## Modules 
@@ -151,7 +151,7 @@ After locating SAR scene stack(s), generate unwrapped interferograms for time-se
     from insarhub import Processor
     from insarhub.utils import plot_pair_network
 
-    pair_stacks, B, scene_bperp = s1.select_pairs(max_degree=5)
+    pair_stacks, B, scene_bperp, _ = s1.select_pairs(max_degree=5)
     fig = plot_pair_network(pair_stacks, B, scene_bperp)
     fig.show()
     ```
@@ -189,7 +189,7 @@ After locating SAR scene stack(s), generate unwrapped interferograms for time-se
 
 === "Sentinel-1 ISCE2"
 
-    Local on-premise processing using [ISCE2](https://github.com/isce-framework/isce2) `stackSentinel`. Requires ISCE2 installed (see [Installation](install.md)) and SLC `.SAFE` files downloaded first (`s1.download()`).
+    Local processing using [ISCE2](https://github.com/isce-framework/isce2) `stackSentinel`. Requires ISCE2 installed (see [Installation](install.md)) and SLC `.SAFE` files downloaded first (`s1.download()`).
 
     ```python
     from insarhub import Processor

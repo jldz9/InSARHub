@@ -127,7 +127,7 @@ s1.reset()
     from insarhub import Processor
     from insarhub.utils import plot_pair_network
 
-    pair_stacks, B, scene_bperp = s1.select_pairs(max_degree=5)
+    pair_stacks, B, scene_bperp, _ = s1.select_pairs(max_degree=5)
     fig = plot_pair_network(pair_stacks, B, scene_bperp)
     fig.show()
     ```

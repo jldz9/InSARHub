@@ -20,7 +20,7 @@
 
 === "ISCE2 Processor"
 
-    Adds local on-premise interferogram processing via ISCE2 `stackSentinel`.
+    Adds local interferogram processing via ISCE2 `stackSentinel`.
 
     !!! note "Platform availability"
         ISCE2 is only available on Linux and macOS (x86_64). Not available for Windows or Apple Silicon natively — use WSL2 or a Linux HPC cluster.
@@ -30,6 +30,14 @@
     ```bash
     conda install insarhub -c conda-forge
     conda install isce2 -c conda-forge
+    ```
+
+    Via pip:
+
+    ```bash
+    
+    conda install gdal isce2
+    pip install insarhub
     ```
 
     Verify ISCE2 installed correctly:

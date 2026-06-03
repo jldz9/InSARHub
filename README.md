@@ -2,10 +2,13 @@
 
 InSARHub is a modular Python framework for automated InSAR and time-series processing.
 
-The primary goal of this package is to provide a streamlined and user-friendly InSAR processing experience across multiple satellite products. Two processing backends are supported:
+The primary goal of this package is to provide a streamlined and user-friendly InSAR processing experience across multiple satellite products. Satellites InSARHub currently supports: 
 
-- **HyP3 (cloud)** — submit Sentinel-1 interferogram pairs to ASF HyP3 for cloud-based processing; no local SAR software required.
-- **ISCE2 (local / HPC)** — run ISCE2 `stackSentinel` locally or on a SLURM cluster directly from InSARHub; requires a separate ISCE2 installation.
+| Satellite | Mode | Download | IFG Generation | Timeseries Analysis |
+|-----------|------|----------|----------------|---------------------|
+| Sentinel-1 SLC | Mixed¹ / Local / HPC | ✅ | ✅ | ✅ |
+
+> ¹ **Mixed** — process pipeline that mixed with cloud processing and local processing
 
 ## Table of Contents
 - [Web UI](#web-ui)
@@ -59,6 +62,12 @@ Run MintPy SBAS time-series analysis step by step. Edit the network post-ingest,
 ### Results Viewer
 
 Overlay the LOS velocity map on the basemap and click any pixel to plot its full displacement time series.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/timeseries_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/timeseries_light.png">
+  <img alt="Timeseries" src="docs/frontend/fig/timeseries_light.png" width="100%">
+</picture>
 
 ---
 

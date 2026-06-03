@@ -16,10 +16,11 @@ InSARHub web UI — search, download, process, and visualize InSAR data in one p
 
 ## Supported Satellites
 
-| Satellite | Mode | Downloader | Processor | Analyzer | Backend |
-|-----------|------|------------|-----------|----------|---------|
-| Sentinel-1 | IW SLC | `S1_SLC` | `Hyp3_S1` | `Hyp3_SBAS` | Cloud (ASF HyP3) |
-| Sentinel-1 | IW SLC | `S1_SLC` | `ISCE_S1` | `ISCE_SBAS` | Local / HPC (ISCE2) |
+| Satellite | Mode | Download | IFG Generation | Timeseries Analysis |
+|-----------|------|----------|----------------|---------------------|
+| Sentinel-1 SLC | Mixed / Local / HPC | ✅ | ✅ | ✅ |
+
+*[Mixed]:process pipeline that mixed with cloud processing and local processing
 
 This document will assume you have fundamental understanding of:
 

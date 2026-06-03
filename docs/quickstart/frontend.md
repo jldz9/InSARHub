@@ -23,6 +23,26 @@ insarhub-app --version         # print version and exit
 
 The `-w` / `--workdir` flag pre-sets the working directory so you do not need to configure it in the Settings panel after launch. If omitted, the directory where you run `insarhub-app` is used.
 
+## Running on HPC
+
+InSARHub backend is hosted by FastAPI which means you may run backend on HPC and use port forwarding to open the frontend on you local machine
+
+**Steps:**
+
+1. Install the [Remote - SSH](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh) extension in VS Code
+2. Connect to your HPC login node: **Connect to Host → + → `user@hpc.example.edu`**
+3. Open a terminal in VS Code (now running on the HPC) and start InSARHub:
+   ```bash
+   insarhub-app -w /your/hpc/workdir
+   ```
+4. VS Code detects the open port and offers to forward it — click **Open in Browser**, or manually add port `8080` under **Ports** tab
+5. Open **[http://127.0.0.1:8080](http://127.0.0.1:8080)** in your local browser
+
+The UI runs locally in your browser; all data, processing, and file I/O happen on the HPC node.
+
+!!! tip "Submit node vs login node"
+    When start `insarhub-app` on a login node. We recommend to use **HPC mode** in the Processor and Analyzer panels to submit processing steps as `sbatch` jobs to the cluster. Or you may causing admin ban due to stress of login cluster.
+
 ---
 
 ## Interface Overview

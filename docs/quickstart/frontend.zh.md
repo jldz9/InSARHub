@@ -23,6 +23,26 @@ insarhub-app --version         # 打印版本并退出
 
 `-w` / `--workdir` 参数预设工作目录，无需在启动后手动配置。若省略，则使用运行 `insarhub-app` 时所在的目录。
 
+## 在 HPC 上运行
+
+InSARHub 后端使用FastAPI, 所以您可以使用端口转发来在HPC上运行后端而使用本地管理前端
+
+**步骤：**
+
+1. 在 VS Code 中安装 [Remote - SSH](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-ssh) 扩展
+2. 连接到 HPC 登录节点：**Connect to Host → + → `user@hpc.example.edu`**
+3. 在 VS Code 终端（现在运行于 HPC 上）启动 InSARHub：
+   ```bash
+   insarhub-app -w /your/hpc/workdir
+   ```
+4. VS Code 检测到开放端口后会提示转发 — 点击**在浏览器中打开**，或在 **端口** 标签页手动添加端口 `8080`
+5. 在本地浏览器打开 **[http://127.0.0.1:8080](http://127.0.0.1:8080)**
+
+UI 在本地浏览器中运行，所有数据、处理和文件 I/O 均在 HPC 节点上执行。
+
+!!! tip "计算节点 vs 登录节点"
+    在登录节点启动 `insarhub-app` 时，建议在处理器和分析器面板中启用 **HPC 模式**，将处理步骤以 `sbatch` 任务提交至集群。否则在登录节点上直接运行大量计算可能导致管理员封禁账号。
+
 ---
 
 ## 界面概览

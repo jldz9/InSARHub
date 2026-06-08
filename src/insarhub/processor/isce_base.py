@@ -288,12 +288,17 @@ class ISCE_Base(LocalProcessor):
             "",
             f'if [[ -f {done_file} ]]; then echo "cmd_{cmd_idx:04d} already done, skipping."; exit 0; fi',
             "",
+            f'_t0=$(date +%s)',
+            f'echo "[$(date)] START {step} cmd_{cmd_idx:04d}"',
             f'{cmd} > {log_file} 2>&1',
             f'_rc=$?',
+            f'_elapsed=$(( $(date +%s) - _t0 ))',
             f'if [[ $_rc -eq 0 ]]; then',
+            f'  echo "[$(date)] DONE  {step} cmd_{cmd_idx:04d} elapsed=${{_elapsed}}s"',
             f'  touch {done_file}',
             f'  rm -f {fail_file}',
             f'else',
+            f'  echo "[$(date)] FAIL  {step} cmd_{cmd_idx:04d} elapsed=${{_elapsed}}s rc=$_rc"',
             f'  echo $_rc > {fail_file}',
             f'  exit $_rc',
             f'fi',
@@ -847,7 +852,7 @@ class ISCE_Base(LocalProcessor):
         return f"{mb // 1024}G" if mb % 1024 == 0 else f"{mb}M"
 
     def _merge_group_cfg(self, step_cfgs: list[dict]) -> dict:
-        """Merge resource configs for an array group: take max cpus/mem across steps."""
+        """Merge resource configs for a group task: max cpus/mem, summed time across steps."""
         result = dict(step_cfgs[0])
         for cfg in step_cfgs[1:]:
             result["cpus_per_task"] = max(
@@ -858,8 +863,35 @@ class ISCE_Base(LocalProcessor):
                 self._parse_mem_mb(result.get("mem", "4G")),
                 self._parse_mem_mb(cfg.get("mem", "4G")),
             ))
-        result["time"] = result.get("manager_time", "24:00:00")
+        # task runs all steps sequentially — walltime = sum of per-step times
+        total_seconds = sum(self._parse_time_s(c.get("time", "02:00:00")) for c in step_cfgs)
+        result["time"] = self._fmt_time_s(total_seconds)
         return result
+
+    @staticmethod
+    def _parse_time_s(t: str) -> int:
+        """Parse HH:MM:SS or D-HH:MM:SS → total seconds."""
+        t = t.strip()
+        days = 0
+        if "-" in t:
+            d, t = t.split("-", 1)
+            days = int(d)
+        parts = t.split(":")
+        try:
+            h, m, s = int(parts[0]), int(parts[1]), int(parts[2]) if len(parts) > 2 else 0
+        except (ValueError, IndexError):
+            return 7200  # default 2h on parse error
+        return days * 86400 + h * 3600 + m * 60 + s
+
+    @staticmethod
+    def _fmt_time_s(seconds: int) -> str:
+        """Format total seconds → HH:MM:SS (or D-HH:MM:SS if ≥ 1 day)."""
+        d, rem = divmod(seconds, 86400)
+        h, rem = divmod(rem, 3600)
+        m, s   = divmod(rem, 60)
+        if d:
+            return f"{d}-{h:02d}:{m:02d}:{s:02d}"
+        return f"{h:02d}:{m:02d}:{s:02d}"
 
     def _group_steps(self, pending_steps: list[str]) -> list[list[str]]:
         """Partition pending steps into groups of consecutive steps with equal command counts.
@@ -987,7 +1019,7 @@ class ISCE_Base(LocalProcessor):
                 '    local fail_file="$log_dir/cmd_${IDX}.fail"',
                 '    local log_file="$log_dir/cmd_${IDX}.log"',
                 '    if [[ -f "$done_file" ]]; then',
-                '        echo "  ${step_name} cmd_${IDX} already done"; return 0',
+                '        echo "  [$(date)] ${step_name} cmd_${IDX} already done, skipping"; return 0',
                 "    fi",
                 '    local cmd',
                 '    cmd=$(sed -n "${LINE}p" "$cmd_file")',
@@ -995,21 +1027,24 @@ class ISCE_Base(LocalProcessor):
                 '        echo "  No command at line ${LINE} in ${cmd_file}"',
                 '        echo "1" > "$fail_file"; echo "1" > "$TASK_FAIL"; exit 1',
                 "    fi",
-                '    echo "  [$(date)] ${step_name} cmd_${IDX}"',
+                '    local _t0=$(date +%s)',
+                '    echo "  [$(date)] START ${step_name} cmd_${IDX}"',
                 '    eval "$cmd" > "$log_file" 2>&1',
                 "    local rc=$?",
+                '    local _elapsed=$(( $(date +%s) - _t0 ))',
                 '    if [[ $rc -eq 0 ]]; then',
                 '        touch "$done_file"; rm -f "$fail_file"',
-                '        echo "  ${step_name} cmd_${IDX} SUCCEEDED"',
+                '        echo "  [$(date)] DONE  ${step_name} cmd_${IDX} elapsed=${_elapsed}s"',
                 "    else",
                 '        echo "$rc" > "$fail_file"',
                 '        echo "$rc" > "$TASK_FAIL"',
-                '        echo "  ${step_name} cmd_${IDX} FAILED (rc=$rc)"',
+                '        echo "  [$(date)] FAIL  ${step_name} cmd_${IDX} elapsed=${_elapsed}s rc=$rc"',
                 "        exit $rc",
                 "    fi",
                 "}",
                 "",
-                f'echo "[$(date)] Group task {idx}: {" ".join(group_steps)}"',
+                f'_task_t0=$(date +%s)',
+                f'echo "[$(date)] START group task {idx}: {" ".join(group_steps)}"',
                 "",
             ]
             for step in group_steps:
@@ -1017,7 +1052,8 @@ class ISCE_Base(LocalProcessor):
             tlines += [
                 "",
                 f'touch "{task_done}"',
-                f'echo "[$(date)] Task {idx} done."',
+                f'_task_elapsed=$(( $(date +%s) - _task_t0 ))',
+                f'echo "[$(date)] DONE  group task {idx} total elapsed=${{_task_elapsed}}s"',
                 "exit 0",
             ]
 

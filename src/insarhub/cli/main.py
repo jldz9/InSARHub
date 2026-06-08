@@ -1343,11 +1343,13 @@ def cmd_downloader(args, extra_args: list[str]):
     if args.download:
         orbit_dir = args.orbit_files if isinstance(args.orbit_files, str) else None
         dl_kwargs: dict = {"max_workers": args.workers}
+        orbit_handled = False
         if hasattr(downloader, "download") and "download_orbit" in downloader.download.__code__.co_varnames:
             dl_kwargs["download_orbit"] = bool(args.orbit_files)
+            orbit_handled = bool(args.orbit_files)
         result = DownloadScenesCommand(downloader, **dl_kwargs).run()
         _fail(result, "download")
-        if args.orbit_files and hasattr(downloader, "download_orbit"):
+        if args.orbit_files and not orbit_handled and hasattr(downloader, "download_orbit"):
             downloader.download_orbit(save_dir=orbit_dir)
     elif args.orbit_files:
         orbit_dir = args.orbit_files if isinstance(args.orbit_files, str) else None

@@ -929,7 +929,7 @@ class ISCE_S1_Config:
         {"label": "Job",
          "fields": ["max_workers", "skip_existing"]},
         {"label": "HPC (SLURM)",
-         "fields": ["hpc_mode"]},
+         "fields": ["hpc_mode", "max_concurrent_hpc"]},
     ]
     _ui_fields: ClassVar[dict] = {
         "workdir":                  {"type": "text", "hint": "Processing root directory (auto = folder being processed)"},
@@ -973,7 +973,9 @@ class ISCE_S1_Config:
         "skip_existing":            {"type": "bool",
                                      "hint": "Skip steps that already completed successfully"},
         "hpc_mode":                 {"type": "bool",
-                                     "hint": "Submit each step as a sbatch job with sequential --dependency chaining"},
+                                     "hint": "Submit a sbatch manager job per step; each manager controls child job submission in batches"},
+        "max_concurrent_hpc":       {"type": "number", "min": 1, "max": 200, "step": 1, "default": 12,
+                                     "hint": "Max concurrent child jobs submitted by each step manager (default 12)"},
         "dry_run":                  {"type": "bool",
                                      "hint": "Preview commands without executing (HPC: generate sbatch scripts only; local: print commands only)"},
         "sbatch_options_per_step":  {"type": "text",
@@ -1026,6 +1028,7 @@ class ISCE_S1_Config:
     submission_chunk_size: int            = 1
     # HPC / SLURM
     hpc_mode: bool                        = False
+    max_concurrent_hpc: int               = 12
     dry_run: bool                         = False
     sbatch_options_per_step: dict           = field(default_factory=dict)
 

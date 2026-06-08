@@ -303,6 +303,151 @@ class ISCE_Base(LocalProcessor):
         sbatch_script.chmod(0o755)
         return sbatch_script
 
+    def _build_step_manager_script(
+        self,
+        step: str,
+        commands: list[str],
+        log_dir: Path,
+        step_cfg: dict,
+        sbatch_dir: Path,
+        max_concurrent: int,
+    ) -> Path:
+        """Generate child sbatch scripts + one manager script that submits them in batches.
+
+        The manager runs on a compute node with minimal resources (1 CPU, 2 GB RAM)
+        and a long walltime (manager_time from step_cfg, default 24 h).  It submits
+        up to *max_concurrent* child jobs at a time, waits for each batch to finish,
+        checks for failures, then advances to the next batch.  On completion it writes
+        SUCCEEDED / FAILED to the step status file so refresh() picks it up normally.
+        """
+        import dataclasses
+        from insarhub.utils.tool import Slurmjob_Config
+
+        n_cmds = len(commands)
+
+        # Pre-generate all child sbatch scripts
+        for i, cmd in enumerate(commands):
+            self._build_cmd_sbatch_script(step, cmd, i, log_dir, step_cfg, sbatch_dir)
+
+        # Manager SLURM header — minimal resources, inherit partition/account/qos
+        manager_time = step_cfg.get("manager_time", "24:00:00")
+        _slurm_fields = {f.name for f in dataclasses.fields(Slurmjob_Config)}
+        _skip = {"job_name", "output_file", "error_file", "dependency",
+                 "command", "modules", "conda_env", "export_env", "array",
+                 "time", "cpus_per_task", "mem", "ntasks", "nodes"}
+        slurm_kwargs = {k: v for k, v in step_cfg.items()
+                        if k in _slurm_fields and k not in _skip}
+        slurm_cfg = Slurmjob_Config(
+            job_name=f"isce_mgr_{step}",
+            output_file=str(log_dir / "manager_%j.out"),
+            error_file=str(log_dir / "manager_%j.err"),
+            time=manager_time,
+            ntasks=1,
+            cpus_per_task=1,
+            mem="2G",
+            nodes=1,
+            **slurm_kwargs,
+        )
+
+        status_file    = self._run_files_dir / f"{step}.status"
+        submitted_file = log_dir / "submitted_child_jobs.txt"
+
+        child_script_entries = [
+            f'  "{sbatch_dir}/{step}_{i:04d}.sbatch"'
+            for i in range(n_cmds)
+        ]
+
+        lines = ["#!/bin/bash"]
+        lines += slurm_cfg.to_header_lines()
+        lines += [
+            "",
+            "set -uo pipefail",
+            "",
+            f'LOG_DIR="{log_dir}"',
+            f'STATUS_FILE="{status_file}"',
+            f'SUBMITTED_FILE="{submitted_file}"',
+            f'N_CMDS={n_cmds}',
+            f'MAX_CONCURRENT={max_concurrent}',
+            "",
+            "CHILD_SCRIPTS=(",
+        ] + child_script_entries + [
+            ")",
+            "",
+            'write_status() { printf "%s" "$1" > "$STATUS_FILE"; }',
+            "",
+            "trap 'write_status \"FAILED:manager killed\"; exit 1' TERM INT",
+            "",
+            f'echo "[$(date)] Manager: {n_cmds} commands, max_concurrent={max_concurrent}"',
+            'write_status "RUNNING"',
+            '> "$SUBMITTED_FILE"',
+            "",
+            "BATCH_START=0",
+            f"while [[ $BATCH_START -lt {n_cmds} ]]; do",
+            f"    BATCH_END=$(( BATCH_START + MAX_CONCURRENT ))",
+            f"    [[ $BATCH_END -gt {n_cmds} ]] && BATCH_END={n_cmds}",
+            "",
+            "    batch_job_ids=()",
+            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
+            "        IDX=$(printf '%04d' $i)",
+            '        DONE_FILE="$LOG_DIR/cmd_${IDX}.done"',
+            '        if [[ -f "$DONE_FILE" ]]; then',
+            '            echo "  cmd_${IDX} SKIPPED (already done)"',
+            "            continue",
+            "        fi",
+            '        result=$(sbatch "${CHILD_SCRIPTS[$i]}" 2>&1)',
+            "        rc=$?",
+            '        if [[ $rc -ne 0 ]]; then',
+            '            echo "  sbatch FAILED cmd_${IDX}: $result"',
+            '            write_status "FAILED:sbatch failed for cmd_${IDX}"',
+            "            exit 1",
+            "        fi",
+            "        JID=$(echo \"$result\" | grep -oE '[0-9]+' | tail -1)",
+            '        batch_job_ids+=("$JID")',
+            '        echo "$JID" >> "$SUBMITTED_FILE"',
+            '        echo "  cmd_${IDX} -> job $JID"',
+            "    done",
+            "",
+            '    if [[ ${#batch_job_ids[@]} -gt 0 ]]; then',
+            '        JOB_LIST=$(IFS=,; echo "${batch_job_ids[*]}")',
+            '        echo "  [$(date)] Waiting for ${#batch_job_ids[@]} job(s)..."',
+            "        while true; do",
+            '            ACTIVE=$(squeue --noheader --jobs="$JOB_LIST" 2>/dev/null | wc -l)',
+            "            [[ $ACTIVE -eq 0 ]] && break",
+            '            echo "  [$(date)] $ACTIVE job(s) still running..."',
+            "            sleep 30",
+            "        done",
+            '        echo "  [$(date)] Batch done."',
+            "    fi",
+            "",
+            "    FAIL_COUNT=0",
+            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
+            "        IDX=$(printf '%04d' $i)",
+            '        DONE_FILE="$LOG_DIR/cmd_${IDX}.done"',
+            '        FAIL_FILE="$LOG_DIR/cmd_${IDX}.fail"',
+            '        if [[ ! -f "$DONE_FILE" && ! -f "$FAIL_FILE" ]]; then',
+            '            echo "WARNING: cmd_${IDX} no done/fail marker — marking failed"',
+            '            echo "unknown" > "$FAIL_FILE"',
+            "        fi",
+            '        [[ -f "$FAIL_FILE" ]] && FAIL_COUNT=$(( FAIL_COUNT + 1 ))',
+            "    done",
+            "    if [[ $FAIL_COUNT -gt 0 ]]; then",
+            '        write_status "FAILED:${FAIL_COUNT} command(s) failed"',
+            "        exit 1",
+            "    fi",
+            "",
+            "    BATCH_START=$BATCH_END",
+            "done",
+            "",
+            'write_status "SUCCEEDED"',
+            f'echo "[$(date)] Step {step} completed."',
+            "exit 0",
+        ]
+
+        manager_script = sbatch_dir / "manager.sbatch"
+        manager_script.write_text("\n".join(lines) + "\n")
+        manager_script.chmod(0o755)
+        return manager_script
+
     @staticmethod
     def _parse_time_secs(t: str) -> int:
         """Parse SLURM time string (HH:MM:SS, MM:SS, or integer minutes) → seconds."""
@@ -422,82 +567,142 @@ class ISCE_Base(LocalProcessor):
         print(f"  Run without --dry-run to submit jobs.\n")
 
     def _step_executor_hpc(self, pending_steps: list[str]) -> None:
-        """Submit one sbatch job per command; steps chain via --dependency."""
+        """Submit HPC jobs for all pending steps using a hybrid manager strategy.
+
+        Steps are first grouped by consecutive equal command counts:
+        - Single-step groups → one sbatch *manager* job that submits child jobs in batches.
+        - Multi-step groups  → one sbatch *group manager* job that submits group-task scripts
+          (each task runs command index i for all grouped steps sequentially) in batches.
+
+        Both paths submit at most max_concurrent_hpc jobs to the queue at any time.
+        Groups chain via ``--dependency=afterok`` on the previous group's job ID so
+        Python submits at most one manager per group and returns immediately.
+        """
         dry_run = getattr(self.config, "dry_run", False)
         if dry_run:
             self._hpc_dry_run_summary(pending_steps)
             return
 
-        prev_job_ids: list[str] = []
+        max_concurrent = getattr(self.config, "max_concurrent_hpc", 12)
+        prev_job_id: str | None = None
 
-        for step in pending_steps:
-            script  = Path(self.jobs[step]["script"])
-            log_dir = Path(self.jobs[step]["log_dir"])
-            log_dir.mkdir(parents=True, exist_ok=True)
+        for group in self._group_steps(pending_steps):
+            # ── Ensure log dirs exist, collect command lists ──────────────────
+            group_cmds: dict[str, list[str]] = {}
+            for step in group:
+                Path(self.jobs[step]["log_dir"]).mkdir(parents=True, exist_ok=True)
+                group_cmds[step] = [
+                    self._fix_cmd(l.strip())
+                    for l in Path(self.jobs[step]["script"]).read_text().splitlines()
+                    if l.strip() and not l.strip().startswith("#")
+                ]
 
-            commands = [
-                self._fix_cmd(line.strip())
-                for line in script.read_text().splitlines()
-                if line.strip() and not line.strip().startswith("#")
-            ]
-
-            if not commands:
-                _write_status(self._run_files_dir, step, _SUCCEEDED)
-                self.jobs[step]["status"] = _SUCCEEDED
-                self.jobs[step]["slurm_job_ids"] = []
+            # ── Empty steps ───────────────────────────────────────────────────
+            for step in group:
+                if not group_cmds[step]:
+                    _write_status(self._run_files_dir, step, _SUCCEEDED)
+                    self.jobs[step].update(
+                        status=_SUCCEEDED, slurm_job_ids=[], hpc_manager=False, hpc_array=False
+                    )
+            group = [s for s in group if group_cmds[s]]
+            if not group:
                 continue
 
-            step_cfg   = self._sbatch_opts_for_step(step)
-            dep_flag   = ("--dependency=afterok:" + ":".join(prev_job_ids)) if prev_job_ids else ""
-            sbatch_dir = self._run_files_dir / f"{step}_sbatch"
-            sbatch_dir.mkdir(parents=True, exist_ok=True)
+            # ── All-done skip ─────────────────────────────────────────────────
+            remaining = []
+            for step in group:
+                cmds   = group_cmds[step]
+                log_dir = Path(self.jobs[step]["log_dir"])
+                if all((log_dir / f"cmd_{i:04d}.done").exists() for i in range(len(cmds))):
+                    _write_status(self._run_files_dir, step, _SUCCEEDED)
+                    self.jobs[step].update(
+                        status=_SUCCEEDED, slurm_job_ids=[], hpc_manager=False, hpc_array=False
+                    )
+                    print(f"  {Fore.GREEN}  ✓ {step}  (all commands already done){Style.RESET_ALL}")
+                else:
+                    remaining.append(step)
+            group = remaining
+            if not group:
+                continue
 
-            step_job_ids: list[str] = []
-            submit_failed = False
-            all_done = True
+            dep_flag = f"--dependency=afterok:{prev_job_id}" if prev_job_id else ""
 
-            for i, cmd in enumerate(commands):
-                done_file = log_dir / f"cmd_{i:04d}.done"
-                sbatch_script = self._build_cmd_sbatch_script(step, cmd, i, log_dir, step_cfg, sbatch_dir)
+            # ── Single step → manager ─────────────────────────────────────────
+            if len(group) == 1:
+                step     = group[0]
+                commands = group_cmds[step]
+                step_cfg = self._sbatch_opts_for_step(step)
+                sbatch_dir = self._run_files_dir / f"{step}_sbatch"
+                sbatch_dir.mkdir(parents=True, exist_ok=True)
 
-                if done_file.exists():
-                    print(f"      cmd_{i:04d}  {Fore.YELLOW}SKIPPED (already done){Style.RESET_ALL}")
-                    continue
-
-                all_done = False
-                sbatch_cmd = " ".join(filter(None, ["sbatch", dep_flag, str(sbatch_script)]))
+                manager_script = self._build_step_manager_script(
+                    step, commands, Path(self.jobs[step]["log_dir"]),
+                    step_cfg, sbatch_dir, max_concurrent,
+                )
+                sbatch_cmd = " ".join(filter(None, ["sbatch", dep_flag, str(manager_script)]))
                 result = subprocess.run(sbatch_cmd, shell=True, capture_output=True, text=True)
                 if result.returncode != 0:
-                    print(f"  {Fore.RED}sbatch failed for {step}[{i}]: {result.stderr.strip()}{Style.RESET_ALL}")
-                    _write_status(self._run_files_dir, step, _FAILED, "sbatch submission failed")
+                    print(f"  {Fore.RED}sbatch manager failed for {step}: "
+                          f"{result.stderr.strip()}{Style.RESET_ALL}")
+                    _write_status(self._run_files_dir, step, _FAILED, "manager submission failed")
                     self.jobs[step]["status"] = _FAILED
                     self.save(silent=True)
-                    submit_failed = True
-                    break
+                    return
                 m = re.search(r"\d+", result.stdout)
-                step_job_ids.append(m.group() if m else "unknown")
+                job_id    = m.group() if m else "unknown"
+                n_batches = (len(commands) + max_concurrent - 1) // max_concurrent
+                self.jobs[step].update(
+                    slurm_job_ids=[job_id], hpc_manager=True, hpc_array=False,
+                    status=_PENDING,
+                )
+                self.jobs[step].pop("slurm_job_id", None)
+                _write_status(self._run_files_dir, step, _PENDING)
+                prev_job_id = job_id
+                print(f"  {Fore.CYAN}  ▶ {step}  →  manager [{job_id}]  "
+                      f"({len(commands)} cmd, {n_batches} batch(es), "
+                      f"max {max_concurrent} concurrent){Style.RESET_ALL}")
 
-            if submit_failed:
-                return
+            # ── Multi-step group → group manager ──────────────────────────────
+            else:
+                n_cmds     = len(group_cmds[group[0]])
+                step_cfgs  = [self._sbatch_opts_for_step(s) for s in group]
+                merged_cfg = self._merge_group_cfg(step_cfgs)
+                task_dir   = self._run_files_dir / f"{group[0]}_group"
+                task_dir.mkdir(parents=True, exist_ok=True)
+                for step in group:
+                    Path(self.jobs[step]["log_dir"]).mkdir(parents=True, exist_ok=True)
 
-            if all_done and not step_job_ids:
-                _write_status(self._run_files_dir, step, _SUCCEEDED)
-                self.jobs[step]["status"] = _SUCCEEDED
-                self.jobs[step]["slurm_job_ids"] = []
-                print(f"  {Fore.GREEN}  ✓ {step}  (all commands already done){Style.RESET_ALL}")
-                continue
-
-            self.jobs[step]["slurm_job_ids"] = step_job_ids
-            self.jobs[step].pop("slurm_job_id", None)
-            self.jobs[step]["status"] = _PENDING
-            _write_status(self._run_files_dir, step, _PENDING)
-            prev_job_ids = step_job_ids
-            ids_preview = (step_job_ids[0] if len(step_job_ids) == 1
-                           else f"{step_job_ids[0]}…{step_job_ids[-1]}")
-            print(f"  {Fore.CYAN}  ▶ {step}  →  {len(step_job_ids)} job(s) [{ids_preview}]{Style.RESET_ALL}")
+                manager_script = self._build_group_manager_script(
+                    group, task_dir, max_concurrent, merged_cfg, n_cmds
+                )
+                sbatch_cmd = " ".join(filter(None, ["sbatch", dep_flag, str(manager_script)]))
+                result = subprocess.run(sbatch_cmd, shell=True, capture_output=True, text=True)
+                if result.returncode != 0:
+                    print(f"  {Fore.RED}sbatch group manager failed for "
+                          f"{group}: {result.stderr.strip()}{Style.RESET_ALL}")
+                    for step in group:
+                        _write_status(self._run_files_dir, step, _FAILED, "group manager submission failed")
+                        self.jobs[step]["status"] = _FAILED
+                    self.save(silent=True)
+                    return
+                m = re.search(r"\d+", result.stdout)
+                job_id = m.group() if m else "unknown"
+                for step in group:
+                    self.jobs[step].update(
+                        slurm_job_ids=[job_id], hpc_manager=False, hpc_array=True,
+                        group_task_dir=str(task_dir), status=_PENDING,
+                    )
+                    self.jobs[step].pop("slurm_job_id", None)
+                    _write_status(self._run_files_dir, step, _PENDING)
+                prev_job_id = job_id
+                names     = " + ".join(group)
+                n_batches = (n_cmds + max_concurrent - 1) // max_concurrent
+                print(f"  {Fore.CYAN}  ▶ [{names}]  →  group manager [{job_id}]  "
+                      f"({n_cmds} tasks × {len(group)} steps, "
+                      f"{n_batches} batch(es), max {max_concurrent} concurrent){Style.RESET_ALL}")
 
         self.save(silent=True)
-        print(f"\n{Fore.GREEN}All steps queued. "
+        print(f"\n{Fore.GREEN}All jobs queued. "
               f"SSH session can now be closed — use 'refresh' to check status.{Style.RESET_ALL}")
 
     def _step_executor(self, pending_steps: list[str]) -> None:
@@ -620,6 +825,299 @@ class ISCE_Base(LocalProcessor):
             if isinstance(v, dict):
                 step_cfg = v
         return {**default_cfg, **step_cfg}
+
+    @staticmethod
+    def _parse_mem_mb(mem: str) -> int:
+        s = str(mem).strip().upper()
+        try:
+            if s.endswith("T"):
+                return int(float(s[:-1]) * 1024 * 1024)
+            if s.endswith("G"):
+                return int(float(s[:-1]) * 1024)
+            if s.endswith("M"):
+                return int(float(s[:-1]))
+            return int(s)
+        except ValueError:
+            return 4096
+
+    @staticmethod
+    def _fmt_mem_mb(mb: int) -> str:
+        return f"{mb // 1024}G" if mb % 1024 == 0 else f"{mb}M"
+
+    def _merge_group_cfg(self, step_cfgs: list[dict]) -> dict:
+        """Merge resource configs for an array group: take max cpus/mem across steps."""
+        result = dict(step_cfgs[0])
+        for cfg in step_cfgs[1:]:
+            result["cpus_per_task"] = max(
+                int(result.get("cpus_per_task", 1)),
+                int(cfg.get("cpus_per_task", 1)),
+            )
+            result["mem"] = self._fmt_mem_mb(max(
+                self._parse_mem_mb(result.get("mem", "4G")),
+                self._parse_mem_mb(cfg.get("mem", "4G")),
+            ))
+        result["time"] = result.get("manager_time", "24:00:00")
+        return result
+
+    def _group_steps(self, pending_steps: list[str]) -> list[list[str]]:
+        """Partition pending steps into groups of consecutive steps with equal command counts.
+
+        Groups with 2+ steps are submitted as a SLURM job array (one task per command
+        index, each task runs all steps in the group sequentially).  Single-step groups
+        fall back to the manager-per-step path.
+        """
+        counts: dict[str, int] = {}
+        for step in pending_steps:
+            script = Path(self.jobs[step]["script"])
+            counts[step] = (
+                sum(1 for l in script.read_text().splitlines()
+                    if l.strip() and not l.strip().startswith("#"))
+                if script.exists() else 0
+            )
+
+        groups: list[list[str]] = []
+        current: list[str] = []
+        current_count: int | None = None
+
+        for step in pending_steps:
+            c = counts[step]
+            if c <= 0:
+                if current:
+                    groups.append(current)
+                groups.append([step])
+                current = []
+                current_count = None
+            elif current_count is None or c == current_count:
+                current.append(step)
+                current_count = c
+            else:
+                groups.append(current)
+                current = [step]
+                current_count = c
+
+        if current:
+            groups.append(current)
+        return groups
+
+    def _build_group_manager_script(
+        self,
+        group_steps: list[str],
+        task_dir: Path,
+        max_concurrent: int,
+        merged_cfg: dict,
+        n_cmds: int,
+    ) -> Path:
+        """Generate N group-task scripts + one manager that submits them in batches.
+
+        Each group-task script (task_{i:04d}.sbatch) runs command index *i* for every
+        step in *group_steps* sequentially, writing .done/.fail to each step's log_dir.
+        The manager submits up to *max_concurrent* task scripts at a time, polls squeue,
+        and advances when a batch finishes — identical to the single-step manager pattern.
+        No SLURM job arrays are used, so the queue only ever holds the manager + ≤max_concurrent
+        task jobs.
+        """
+        import dataclasses
+        from insarhub.utils.tool import Slurmjob_Config
+
+        env = os.environ.copy()
+        pythonpath = str(self._pythonpath_add) + os.pathsep + env.get("PYTHONPATH", "")
+        path_env   = (str(self._stack_bin.parent) + os.pathsep
+                      + str(self._isce_app_bin.parent) + os.pathsep
+                      + env.get("PATH", ""))
+
+        # Write cleaned command files per step
+        cmd_files: dict[str, str] = {}
+        log_dirs:  dict[str, str] = {}
+        for step in group_steps:
+            cmds = [
+                self._fix_cmd(l.strip())
+                for l in Path(self.jobs[step]["script"]).read_text().splitlines()
+                if l.strip() and not l.strip().startswith("#")
+            ]
+            cf = task_dir / f"{step}_commands.txt"
+            cf.write_text("\n".join(cmds) + "\n")
+            cmd_files[step] = str(cf)
+            log_dirs[step]  = str(Path(self.jobs[step]["log_dir"]))
+
+        _slurm_fields = {f.name for f in dataclasses.fields(Slurmjob_Config)}
+        _skip_all = {"job_name", "output_file", "error_file", "dependency",
+                     "command", "modules", "conda_env", "export_env", "array",
+                     "time", "cpus_per_task", "mem", "ntasks", "nodes"}
+
+        # ── Generate N group-task scripts ─────────────────────────────────────
+        for i in range(n_cmds):
+            idx      = f"{i:04d}"
+            line_no  = i + 1
+            task_done = str(task_dir / f"cmd_{idx}.done")
+            task_fail = str(task_dir / f"cmd_{idx}.fail")
+
+            task_cfg = Slurmjob_Config(
+                job_name=f"isce_grp_{group_steps[0]}_{idx}",
+                output_file=str(task_dir / f"task_{idx}_slurm_%j.out"),
+                error_file=str(task_dir  / f"task_{idx}_slurm_%j.err"),
+                time=merged_cfg.get("time", "24:00:00"),
+                ntasks=1,
+                cpus_per_task=merged_cfg.get("cpus_per_task", 2),
+                mem=merged_cfg.get("mem", "8G"),
+                nodes=1,
+                **{k: v for k, v in merged_cfg.items()
+                   if k in _slurm_fields and k not in _skip_all},
+            )
+
+            tlines = ["#!/bin/bash"]
+            tlines += task_cfg.to_header_lines()
+            tlines += [
+                "",
+                "set -eo pipefail",
+                "set +u",
+                "",
+                f"export PYTHONPATH={pythonpath!r}",
+                f"export PATH={path_env!r}",
+                "",
+                f'IDX="{idx}"',
+                f"LINE={line_no}",
+                f'TASK_DONE="{task_done}"',
+                f'TASK_FAIL="{task_fail}"',
+                "",
+                "run_step() {",
+                '    local step_name="$1" log_dir="$2" cmd_file="$3"',
+                '    local done_file="$log_dir/cmd_${IDX}.done"',
+                '    local fail_file="$log_dir/cmd_${IDX}.fail"',
+                '    local log_file="$log_dir/cmd_${IDX}.log"',
+                '    if [[ -f "$done_file" ]]; then',
+                '        echo "  ${step_name} cmd_${IDX} already done"; return 0',
+                "    fi",
+                '    local cmd',
+                '    cmd=$(sed -n "${LINE}p" "$cmd_file")',
+                '    if [[ -z "${cmd:-}" ]]; then',
+                '        echo "  No command at line ${LINE} in ${cmd_file}"',
+                '        echo "1" > "$fail_file"; echo "1" > "$TASK_FAIL"; exit 1',
+                "    fi",
+                '    echo "  [$(date)] ${step_name} cmd_${IDX}"',
+                '    eval "$cmd" > "$log_file" 2>&1',
+                "    local rc=$?",
+                '    if [[ $rc -eq 0 ]]; then',
+                '        touch "$done_file"; rm -f "$fail_file"',
+                '        echo "  ${step_name} cmd_${IDX} SUCCEEDED"',
+                "    else",
+                '        echo "$rc" > "$fail_file"',
+                '        echo "$rc" > "$TASK_FAIL"',
+                '        echo "  ${step_name} cmd_${IDX} FAILED (rc=$rc)"',
+                "        exit $rc",
+                "    fi",
+                "}",
+                "",
+                f'echo "[$(date)] Group task {idx}: {" ".join(group_steps)}"',
+                "",
+            ]
+            for step in group_steps:
+                tlines.append(f'run_step "{step}" "{log_dirs[step]}" "{cmd_files[step]}"')
+            tlines += [
+                "",
+                f'touch "{task_done}"',
+                f'echo "[$(date)] Task {idx} done."',
+                "exit 0",
+            ]
+
+            task_script = task_dir / f"task_{idx}.sbatch"
+            task_script.write_text("\n".join(tlines) + "\n")
+            task_script.chmod(0o755)
+
+        # ── Generate manager script ───────────────────────────────────────────
+        mgr_cfg = Slurmjob_Config(
+            job_name=f"isce_grpmgr_{group_steps[0]}",
+            output_file=str(task_dir / "manager_%j.out"),
+            error_file=str(task_dir  / "manager_%j.err"),
+            time=merged_cfg.get("manager_time", "24:00:00"),
+            ntasks=1,
+            cpus_per_task=1,
+            mem="2G",
+            nodes=1,
+            **{k: v for k, v in merged_cfg.items()
+               if k in _slurm_fields and k not in _skip_all},
+        )
+
+        child_entries = [f'  "{task_dir}/task_{i:04d}.sbatch"' for i in range(n_cmds)]
+
+        mlines = ["#!/bin/bash"]
+        mlines += mgr_cfg.to_header_lines()
+        mlines += [
+            "",
+            "set -uo pipefail",
+            "",
+            f'TASK_DIR="{task_dir}"',
+            f'N_CMDS={n_cmds}',
+            f'MAX_CONCURRENT={max_concurrent}',
+            "",
+            "CHILD_SCRIPTS=(",
+        ] + child_entries + [
+            ")",
+            "",
+            'SUBMITTED_FILE="$TASK_DIR/submitted_child_jobs.txt"',
+            '> "$SUBMITTED_FILE"',
+            "",
+            f'echo "[$(date)] Group manager: {n_cmds} tasks, max_concurrent={max_concurrent}"',
+            f'echo "  Steps: {" ".join(group_steps)}"',
+            "",
+            "BATCH_START=0",
+            f"while [[ $BATCH_START -lt {n_cmds} ]]; do",
+            f"    BATCH_END=$(( BATCH_START + MAX_CONCURRENT ))",
+            f"    [[ $BATCH_END -gt {n_cmds} ]] && BATCH_END={n_cmds}",
+            "",
+            "    batch_job_ids=()",
+            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
+            "        IDX=$(printf '%04d' $i)",
+            '        if [[ -f "$TASK_DIR/cmd_${IDX}.done" ]]; then',
+            '            echo "  task_${IDX} SKIPPED (already done)"; continue',
+            "        fi",
+            '        result=$(sbatch "${CHILD_SCRIPTS[$i]}" 2>&1)',
+            "        rc=$?",
+            '        if [[ $rc -ne 0 ]]; then',
+            '            echo "  sbatch FAILED task_${IDX}: $result"; exit 1',
+            "        fi",
+            "        JID=$(echo \"$result\" | grep -oE '[0-9]+' | tail -1)",
+            '        batch_job_ids+=("$JID")',
+            '        echo "$JID" >> "$SUBMITTED_FILE"',
+            '        echo "  task_${IDX} -> job $JID"',
+            "    done",
+            "",
+            '    if [[ ${#batch_job_ids[@]} -gt 0 ]]; then',
+            '        JOB_LIST=$(IFS=,; echo "${batch_job_ids[*]}")',
+            '        echo "  [$(date)] Waiting for ${#batch_job_ids[@]} task(s)..."',
+            "        while true; do",
+            '            ACTIVE=$(squeue --noheader --jobs="$JOB_LIST" 2>/dev/null | wc -l)',
+            "            [[ $ACTIVE -eq 0 ]] && break",
+            '            echo "  [$(date)] $ACTIVE task(s) still running..."',
+            "            sleep 30",
+            "        done",
+            '        echo "  [$(date)] Batch done."',
+            "    fi",
+            "",
+            "    FAIL_COUNT=0",
+            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
+            "        IDX=$(printf '%04d' $i)",
+            '        if [[ ! -f "$TASK_DIR/cmd_${IDX}.done" && ! -f "$TASK_DIR/cmd_${IDX}.fail" ]]; then',
+            '            echo "WARNING: task_${IDX} has no done/fail marker"',
+            '            echo "unknown" > "$TASK_DIR/cmd_${IDX}.fail"',
+            "        fi",
+            '        [[ -f "$TASK_DIR/cmd_${IDX}.fail" ]] && FAIL_COUNT=$(( FAIL_COUNT + 1 ))',
+            "    done",
+            "    if [[ $FAIL_COUNT -gt 0 ]]; then",
+            '        echo "[$(date)] $FAIL_COUNT task(s) failed. Aborting."',
+            "        exit 1",
+            "    fi",
+            "",
+            "    BATCH_START=$BATCH_END",
+            "done",
+            "",
+            f'echo "[$(date)] All {n_cmds} group tasks done."',
+            "exit 0",
+        ]
+
+        manager_script = task_dir / "manager.sbatch"
+        manager_script.write_text("\n".join(mlines) + "\n")
+        manager_script.chmod(0o755)
+        return manager_script
 
     def _run_step(self, script: Path, log_dir: Path) -> bool:
         """Execute all commands in a run script in parallel, return True if all pass."""
@@ -798,6 +1296,23 @@ class ISCE_Base(LocalProcessor):
                                 detail = f"{fail_count} command(s) failed"
                                 status = _FAILED
                                 _write_status(self._run_files_dir, step, _FAILED, detail)
+                            elif meta.get("hpc_manager") or meta.get("hpc_array"):
+                                # Manager/array mode: compare against actual command count
+                                script_path = Path(meta.get("script", ""))
+                                n_cmds = 0
+                                if script_path.exists():
+                                    n_cmds = sum(
+                                        1 for l in script_path.read_text().splitlines()
+                                        if l.strip() and not l.strip().startswith("#")
+                                    )
+                                if n_cmds > 0 and done_count >= n_cmds:
+                                    status = _SUCCEEDED
+                                    _write_status(self._run_files_dir, step, _SUCCEEDED)
+                                elif n_cmds > 0 and not job_ids:
+                                    # Array job gone, not all done, no fails → propagate failure
+                                    status = _FAILED
+                                    _write_status(self._run_files_dir, step, _FAILED,
+                                                  "job ended but commands incomplete")
                             elif done_count >= len(job_ids):
                                 status = _SUCCEEDED
                                 _write_status(self._run_files_dir, step, _SUCCEEDED)
@@ -809,7 +1324,11 @@ class ISCE_Base(LocalProcessor):
                 job_ids_d: list[str] = meta.get("slurm_job_ids") or (
                     [meta["slurm_job_id"]] if meta.get("slurm_job_id") else []
                 )
-                if len(job_ids_d) == 1:
+                if meta.get("hpc_array") and len(job_ids_d) == 1:
+                    job_id_tag = f"  [group-mgr {job_ids_d[0]}]"
+                elif meta.get("hpc_manager") and len(job_ids_d) == 1:
+                    job_id_tag = f"  [manager {job_ids_d[0]}]"
+                elif len(job_ids_d) == 1:
                     job_id_tag = f"  [job {job_ids_d[0]}]"
                 elif len(job_ids_d) > 1:
                     job_id_tag = f"  [{len(job_ids_d)} jobs: {job_ids_d[0]}…{job_ids_d[-1]}]"
@@ -953,6 +1472,19 @@ class ISCE_Base(LocalProcessor):
                     [meta["slurm_job_id"]] if meta.get("slurm_job_id") else []
                 )
                 all_ids.extend(ids)
+                # Cancel child jobs already submitted by a running manager/group-manager
+                if meta.get("hpc_manager"):
+                    child_file = Path(meta.get("log_dir", "")) / "submitted_child_jobs.txt"
+                    if child_file.exists():
+                        all_ids.extend(
+                            l.strip() for l in child_file.read_text().splitlines() if l.strip()
+                        )
+                if meta.get("hpc_array"):
+                    child_file = Path(meta.get("group_task_dir", "")) / "submitted_child_jobs.txt"
+                    if child_file.exists():
+                        all_ids.extend(
+                            l.strip() for l in child_file.read_text().splitlines() if l.strip()
+                        )
             valid_ids = [jid for jid in all_ids if jid and jid != "unknown"]
             if not valid_ids:
                 print(f"{Fore.YELLOW}No SLURM job IDs found.{Style.RESET_ALL}")

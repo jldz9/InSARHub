@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from insarhub.core import Hyp3Processor
 from insarhub.config import Hyp3_Base_Config
+from insarhub.config.paths import Hyp3Paths
 from insarhub.utils.tool import write_workflow_marker
 
 
@@ -36,23 +37,24 @@ class Hyp3Base(Hyp3Processor):
     
     def __init__(self, config: Hyp3_Base_Config | None = None):
         super().__init__(config)
+        assert config is not None, "Hyp3Base requires a config"
         self.config = config
-        self._current_client_user = None 
+        self._current_client_user = None
         self._hyp3_authorize(pool=self.config.earthdata_credentials_pool)
-        
-        
+        self._paths = Hyp3Paths(Path(self.config.workdir))
+
         # 1. Load Saved Jobs
         if self.config.saved_job_path is not None:
             print(f"{Fore.GREEN}Loading job IDs from {self.config.saved_job_path}...\n")
             job_path = Path(self.config.saved_job_path)
-            if job_path.is_file():  
+            if job_path.is_file():
                 data = json.loads(job_path.read_text())
                 self.job_ids = defaultdict(list, data.get("job_ids", {}))
-                
+
                 if not self.job_ids:
                     raise ValueError(f"{Fore.RED}No job found in {self.config.saved_job_path}.\n")
-                
-                # Update output_dir from save file if present, else use config
+
+                # Update output_dir from save file if present, else use paths layout
                 saved_out = data.get("out_dir")
                 if saved_out:
                     resolved = Path(saved_out).expanduser().resolve()
@@ -64,16 +66,19 @@ class Hyp3Base(Hyp3Processor):
                     if not path_ok:
                         print(f"{Fore.YELLOW}Warning: saved out_dir '{resolved}' is missing or outside workdir. "
                               f"Using config workdir instead.{Fore.RESET}")
-                        self.output_dir = self.config.workdir / "hyp3"
+                        self.output_dir = self._paths.output_dir
+                    elif resolved == self._paths.workdir:
+                        # migrate legacy job files that saved out_dir as workdir root
+                        self.output_dir = self._paths.output_dir
                     else:
                         self.output_dir = resolved
                 else:
-                    self.output_dir = self.config.workdir / "hyp3"
+                    self.output_dir = self._paths.output_dir
             else:
                 raise ValueError(f"{Fore.RED}Job file {self.config.saved_job_path} not found.\n")
         else:
             self.job_ids = defaultdict(list)
-            self.output_dir = self.config.workdir / "hyp3"
+            self.output_dir = self._paths.output_dir
 
         self.output_dir.mkdir(parents=True, exist_ok=True)
         self.batchs = defaultdict(list)
@@ -320,7 +325,7 @@ class Hyp3Base(Hyp3Processor):
         results = self._submit_job_queue(job_queue)
         
         ts = time.strftime("%Y%m%dt%H%M%S")
-        retry_path = self.output_dir / f'hyp3_retry_jobs_{ts}.json'
+        retry_path = self.output_dir.parent / f'hyp3_retry_jobs_{ts}.json'
         self.save(retry_path)
         return results
     
@@ -450,7 +455,7 @@ class Hyp3Base(Hyp3Processor):
                 print("No succeeded jobs found, skipping.")
                 continue
 
-            tasks: list[tuple[str, str, Path]] = [] # (url, dest_path)
+            tasks: list[tuple[str, Path]] = []
 
             for job in succeeded:
                 if not job.files:

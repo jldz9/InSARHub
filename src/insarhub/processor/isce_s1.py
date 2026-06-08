@@ -29,6 +29,7 @@ import numpy as np
 from colorama import Fore, Style
 
 from insarhub.config import ISCE_S1_Config
+from insarhub.config.paths import ISCEPaths, MintPyPaths
 from insarhub.processor.isce_base import (
     ISCE_Base,
     _PENDING,
@@ -163,9 +164,9 @@ def _geotiff_to_isce_dem(tif_path: Path, out_dir: Path) -> Path:
 def _prepare_dem(config: ISCE_S1_Config, workdir: Path) -> Path:
     """Return path to an ISCE2-format DEM, downloading GLO-30 if needed."""
     raw = config.dem_path
-    dem_dir = workdir / "dem"
+    dem_dir = ISCEPaths(workdir).dem_dir
     _auto = raw is None or str(raw).strip().lower() in ("", "none", "auto")
-    _is_sentinel = (not _auto) and Path(str(raw)) == workdir / "dem"
+    _is_sentinel = (not _auto) and Path(str(raw)) == dem_dir
 
     if not _auto and not _is_sentinel:
         p = Path(str(raw))
@@ -358,7 +359,7 @@ class ISCE_S1(ISCE_Base):
         }
 
     def _resolve_aux_dir(self) -> Path:
-        p = Path(str(self.config.aux_dir)).expanduser().resolve() if self.config.aux_dir else (self.workdir / "slc")
+        p = Path(str(self.config.aux_dir)).expanduser().resolve() if self.config.aux_dir else self._paths.slc_dir
         p.mkdir(parents=True, exist_ok=True)
         return p
 
@@ -455,7 +456,7 @@ class ISCE_S1(ISCE_Base):
             os.chdir(orig_cwd)
 
         # Redirect MintPy output to workdir/mintpy/ (not isce/mintpy/)
-        mintpy_dir = self.workdir / "mintpy"
+        mintpy_dir = MintPyPaths(self.workdir).mintpy_dir
         for script in self._run_files_dir.glob("run_*"):
             if not script.is_file() or script.suffix:
                 continue

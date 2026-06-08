@@ -27,6 +27,7 @@ from pathlib import Path
 from colorama import Fore, Style
 
 from insarhub.core import LocalProcessor
+from insarhub.config.paths import ISCEPaths
 
 logger = logging.getLogger(__name__)
 
@@ -215,9 +216,10 @@ class ISCE_Base(LocalProcessor):
 
         self.workdir: Path = Path(self.config.workdir).expanduser().resolve()
         self.workdir.mkdir(parents=True, exist_ok=True)
-        self.isce_dir: Path = self.workdir / "isce"
+        self._paths = ISCEPaths(self.workdir)
+        self.isce_dir: Path = self._paths.isce_dir
         self.isce_dir.mkdir(parents=True, exist_ok=True)
-        self._run_files_dir = self.isce_dir / "run_files"
+        self._run_files_dir = self._paths.run_files_dir
 
         self.jobs: dict[str, dict] = {}
         self._executor_thread: threading.Thread | None = None

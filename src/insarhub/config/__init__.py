@@ -9,6 +9,8 @@ from .defaultconfig import (
     Hyp3_SBAS_Config,
     ISCE_SBAS_Config,
 )
+from .paths import Hyp3Paths, ISCEPaths, MintPyPaths
+
 all = [
     "ASF_Base_Config",
     "S1_SLC_Config",
@@ -19,4 +21,7 @@ all = [
     "Mintpy_SBAS_Base_Config",
     "Hyp3_SBAS_Config",
     "ISCE_SBAS_Config",
+    "Hyp3Paths",
+    "ISCEPaths",
+    "MintPyPaths",
 ]

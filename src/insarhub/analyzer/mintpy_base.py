@@ -14,6 +14,7 @@ from mintpy.utils import readfile
 from mintpy.smallbaselineApp import TimeSeriesAnalysis
 
 from insarhub.config.defaultconfig import Mintpy_SBAS_Base_Config
+from insarhub.config.paths import MintPyPaths, Hyp3Paths
 from insarhub.core.base import BaseAnalyzer
 from insarhub.utils.tool import write_workflow_marker
 
@@ -31,9 +32,11 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         super().__init__(config)
 
         self.workdir   = self.config.workdir
-        self.mintpy_dir = self.workdir / "mintpy"
-        self.tmp_dir   = self.mintpy_dir / "tmp"
-        self.clip_dir  = self.mintpy_dir / "clip"
+        self._paths    = MintPyPaths(Path(self.workdir))
+        self._hyp3_paths = Hyp3Paths(Path(self.workdir))
+        self.mintpy_dir = self._paths.mintpy_dir
+        self.tmp_dir   = self._paths.tmp_dir
+        self.clip_dir  = self._paths.clip_dir
         self.cfg_path  = self.workdir.joinpath('.mintpy.cfg')
         write_workflow_marker(self.workdir, analyzer=type(self).name)
 
@@ -99,7 +102,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         """
         from insarhub.utils.tool import Slurmjob_Config
 
-        mintpy_dir = self.workdir / "mintpy"
+        mintpy_dir = self._paths.mintpy_dir
         mintpy_dir.mkdir(parents=True, exist_ok=True)
 
         # Merge user opts over defaults
@@ -288,8 +291,8 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
                 except Exception as e:
                     print(f"{Fore.RED}  Failed to remove {folder}: {e}{Fore.RESET}")
                     
-        _hyp3_dir = self.workdir / "hyp3"
-        zips = list(_hyp3_dir.glob('*.zip')) if _hyp3_dir.exists() else list(self.workdir.glob('*.zip'))
+        _hyp3_dir = self._hyp3_paths.output_dir
+        zips = list(_hyp3_dir.glob('*.zip')) if _hyp3_dir.exists() else list(Path(self.workdir).glob('*.zip'))
         if zips:
             print(f"{Fore.CYAN}Step: Removing zip archives...{Fore.RESET}")
             for zf in zips:

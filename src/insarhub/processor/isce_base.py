@@ -388,63 +388,72 @@ class ISCE_Base(LocalProcessor):
             'write_status "RUNNING"',
             '> "$SUBMITTED_FILE"',
             "",
-            "BATCH_START=0",
-            f"while [[ $BATCH_START -lt {n_cmds} ]]; do",
-            f"    BATCH_END=$(( BATCH_START + MAX_CONCURRENT ))",
-            f"    [[ $BATCH_END -gt {n_cmds} ]] && BATCH_END={n_cmds}",
-            "",
-            "    batch_job_ids=()",
-            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
-            "        IDX=$(printf '%04d' $i)",
-            '        DONE_FILE="$LOG_DIR/cmd_${IDX}.done"',
-            '        if [[ -f "$DONE_FILE" ]]; then',
-            '            echo "  cmd_${IDX} SKIPPED (already done)"',
-            "            continue",
-            "        fi",
-            '        result=$(sbatch "${CHILD_SCRIPTS[$i]}" 2>&1)',
-            "        rc=$?",
-            '        if [[ $rc -ne 0 ]]; then',
-            '            echo "  sbatch FAILED cmd_${IDX}: $result"',
-            '            write_status "FAILED:sbatch failed for cmd_${IDX}"',
-            "            exit 1",
-            "        fi",
-            "        JID=$(echo \"$result\" | grep -oE '[0-9]+' | tail -1)",
-            '        batch_job_ids+=("$JID")',
-            '        echo "$JID" >> "$SUBMITTED_FILE"',
-            '        echo "  cmd_${IDX} -> job $JID"',
-            "    done",
-            "",
-            '    if [[ ${#batch_job_ids[@]} -gt 0 ]]; then',
-            '        JOB_LIST=$(IFS=,; echo "${batch_job_ids[*]}")',
-            '        echo "  [$(date)] Waiting for ${#batch_job_ids[@]} job(s)..."',
-            "        while true; do",
-            '            ACTIVE=$(squeue --noheader --jobs="$JOB_LIST" 2>/dev/null | wc -l)',
-            "            [[ $ACTIVE -eq 0 ]] && break",
-            '            echo "  [$(date)] $ACTIVE job(s) still running..."',
-            "            sleep 30",
-            "        done",
-            '        echo "  [$(date)] Batch done."',
+            "# sliding-window: build list of pending indices (skip already-done)",
+            "PENDING_IDXS=()",
+            f"for (( i=0; i<{n_cmds}; i++ )); do",
+            "    IDX=$(printf '%04d' $i)",
+            '    if [[ -f "$LOG_DIR/cmd_${IDX}.done" ]]; then',
+            '        echo "  cmd_${IDX} SKIPPED (already done)"',
+            "    else",
+            "        PENDING_IDXS+=($i)",
             "    fi",
-            "",
-            "    FAIL_COUNT=0",
-            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
-            "        IDX=$(printf '%04d' $i)",
-            '        DONE_FILE="$LOG_DIR/cmd_${IDX}.done"',
-            '        FAIL_FILE="$LOG_DIR/cmd_${IDX}.fail"',
-            '        if [[ ! -f "$DONE_FILE" && ! -f "$FAIL_FILE" ]]; then',
-            '            echo "WARNING: cmd_${IDX} no done/fail marker — marking failed"',
-            '            echo "unknown" > "$FAIL_FILE"',
-            "        fi",
-            '        [[ -f "$FAIL_FILE" ]] && FAIL_COUNT=$(( FAIL_COUNT + 1 ))',
-            "    done",
-            "    if [[ $FAIL_COUNT -gt 0 ]]; then",
-            '        write_status "FAILED:${FAIL_COUNT} command(s) failed"',
-            "        exit 1",
-            "    fi",
-            "",
-            "    BATCH_START=$BATCH_END",
             "done",
             "",
+            "PENDING_PTR=0",
+            "FAIL_COUNT=0",
+            "declare -A JID_TO_IDX",
+            "",
+            "submit_one() {",
+            "    local raw_idx=${PENDING_IDXS[$PENDING_PTR]}",
+            "    local IDX; IDX=$(printf '%04d' $raw_idx)",
+            '    local result; result=$(sbatch "${CHILD_SCRIPTS[$raw_idx]}" 2>&1)',
+            "    local rc=$?",
+            "    if [[ $rc -ne 0 ]]; then",
+            '        echo "  sbatch FAILED cmd_${IDX}: $result"',
+            '        write_status "FAILED:sbatch failed for cmd_${IDX}"',
+            "        exit 1",
+            "    fi",
+            "    local JID; JID=$(echo \"$result\" | grep -oE '[0-9]+' | tail -1)",
+            '    JID_TO_IDX[$JID]=$raw_idx',
+            '    echo "$JID" >> "$SUBMITTED_FILE"',
+            '    echo "  [$(date)] cmd_${IDX} -> job $JID"',
+            "    (( PENDING_PTR++ ))",
+            "}",
+            "",
+            "# fill initial window",
+            "while [[ ${#JID_TO_IDX[@]} -lt MAX_CONCURRENT && $PENDING_PTR -lt ${#PENDING_IDXS[@]} ]]; do",
+            "    submit_one",
+            "done",
+            "",
+            "# poll: retire finished jobs, refill slot immediately",
+            "while [[ ${#JID_TO_IDX[@]} -gt 0 ]]; do",
+            "    sleep 30",
+            "    for JID in \"${!JID_TO_IDX[@]}\"; do",
+            "        squeue --noheader --jobs=\"$JID\" 2>/dev/null | grep -q . && continue",
+            "        raw_idx=${JID_TO_IDX[$JID]}",
+            "        IDX=$(printf '%04d' $raw_idx)",
+            '        if [[ -f "$LOG_DIR/cmd_${IDX}.done" ]]; then',
+            '            echo "  [$(date)] cmd_${IDX} SUCCEEDED"',
+            '        elif [[ -f "$LOG_DIR/cmd_${IDX}.fail" ]]; then',
+            '            echo "  [$(date)] cmd_${IDX} FAILED"',
+            "            FAIL_COUNT=$(( FAIL_COUNT + 1 ))",
+            "        else",
+            '            echo "WARNING: cmd_${IDX} no marker — marking failed"',
+            '            echo "unknown" > "$LOG_DIR/cmd_${IDX}.fail"',
+            "            FAIL_COUNT=$(( FAIL_COUNT + 1 ))",
+            "        fi",
+            "        unset 'JID_TO_IDX[$JID]'",
+            "        if [[ $FAIL_COUNT -eq 0 && $PENDING_PTR -lt ${#PENDING_IDXS[@]} ]]; then",
+            "            submit_one",
+            "        fi",
+            "    done",
+            "    echo \"  [$(date)] running=${#JID_TO_IDX[@]} pending=$(( ${#PENDING_IDXS[@]} - PENDING_PTR ))\"",
+            "done",
+            "",
+            "if [[ $FAIL_COUNT -gt 0 ]]; then",
+            '    write_status "FAILED:${FAIL_COUNT} command(s) failed"',
+            "    exit 1",
+            "fi",
             'write_status "SUCCEEDED"',
             f'echo "[$(date)] Step {step} completed."',
             "exit 0",
@@ -1097,57 +1106,70 @@ class ISCE_Base(LocalProcessor):
             f'echo "[$(date)] Group manager: {n_cmds} tasks, max_concurrent={max_concurrent}"',
             f'echo "  Steps: {" ".join(group_steps)}"',
             "",
-            "BATCH_START=0",
-            f"while [[ $BATCH_START -lt {n_cmds} ]]; do",
-            f"    BATCH_END=$(( BATCH_START + MAX_CONCURRENT ))",
-            f"    [[ $BATCH_END -gt {n_cmds} ]] && BATCH_END={n_cmds}",
-            "",
-            "    batch_job_ids=()",
-            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
-            "        IDX=$(printf '%04d' $i)",
-            '        if [[ -f "$TASK_DIR/cmd_${IDX}.done" ]]; then',
-            '            echo "  task_${IDX} SKIPPED (already done)"; continue',
-            "        fi",
-            '        result=$(sbatch "${CHILD_SCRIPTS[$i]}" 2>&1)',
-            "        rc=$?",
-            '        if [[ $rc -ne 0 ]]; then',
-            '            echo "  sbatch FAILED task_${IDX}: $result"; exit 1',
-            "        fi",
-            "        JID=$(echo \"$result\" | grep -oE '[0-9]+' | tail -1)",
-            '        batch_job_ids+=("$JID")',
-            '        echo "$JID" >> "$SUBMITTED_FILE"',
-            '        echo "  task_${IDX} -> job $JID"',
-            "    done",
-            "",
-            '    if [[ ${#batch_job_ids[@]} -gt 0 ]]; then',
-            '        JOB_LIST=$(IFS=,; echo "${batch_job_ids[*]}")',
-            '        echo "  [$(date)] Waiting for ${#batch_job_ids[@]} task(s)..."',
-            "        while true; do",
-            '            ACTIVE=$(squeue --noheader --jobs="$JOB_LIST" 2>/dev/null | wc -l)',
-            "            [[ $ACTIVE -eq 0 ]] && break",
-            '            echo "  [$(date)] $ACTIVE task(s) still running..."',
-            "            sleep 30",
-            "        done",
-            '        echo "  [$(date)] Batch done."',
+            "# sliding-window: build pending list (skip already-done tasks)",
+            "PENDING_IDXS=()",
+            f"for (( i=0; i<{n_cmds}; i++ )); do",
+            "    IDX=$(printf '%04d' $i)",
+            '    if [[ -f "$TASK_DIR/cmd_${IDX}.done" ]]; then',
+            '        echo "  task_${IDX} SKIPPED (already done)"',
+            "    else",
+            "        PENDING_IDXS+=($i)",
             "    fi",
-            "",
-            "    FAIL_COUNT=0",
-            "    for (( i=BATCH_START; i<BATCH_END; i++ )); do",
-            "        IDX=$(printf '%04d' $i)",
-            '        if [[ ! -f "$TASK_DIR/cmd_${IDX}.done" && ! -f "$TASK_DIR/cmd_${IDX}.fail" ]]; then',
-            '            echo "WARNING: task_${IDX} has no done/fail marker"',
-            '            echo "unknown" > "$TASK_DIR/cmd_${IDX}.fail"',
-            "        fi",
-            '        [[ -f "$TASK_DIR/cmd_${IDX}.fail" ]] && FAIL_COUNT=$(( FAIL_COUNT + 1 ))',
-            "    done",
-            "    if [[ $FAIL_COUNT -gt 0 ]]; then",
-            '        echo "[$(date)] $FAIL_COUNT task(s) failed. Aborting."',
-            "        exit 1",
-            "    fi",
-            "",
-            "    BATCH_START=$BATCH_END",
             "done",
             "",
+            "PENDING_PTR=0",
+            "FAIL_COUNT=0",
+            "declare -A JID_TO_IDX",
+            "",
+            "submit_one() {",
+            "    local raw_idx=${PENDING_IDXS[$PENDING_PTR]}",
+            "    local IDX; IDX=$(printf '%04d' $raw_idx)",
+            '    local result; result=$(sbatch "${CHILD_SCRIPTS[$raw_idx]}" 2>&1)',
+            "    local rc=$?",
+            "    if [[ $rc -ne 0 ]]; then",
+            '        echo "  sbatch FAILED task_${IDX}: $result"; exit 1',
+            "    fi",
+            "    local JID; JID=$(echo \"$result\" | grep -oE '[0-9]+' | tail -1)",
+            '    JID_TO_IDX[$JID]=$raw_idx',
+            '    echo "$JID" >> "$SUBMITTED_FILE"',
+            '    echo "  [$(date)] task_${IDX} -> job $JID"',
+            "    (( PENDING_PTR++ ))",
+            "}",
+            "",
+            "# fill initial window",
+            "while [[ ${#JID_TO_IDX[@]} -lt MAX_CONCURRENT && $PENDING_PTR -lt ${#PENDING_IDXS[@]} ]]; do",
+            "    submit_one",
+            "done",
+            "",
+            "# poll: retire finished tasks, refill slot immediately",
+            "while [[ ${#JID_TO_IDX[@]} -gt 0 ]]; do",
+            "    sleep 30",
+            "    for JID in \"${!JID_TO_IDX[@]}\"; do",
+            "        squeue --noheader --jobs=\"$JID\" 2>/dev/null | grep -q . && continue",
+            "        raw_idx=${JID_TO_IDX[$JID]}",
+            "        IDX=$(printf '%04d' $raw_idx)",
+            '        if [[ -f "$TASK_DIR/cmd_${IDX}.done" ]]; then',
+            '            echo "  [$(date)] task_${IDX} SUCCEEDED"',
+            '        elif [[ -f "$TASK_DIR/cmd_${IDX}.fail" ]]; then',
+            '            echo "  [$(date)] task_${IDX} FAILED"',
+            "            FAIL_COUNT=$(( FAIL_COUNT + 1 ))",
+            "        else",
+            '            echo "WARNING: task_${IDX} no marker — marking failed"',
+            '            echo "unknown" > "$TASK_DIR/cmd_${IDX}.fail"',
+            "            FAIL_COUNT=$(( FAIL_COUNT + 1 ))",
+            "        fi",
+            "        unset 'JID_TO_IDX[$JID]'",
+            "        if [[ $FAIL_COUNT -eq 0 && $PENDING_PTR -lt ${#PENDING_IDXS[@]} ]]; then",
+            "            submit_one",
+            "        fi",
+            "    done",
+            "    echo \"  [$(date)] running=${#JID_TO_IDX[@]} pending=$(( ${#PENDING_IDXS[@]} - PENDING_PTR ))\"",
+            "done",
+            "",
+            "if [[ $FAIL_COUNT -gt 0 ]]; then",
+            '    echo "[$(date)] $FAIL_COUNT task(s) failed. Aborting."',
+            "    exit 1",
+            "fi",
             f'echo "[$(date)] All {n_cmds} group tasks done."',
             "exit 0",
         ]
@@ -1335,14 +1357,13 @@ class ISCE_Base(LocalProcessor):
                                 status = _FAILED
                                 _write_status(self._run_files_dir, step, _FAILED, detail)
                             elif meta.get("hpc_manager") or meta.get("hpc_array"):
-                                # Manager/array mode: compare against actual command count
-                                script_path = Path(meta.get("script", ""))
-                                n_cmds = 0
-                                if script_path.exists():
-                                    n_cmds = sum(
-                                        1 for l in script_path.read_text().splitlines()
-                                        if l.strip() and not l.strip().startswith("#")
-                                    )
+                                # Manager/array mode: count child sbatch scripts for total
+                                if meta.get("hpc_manager"):
+                                    _sbatch_dir = Path(str(log_dir_p).replace("_logs", "_sbatch"))
+                                    n_cmds = len(list(_sbatch_dir.glob(f"{step}_????.sbatch"))) if _sbatch_dir.exists() else 0
+                                else:
+                                    _task_dir = Path(meta.get("group_task_dir", ""))
+                                    n_cmds = len(list(_task_dir.glob("task_????.sbatch"))) if _task_dir.exists() else 0
                                 if n_cmds > 0 and done_count >= n_cmds:
                                     status = _SUCCEEDED
                                     _write_status(self._run_files_dir, step, _SUCCEEDED)
@@ -1396,8 +1417,32 @@ class ISCE_Base(LocalProcessor):
                         else:
                             cmd_st, cmd_color = _PENDING, Fore.YELLOW
                         print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}  [job {jid}]")
+                elif meta.get("hpc_manager") or meta.get("hpc_array"):
+                    # Manager/group-manager mode: slurm_job_ids has only the manager ID.
+                    # Per-command status derived from .done/.fail files only.
+                    # All commands without a marker are concurrently in-flight (RUNNING).
+                    if meta.get("hpc_manager"):
+                        # sbatch dir mirrors log dir: run_04_logs → run_04_sbatch
+                        sbatch_dir_m = Path(str(log_dir_p).replace("_logs", "_sbatch"))
+                        n_cmds_m = len(list(sbatch_dir_m.glob(f"{step}_????.sbatch"))) if sbatch_dir_m.exists() else 0
+                    else:
+                        # Group manager: task_dir/task_{i:04d}.sbatch
+                        task_dir_m = Path(meta.get("group_task_dir", ""))
+                        n_cmds_m = len(list(task_dir_m.glob("task_????.sbatch"))) if task_dir_m.exists() else 0
+                    for i in range(n_cmds_m):
+                        done_f = log_dir_p / f"cmd_{i:04d}.done"
+                        fail_f = log_dir_p / f"cmd_{i:04d}.fail"
+                        if done_f.exists():
+                            cmd_st, cmd_color = _SUCCEEDED, Fore.GREEN
+                        elif fail_f.exists():
+                            cmd_st, cmd_color = _FAILED, Fore.RED
+                        elif status == _RUNNING:
+                            cmd_st, cmd_color = _RUNNING, Fore.CYAN
+                        else:
+                            cmd_st, cmd_color = _PENDING, Fore.YELLOW
+                        print(f"      cmd_{i:04d}  {cmd_color}{cmd_st:<9}{Style.RESET_ALL}")
                 else:
-                    # Local mode: read script to get all commands, overlay done/fail
+                    # Local sequential mode: only one command runs at a time.
                     script_path = Path(meta.get("script", ""))
                     if script_path.exists():
                         cmds = [
@@ -1407,7 +1452,6 @@ class ISCE_Base(LocalProcessor):
                     else:
                         cmds = []
                     if len(cmds) > 1:
-                        # Find first command without a done/fail file (currently running)
                         first_active = next(
                             (i for i in range(len(cmds))
                              if not (log_dir_p / f"cmd_{i:04d}.done").exists()

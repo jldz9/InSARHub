@@ -36,6 +36,7 @@ import sys
 from pathlib import Path
 
 from insarhub._version import __version__
+from insarhub.config.paths import Hyp3Paths, ISCEPaths
 from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP, DOWNLOAD_DEFAULTS as _DL
 
 
@@ -520,7 +521,8 @@ def _find_job_files(job_dir: Path, override: str | None = None) -> list[Path]:
     """Return all hyp3*.json job files in job_dir, or just the override file if given."""
     if override:
         return [Path(override).expanduser().resolve()]
-    return sorted(job_dir.glob("hyp3*.json"))
+    return sorted(p for p in job_dir.glob("hyp3*.json")
+                  if not p.name.startswith("hyp3_retry_"))
 
 
 def _load_credential_pool(path: str | None) -> dict | None:
@@ -576,7 +578,7 @@ def _iter_analysis_dirs(workdir: Path) -> list[Path]:
     if (workdir / "insarhub_config.json").exists():
         return [workdir]
     def _has_zips(d: Path) -> bool:
-        hyp3_sub = d / "hyp3"
+        hyp3_sub = Hyp3Paths(d).output_dir
         return any(hyp3_sub.glob("*.zip")) if hyp3_sub.is_dir() else any(d.glob("*.zip"))
 
     subdirs = sorted(
@@ -851,7 +853,7 @@ def _find_jobs_file(workdir: Path, pattern: str) -> Path | None:
     """
     for p in sorted(workdir.glob(pattern)):
         return p
-    isce_sub = workdir / "isce"
+    isce_sub = ISCEPaths(workdir).isce_dir
     if isce_sub.is_dir():
         for p in sorted(isce_sub.glob(pattern)):
             return p
@@ -859,7 +861,7 @@ def _find_jobs_file(workdir: Path, pattern: str) -> Path | None:
         if subdir.is_dir() and _parse_group_key(subdir.name):
             for p in sorted(subdir.glob(pattern)):
                 return p
-            nested = subdir / "isce"
+            nested = ISCEPaths(subdir).isce_dir
             if nested.is_dir():
                 for p in sorted(nested.glob(pattern)):
                     return p
@@ -1361,7 +1363,7 @@ def cmd_downloader(args, extra_args: list[str]):
 
 def cmd_processor(args, extra_args: list[str]):
     from insarhub import Processor
-    from insarhub.core.base import Hyp3Processor, LocalProcessor
+    from insarhub.core.base import CloudProcessor, LocalProcessor
 
     # --list-processors (works without a sub-action)
     if getattr(args, "list_processors", False):
@@ -1377,7 +1379,7 @@ def cmd_processor(args, extra_args: list[str]):
               file=sys.stderr)
         sys.exit(1)
     processor_cls = Processor._registry[processor_name]
-    is_hyp3  = issubclass(processor_cls, Hyp3Processor)
+    is_hyp3  = issubclass(processor_cls, CloudProcessor)
     is_local = issubclass(processor_cls, LocalProcessor)
 
     # --list-options (no action required)
@@ -1905,13 +1907,14 @@ def _proc_local_cancel(args):
 def _proc_local_watch(args):
     processor_name   = getattr(args, "processor_name", "ISCE_S1")
     workdir          = _resolve_workdir(args.workdir)
-    refresh_interval = getattr(args, "refresh_interval", 60)
+    refresh_interval = getattr(args, "interval", 60)
     jobs_path        = _find_jobs_file(workdir, pattern="isce_jobs*.json")
     if jobs_path is None:
         print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
         sys.exit(1)
 
-    _load_local_processor(processor_name, workdir, jobs_path).watch(refresh_interval=refresh_interval)
+    hpc_mode = getattr(args, "hpc_mode", False)
+    _load_local_processor(processor_name, workdir, jobs_path, hpc_mode=hpc_mode).watch(refresh_interval=refresh_interval)
 
 
 def cmd_analyzer(args, extra_args: list[str]):

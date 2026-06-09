@@ -311,7 +311,7 @@ async def get_processor_defaults(processor: str, workdir: str):
 @router.delete("/api/job-folder")
 async def delete_job_folder(path: str):
     folder  = Path(path).expanduser().resolve()
-    workdir = Path(state._settings["workdir"])
+    workdir = Path(state._settings["workdir"]).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
     try:

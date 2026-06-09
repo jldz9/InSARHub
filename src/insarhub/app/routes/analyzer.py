@@ -224,6 +224,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                 except Exception as e:
                     update(f"[{i+1}/{total}] {step} — ERROR: {e}", int(i / total * 100))
                     state._jobs[job_id]["status"] = "error"
+                    state._stop_events.pop(job_id, None)
                     return
 
             state._stop_events.pop(job_id, None)

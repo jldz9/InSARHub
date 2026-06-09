@@ -982,7 +982,7 @@ class ISCE_S1_Config:
         "dry_run":                  {"type": "bool",
                                      "hint": "Preview commands without executing (HPC: generate sbatch scripts only; local: print commands only)"},
         "sbatch_options_per_step":  {"type": "text",
-                                     "hint": "JSON dict of step number → sbatch flags, e.g. {\"01\": \"--ntasks=1 --cpus-per-task=2 --mem=8G\", \"07\": \"--ntasks=1 --cpus-per-task=4 --mem=32G\"}. Steps not listed use the 'default' entry."},
+                                     "hint": "JSON dict mapping step number (or 'default') to SLURM resource keys, e.g. {\"default\": {\"partition\": \"compute\", \"account\": \"myproj\", \"time\": \"04:00:00\", \"cpus_per_task\": 2, \"mem\": \"8G\"}, \"07\": {\"cpus_per_task\": 4, \"mem\": \"32G\"}}. Steps not listed inherit the 'default' entry."},
     }
 
     name: str                             = "ISCE_S1_Config"

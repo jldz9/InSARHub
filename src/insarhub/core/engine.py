@@ -3,7 +3,7 @@ import dataclasses
 from pathlib import Path
 
 from .registry import Processor, Downloader, Analyzer
-from .base import Hyp3Processor
+from .base import CloudProcessor
 
 
 class InSAREngine:
@@ -165,7 +165,7 @@ class InSAREngine:
         if self.processor is not None and not skip_process:
             self._log("Stage 2 — Processing...")
             try:
-                if isinstance(self.processor, Hyp3Processor):
+                if isinstance(self.processor, CloudProcessor):
                     self.processor.submit()
                     if watch:
                         self.processor.watch(refresh_interval=refresh_interval)

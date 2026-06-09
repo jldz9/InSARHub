@@ -113,7 +113,7 @@ async def get_folder_hyp3_jobs(path: str):
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
     files = []
-    for f in sorted(folder.glob("hyp3*.json")):
+    for f in sorted(f for f in folder.glob("hyp3*.json") if not f.name.startswith("hyp3_retry_")):
         try:
             data = json.loads(f.read_text())
             job_ids = data.get("job_ids", {})
@@ -190,8 +190,17 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
                                 if fn and fn.endswith(".zip"):
                                     filenames.append(fn)
                 try:
-                    cache = {"filenames": filenames, "out_dir": processor.output_dir.as_posix()}
                     cache_path = folder / ".insarhub_cache.json"
+                    existing: dict = {}
+                    if cache_path.exists():
+                        try:
+                            existing = json.loads(cache_path.read_text())
+                        except Exception:
+                            pass
+                    cache = {
+                        "out_dir": processor.output_dir.as_posix(),
+                        "filenames": filenames if filenames else existing.get("filenames", []),
+                    }
                     cache_path.write_text(json.dumps(cache, indent=2))
                 except Exception:
                     pass

@@ -1,4 +1,4 @@
-from .base import BaseDownloader, LocalProcessor, BaseAnalyzer, Hyp3Processor
+from .base import BaseDownloader, LocalProcessor, BaseAnalyzer, CloudProcessor
 from .registry import Downloader, Processor, Analyzer
 
 
@@ -6,7 +6,7 @@ from .registry import Downloader, Processor, Analyzer
 __all__ = [
     "BaseDownloader",
     "LocalProcessor",
-    "Hyp3Processor",
+    "CloudProcessor",
     "BaseAnalyzer",
     "Downloader",
     "Processor",

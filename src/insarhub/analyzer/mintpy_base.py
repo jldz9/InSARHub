@@ -210,11 +210,12 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         if self.config.troposphericDelay_method == 'pyaps' and 'correct_troposphere' in run_steps:
             self._cds_authorize()
         print(f'{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis...{Fore.RESET}')
-        app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.workdir.as_posix())
+        self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
         app.open()
         app.run(steps=run_steps)
         if 'geocode' in run_steps:
-            self._geocode_diagnostic_files(self.cfg_path.parent)
+            self._geocode_diagnostic_files(self.mintpy_dir)
 
     def _geocode_diagnostic_files(self, mintpy_work: Path) -> None:
         """Geocode diagnostic files omitted from MintPy's default geocode step.

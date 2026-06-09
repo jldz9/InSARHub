@@ -15,6 +15,7 @@ from pathlib import Path
 from tqdm import tqdm
 
 from insarhub import Downloader, Processor
+from insarhub.config.paths import Hyp3Paths
 from insarhub.utils import select_pairs
 def hyp3_s1_batch_check(
         root_dir: str,
@@ -232,14 +233,14 @@ class ERA5Downloader:
         batch_path = Path(batch_dir).expanduser().resolve()
 
         # If zips are in batch_dir or its hyp3/ subdir, treat it as a single group
-        _hyp3_sub = batch_path / "hyp3"
+        _hyp3_sub = Hyp3Paths(batch_path).output_dir
         direct_zips = list(_hyp3_sub.glob('*.zip')) if _hyp3_sub.is_dir() else list(batch_path.glob('*.zip'))
         folders_to_scan = [batch_path] if direct_zips else [
             s for s in batch_path.iterdir() if s.is_dir()
         ]
 
         for subfolder in tqdm(folders_to_scan, desc="Folders", position=0):
-            _sub_hyp3 = subfolder / "hyp3"
+            _sub_hyp3 = Hyp3Paths(subfolder).output_dir
             zip_files = list(_sub_hyp3.glob('*.zip')) if _sub_hyp3.is_dir() else list(subfolder.glob('*.zip'))
             if not zip_files:
                 continue

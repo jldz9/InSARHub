@@ -35,6 +35,7 @@ from colorama import Fore
 from mintpy.smallbaselineApp import TimeSeriesAnalysis
 
 from insarhub.config.defaultconfig import ISCE_SBAS_Config
+from insarhub.config.paths import ISCEPaths
 from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
 
 
@@ -57,10 +58,10 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
 
     def __init__(self, config: ISCE_SBAS_Config | None = None):
         super().__init__(config)
-        self.isce_dir   = self.workdir / "isce"
-        self.mintpy_dir = self.workdir / "mintpy"
-        # Write config inside mintpy/ so MintPy finds it next to its outputs
-        self.cfg_path   = self.mintpy_dir / ".mintpy.cfg"
+        self._isce_paths = ISCEPaths(self.workdir)
+        self.isce_dir    = self._isce_paths.isce_dir
+        # cfg_path lives inside mintpy/ so MintPy finds it next to its outputs
+        self.cfg_path    = self.mintpy_dir / ".mintpy.cfg"
 
     # ── Public entry points ───────────────────────────────────────────────────
 
@@ -125,11 +126,11 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
             self.isce_dir / "coarse_interferograms",
             self.isce_dir / "ESD",
             self.isce_dir / "coreg_secondarys",
-            self.isce_dir / "interferograms",
+            self.isce_dir / "merged" / "interferograms",
         ]
         workdir_subdirs = [
-            self.workdir / "slc",
-            self.workdir / "dem",
+            self._isce_paths.slc_dir,
+            self._isce_paths.dem_dir,
         ]
 
         print(f"{Fore.CYAN}Cleaning up ISCE2 intermediate directories…{Fore.RESET}")

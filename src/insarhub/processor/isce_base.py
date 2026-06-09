@@ -669,7 +669,7 @@ class ISCE_Base(LocalProcessor):
                 n_batches = (len(commands) + max_concurrent - 1) // max_concurrent
                 self.jobs[step].update(
                     slurm_job_ids=[job_id], hpc_manager=True, hpc_array=False,
-                    status=_PENDING,
+                    n_cmds=len(commands), status=_PENDING,
                 )
                 self.jobs[step].pop("slurm_job_id", None)
                 _write_status(self._run_files_dir, step, _PENDING)
@@ -706,7 +706,7 @@ class ISCE_Base(LocalProcessor):
                 for step in group:
                     self.jobs[step].update(
                         slurm_job_ids=[job_id], hpc_manager=False, hpc_array=True,
-                        group_task_dir=str(task_dir), status=_PENDING,
+                        group_task_dir=str(task_dir), n_cmds=n_cmds, status=_PENDING,
                     )
                     self.jobs[step].pop("slurm_job_id", None)
                     _write_status(self._run_files_dir, step, _PENDING)
@@ -887,7 +887,12 @@ class ISCE_Base(LocalProcessor):
             days = int(d)
         parts = t.split(":")
         try:
-            h, m, s = int(parts[0]), int(parts[1]), int(parts[2]) if len(parts) > 2 else 0
+            if len(parts) == 3:
+                h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
+            elif len(parts) == 2:
+                h, m, s = 0, int(parts[0]), int(parts[1])  # SLURM MM:SS
+            else:
+                h, m, s = 0, int(parts[0]), 0  # minutes only
         except (ValueError, IndexError):
             return 7200  # default 2h on parse error
         return days * 86400 + h * 3600 + m * 60 + s
@@ -1357,18 +1362,20 @@ class ISCE_Base(LocalProcessor):
                                 status = _FAILED
                                 _write_status(self._run_files_dir, step, _FAILED, detail)
                             elif meta.get("hpc_manager") or meta.get("hpc_array"):
-                                # Manager/array mode: count child sbatch scripts for total
-                                if meta.get("hpc_manager"):
-                                    _sbatch_dir = Path(str(log_dir_p).replace("_logs", "_sbatch"))
-                                    n_cmds = len(list(_sbatch_dir.glob(f"{step}_????.sbatch"))) if _sbatch_dir.exists() else 0
-                                else:
-                                    _task_dir = Path(meta.get("group_task_dir", ""))
-                                    n_cmds = len(list(_task_dir.glob("task_????.sbatch"))) if _task_dir.exists() else 0
+                                # Use stored n_cmds if available; fall back to file count
+                                n_cmds = meta.get("n_cmds", 0)
+                                if not n_cmds:
+                                    if meta.get("hpc_manager"):
+                                        _sbatch_dir = Path(str(log_dir_p).replace("_logs", "_sbatch"))
+                                        n_cmds = len(list(_sbatch_dir.glob(f"{step}_????.sbatch"))) if _sbatch_dir.exists() else 0
+                                    else:
+                                        _task_dir = Path(meta.get("group_task_dir", ""))
+                                        n_cmds = len(list(_task_dir.glob("task_????.sbatch"))) if _task_dir.exists() else 0
                                 if n_cmds > 0 and done_count >= n_cmds:
                                     status = _SUCCEEDED
                                     _write_status(self._run_files_dir, step, _SUCCEEDED)
-                                elif n_cmds > 0 and not job_ids:
-                                    # Array job gone, not all done, no fails → propagate failure
+                                else:
+                                    # Job gone from SLURM, commands incomplete or count unknown
                                     status = _FAILED
                                     _write_status(self._run_files_dir, step, _FAILED,
                                                   "job ended but commands incomplete")
@@ -1421,14 +1428,14 @@ class ISCE_Base(LocalProcessor):
                     # Manager/group-manager mode: slurm_job_ids has only the manager ID.
                     # Per-command status derived from .done/.fail files only.
                     # All commands without a marker are concurrently in-flight (RUNNING).
-                    if meta.get("hpc_manager"):
-                        # sbatch dir mirrors log dir: run_04_logs → run_04_sbatch
-                        sbatch_dir_m = Path(str(log_dir_p).replace("_logs", "_sbatch"))
-                        n_cmds_m = len(list(sbatch_dir_m.glob(f"{step}_????.sbatch"))) if sbatch_dir_m.exists() else 0
-                    else:
-                        # Group manager: task_dir/task_{i:04d}.sbatch
-                        task_dir_m = Path(meta.get("group_task_dir", ""))
-                        n_cmds_m = len(list(task_dir_m.glob("task_????.sbatch"))) if task_dir_m.exists() else 0
+                    n_cmds_m = meta.get("n_cmds", 0)
+                    if not n_cmds_m:
+                        if meta.get("hpc_manager"):
+                            sbatch_dir_m = Path(str(log_dir_p).replace("_logs", "_sbatch"))
+                            n_cmds_m = len(list(sbatch_dir_m.glob(f"{step}_????.sbatch"))) if sbatch_dir_m.exists() else 0
+                        else:
+                            task_dir_m = Path(meta.get("group_task_dir", ""))
+                            n_cmds_m = len(list(task_dir_m.glob("task_????.sbatch"))) if task_dir_m.exists() else 0
                     for i in range(n_cmds_m):
                         done_f = log_dir_p / f"cmd_{i:04d}.done"
                         fail_f = log_dir_p / f"cmd_{i:04d}.fail"
@@ -1506,6 +1513,8 @@ class ISCE_Base(LocalProcessor):
             for m in self.jobs.values()
         )
         dry_run  = getattr(self.config, "dry_run", False)
+        if hpc_mode and hasattr(self.config, "hpc_mode"):
+            self.config.hpc_mode = True  # _step_executor reads config.hpc_mode directly
         if hpc_mode or dry_run:
             self._step_executor(to_retry)
         else:

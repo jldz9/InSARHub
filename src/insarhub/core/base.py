@@ -122,7 +122,7 @@ class BaseDownloader(ABC):
 class LocalProcessor(ABC):
     """Abstract base class for local (on-machine) processing backends.
 
-    Mirrors the Hyp3Processor interface so local processors feel identical
+    Mirrors the CloudProcessor interface so local processors feel identical
     from the user's perspective: submit jobs, refresh status, retry failures,
     watch until done, save/load job state, collect outputs.
 
@@ -165,8 +165,8 @@ class LocalProcessor(ABC):
     def save(self, *args, **kwargs) -> Any:
         pass
 
-class Hyp3Processor(ABC):
-    """Abstract base class for HyP3 processing backends.
+class CloudProcessor(ABC):
+    """Abstract base class for cloud-based processing backends.
 
     This class defines the required interface for implementing a HyP3
     processor. Subclasses must implement all abstract methods to support

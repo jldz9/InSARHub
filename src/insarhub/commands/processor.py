@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 from pathlib import Path
 
-from insarhub.core.base import Hyp3Processor
+from insarhub.core.base import CloudProcessor
 from .base import BaseCommand, CommandResult
 
 
 class SubmitCommand(BaseCommand):
     """Wraps processor.submit() — submits jobs to HyP3."""
 
-    def __init__(self, processor: Hyp3Processor, progress_callback=None):
+    def __init__(self, processor: CloudProcessor, progress_callback=None):
         super().__init__(progress_callback)
         self.processor = processor
 
@@ -30,7 +30,7 @@ class SubmitCommand(BaseCommand):
 class RefreshCommand(BaseCommand):
     """Wraps processor.refresh() — fetches latest job statuses from HyP3."""
 
-    def __init__(self, processor: Hyp3Processor, progress_callback=None):
+    def __init__(self, processor: CloudProcessor, progress_callback=None):
         super().__init__(progress_callback)
         self.processor = processor
 
@@ -52,7 +52,7 @@ class RefreshCommand(BaseCommand):
 class DownloadResultsCommand(BaseCommand):
     """Wraps processor.download() — downloads all succeeded HyP3 job outputs."""
 
-    def __init__(self, processor: Hyp3Processor, progress_callback=None):
+    def __init__(self, processor: CloudProcessor, progress_callback=None):
         super().__init__(progress_callback)
         self.processor = processor
 
@@ -74,7 +74,7 @@ class DownloadResultsCommand(BaseCommand):
 class RetryCommand(BaseCommand):
     """Wraps processor.retry() — resubmits all failed jobs."""
 
-    def __init__(self, processor: Hyp3Processor, progress_callback=None):
+    def __init__(self, processor: CloudProcessor, progress_callback=None):
         super().__init__(progress_callback)
         self.processor = processor
 
@@ -104,7 +104,7 @@ class WatchCommand(BaseCommand):
     In the Panel frontend, run this in a background thread.
     """
 
-    def __init__(self, processor: Hyp3Processor, refresh_interval: int = 300, progress_callback=None):
+    def __init__(self, processor: CloudProcessor, refresh_interval: int = 300, progress_callback=None):
         super().__init__(progress_callback)
         self.processor = processor
         self.refresh_interval = refresh_interval
@@ -122,7 +122,7 @@ class WatchCommand(BaseCommand):
 class SaveJobsCommand(BaseCommand):
     """Wraps processor.save() — persists job IDs to JSON for later resumption."""
 
-    def __init__(self, processor: Hyp3Processor, save_path: Path | str | None = None, progress_callback=None):
+    def __init__(self, processor: CloudProcessor, save_path: Path | str | None = None, progress_callback=None):
         super().__init__(progress_callback)
         self.processor = processor
         self.save_path = save_path
@@ -145,7 +145,7 @@ class SaveJobsCommand(BaseCommand):
 class CheckCreditsCommand(BaseCommand):
     """Wraps processor.check_credits() — prints remaining HyP3 credits for all users."""
 
-    def __init__(self, processor: Hyp3Processor, progress_callback=None):
+    def __init__(self, processor: CloudProcessor, progress_callback=None):
         super().__init__(progress_callback)
         self.processor = processor
 

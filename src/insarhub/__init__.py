@@ -81,7 +81,7 @@ from .core.registry import (
 from .core.base import (
     BaseDownloader,
     LocalProcessor,
-    Hyp3Processor,
+    CloudProcessor,
     BaseAnalyzer,
 )
 
@@ -121,7 +121,7 @@ from .utils import (
 __all__ = [
     "BaseDownloader",
     "LocalProcessor",
-    "Hyp3Processor",
+    "CloudProcessor",
     "BaseAnalyzer",
     "Downloader",
     "Processor",

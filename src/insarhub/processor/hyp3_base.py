@@ -21,13 +21,13 @@ from hyp3_sdk import HyP3, Batch, Job
 from hyp3_sdk.exceptions import AuthenticationError, HyP3Error
 from tqdm import tqdm
 
-from insarhub.core import Hyp3Processor
+from insarhub.core import CloudProcessor
 from insarhub.config import Hyp3_Base_Config
 from insarhub.config.paths import Hyp3Paths
 from insarhub.utils.tool import write_workflow_marker
 
 
-class Hyp3Base(Hyp3Processor):
+class Hyp3Base(CloudProcessor):
     """
     Base class for HyP3 interactions. 
     Handles Authentication, Job Submission Logic (Queueing/Credits), 
@@ -176,14 +176,20 @@ class Hyp3Base(Hyp3Processor):
                         pbar.write(f"{Fore.RED}Auth failed for {username}: {e}. Skipping...")
                         credits = 0
                         max_jobs_allowed = 0
-
-                try:
-                    credits = self.client.check_credits()
-                except Exception as e:
-                    pbar.write(f"{Fore.RED}Error checking credits for {username}: {e}")
-                    credits = 0
-
-                max_jobs_allowed = int(credits // self.cost)
+                    else:
+                        try:
+                            credits = self.client.check_credits()
+                        except Exception as e:
+                            pbar.write(f"{Fore.RED}Error checking credits for {username}: {e}")
+                            credits = 0
+                        max_jobs_allowed = int(credits // self.cost)
+                else:
+                    try:
+                        credits = self.client.check_credits()
+                    except Exception as e:
+                        pbar.write(f"{Fore.RED}Error checking credits for {username}: {e}")
+                        credits = 0
+                    max_jobs_allowed = int(credits // self.cost)
 
                 if max_jobs_allowed > 0:
                     chunk_size = min(max_jobs_allowed, len(job_queue), self.config.submission_chunk_size)
@@ -292,7 +298,7 @@ class Hyp3Base(Hyp3Processor):
             except Exception as e:
                 print(f"{Fore.RED}Failed to refresh {username}: {e}{Style.RESET_ALL}")
                 continue
-            self.batchs = refreshed_batchs
+        self.batchs = refreshed_batchs
         return refreshed_batchs
     
     def retry(self):
@@ -461,7 +467,10 @@ class Hyp3Base(Hyp3Processor):
                 if not job.files:
                     continue
                 for file_meta in job.files:
-                    fname = Path(file_meta['filename']).name
+                    raw_fname = file_meta.get('filename')
+                    if not raw_fname:
+                        continue
+                    fname = Path(raw_fname).name
                     dest = self.output_dir / fname
                     url = file_meta.get('url') or file_meta.get('s3_uri') or file_meta.get('download_url')
 

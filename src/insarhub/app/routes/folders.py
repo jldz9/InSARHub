@@ -279,7 +279,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
             dl_cls  = Downloader._registry.get(dl_type)
             cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
 
-            cfg = cfg_cls(workdir=folder.parent)
+            cfg = cfg_cls(workdir=folder)
             _apply_config_from_dict(cfg, raw, skip_keys={"workdir"})
 
             downloader = Downloader.create(dl_type, cfg)

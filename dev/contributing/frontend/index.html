@@ -1,39 +1,37 @@
-<!DOCTYPE html><html lang="zh" class="no-js"><head>
+<!DOCTYPE html><html lang="en" class="no-js"><head>
     
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
       
       
-        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/zh/frontend/search/">
+        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/contributing/frontend/">
       
       
-        <link rel="prev" href="../../quickstart/frontend/">
+        <link rel="prev" href="../backend/">
       
-      
-        <link rel="next" href="../processor/">
       
       
         
-          <link rel="alternate" href="../../../frontend/search/" hreflang="en">
+          <link rel="alternate" href="./" hreflang="en">
         
-          <link rel="alternate" href="./" hreflang="zh">
+          <link rel="alternate" href="../../zh/contributing/frontend/" hreflang="zh">
         
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
     
     
       
-        <title>搜索与下载 - InSARHub</title>
+        <title>Frontend - InSARHub</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -52,13 +50,11 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../stylesheets/extra.css">
     
-      <link rel="stylesheet" href="../../../stylesheets/extra.css">
-    
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -66,7 +62,7 @@
     
   
 
-  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -95,8 +91,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#_1" class="md-skip">
-          跳转至
+        <a href="#frontend-contributing-guide" class="md-skip">
+          Skip to content
         </a>
       
     </div>
@@ -115,8 +111,8 @@
   
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="页眉">
-    <a href="../../" title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -136,7 +132,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              搜索与下载
+              Frontend
             
           </span>
         </div>
@@ -176,20 +172,20 @@
       <div class="md-header__option">
   <div class="md-select">
     
-    <button class="md-header__button md-icon" aria-label="选择当前语言">
+    <button class="md-header__button md-icon" aria-label="Select language">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
     </button>
     <div class="md-select__inner">
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="../../../frontend/search/" hreflang="en" class="md-select__link">
+            <a href="./" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="./" hreflang="zh" class="md-select__link">
+            <a href="../../zh/contributing/frontend/" hreflang="zh" class="md-select__link">
               中文
             </a>
           </li>
@@ -210,16 +206,16 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
       </label>
-      <nav class="md-search__options" aria-label="查找">
+      <nav class="md-search__options" aria-label="Search">
         
-        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
         </button>
@@ -232,7 +228,7 @@
       <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            正在初始化搜索引擎
+            Initializing search
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -244,7 +240,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
+        <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -259,7 +255,7 @@
   
     
       
-<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
       
@@ -269,13 +265,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../" class="md-tabs__link">
+      <a href="../.." class="md-tabs__link">
         
   
   
     
   
-  主页
+  Home
 
       </a>
     </li>
@@ -294,7 +290,7 @@
           
   
   
-  快速开始
+  QuickStart
 
         </a>
       </li>
@@ -306,17 +302,15 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
+      <li class="md-tabs__item">
         <a href="../../quickstart/frontend/" class="md-tabs__link">
           
   
   
-  Web 界面
+  Web UI
 
         </a>
       </li>
@@ -336,7 +330,7 @@
           
   
   
-  高级
+  Advanced
 
         </a>
       </li>
@@ -348,15 +342,17 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../contributing/contributing/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../contributing/" class="md-tabs__link">
           
   
   
-  贡献指南
+  Contributing
 
         </a>
       </li>
@@ -423,9 +419,9 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../" title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
+    <a href="../.." title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -435,7 +431,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
+      <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -455,14 +451,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../" class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    主页
+    Home
   
 
     
@@ -507,7 +503,7 @@
   <span class="md-ellipsis">
     
   
-    快速开始
+    QuickStart
   
 
     
@@ -523,7 +519,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    快速开始
+    QuickStart
   
 
           </label>
@@ -543,7 +539,7 @@
   <span class="md-ellipsis">
     
   
-    安装
+    Installation
   
 
     
@@ -571,7 +567,7 @@
   <span class="md-ellipsis">
     
   
-    API 配置
+    API Setup
   
 
     
@@ -617,7 +613,7 @@
   <span class="md-ellipsis">
     
   
-    运行
+    Running
   
 
     
@@ -633,7 +629,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    运行
+    Running
   
 
           </label>
@@ -681,7 +677,7 @@
   <span class="md-ellipsis">
     
   
-    命令行
+    CLI
   
 
     
@@ -714,38 +710,35 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked="">
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    Web 界面
+    Web UI
   
 
     
@@ -756,12 +749,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
-    Web 界面
+    Web UI
   
 
           </label>
@@ -781,165 +774,7 @@
   <span class="md-ellipsis">
     
   
-    概览
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    搜索与下载
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    搜索与下载
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        设置
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        搜索场景
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        下载
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        下载轨道文件
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        添加任务
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../processor/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    处理器
+    Overview
   
 
     
@@ -960,14 +795,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../analyzer/" class="md-nav__link">
+      <a href="../../frontend/search/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    分析器
+    Search &amp; Download
   
 
     
@@ -988,14 +823,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../results/" class="md-nav__link">
+      <a href="../../frontend/processor/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    结果查看器
+    Processor
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/analyzer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Analyzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../frontend/results/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Results Viewer
   
 
     
@@ -1048,7 +939,7 @@
   <span class="md-ellipsis">
     
   
-    高级
+    Advanced
   
 
     
@@ -1064,7 +955,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    高级
+    Advanced
   
 
           </label>
@@ -1084,7 +975,7 @@
   <span class="md-ellipsis">
     
   
-    文件结构
+    File Structure
   
 
     
@@ -1112,7 +1003,7 @@
   <span class="md-ellipsis">
     
   
-    下载器
+    Downloader
   
 
     
@@ -1140,7 +1031,7 @@
   <span class="md-ellipsis">
     
   
-    处理器
+    Processor
   
 
     
@@ -1168,7 +1059,7 @@
   <span class="md-ellipsis">
     
   
-    分析器
+    Analyzer
   
 
     
@@ -1196,7 +1087,7 @@
   <span class="md-ellipsis">
     
   
-    工具集
+    Utilities
   
 
     
@@ -1224,7 +1115,7 @@
   <span class="md-ellipsis">
     
   
-    配对质量评分
+    Pair Quality Scoring
   
 
     
@@ -1252,7 +1143,7 @@
   <span class="md-ellipsis">
     
   
-    前端参考
+    Frontend Reference
   
 
     
@@ -1280,7 +1171,7 @@
   <span class="md-ellipsis">
     
   
-    程序结构
+    Program Structure
   
 
     
@@ -1305,35 +1196,38 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked="">
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
-        
-          
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
   <span class="md-ellipsis">
     
   
-    贡献指南
+    Contributing
   
 
     
@@ -1344,12 +1238,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
-    贡献指南
+    Contributing
   
 
           </label>
@@ -1362,14 +1256,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contributing/contributing/" class="md-nav__link">
+      <a href="../contributing/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    概览
+    Overview
   
 
     
@@ -1390,14 +1284,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contributing/backend/" class="md-nav__link">
+      <a href="../backend/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    后端
+    Backend
   
 
     
@@ -1415,17 +1309,44 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../contributing/frontend/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Frontend
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    前端
+    Frontend
   
 
     
@@ -1434,6 +1355,186 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#setup" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Setup
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#module-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#entry-global" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry &amp; Global
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Map
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-scene-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search &amp; Scene Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jobs-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs &amp; Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#utilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-communication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Communication
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#settings-panel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings Panel
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#adding-a-new-component" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Adding a New Component
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vite-proxy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vite Proxy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Output
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Style
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1459,7 +1560,7 @@
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="目录">
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
   
   
   
@@ -1468,15 +1569,15 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      目录
+      Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#setup" class="md-nav__link">
     <span class="md-ellipsis">
       
-        设置
+        Setup
       
     </span>
   </a>
@@ -1484,10 +1585,93 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#module-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
-        搜索场景
+        Module Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#entry-global" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Entry &amp; Global
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#map" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Map
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#search-scene-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search &amp; Scene Selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#jobs-results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Jobs &amp; Results
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#settings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Settings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#utilities" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utilities
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#backend-communication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backend Communication
       
     </span>
   </a>
@@ -1495,10 +1679,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#settings-panel" class="md-nav__link">
     <span class="md-ellipsis">
       
-        下载
+        Settings Panel
       
     </span>
   </a>
@@ -1506,10 +1690,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_5" class="md-nav__link">
+  <a href="#adding-a-new-component" class="md-nav__link">
     <span class="md-ellipsis">
       
-        下载轨道文件
+        Adding a New Component
       
     </span>
   </a>
@@ -1517,10 +1701,32 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_6" class="md-nav__link">
+  <a href="#vite-proxy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        添加任务
+        Vite Proxy
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Output
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#code-style" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Code Style
       
     </span>
   </a>
@@ -1547,53 +1753,211 @@
   
 
 
-<h1 id="_1">搜索与下载</h1>
-<h2 id="_2">设置</h2>
-<p>默认情况下，工作目录为运行 <code>insarhub-app</code> 时所在的目录，用户可在设置中指定工作目录。</p>
-<!-- screenshot: settings panel open -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/settings_light.png#only-light" data-desc-position="bottom"><img alt="设置面板" class="doc-img" src="../../../frontend/fig/settings_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/settings_dark.png#only-dark" data-desc-position="bottom"><img alt="设置面板" class="doc-img" src="../../../frontend/fig/settings_dark.png#only-dark"></a></p>
-<figcaption>
-<p>设置面板，显示工作目录和 API 配置。</p>
-</figcaption>
-</figure>
-<hr>
-<h2 id="_3">搜索场景</h2>
+<h1 id="frontend-contributing-guide">Frontend Contributing Guide</h1>
+<p>The frontend is a React 19 + TypeScript single-page app built with Vite. It communicates with the FastAPI backend exclusively via <code>/api/*</code> endpoints.</p>
+<h2 id="setup">Setup</h2>
+<p>Install Node.js via conda if not already available:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>nodejs
+</span></code></pre></div>
+<p>Then install dependencies and start the dev server:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nb">cd</span><span class="w"> </span>src/insarhub/app/frontend
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>npm<span class="w"> </span>install
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>npm<span class="w"> </span>run<span class="w"> </span>dev<span class="w">        </span><span class="c1"># dev server on :5173, proxies /api → :8080</span>
+</span></code></pre></div>
+<p>In a separate terminal, navigate to the InSARHub root and start the backend with uvicorn:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/InSARHub
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uvicorn<span class="w"> </span>insarhub.app.api:app<span class="w"> </span>--reload<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span>
+</span></code></pre></div>
+<p><code>--reload</code> restarts the server automatically on source changes. Keep this terminal open while developing.</p>
+<p>To build for production (output goes into <code>src/insarhub/app/static/</code>):</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>npm<span class="w"> </span>run<span class="w"> </span>build
+</span></code></pre></div>
+<h2 id="module-reference">Module Reference</h2>
+<h3 id="entry-global">Entry &amp; Global</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>main.tsx</code></td>
+<td>React entry point. Mounts <code>&lt;App&gt;</code> into <code>#root</code>.</td>
+</tr>
+<tr>
+<td><code>App.tsx</code></td>
+<td>Root component. Owns all global state: search results, selected stack/scene, AOI, dark/light theme, raster overlay. Composes the full layout and issues top-level API calls (search, pair selection).</td>
+</tr>
+<tr>
+<td><code>theme.ts</code></td>
+<td>Light/dark theme token objects (<code>DARK</code>, <code>LIGHT</code>) — colors, borders, accents. Passed as props to all components; no CSS-in-JS or MUI required.</td>
+</tr>
+<tr>
+<td><code>geoUtils.ts</code></td>
+<td>Geometry helpers: <code>geometryToWkt</code>, <code>bboxToWkt</code>, <code>getGeometryBbox</code>. Converts GeoJSON geometry to WKT strings for the backend search API.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="map">Map</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Map.tsx</code></td>
+<td>MapLibre GL wrapper. Renders stack footprints as a GeoJSON layer, AOI polygon, and raster overlays (processed results). Handles all draw modes (box/polygon/pin), fires <code>onAoiDrawn</code> with WKT on completion. Reports hover coordinates and pixel values from raster overlays.</td>
+</tr>
+<tr>
+<td><code>MapToolbar.tsx</code></td>
+<td>Left-side floating toolbar: draw mode selector (box / polygon / pin / none), AOI clear button, shapefile upload, live mouse-coordinate display, and raster pixel value readout.</td>
+</tr>
+<tr>
+<td><code>DrawToolbar.tsx</code></td>
+<td>Minimal floating draw buttons overlaid on the map left edge. Thin wrapper around draw mode state and shapefile <code>&lt;input&gt;</code>.</td>
+</tr>
+<tr>
+<td><code>BasemapSwitcher.tsx</code></td>
+<td>Floating basemap toggle dropdown (Street / Satellite / Topo).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="search-scene-selection">Search &amp; Scene Selection</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TopBar.tsx</code></td>
+<td>App header. Contains downloader type selector, AOI WKT text input, date range pickers, search button, filter badge, jobs drawer toggle, settings toggle, and theme toggle.</td>
+</tr>
+<tr>
+<td><code>SearchFilters.tsx</code></td>
+<td>Advanced filter popover: flight direction, path/frame range, max results, and granule-name file upload (parses <code>.txt</code>/<code>.csv</code>). Exposes <code>Filters</code> type and <code>DEFAULT_FILTERS</code> used by <code>App.tsx</code>.</td>
+</tr>
+<tr>
+<td><code>StackSummaryDrawer.tsx</code></td>
+<td>List of all stacks returned by search (grouped by path/frame). Displays scene count, date range, and flight direction per stack. Click a row to open <code>ScenePanel</code> for that stack.</td>
+</tr>
+<tr>
+<td><code>ScenePanel.tsx</code></td>
+<td>Per-stack detail sidebar. Shows all SLC scenes in the stack, triggers pair selection (<code>/api/select-pairs</code>), exposes download and orbit-download controls, and links to pair quality scoring. Persists active job IDs across remounts.</td>
+</tr>
+<tr>
+<td><code>StackSceneList.tsx</code></td>
+<td>Compact scene list used inside <code>ScenePanel</code>. Renders acquisition date, platform (S1A/S1B), and product type per row. Click to open <code>SceneDetailPanel</code>.</td>
+</tr>
+<tr>
+<td><code>SceneDetailPanel.tsx</code></td>
+<td>Single-scene metadata card: acquisition time, file size, orbit direction, platform, ASF URL.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="jobs-results">Jobs &amp; Results</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>JobQueueDrawer.tsx</code></td>
+<td>Main job management panel (resizable). Browses workdir subfolders, shows per-folder status, and exposes per-folder actions: submit processor, refresh HyP3 status, download, retry, run analyzer. Also handles loading raster overlays (velocity/timeseries) onto the map. Owns <code>RasterOverlay</code> type exported to <code>App.tsx</code> and <code>Map.tsx</code>.</td>
+</tr>
+<tr>
+<td><code>NetworkEditor.tsx</code></td>
+<td>Interactive interferogram pair network graph rendered with <strong>Pixi.js v8</strong>. X-axis = acquisition date, Y-axis = perpendicular baseline. Click an edge to toggle it active/removed. Scroll to zoom, drag to pan. Communicates pair edits back to <code>JobQueueDrawer</code> via callback.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="settings">Settings</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SettingsPanel.tsx</code></td>
+<td>Settings modal. Fetches the <code>_ui_groups</code> / <code>_ui_fields</code> schema from <code>/api/settings-schema</code> and renders downloader, processor, and analyzer config fields dynamically. Saves changes to the backend via <code>/api/settings</code>. Only needs code changes for custom UI behaviour (file pickers, modals, dependent fields).</td>
+</tr>
+</tbody>
+</table>
+<h3 id="utilities">Utilities</h3>
+<table>
+<thead>
+<tr>
+<th>File</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>StatusBar.tsx</code></td>
+<td>Bottom status bar showing a background job message and animated progress bar (0–100). Hidden when <code>message</code> is empty.</td>
+</tr>
+<tr>
+<td><code>assets/icons.tsx</code></td>
+<td>Inline SVG icon components used across the toolbar and buttons.</td>
+</tr>
+</tbody>
+</table>
+<blockquote>
+<p><strong>Note:</strong> <code>SearchBar.tsx</code> exists in the source tree but is not imported anywhere — it is unused legacy code.</p>
+</blockquote>
+<h2 id="backend-communication">Backend Communication</h2>
+<p>All API calls go through <code>fetch</code>. Long-running jobs return a <code>job_id</code> immediately; the frontend polls <code>/api/job-status/{job_id}</code> until <code>status</code> is <code>"done"</code> or <code>"error"</code>.</p>
+<div class="language-typescript highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1">// Submit a job</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kd">const</span><span class="w"> </span><span class="nx">res</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="s1">'/api/my-action'</span><span class="p">,</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">  </span><span class="nx">method</span><span class="o">:</span><span class="w"> </span><span class="s1">'POST'</span><span class="p">,</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nx">headers</span><span class="o">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="s1">'Content-Type'</span><span class="o">:</span><span class="w"> </span><span class="s1">'application/json'</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nx">body</span><span class="o">:</span><span class="w"> </span><span class="kt">JSON.stringify</span><span class="p">(</span><span class="nx">payload</span><span class="p">),</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">});</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="kd">const</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nx">job_id</span><span class="w"> </span><span class="p">}</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="c1">// Poll for completion</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="kd">const</span><span class="w"> </span><span class="nx">poll</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">setInterval</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">  </span><span class="kd">const</span><span class="w"> </span><span class="nx">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">await</span><span class="w"> </span><span class="nx">fetch</span><span class="p">(</span><span class="sb">`/api/job-status/</span><span class="si">${</span><span class="nx">job_id</span><span class="si">}</span><span class="sb">`</span><span class="p">).</span><span class="nx">then</span><span class="p">(</span><span class="nx">r</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="nx">r</span><span class="p">.</span><span class="nx">json</span><span class="p">());</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="nx">s</span><span class="p">.</span><span class="nx">status</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">'done'</span><span class="w"> </span><span class="o">||</span><span class="w"> </span><span class="nx">s</span><span class="p">.</span><span class="nx">status</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="s1">'error'</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="w">    </span><span class="nx">clearInterval</span><span class="p">(</span><span class="nx">poll</span><span class="p">);</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">    </span><span class="c1">// handle result</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="w">  </span><span class="p">}</span>
+</span><span id="__span-4-16"><a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="p">},</span><span class="w"> </span><span class="mf">1000</span><span class="p">);</span>
+</span></code></pre></div>
+<h2 id="settings-panel">Settings Panel</h2>
+<p><code>SettingsPanel.tsx</code> renders config fields dynamically from the backend's <code>_ui_groups</code> / <code>_ui_fields</code> schema — no code changes needed when adding a new backend config field. The schema is fetched from <code>/api/settings-schema</code>.</p>
+<p>Only add React code to <code>SettingsPanel.tsx</code> when you need custom UI behaviour (e.g. a modal, a file picker, a dependent field).</p>
+<h2 id="adding-a-new-component">Adding a New Component</h2>
 <ol>
-<li>在地图上绘制 AOI</li>
-<li>设置日期范围并选择下载器（默认为 <code>S1_SLC</code>）</li>
-<li>点击<strong>搜索</strong></li>
+<li>Create <code>src/MyComponent.tsx</code>.</li>
+<li>Keep state local unless multiple components need it — lift to <code>App.tsx</code> only when necessary.</li>
+<li>Use MUI components for consistency with the existing UI (<code>@mui/material</code>).</li>
+<li>Dark/light mode is handled by the MUI theme — avoid hardcoded color values; use <code>theme.palette.*</code> instead.</li>
 </ol>
-<!-- screenshot: search panel with results -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/search_light.png#only-light" data-desc-position="bottom"><img alt="搜索面板" class="doc-img" src="../../../frontend/fig/search_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/search_dark.png#only-dark" data-desc-position="bottom"><img alt="搜索面板" class="doc-img" src="../../../frontend/fig/search_dark.png#only-dark"></a></p>
-<figcaption>
-<p>搜索面板，显示可用的 Sentinel-1 堆叠。</p>
-</figcaption>
-</figure>
-<p>搜索结果以覆盖范围轮廓显示在地图上。点击任意轮廓打开<strong>场景详情</strong>面板，显示获取元数据，包括平台、轨道、波束模式、极化方式、文件大小和该场景的下载选项。</p>
-<p>在场景详情面板中点击 <strong>▸ 查看详情</strong> 展开任务抽屉，显示堆叠中所有单独场景的完整列表。点击 <strong>◂ 隐藏详情</strong> 收起。</p>
-<!-- screenshot: search results footprints on map -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/search_results_light.png#only-light" data-desc-position="bottom"><img alt="搜索结果" class="doc-img" src="../../../frontend/fig/search_results_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/search_results_dark.png#only-dark" data-desc-position="bottom"><img alt="搜索结果" class="doc-img" src="../../../frontend/fig/search_results_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>地图上显示的搜索结果覆盖范围。点击轮廓查看场景详情。</p>
-</figcaption>
-</figure>
-<hr>
-<h2 id="_4">下载</h2>
-<p>点击<strong>下载堆叠</strong>开始将所选堆叠的场景下载至工作目录。下载过程中实时显示进度，可随时停止。</p>
-<p>有关所有下载器参数和选项的完整说明，请参阅<a href="../../advanced/downloader/">下载器参考</a>。</p>
-<h2 id="_5">下载轨道文件</h2>
-<p>点击<strong>下载轨道文件</strong>下载堆叠对应的精密轨道文件。轨道文件是精确 InSAR 处理所必需的，将与场景数据一起保存在工作目录中。</p>
-<h2 id="_6">添加任务</h2>
-<p>点击<strong>添加任务</strong>将所选堆叠注册为任务面板中的任务。这会保存堆叠配置以便将来下载和处理，不会立即开始下载。</p>
-<hr>
-<p>添加任务后，前往处理器面板选择干涉图配对并提交处理。</p>
-<p><a class="md-button" href="../processor/">处理器</a></p>
+<h2 id="vite-proxy">Vite Proxy</h2>
+<p>The dev server proxies <code>/api/*</code> to <code>http://127.0.0.1:8080</code> (configured in <code>vite.config.ts</code>). This means the frontend dev server and the backend must both be running during development.</p>
+<h2 id="build-output">Build Output</h2>
+<p><code>npm run build</code> runs <code>tsc -b &amp;&amp; vite build</code>. Output lands in <code>src/insarhub/app/static/</code> and is served by FastAPI as static files. Commit the built output when preparing a release.</p>
+<h2 id="code-style">Code Style</h2>
+<ul>
+<li>TypeScript strict mode is enabled — avoid <code>any</code>.</li>
+<li>Prefer functional components and hooks.</li>
+<li>Keep components focused — if a component exceeds ~200 lines, consider splitting it.</li>
+<li>Do not add comments explaining what the code does; variable and function names should be self-explanatory.</li>
+</ul>
 
 
 
@@ -1619,7 +1983,7 @@
           <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
-  回到页面顶部
+  Back to top
 </button>
         
       </main>
@@ -1674,10 +2038,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
       
     
   

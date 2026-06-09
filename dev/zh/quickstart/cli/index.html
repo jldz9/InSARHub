@@ -344,6 +344,26 @@
   
 
       
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../contributing/contributing/" class="md-tabs__link">
+          
+  
+  
+  贡献指南
+
+        </a>
+      </li>
+    
+  
+
+      
     </ul>
   </div>
 </nav>
@@ -1624,6 +1644,151 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    贡献指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    贡献指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -2604,6 +2769,11 @@
 <td>将每个步骤作为独立的 SLURM <code>sbatch</code> 作业提交</td>
 </tr>
 <tr>
+<td><code>--max_concurrent_hpc</code></td>
+<td><code>12</code></td>
+<td>每个步骤中同时运行的最大子作业数</td>
+</tr>
+<tr>
 <td><code>--coregistration</code></td>
 <td><code>NESD</code></td>
 <td><code>NESD</code>（推荐）或 <code>geometry</code></td>
@@ -2643,12 +2813,12 @@
 </span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
 <div class="admonition note">
-<p class="admonition-title"><abbr title="High Performance Computing">HPC</abbr> 模式与 <code>sbatch_options.json</code></p>
-<p>当设置 <code>--hpc_mode True</code> 时，<code>submit</code> 会自动加载 <code>&lt;workdir&gt;/sbatch_options.json</code> 以
-配置每个步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。</p>
+<p class="admonition-title"><abbr title="High Performance Computing">HPC</abbr> 模式 — 滑动窗口管理器</p>
+<p>设置 <code>--hpc_mode True</code> 后，每个处理步骤都通过轻量级 SLURM <strong>管理器作业</strong>运行。管理器随时保持最多 <code>--max_concurrent_hpc</code> 个子作业同时活跃，有空槽时立即补充新作业。步骤之间通过 <code>--dependency=afterok</code> 自动串联。命令数相同的连续步骤会自动合并为单个组管理器作业。</p>
+<p>每个 sbatch 脚本会按命令记录带耗时秒数的 <code>START</code>、<code>DONE</code>、<code>FAIL</code> 日志行。</p>
+<p><strong><code>sbatch_options.json</code></strong> — 从 <code>&lt;workdir&gt;/sbatch_options.json</code> 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。</p>
 <ul>
-<li>若<strong>未找到</strong> <code>sbatch_options.json</code>，将在该路径创建一个包含 16 个步骤的默认模板，
-  并提示在重新提交前先编辑该文件。</li>
+<li>若<strong>未找到</strong> <code>sbatch_options.json</code>，将创建 16 步骤的默认模板，并提示重新提交前先编辑该文件。</li>
 <li>若存在旧版运行的 <code>srun_options.json</code>，将自动迁移为 <code>sbatch_options.json</code>。</li>
 </ul>
 <p>编辑 <code>sbatch_options.json</code> 以设置每个步骤的资源，然后重新运行 <code>submit</code>。</p>
@@ -2692,7 +2862,7 @@
 </span></code></pre></div>
 </details>
 <h4 id="retry_1">retry</h4>
-<p>重新运行所有失败的步骤。</p>
+<p>重新运行所有失败的步骤。<abbr title="High Performance Computing">HPC</abbr> 模式会从已保存的作业元数据中自动检测，无需再次传入 <code>--hpc_mode</code>。</p>
 <table>
 <thead>
 <tr>

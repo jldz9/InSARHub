@@ -342,6 +342,26 @@
   
 
       
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../contributing/contributing/" class="md-tabs__link">
+          
+  
+  
+  Contributing
+
+        </a>
+      </li>
+    
+  
+
+      
     </ul>
   </div>
 </nav>
@@ -1622,6 +1642,151 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Contributing
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Frontend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -2602,6 +2767,11 @@
 <td>Submit each step as a separate SLURM <code>sbatch</code> job</td>
 </tr>
 <tr>
+<td><code>--max_concurrent_hpc</code></td>
+<td><code>12</code></td>
+<td>Maximum number of child jobs running in parallel per step</td>
+</tr>
+<tr>
 <td><code>--coregistration</code></td>
 <td><code>NESD</code></td>
 <td><code>NESD</code> (recommended) or <code>geometry</code></td>
@@ -2641,12 +2811,12 @@
 </span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
 <div class="admonition note">
-<p class="admonition-title"><abbr title="High Performance Computing">HPC</abbr> mode and <code>sbatch_options.json</code></p>
-<p>When <code>--hpc_mode True</code> is set, <code>submit</code> automatically loads <code>&lt;workdir&gt;/sbatch_options.json</code> to
-configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.).</p>
+<p class="admonition-title"><abbr title="High Performance Computing">HPC</abbr> mode — sliding-window manager</p>
+<p>When <code>--hpc_mode True</code> is set, each processing step runs as a lightweight SLURM <strong>manager job</strong>. The manager keeps at most <code>--max_concurrent_hpc</code> child jobs active at any time, submitting new ones immediately when a slot opens. Steps are chained via <code>--dependency=afterok</code> so they run sequentially. Consecutive steps with the same number of commands are merged into a single group-manager job automatically.</p>
+<p>Each sbatch script logs <code>START</code>, <code>DONE</code>, and <code>FAIL</code> lines with elapsed seconds per command.</p>
+<p><strong><code>sbatch_options.json</code></strong> — loaded automatically from <code>&lt;workdir&gt;/sbatch_options.json</code> to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.).</p>
 <ul>
-<li>If <code>sbatch_options.json</code> is <strong>not found</strong>, a default 16-step template is created at that path and
-  <code>submit</code> prints a reminder to edit it before resubmitting.</li>
+<li>If <code>sbatch_options.json</code> is <strong>not found</strong>, a default 16-step template is created and <code>submit</code> prints a reminder to edit it before resubmitting.</li>
 <li>If <code>srun_options.json</code> exists from an older run, it is migrated to <code>sbatch_options.json</code> automatically.</li>
 </ul>
 <p>Edit <code>sbatch_options.json</code> to set resources per step, then re-run <code>submit</code>.</p>
@@ -2690,7 +2860,7 @@ configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.).</p
 </span></code></pre></div>
 </details>
 <h4 id="retry_1">retry</h4>
-<p>Re-run all failed steps.</p>
+<p>Re-run all failed steps. <abbr title="High Performance Computing">HPC</abbr> mode is detected automatically from saved job metadata — no need to pass <code>--hpc_mode</code> again.</p>
 <table>
 <thead>
 <tr>

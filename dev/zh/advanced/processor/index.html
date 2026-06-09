@@ -344,6 +344,26 @@
   
 
       
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../../contributing/contributing/" class="md-tabs__link">
+          
+  
+  
+  贡献指南
+
+        </a>
+      </li>
+    
+  
+
+      
     </ul>
   </div>
 </nav>
@@ -1377,6 +1397,151 @@
   
 
     
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    贡献指南
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    贡献指南
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    概览
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/backend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    后端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    前端
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -2200,7 +2365,10 @@ Higher values apply stronger filtering.</p>
 <span class="normal"><a href="#__codelineno-0-345">345</a></span>
 <span class="normal"><a href="#__codelineno-0-346">346</a></span>
 <span class="normal"><a href="#__codelineno-0-347">347</a></span>
-<span class="normal"><a href="#__codelineno-0-348">348</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-255"><a id="__codelineno-0-255" name="__codelineno-0-255"></a><span class="nd">@dataclass</span>
+<span class="normal"><a href="#__codelineno-0-348">348</a></span>
+<span class="normal"><a href="#__codelineno-0-349">349</a></span>
+<span class="normal"><a href="#__codelineno-0-350">350</a></span>
+<span class="normal"><a href="#__codelineno-0-351">351</a></span></pre></div></td><td class="code"><div><pre><span></span><code><span id="__span-0-255"><a id="__codelineno-0-255" name="__codelineno-0-255"></a><span class="nd">@dataclass</span>
 </span><span id="__span-0-256"><a id="__codelineno-0-256" name="__codelineno-0-256"></a><span class="k">class</span><span class="w"> </span><span class="nc">Hyp3_S1_Config</span><span class="p">(</span><span class="n">Hyp3_Base_Config</span><span class="p">):</span>
 </span><span id="__span-0-257"><a id="__codelineno-0-257" name="__codelineno-0-257"></a><span class="w">    </span><span class="sd">"""</span>
 </span><span id="__span-0-258"><a id="__codelineno-0-258" name="__codelineno-0-258"></a><span class="sd">    Configuration options for `hyp3_sdk` InSAR GAMMA processing jobs.</span>
@@ -2258,7 +2426,7 @@ Higher values apply stronger filtering.</p>
 </span><span id="__span-0-310"><a id="__codelineno-0-310" name="__codelineno-0-310"></a>         <span class="s2">"fields"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"include_dem"</span><span class="p">,</span> <span class="s2">"include_look_vectors"</span><span class="p">,</span> <span class="s2">"include_inc_map"</span><span class="p">,</span>
 </span><span id="__span-0-311"><a id="__codelineno-0-311" name="__codelineno-0-311"></a>                    <span class="s2">"include_los_displacement"</span><span class="p">,</span> <span class="s2">"include_wrapped_phase"</span><span class="p">,</span> <span class="s2">"include_displacement_maps"</span><span class="p">]},</span>
 </span><span id="__span-0-312"><a id="__codelineno-0-312" name="__codelineno-0-312"></a>        <span class="p">{</span><span class="s2">"label"</span><span class="p">:</span> <span class="s2">"Job"</span><span class="p">,</span>
-</span><span id="__span-0-313"><a id="__codelineno-0-313" name="__codelineno-0-313"></a>         <span class="s2">"fields"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"skip_existing"</span><span class="p">,</span> <span class="s2">"submission_chunk_size"</span><span class="p">]},</span>
+</span><span id="__span-0-313"><a id="__codelineno-0-313" name="__codelineno-0-313"></a>         <span class="s2">"fields"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"skip_existing"</span><span class="p">,</span> <span class="s2">"submission_chunk_size"</span><span class="p">,</span> <span class="s2">"max_workers"</span><span class="p">]},</span>
 </span><span id="__span-0-314"><a id="__codelineno-0-314" name="__codelineno-0-314"></a>    <span class="p">]</span>
 </span><span id="__span-0-315"><a id="__codelineno-0-315" name="__codelineno-0-315"></a>    <span class="n">_ui_fields</span><span class="p">:</span> <span class="n">ClassVar</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">=</span> <span class="p">{</span>
 </span><span id="__span-0-316"><a id="__codelineno-0-316" name="__codelineno-0-316"></a>        <span class="s2">"looks"</span><span class="p">:</span>                    <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"select"</span><span class="p">,</span> <span class="s2">"options"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"20x4"</span><span class="p">,</span> <span class="s2">"10x2"</span><span class="p">],</span>
@@ -2279,21 +2447,24 @@ Higher values apply stronger filtering.</p>
 </span><span id="__span-0-331"><a id="__codelineno-0-331" name="__codelineno-0-331"></a>        <span class="s2">"submission_chunk_size"</span><span class="p">:</span>    <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">500</span><span class="p">,</span> <span class="s2">"step"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
 </span><span id="__span-0-332"><a id="__codelineno-0-332" name="__codelineno-0-332"></a>                                     <span class="s2">"default"</span><span class="p">:</span> <span class="mi">200</span><span class="p">,</span>
 </span><span id="__span-0-333"><a id="__codelineno-0-333" name="__codelineno-0-333"></a>                                     <span class="s2">"hint"</span><span class="p">:</span> <span class="s2">"Jobs per API batch request"</span><span class="p">},</span>
-</span><span id="__span-0-334"><a id="__codelineno-0-334" name="__codelineno-0-334"></a>    <span class="p">}</span>
-</span><span id="__span-0-335"><a id="__codelineno-0-335" name="__codelineno-0-335"></a>    <span class="c1"># ─────────────────────────────────────────────────────────────────────────</span>
-</span><span id="__span-0-336"><a id="__codelineno-0-336" name="__codelineno-0-336"></a>
-</span><span id="__span-0-337"><a id="__codelineno-0-337" name="__codelineno-0-337"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Hyp3_S1_Config"</span>
-</span><span id="__span-0-338"><a id="__codelineno-0-338" name="__codelineno-0-338"></a>    <span class="n">pairs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-</span><span id="__span-0-339"><a id="__codelineno-0-339" name="__codelineno-0-339"></a>    <span class="n">name_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s1">'ifg'</span>
-</span><span id="__span-0-340"><a id="__codelineno-0-340" name="__codelineno-0-340"></a>    <span class="n">include_look_vectors</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-341"><a id="__codelineno-0-341" name="__codelineno-0-341"></a>    <span class="n">include_los_displacement</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
-</span><span id="__span-0-342"><a id="__codelineno-0-342" name="__codelineno-0-342"></a>    <span class="n">include_inc_map</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-343"><a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="n">looks</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">'20x4'</span>
-</span><span id="__span-0-344"><a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="n">include_dem</span> <span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-345"><a id="__codelineno-0-345" name="__codelineno-0-345"></a>    <span class="n">include_wrapped_phase</span> <span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
-</span><span id="__span-0-346"><a id="__codelineno-0-346" name="__codelineno-0-346"></a>    <span class="n">apply_water_mask</span> <span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-347"><a id="__codelineno-0-347" name="__codelineno-0-347"></a>    <span class="n">include_displacement_maps</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
-</span><span id="__span-0-348"><a id="__codelineno-0-348" name="__codelineno-0-348"></a>    <span class="n">phase_filter_parameter</span> <span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.6</span>
+</span><span id="__span-0-334"><a id="__codelineno-0-334" name="__codelineno-0-334"></a>        <span class="s2">"max_workers"</span><span class="p">:</span>              <span class="p">{</span><span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">16</span><span class="p">,</span> <span class="s2">"step"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span id="__span-0-335"><a id="__codelineno-0-335" name="__codelineno-0-335"></a>                                     <span class="s2">"default"</span><span class="p">:</span> <span class="mi">4</span><span class="p">,</span>
+</span><span id="__span-0-336"><a id="__codelineno-0-336" name="__codelineno-0-336"></a>                                     <span class="s2">"hint"</span><span class="p">:</span> <span class="s2">"Parallel download threads for completed job outputs (default 4)"</span><span class="p">},</span>
+</span><span id="__span-0-337"><a id="__codelineno-0-337" name="__codelineno-0-337"></a>    <span class="p">}</span>
+</span><span id="__span-0-338"><a id="__codelineno-0-338" name="__codelineno-0-338"></a>    <span class="c1"># ─────────────────────────────────────────────────────────────────────────</span>
+</span><span id="__span-0-339"><a id="__codelineno-0-339" name="__codelineno-0-339"></a>
+</span><span id="__span-0-340"><a id="__codelineno-0-340" name="__codelineno-0-340"></a>    <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"Hyp3_S1_Config"</span>
+</span><span id="__span-0-341"><a id="__codelineno-0-341" name="__codelineno-0-341"></a>    <span class="n">pairs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
+</span><span id="__span-0-342"><a id="__codelineno-0-342" name="__codelineno-0-342"></a>    <span class="n">name_prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="s1">'ifg'</span>
+</span><span id="__span-0-343"><a id="__codelineno-0-343" name="__codelineno-0-343"></a>    <span class="n">include_look_vectors</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+</span><span id="__span-0-344"><a id="__codelineno-0-344" name="__codelineno-0-344"></a>    <span class="n">include_los_displacement</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+</span><span id="__span-0-345"><a id="__codelineno-0-345" name="__codelineno-0-345"></a>    <span class="n">include_inc_map</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+</span><span id="__span-0-346"><a id="__codelineno-0-346" name="__codelineno-0-346"></a>    <span class="n">looks</span><span class="p">:</span><span class="nb">str</span><span class="o">=</span><span class="s1">'20x4'</span>
+</span><span id="__span-0-347"><a id="__codelineno-0-347" name="__codelineno-0-347"></a>    <span class="n">include_dem</span> <span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+</span><span id="__span-0-348"><a id="__codelineno-0-348" name="__codelineno-0-348"></a>    <span class="n">include_wrapped_phase</span> <span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">False</span>
+</span><span id="__span-0-349"><a id="__codelineno-0-349" name="__codelineno-0-349"></a>    <span class="n">apply_water_mask</span> <span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+</span><span id="__span-0-350"><a id="__codelineno-0-350" name="__codelineno-0-350"></a>    <span class="n">include_displacement_maps</span><span class="p">:</span><span class="nb">bool</span><span class="o">=</span><span class="kc">True</span>
+</span><span id="__span-0-351"><a id="__codelineno-0-351" name="__codelineno-0-351"></a>    <span class="n">phase_filter_parameter</span> <span class="p">:</span><span class="nb">float</span><span class="o">=</span><span class="mf">0.6</span>
 </span></code></pre></div></td></tr></tbody></table></div>
               </details>
 
@@ -2790,15 +2961,17 @@ is pre-downloaded using bbox.</p>
 </div></li>
 <li>
 <p><strong>提交（HPC / SLURM 模式）</strong></p>
-<p>在配置中设置 <code>hpc_mode=True</code>，将每个步骤作为单独的 <code>sbatch</code> 任务提交。</p>
+<p>设置 <code>hpc_mode=True</code> 启用滑动窗口 SLURM 管理器。每个步骤提交一个轻量级管理器作业，管理器随时保持最多 <code>max_concurrent_hpc</code> 个子作业同时运行，有空槽时立即补充。命令数相同的连续步骤自动合并为单个组管理器。步骤之间通过 <code>--dependency=afterok</code> 串联。每个 sbatch 脚本按命令记录带耗时秒数的 <code>START</code>/<code>DONE</code>/<code>FAIL</code> 日志。</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE_S1_Config</span><span class="p">(</span>
 </span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>    <span class="n">workdir</span><span class="o">=</span><span class="s1">'/data/p100_f466'</span><span class="p">,</span>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">33.0</span><span class="p">,</span> <span class="mf">38.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">120.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">115.0</span><span class="p">],</span>
 </span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">hpc_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="p">)</span>
-</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
-</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="n">max_concurrent_hpc</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span>   <span class="c1"># 默认值；根据集群公平份额限制调整</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="p">)</span>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
 </span></code></pre></div>
+<p><code>retry()</code> 从已保存的作业元数据（<code>slurm_job_ids</code> / <code>hpc_manager</code> / <code>hpc_array</code>）自动检测 HPC 模式，无需再次传入 <code>hpc_mode=True</code>。</p>
 </li>
 <li>
 <p><strong>试运行</strong></p>

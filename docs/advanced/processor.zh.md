@@ -202,17 +202,20 @@ Processor.available()
 
     - **提交（HPC / SLURM 模式）**
 
-        在配置中设置 `hpc_mode=True`，将每个步骤作为单独的 `sbatch` 任务提交。
+        设置 `hpc_mode=True` 启用滑动窗口 SLURM 管理器。每个步骤提交一个轻量级管理器作业，管理器随时保持最多 `max_concurrent_hpc` 个子作业同时运行，有空槽时立即补充。命令数相同的连续步骤自动合并为单个组管理器。步骤之间通过 `--dependency=afterok` 串联。每个 sbatch 脚本按命令记录带耗时秒数的 `START`/`DONE`/`FAIL` 日志。
 
         ```python
         cfg = ISCE_S1_Config(
             workdir='/data/p100_f466',
             bbox=[33.0, 38.0, -120.0, -115.0],
             hpc_mode=True,
+            max_concurrent_hpc=12,   # 默认值；根据集群公平份额限制调整
         )
         processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
         processor.submit()
         ```
+
+        `retry()` 从已保存的作业元数据（`slurm_job_ids` / `hpc_manager` / `hpc_array`）自动检测 HPC 模式，无需再次传入 `hpc_mode=True`。
 
     - **试运行**
 

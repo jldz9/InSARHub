@@ -305,6 +305,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--slc_dir` | `<workdir>/slc` | Directory containing SLC `.SAFE` files |
     | `--orbit_dir` | `<workdir>/slc` | Directory containing `.EOF` orbit files |
     | `--hpc_mode` | `False` | Submit each step as a separate SLURM `sbatch` job |
+    | `--max_concurrent_hpc` | `12` | Maximum number of child jobs running in parallel per step |
     | `--coregistration` | `NESD` | `NESD` (recommended) or `geometry` |
     | `--looks_range` | `20` | Range looks |
     | `--looks_azimuth` | `4` | Azimuth looks |
@@ -325,12 +326,14 @@ insarhub processor [--list-processors] <action> [options]
         --bbox 33.0 38.0 -120.0 -115.0 --hpc_mode True
     ```
 
-    !!! note "HPC mode and `sbatch_options.json`"
-        When `--hpc_mode True` is set, `submit` automatically loads `<workdir>/sbatch_options.json` to
-        configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.).
+    !!! note "HPC mode — sliding-window manager"
+        When `--hpc_mode True` is set, each processing step runs as a lightweight SLURM **manager job**. The manager keeps at most `--max_concurrent_hpc` child jobs active at any time, submitting new ones immediately when a slot opens. Steps are chained via `--dependency=afterok` so they run sequentially. Consecutive steps with the same number of commands are merged into a single group-manager job automatically.
 
-        - If `sbatch_options.json` is **not found**, a default 16-step template is created at that path and
-          `submit` prints a reminder to edit it before resubmitting.
+        Each sbatch script logs `START`, `DONE`, and `FAIL` lines with elapsed seconds per command.
+
+        **`sbatch_options.json`** — loaded automatically from `<workdir>/sbatch_options.json` to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.).
+
+        - If `sbatch_options.json` is **not found**, a default 16-step template is created and `submit` prints a reminder to edit it before resubmitting.
         - If `srun_options.json` exists from an older run, it is migrated to `sbatch_options.json` automatically.
 
         Edit `sbatch_options.json` to set resources per step, then re-run `submit`.
@@ -363,7 +366,7 @@ insarhub processor [--list-processors] <action> [options]
 
     #### retry
 
-    Re-run all failed steps.
+    Re-run all failed steps. HPC mode is detected automatically from saved job metadata — no need to pass `--hpc_mode` again.
 
     | Flag | Default | Description |
     |------|---------|-------------|

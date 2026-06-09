@@ -1,5 +1,55 @@
 # Changelog
 
+## [0.3.2] - 2026-06-09
+
+### New Features
+
+- **HPC sliding-window submission** (`isce_base.py`) — each step now runs a lightweight sbatch manager job that keeps ≤`max_concurrent_hpc` child jobs active at all times, refilling immediately on completion. Replaces the old batch-sequential approach. Consecutive steps with equal command counts (e.g. `run_13`–`run_16`) are merged into a single group-manager. Steps are chained via `--dependency=afterok`.
+- **Per-command elapsed time in sbatch logs** (`isce_base.py`) — sbatch scripts print `START`/`DONE`/`FAIL` with elapsed seconds. Group tasks also print total elapsed across all grouped steps.
+
+### Bug Fixes
+
+- **HyP3 file paths** (`hyp3_base.py`) — `hyp3_jobs.json` now saves to workdir root (was `workdir/hyp3/`); downloaded ZIPs go to `workdir/hyp3/`; retry job files save to workdir root; legacy `out_dir=workdir` entries auto-migrate to `workdir/hyp3/`.
+- **`watch` command ignores `--interval` flag** (`cli/main.py`) — `_proc_local_watch` read `args.refresh_interval` but argparse stores it as `args.interval`; interval was always 60 s regardless of user input. Fixed.
+- **`insarhub processor refresh/download` re-processes retry job files** (`cli/main.py`) — `_find_job_files` globbed `hyp3*.json`, matching `hyp3_retry_jobs_<ts>.json` files from past runs alongside `hyp3_jobs.json`. On refresh/download, stale retry files were loaded as separate processors, causing duplicate downloads or incorrect status. Fixed: retry files excluded from glob.
+- **Orbit files downloaded twice** (`cli/main.py`) — `-d -O` flags triggered two orbit downloads. Fixed: skips explicit `download_orbit()` call when downloader already handled it.
+- **`retry()` runs locally after HPC submission** (`isce_base.py`, `cli/main.py`) — `hpc_mode` excluded from saved config, so retry defaulted to local. Fixed: `retry()` auto-detects HPC from job metadata (`slurm_job_ids`/`hpc_manager`/`hpc_array`) and writes it back to `config.hpc_mode` so `_step_executor()` routes correctly. `_load_local_processor` also restores `max_concurrent_hpc` and HPC config fields from `insarhub_config.json`.
+- **Manager job killed mid-run leaves step stuck PENDING** (`isce_base.py`) — `elif n_cmds > 0 and not job_ids:` was dead code (always False inside `if job_ids:` block); SLURM-killed managers with incomplete commands never resolved to FAILED. Fixed: condition is now `elif n_cmds > 0:`.
+- **`_parse_time_s` mis-parses 2-part SLURM time strings** (`isce_base.py`) — `"30:00"` was treated as 30 h 0 min (108,000 s) instead of 30 min 0 s (1,800 s), overestimating group-manager walltime 60×. Fixed: 2-part strings now parsed as MM:SS per SLURM spec.
+- **Group-manager step stuck PENDING when job gone from SLURM** (`isce_base.py`) — if `group_task_dir` was absent from saved metadata (old jobs), `n_cmds` resolved to 0, preventing the SUCCEEDED/FAILED transition. Fixed: `n_cmds` now stored in job metadata at submission; refresh uses it directly with file-count as fallback.
+- **`refresh()` shows only one RUNNING command in manager mode** (`isce_base.py`) — with sliding-window, multiple commands run concurrently but only one showed RUNNING. Fixed: per-command status now derived from `.done`/`.fail` files; all in-flight commands show RUNNING.
+
+### GUI
+
+- **Hyp3_S1 `max_workers` in settings panel** (`defaultconfig.py`) — parallel download threads now configurable via Job settings group (default 4, range 1–16).
+
+### Bug Fixes (additional)
+
+- **`Hyp3_SBAS` MintPy output in workdir root** (`mintpy_base.py`) — base class `run()` passed `self.workdir` to `TimeSeriesAnalysis`; `Hyp3_SBAS` inherits without override, so all MintPy outputs scattered to workdir root instead of `workdir/mintpy/`. Fixed: uses `self.mintpy_dir`; same correction for `_geocode_diagnostic_files`.
+- **ISCE cleanup misses `merged/interferograms`** (`isce_sbas.py`) — cleanup targeted `isce/interferograms/` (nonexistent); real stackSentinel output is `isce/merged/interferograms/`. Large intermediate files were never deleted.
+- **HyP3 auth failure submits to wrong user** (`hyp3_base.py`) — when re-auth failed for a pool user, `credits=0` was overwritten by `self.client.check_credits()` on the previous user's client; jobs were then submitted under the wrong account. Fixed: credits check guarded by auth result.
+- **`self.batchs` updated per-loop-iteration** (`hyp3_base.py`) — on multi-user refresh, if any user failed, their batch was silently dropped from `self.batchs`. Fixed: assignment moved after loop.
+- **Missing `filename` key in HyP3 file metadata crashes download** (`hyp3_base.py`) — direct dict subscript raised `KeyError` for auxiliary entries lacking `filename`. Fixed: `file_meta.get('filename')` with skip on empty.
+- **delete_job_folder blocks on `~`-prefixed workdir** (`settings.py`) — `Path(workdir)` without `expanduser().resolve()` made `relative_to()` always raise `ValueError`, returning 403 on every delete. Fixed.
+- **`_run_folder_select_pairs` uses `folder.parent` as workdir** (`folders.py`) — downloader config received parent directory instead of job folder; sub-paths written one level up, potentially colliding with sibling jobs. Fixed: `workdir=folder`.
+- **Analyzer stop_event leaks on step error** (`routes/analyzer.py`) — early `return` on step exception bypassed `_stop_events.pop(job_id)`, leaking events indefinitely. Fixed: pop before return.
+- **Refresh overwrites `.insarhub_cache.json` filenames with empty list** (`routes/processor.py`) — if no jobs had SUCCEEDED yet, `filenames=[]` overwrote a valid cache from a prior successful refresh. Fixed: preserves existing filenames when current refresh yields none.
+- **Retry job files appear as selectable job entries in GUI** (`routes/processor.py`) — `hyp3*.json` glob matched `hyp3_retry_jobs_<ts>.json`; selecting one for refresh returned only the retry batch status. Fixed: retry files excluded.
+
+### Refactor
+
+- **Centralized path layout** (`config/paths.py`) — `Hyp3Paths`, `ISCEPaths`, `MintPyPaths` dataclasses replace all hardcoded `workdir / "subdir"` strings across `hyp3_base.py`, `isce_base.py`, `isce_s1.py`, `mintpy_base.py`, `hyp3_sbas.py`.
+- **Path dataclass coverage extended** — remaining hardcoded path literals replaced with dataclass properties: `isce_sbas.py` now uses `ISCEPaths` for `isce_dir`, `slc_dir`, `dem_dir`; `cli/main.py` uses `Hyp3Paths`/`ISCEPaths` in `_has_zips` and `_find_job_file`; `utils/batch.py` and `utils/tool.py` use `Hyp3Paths.output_dir` for ZIP discovery.
+- **`Hyp3Processor` renamed to `CloudProcessor`** (`core/base.py`) — ABC renamed to reflect generic cloud-backend semantics rather than HyP3 specificity. Updated across `core/__init__.py`, `__init__.py`, `processor/hyp3_base.py`, `commands/processor.py`, `cli/main.py`, `core/engine.py`.
+
+### Docs
+
+- **Contributing guide** — new tab in MkDocs navigation (EN + ZH). Split into Overview, Backend, and Frontend pages.
+- **Backend contributing guide** — architecture overview, path conventions, per-section instructions for adding new processors/downloaders/analyzers. Each section includes a "Adding a New Base X" subsection (with code examples for `CloudProcessor`/`LocalProcessor`, `BaseDownloader`, `BaseAnalyzer`) and an "Extending an Existing Base X" subsection with switch tabs (`Hyp3Base`, `ISCE_Base`, `ASF_Base_Downloader`, `Mintpy_SBAS_Base_Analyzer`).
+- **Frontend contributing guide** — conda Node.js install, uvicorn backend startup from InSARHub root, module reference tables grouped by area (Entry & Global, Map, Search & Scene Selection, Jobs & Results, Settings, Utilities), backend communication pattern, settings panel, Vite proxy, build output, code style.
+
+---
+
 ## [0.3.1] - 2026-05-28
 
 ### Bug Fixes

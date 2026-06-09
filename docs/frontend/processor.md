@@ -178,6 +178,8 @@ Click **Process** to open the processor selection dialog.
 
     Select `ISCE_S1` and configure the required parameters — bounding box (`S N W E`), SLC directory, and optionally HPC mode. Click **Submit** to start `stackSentinel` locally in the background, or submit steps to SLURM with **HPC Mode** enabled.
 
+    In HPC mode, each step runs through a sliding-window SLURM manager that keeps at most **Max Concurrent HPC** (default 12) child jobs active at once. Steps are chained automatically via `--dependency=afterok`. **Retry** detects HPC mode from the saved job state — no reconfiguration needed after a failure.
+
     !!! tip "Dry run first"
         Enable **Dry Run** to preview run scripts and verify paths without executing. Recommended before the first real submission.
 

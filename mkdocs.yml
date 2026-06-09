@@ -61,6 +61,10 @@ nav:
         - Pair Quality Scoring: advanced/pair_quality.md
         - Frontend Reference: advanced/frontend.md
         - Program Structure: advanced/program_structure.md
+  - Contributing:
+        - Overview: contributing/contributing.md
+        - Backend: contributing/backend.md
+        - Frontend: contributing/frontend.md
 
 
 extra:
@@ -132,6 +136,10 @@ plugins:
             Results Viewer: 结果查看器
             Advanced: 高级
             Program Structure: 程序结构
+            Contributing: 贡献指南
+            Overview: 概览
+            Backend: 后端
+            Frontend: 前端
             File Structure: 文件结构
             Downloader: 下载器
             Utilities: 工具集

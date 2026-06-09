@@ -305,6 +305,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--slc_dir` | `<workdir>/slc` | 包含 SLC `.SAFE` 文件的目录 |
     | `--orbit_dir` | `<workdir>/slc` | 包含 `.EOF` 轨道文件的目录 |
     | `--hpc_mode` | `False` | 将每个步骤作为独立的 SLURM `sbatch` 作业提交 |
+    | `--max_concurrent_hpc` | `12` | 每个步骤中同时运行的最大子作业数 |
     | `--coregistration` | `NESD` | `NESD`（推荐）或 `geometry` |
     | `--looks_range` | `20` | 距离向视数 |
     | `--looks_azimuth` | `4` | 方位向视数 |
@@ -325,12 +326,14 @@ insarhub processor [--list-processors] <action> [options]
         --bbox 33.0 38.0 -120.0 -115.0 --hpc_mode True
     ```
 
-    !!! note "HPC 模式与 `sbatch_options.json`"
-        当设置 `--hpc_mode True` 时，`submit` 会自动加载 `<workdir>/sbatch_options.json` 以
-        配置每个步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。
+    !!! note "HPC 模式 — 滑动窗口管理器"
+        设置 `--hpc_mode True` 后，每个处理步骤都通过轻量级 SLURM **管理器作业**运行。管理器随时保持最多 `--max_concurrent_hpc` 个子作业同时活跃，有空槽时立即补充新作业。步骤之间通过 `--dependency=afterok` 自动串联。命令数相同的连续步骤会自动合并为单个组管理器作业。
 
-        - 若**未找到** `sbatch_options.json`，将在该路径创建一个包含 16 个步骤的默认模板，
-          并提示在重新提交前先编辑该文件。
+        每个 sbatch 脚本会按命令记录带耗时秒数的 `START`、`DONE`、`FAIL` 日志行。
+
+        **`sbatch_options.json`** — 从 `<workdir>/sbatch_options.json` 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。
+
+        - 若**未找到** `sbatch_options.json`，将创建 16 步骤的默认模板，并提示重新提交前先编辑该文件。
         - 若存在旧版运行的 `srun_options.json`，将自动迁移为 `sbatch_options.json`。
 
         编辑 `sbatch_options.json` 以设置每个步骤的资源，然后重新运行 `submit`。
@@ -363,7 +366,7 @@ insarhub processor [--list-processors] <action> [options]
 
     #### retry
 
-    重新运行所有失败的步骤。
+    重新运行所有失败的步骤。HPC 模式会从已保存的作业元数据中自动检测，无需再次传入 `--hpc_mode`。
 
     | 标志 | 默认值 | 描述 |
     |------|---------|-------------|

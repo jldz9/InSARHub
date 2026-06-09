@@ -202,17 +202,20 @@ Processor.available()
 
     - **Submit (HPC / SLURM mode)**
 
-        Set `hpc_mode=True` in the config to submit each step as a separate `sbatch` job instead of running locally.
+        Set `hpc_mode=True` to use the sliding-window SLURM manager. Each step submits a lightweight manager job that keeps at most `max_concurrent_hpc` child jobs active at all times, submitting new ones immediately as slots open. Consecutive steps with equal command counts are merged into a single group-manager. Steps are chained via `--dependency=afterok`. Each sbatch script logs `START`/`DONE`/`FAIL` with elapsed seconds per command.
 
         ```python
         cfg = ISCE_S1_Config(
             workdir='/data/p100_f466',
             bbox=[33.0, 38.0, -120.0, -115.0],
             hpc_mode=True,
+            max_concurrent_hpc=12,   # default; tune to your cluster's fair-share limit
         )
         processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
         processor.submit()
         ```
+
+        `retry()` auto-detects HPC mode from saved job metadata (`slurm_job_ids` / `hpc_manager` / `hpc_array`) — passing `hpc_mode=True` again is not required.
 
     - **Dry run**
 

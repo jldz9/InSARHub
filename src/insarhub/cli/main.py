@@ -2023,14 +2023,12 @@ def _az_run(args, extra_args: list[str]):
         for analysis_dir in analysis_dirs:
             label = analysis_dir.name if analysis_dir != workdir else workdir.name
             cfg_path = analysis_dir / ".mintpy.cfg"
-            if not cfg_path.exists():
-                print(f"\n[WARNING] No .mintpy.cfg found in [{label}]. "
-                      f"Run 'insarhub analyzer -N {args.analyzer_name} -w {analysis_dir} run --step prep_data' first.\n",
-                      file=sys.stderr)
-                continue
-            if overrides:
-                _update_mintpy_cfg(cfg_path, overrides)
-            values = _read_mintpy_cfg(cfg_path)
+            if cfg_path.exists():
+                if overrides:
+                    _update_mintpy_cfg(cfg_path, overrides)
+                values = _read_mintpy_cfg(cfg_path)
+            else:
+                values = {}
             _print_config_options(config_cls,
                                   display_label=f"{args.analyzer_name} [{label}]",
                                   skip_fields=_ANALYZER_SKIP_FIELDS,

@@ -107,7 +107,13 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
         # Merge user opts over defaults
         _defaults = {"time": "24:00:00", "ntasks": 1, "cpus_per_task": 16, "mem": "128G", "partition": "all"}
-        opts = {**_defaults, **(self.config.hpc_sbatch_opts or {})}
+        _raw = self.config.hpc_sbatch_opts or {}
+        if isinstance(_raw, str):
+            try:
+                _raw = json.loads(_raw)
+            except Exception:
+                _raw = {}
+        opts = {**_defaults, **_raw}
 
         _slurm_fields = {f.name for f in dataclasses.fields(Slurmjob_Config)}
         _skip = {"job_name", "output_file", "error_file", "command",

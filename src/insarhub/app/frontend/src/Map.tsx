@@ -259,7 +259,7 @@ export default function Map({
         const hits = map.queryRenderedFeatures(e.point, { layers: ['footprints-fill'] })
         if (hits.length > 0) return
         // Only fire timeseries / other empty-map actions when no footprint hit
-        onMapClickRef.current?.(e.lngLat.lat, e.lngLat.lng)
+        onMapClickRef.current?.(e.lngLat.lat, e.lngLat.wrap().lng)
       })
     })
 
@@ -295,7 +295,7 @@ export default function Map({
       if (drawModeRef.current !== 'box') return
       if (!boxStartRef.current) {
         // First click — store start
-        boxStartRef.current = [e.lngLat.lng, e.lngLat.lat]
+        boxStartRef.current = [e.lngLat.wrap().lng, e.lngLat.lat]
       } else {
         // Second click — complete the box
         const start = boxStartRef.current
@@ -303,8 +303,8 @@ export default function Map({
         map.getCanvas().style.cursor = 'crosshair'
         ;(map.getSource('box-preview') as maplibregl.GeoJSONSource)?.setData(EMPTY_FC)
         const bbox: Bbox = [
-          Math.min(start[0], e.lngLat.lng), Math.min(start[1], e.lngLat.lat),
-          Math.max(start[0], e.lngLat.lng), Math.max(start[1], e.lngLat.lat),
+          Math.min(start[0], e.lngLat.wrap().lng), Math.min(start[1], e.lngLat.lat),
+          Math.max(start[0], e.lngLat.wrap().lng), Math.max(start[1], e.lngLat.lat),
         ]
         const [w, s, e2, n] = bbox
         ;(map.getSource('aoi') as maplibregl.GeoJSONSource)?.setData({
@@ -317,15 +317,15 @@ export default function Map({
     })
 
     map.on('mousemove', (e) => {
-      const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+      const pt: [number, number] = [e.lngLat.wrap().lng, e.lngLat.lat]
       mousePosRef.current = pt
-      onMouseMove?.({ lat: e.lngLat.lat, lng: e.lngLat.lng })
+      onMouseMove?.({ lat: e.lngLat.lat, lng: e.lngLat.wrap().lng })
 
       // Raster pixel lookup
       const ov = rasterOverlayRef.current
       if (ov) {
         const [W, S, E, N] = ov.bounds
-        const lng = e.lngLat.lng, lat = e.lngLat.lat
+        const lng = e.lngLat.wrap().lng, lat = e.lngLat.lat
         if (lng >= W && lng <= E && lat >= S && lat <= N) {
           // Project to Mercator for correct pixel lookup (PNG is in EPSG:3857)
           const R = 6378137
@@ -368,7 +368,7 @@ export default function Map({
     // ── Polygon: single click adds vertex ─────────────────────────────────
     map.on('click', (e) => {
       if (drawModeRef.current !== 'polygon') return
-      const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+      const pt: [number, number] = [e.lngLat.wrap().lng, e.lngLat.lat]
       polyPointsRef.current = [...polyPointsRef.current, pt]
       updatePolyPreview(polyPointsRef.current, mousePosRef.current)
     })
@@ -400,7 +400,7 @@ export default function Map({
     // ── Pin: single click ─────────────────────────────────────────────────
     map.on('click', (e) => {
       if (drawModeRef.current !== 'pin') return
-      const pt: [number, number] = [e.lngLat.lng, e.lngLat.lat]
+      const pt: [number, number] = [e.lngLat.wrap().lng, e.lngLat.lat]
       const feature: GeoJSON.Feature = {
         type: 'Feature', properties: {},
         geometry: { type: 'Point', coordinates: pt },

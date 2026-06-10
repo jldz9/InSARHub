@@ -139,9 +139,39 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         if steps:
             step_args = " --step " + " ".join(steps)
 
+        # Serialize non-default config overrides back to CLI flags so that
+        # prep_data inside SLURM writes the correct .mintpy.cfg values.
+        _skip = {"name", "workdir", "debug", "hpc_mode", "hpc_sbatch_opts"}
+        config_cls = type(self.config)
+        defaults = {}
+        for f in dataclasses.fields(config_cls):
+            if f.default is not dataclasses.MISSING:
+                defaults[f.name] = f.default
+            elif f.default_factory is not dataclasses.MISSING:
+                defaults[f.name] = f.default_factory()
+
+        override_flags = []
+        for f in dataclasses.fields(config_cls):
+            if f.name in _skip:
+                continue
+            val = getattr(self.config, f.name)
+            if val == defaults.get(f.name):
+                continue
+            if isinstance(val, bool):
+                if val:
+                    override_flags.append(f"--{f.name}")
+            elif isinstance(val, (list, tuple)):
+                override_flags.append(f"--{f.name} " + " ".join(str(v) for v in val))
+            elif isinstance(val, dict):
+                override_flags.append(f"--{f.name} '{json.dumps(val)}'")
+            elif val is not None:
+                override_flags.append(f"--{f.name} {val}")
+
+        extra = (" " + " ".join(override_flags)) if override_flags else ""
+
         body = "\n".join([
             f'export PATH="{current_path}"',
-            f"{insarhub_bin} analyzer -N {analyzer_name} -w {self.workdir} run{step_args}",
+            f"{insarhub_bin} analyzer -N {analyzer_name} -w {self.workdir} run{step_args}{extra}",
         ])
 
         lines = ["#!/bin/bash"] + slurm_cfg.to_header_lines() + ["", body, ""]

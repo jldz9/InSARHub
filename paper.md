@@ -23,7 +23,7 @@ authors:
     orcid: 0000-0003-3565-9131
     affiliation: 1 
   - name: Yunyi Guan
-    orcid: 0009-0003-2302-3212
+    orcid: 0009-0003-2802-3212
     affiliation: 2
 affiliations:
   - name: Department of Civil and Environmental Engineering, Colorado State University, Fort Collins, CO, USA
@@ -112,7 +112,7 @@ In addition to command-line and python scripting, `InSARHub` provides a browser-
 
 `InSARHub` v0.3.0 is publicly available on PyPI (`pip install insarhub`), Conda-forge (`conda install insarhub -c conda-forge`) and GitHub (https://github.com/jldz9/InSARHub) under the MIT license, with full API documentation(https://jldz9.github.io/InSARHub/v0.3.0/), a quickstart tutorial with reproducible example data, and a test suite of 155 unit tests covering all major components. The package is designed to support community extension: new processor and analyzer backends register automatically without modifying core code, and the configuration file format is stable and version-tracked to support long-term reproducibility of published results.
 
-# AI Usage Statement
+# AI Usage Disclosure
 
 The authors used generative AI to assist with manuscript wording improvements, software documentation generation, translation, and GUI design. All AI-suggested edits were reviewed and confirmed by the authors. No generative AI tools were used in software core architecture design decisions and development.
 

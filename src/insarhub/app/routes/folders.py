@@ -20,6 +20,10 @@ from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, read_insarhub_config, write_insarhub_config
+from insarhub.utils.pair_quality._cache import seed_prefetch
+from insarhub.utils.pair_quality._geom import footprint_wkt_from_products
+from insarhub.utils.pair_quality._db import PairQualityDB
+from insarhub.utils.stack_io import write_stack_file, merge_db_scores_into_stack
 
 router = APIRouter()
 
@@ -194,34 +198,6 @@ async def folder_select_pairs(req: SelectPairsRequest, background_tasks: Backgro
     return {"job_id": job_id}
 
 
-def _seed_pair_quality_cache(folder: Path, prefetch: dict) -> None:
-    """Write weather/snow data fetched by select_pairs into the folder's quality cache.
-
-    prefetch must be {"weather": {date: feats}, "snow": {date: feats}, "lat": float, "lon": float}.
-    FeatureAssembler.prefetch_dates() checks this cache first, so the data won't be
-    re-fetched from Open-Meteo / MODIS during scoring.
-    """
-    weather = prefetch.get("weather", {})
-    snow    = prefetch.get("snow", {})
-    if not weather and not snow:
-        return
-    lat = prefetch.get("lat", 0.0)
-    lon = prefetch.get("lon", 0.0)
-    try:
-        from insarhub.utils.pair_quality._cache import CacheManager
-        cache = CacheManager(folder)
-        for date, feats in weather.items():
-            if feats:
-                cache.set("weather", f"{lat:.3f}:{lon:.3f}:{date}", feats)
-        for date, feats in snow.items():
-            if feats:
-                cache.set("snow_modis", f"{lat:.3f}:{lon:.3f}:{date}", feats)
-        cache.save()
-        logger.debug("Seeded quality cache for %s with %d weather + %d snow entries",
-                     folder.name, len(weather), len(snow))
-    except Exception as exc:
-        logger.warning("Could not seed quality cache for %s: %s", folder, exc)
-
 
 def _launch_db_build(folder, scenes_by_stack, bperp_by_stack) -> str | None:
     """Launch a background thread that builds the full pair-quality DB for *folder*.
@@ -313,8 +289,6 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
             else:
                 scenes_by_stack[(0, 0)] = [p.properties["sceneName"] for p in active]
 
-            db_job_ids: list[str] = []
-
             if isinstance(pairs, dict):
                 for (path, frame), group_pairs in pairs.items():
                     subdir = folder.parent / f"p{path}_f{frame}"
@@ -325,88 +299,44 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     # When intersectsWith is absent, derive AOI from scene footprints so
                     # quality scoring has a valid region without falling back to a hardcoded default.
                     if not cfg_dict.get('intersectsWith'):
-                        try:
-                            from shapely.ops import unary_union
-                            from shapely.geometry import shape as _shape
-                            stack_results = downloader.active_results.get((path, frame), [])
-                            geoms = [_shape(r.geometry) for r in stack_results if getattr(r, 'geometry', None)]
-                            if geoms:
-                                cfg_dict['scene_footprint_wkt'] = unary_union(geoms).wkt
-                        except Exception as _fp_exc:
-                            logger.warning("Could not compute scene footprint for P%s/F%s: %s", path, frame, _fp_exc)
+                        wkt = footprint_wkt_from_products(
+                            downloader.active_results.get((path, frame), [])
+                        )
+                        if wkt:
+                            cfg_dict['scene_footprint_wkt'] = wkt
                     write_insarhub_config(subdir, {"downloader": {"type": dl_type, "config": cfg_dict}})
                     sp = scene_bperp.get((path, frame)) or {}
                     stack_scenes = scenes_by_stack.get((path, frame), [])
-                    stack_data: dict = {
-                        "pairs":    [list(p) for p in group_pairs],
-                        "baselines": {k: float(v) for k, v in sp.items()},
-                        "scenes":   stack_scenes,
-                        "pair_quality": {"scores": {}, "factors": {}},
-                    }
-                    (subdir / f"stack_p{path}_f{frame}.json").write_text(json.dumps(stack_data, indent=2))
+                    stack_path = subdir / f"stack_p{path}_f{frame}.json"
+                    stack_data = write_stack_file(stack_path, group_pairs, sp, stack_scenes)
                     state._jobs[job_id]["message"] = f"Building weather/snow cache — P{path}/F{frame}…"
-                    _seed_pair_quality_cache(subdir, prefetch_cache.get((path, frame), {}))
-                    state._jobs[job_id]["message"] = f"Scoring {len(group_pairs)} pairs — P{path}/F{frame}…"
-                    try:
-                        from insarhub.utils.pair_quality import PairQuality
-                        result = PairQuality(subdir, force_refresh=False).compute(show_progress=False)
-                        stack_data["pair_quality"] = {
-                            "scores":  result.scores,
-                            "factors": result.factors,
-                        }
-                        (subdir / f"stack_p{path}_f{frame}.json").write_text(json.dumps(stack_data, indent=2))
-                    except Exception as _exc:
-                        logger.warning("Pair quality scoring failed: %s", _exc)
-                    db_jid = _launch_db_build(
-                        subdir, {(path, frame): stack_scenes},
-                        {(path, frame): {k: float(v) for k, v in sp.items()}}
+                    seed_prefetch(subdir, prefetch_cache.get((path, frame), {}))
+                    _launch_db_build(
+                        subdir,
+                        {(path, frame): stack_scenes},
+                        {(path, frame): {k: float(v) for k, v in sp.items()}},
                     )
-                    if db_jid:
-                        db_job_ids.append(db_jid)
             else:
                 cfg_dict = {k: v for k, v in dataclasses.asdict(cfg).items() if k != 'workdir'}
                 if not cfg_dict.get('intersectsWith'):
-                    try:
-                        from shapely.ops import unary_union
-                        from shapely.geometry import shape as _shape
-                        all_results = [r for rs in downloader.active_results.values() for r in rs]
-                        geoms = [_shape(r.geometry) for r in all_results if getattr(r, 'geometry', None)]
-                        if geoms:
-                            cfg_dict['scene_footprint_wkt'] = unary_union(geoms).wkt
-                    except Exception as _fp_exc:
-                        logger.warning("Could not compute scene footprint: %s", _fp_exc)
+                    all_prods = [r for rs in downloader.active_results.values() for r in rs]
+                    wkt = footprint_wkt_from_products(all_prods)
+                    if wkt:
+                        cfg_dict['scene_footprint_wkt'] = wkt
                 write_insarhub_config(folder, {"downloader": {"type": dl_type, "config": cfg_dict}})
                 sp = scene_bperp if isinstance(scene_bperp, dict) else {}
                 stack_scenes = scenes_by_stack.get((0, 0), [])
-                stack_data = {
-                    "pairs":    [list(p) for p in pairs],
-                    "baselines": {k: float(v) for k, v in sp.items()},
-                    "scenes":   stack_scenes,
-                    "pair_quality": {"scores": {}, "factors": {}},
-                }
-                (folder / "stack_p0_f0.json").write_text(json.dumps(stack_data, indent=2))
+                stack_path = folder / "stack_p0_f0.json"
+                stack_data = write_stack_file(stack_path, pairs, sp, stack_scenes)
                 state._jobs[job_id]["message"] = "Building weather/snow cache…"
-                _seed_pair_quality_cache(folder, prefetch_cache)
-                state._jobs[job_id]["message"] = f"Scoring {len(pairs)} selected pairs…"
-                try:
-                    from insarhub.utils.pair_quality import PairQuality
-                    result = PairQuality(folder, force_refresh=False).compute(show_progress=False)
-                    stack_data["pair_quality"] = {
-                        "scores":  result.scores,
-                        "factors": result.factors,
-                    }
-                    (folder / "stack_p0_f0.json").write_text(json.dumps(stack_data, indent=2))
-                except Exception as _exc:
-                    logger.warning("Pair quality scoring failed: %s", _exc)
-                db_jid = _launch_db_build(
-                    folder, {(0, 0): stack_scenes},
-                    {(0, 0): {k: float(v) for k, v in sp.items()}}
+                seed_prefetch(folder, prefetch_cache)
+                _launch_db_build(
+                    folder,
+                    {(0, 0): stack_scenes},
+                    {(0, 0): {k: float(v) for k, v in sp.items()}},
                 )
-                if db_jid:
-                    db_job_ids.append(db_jid)
 
-            _finish_job(job_id, status="done", message="Pairs selected",
-                        data={"db_job_ids": db_job_ids})
+            _finish_job(job_id, status="done", message="Pairs selected", data={})
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
 

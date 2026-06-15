@@ -54,6 +54,20 @@ def _roughness(dem: np.ndarray) -> np.ndarray:
     return windows.std(axis=(-2, -1))
 
 
+def footprint_wkt_from_products(products) -> str | None:
+    """Return WKT union of ASFProduct footprints, or None on failure."""
+    try:
+        from shapely.geometry import shape as _shape
+        from shapely.ops import unary_union
+        geoms = [_shape(p.geometry) for p in products if getattr(p, "geometry", None)]
+        if not geoms:
+            return None
+        return unary_union(geoms).wkt
+    except Exception as exc:
+        logger.warning("Could not compute footprint WKT: %s", exc)
+        return None
+
+
 def extract(aoi_wkt: str) -> dict:
     """Return terrain feature dict for the given AOI WKT.
 

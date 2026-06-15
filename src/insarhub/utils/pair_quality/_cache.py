@@ -113,3 +113,28 @@ class CacheManager:
             self._path.write_text(json.dumps(self._data, indent=2))
         except Exception as exc:
             logger.warning("Could not save quality cache: %s", exc)
+
+
+def seed_prefetch(folder: Path, prefetch: dict) -> None:
+    """Seed quality cache with weather/snow data from select_pairs() prefetch dict.
+
+    prefetch format: {"weather": {date: feats}, "snow": {date: feats}, "lat": float, "lon": float}
+    Shared by CLI and GUI so neither duplicates this logic.
+    """
+    weather = prefetch.get("weather", {})
+    snow    = prefetch.get("snow", {})
+    if not weather and not snow:
+        return
+    lat = prefetch.get("lat", 0.0)
+    lon = prefetch.get("lon", 0.0)
+    try:
+        cache = CacheManager(folder)
+        for date, feats in weather.items():
+            if feats:
+                cache.set("weather", f"{lat:.3f}:{lon:.3f}:{date}", feats)
+        for date, feats in snow.items():
+            if feats:
+                cache.set("snow_modis", f"{lat:.3f}:{lon:.3f}:{date}", feats)
+        cache.save()
+    except Exception as exc:
+        logger.warning("Could not seed quality cache for %s: %s", folder, exc)

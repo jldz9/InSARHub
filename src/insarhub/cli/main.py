@@ -1208,29 +1208,9 @@ def cmd_downloader(args, extra_args: list[str]):
             precip_mm_threshold=args.precip_mm_threshold,
         )
 
-        from insarhub.utils import PairQuality
         from insarhub.utils.pair_quality._db import PairQualityDB
-
-        def _seed_cli_cache(folder, prefetch):
-            """Seed the folder's quality cache with weather/snow from select_pairs."""
-            weather = prefetch.get("weather", {})
-            snow    = prefetch.get("snow", {})
-            if not weather and not snow:
-                return
-            lat = prefetch.get("lat", 0.0)
-            lon = prefetch.get("lon", 0.0)
-            try:
-                from insarhub.utils.pair_quality._cache import CacheManager
-                cache = CacheManager(folder)
-                for date, feats in weather.items():
-                    if feats:
-                        cache.set("weather", f"{lat:.3f}:{lon:.3f}:{date}", feats)
-                for date, feats in snow.items():
-                    if feats:
-                        cache.set("snow_modis", f"{lat:.3f}:{lon:.3f}:{date}", feats)
-                cache.save()
-            except Exception as exc:
-                print(f"[quality] Warning: could not seed weather cache ({exc})")
+        from insarhub.utils.pair_quality._cache import seed_prefetch
+        from insarhub.utils.stack_io import write_stack_file, merge_db_scores_into_stack
 
         dl_workdir = downloader.config.workdir
 
@@ -1257,39 +1237,22 @@ def cmd_downloader(args, extra_args: list[str]):
                 sp = scene_bperp.get((path, frame)) or {}
                 stack_scenes = scenes_by_stack.get((path, frame), [])
                 bperp_by_stack[(path, frame)] = {k: float(v) for k, v in sp.items()}
-                stack_data = {
-                    "pairs":     [list(p) for p in group_pairs],
-                    "baselines": {k: float(v) for k, v in sp.items()},
-                    "scenes":    stack_scenes,
-                    "pair_quality": {"scores": {}, "factors": {}},
-                }
                 stack_path = subdir / f"stack_p{path}_f{frame}.json"
-                stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
-                _seed_cli_cache(subdir, prefetch_cache.get((path, frame), {}))
+                stack_data = write_stack_file(stack_path, group_pairs, sp, stack_scenes)
+                seed_prefetch(subdir, prefetch_cache.get((path, frame), {}))
                 print(f"[quality] Scoring all possible pairs — P{path}/F{frame}…")
+                quality_scores = quality_factors = None
                 try:
-                    db = PairQualityDB(subdir)
-                    db.build(
+                    PairQualityDB(subdir).build(
                         {(path, frame): stack_scenes},
                         {(path, frame): bperp_by_stack.get((path, frame), {})},
                     )
-                    db_data = json.loads((subdir / ".insarhub_pair_quality_db.json").read_text())
-                    all_scores  = db_data.get("scores", {})
-                    all_factors = db_data.get("factors", {})
-                    quality_scores = {}
-                    quality_factors = {}
-                    for pair in group_pairs:
-                        for k in [f"{pair[0]}:{pair[1]}", f"{pair[1]}:{pair[0]}"]:
-                            if k in all_scores:
-                                quality_scores[k]  = all_scores[k]
-                                quality_factors[k] = all_factors.get(k, {})
-                    stack_data["pair_quality"] = {"scores": quality_scores, "factors": quality_factors}
-                    stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
-                    print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored, {len(quality_scores)} selected")
+                    quality_scores, quality_factors = merge_db_scores_into_stack(
+                        stack_path, stack_data, subdir, group_pairs
+                    )
+                    print(f"[quality] {len(quality_scores or {})} selected pairs scored")
                 except Exception as exc:
                     print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
-                    quality_scores  = None
-                    quality_factors = None
                 _plot_pair_network(
                     group_pairs, baselines[(path, frame)],
                     scene_baselines=scene_bperp.get((path, frame)),
@@ -1306,36 +1269,22 @@ def cmd_downloader(args, extra_args: list[str]):
             write_insarhub_config(dl_workdir, {"downloader": {"type": type(downloader).name, "config": cfg}})
             sp = scene_bperp if isinstance(scene_bperp, dict) else {}
             stack_scenes = scenes_by_stack.get((0, 0), [])
-            stack_data = {
-                "pairs":     [list(p) for p in pairs],
-                "baselines": {k: float(v) for k, v in sp.items()},
-                "scenes":    stack_scenes,
-                "pair_quality": {"scores": {}, "factors": {}},
-            }
             stack_path = dl_workdir / "stack_p0_f0.json"
-            stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
-            _seed_cli_cache(dl_workdir, prefetch_cache)
+            stack_data = write_stack_file(stack_path, pairs, sp, stack_scenes)
+            seed_prefetch(dl_workdir, prefetch_cache)
             print("[quality] Scoring all possible pairs…")
+            quality_scores = quality_factors = None
             try:
-                db = PairQualityDB(dl_workdir)
-                db.build({(0, 0): stack_scenes}, {(0, 0): {k: float(v) for k, v in sp.items()}})
-                db_data = json.loads((dl_workdir / ".insarhub_pair_quality_db.json").read_text())
-                all_scores  = db_data.get("scores", {})
-                all_factors = db_data.get("factors", {})
-                quality_scores  = {}
-                quality_factors = {}
-                for pair in pairs:
-                    for k in [f"{pair[0]}:{pair[1]}", f"{pair[1]}:{pair[0]}"]:
-                        if k in all_scores:
-                            quality_scores[k]  = all_scores[k]
-                            quality_factors[k] = all_factors.get(k, {})
-                stack_data["pair_quality"] = {"scores": quality_scores, "factors": quality_factors}
-                stack_path.write_text(json.dumps(stack_data, indent=2, default=str))
-                print(f"[quality] {db_data.get('_n_pairs', 0)} pairs scored")
+                PairQualityDB(dl_workdir).build(
+                    {(0, 0): stack_scenes},
+                    {(0, 0): {k: float(v) for k, v in sp.items()}},
+                )
+                quality_scores, quality_factors = merge_db_scores_into_stack(
+                    stack_path, stack_data, dl_workdir, pairs
+                )
+                print(f"[quality] {len(quality_scores or {})} selected pairs scored")
             except Exception as exc:
                 print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
-                quality_scores  = None
-                quality_factors = None
             _plot_pair_network(pairs, baselines, scene_baselines=scene_bperp,
                                save_path=dl_workdir / "network.png",
                                quality_scores=quality_scores,

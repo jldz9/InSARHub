@@ -266,7 +266,6 @@ export default function TopBar({
         Jobs
       </button>
 
-
       {/* Settings — right-aligned */}
       <button
         onClick={onSettingsOpen}

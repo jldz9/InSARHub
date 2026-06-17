@@ -1,5 +1,6 @@
 import { parseStack } from './ScenePanel'
 import type { Theme } from './theme'
+import { useResizable, ResizeHandle } from './useResizable'
 
 interface Props {
   stackKey:      string
@@ -47,6 +48,7 @@ function productLabel(p: Record<string, any>): string {
 export default function StackSceneList({
   stackKey, scenes, theme: t, selectedScene, onClose, onSceneClick,
 }: Props) {
+  const { width, onHandleMouseDown } = useResizable(240)
   const stack = parseStack(stackKey)
 
   const sorted = [...scenes].sort((a, b) => {
@@ -57,12 +59,13 @@ export default function StackSceneList({
 
   return (
     <div style={{
-      width: 240, height: '100%',
+      position: 'relative', width, height: '100%',
       background: t.bg,
       borderLeft: `1px solid ${t.border}`,
       display: 'flex', flexDirection: 'column',
       boxShadow: '-4px 0 12px rgba(0,0,0,0.2)',
     }}>
+      <ResizeHandle onMouseDown={onHandleMouseDown} />
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

@@ -74,10 +74,14 @@ def annual_repeat_bonus(date1: str, date2: str,
 def snow_score(snow1: dict, snow2: dict) -> float:
     """Return 0–1 quality penalty from snow conditions on both dates."""
 
+    def _temp(s: dict) -> float | None:
+        v = s.get("temp")
+        return v if v is not None else s.get("temp_max")
+
     def _single(s: dict) -> float:
         depth    = s.get("snow_depth") or 0.0
         snowfall = s.get("snowfall")   or 0.0
-        tmax     = s.get("temp_max")
+        tmax     = _temp(s)
         if depth > 20:
             # Wet deep snow (tmax > 0) is worse than cold dry snow
             return 1.0 if (tmax is not None and tmax > 0) else 0.85
@@ -89,9 +93,9 @@ def snow_score(snow1: dict, snow2: dict) -> float:
 
     base = max(_single(snow1), _single(snow2))
 
-    # Freeze-thaw crossing: one date frozen (tmax < 0), other thawed
-    tmax1 = snow1.get("temp_max")
-    tmax2 = snow2.get("temp_max")
+    # Freeze-thaw crossing: one date frozen (temp < 0), other thawed
+    tmax1 = _temp(snow1)
+    tmax2 = _temp(snow2)
     if tmax1 is not None and tmax2 is not None:
         frozen1 = tmax1 < 0
         frozen2 = tmax2 < 0

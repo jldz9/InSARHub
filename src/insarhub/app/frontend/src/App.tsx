@@ -165,6 +165,24 @@ function TimeSeriesDrawer({ data, onClose, theme: t }: { data: TsData; onClose: 
   )
 }
 
+function EdgeHandle({ label, theme: t, onClick }: {
+  label: string; theme: import('./theme').Theme; onClick: () => void
+}) {
+  return (
+    <button
+      onClick={onClick}
+      title={`Open ${label}`}
+      style={{
+        background: t.bg2, border: `1px solid ${t.border}`, borderRight: 'none',
+        borderRadius: '6px 0 0 6px',
+        color: t.textMuted, cursor: 'pointer',
+        padding: '10px 5px', fontSize: 11, writingMode: 'vertical-rl',
+        userSelect: 'none', display: 'block',
+      }}
+    >{label}</button>
+  )
+}
+
 export default function App() {
   // Theme
   const [isDark, setIsDark] = useState(true)
@@ -173,8 +191,9 @@ export default function App() {
   // Search state
   const [searching,   setSearching]   = useState(false)
   const [_resultCount, setResultCount] = useState('')
-  const [footprints,  setFootprints]  = useState<GeoJSON.FeatureCollection | null>(null)
-  const [_sessionId,  setSessionId]   = useState<string | null>(null)
+  const [footprints,       setFootprints]       = useState<GeoJSON.FeatureCollection | null>(null)
+  const [stackDrawerOpen,  setStackDrawerOpen]  = useState(true)
+  const [_sessionId,       setSessionId]        = useState<string | null>(null)
 
   // AOI state
   const [aoi,        setAoi]        = useState<Bbox>([-180, -90, 180, 90])
@@ -187,13 +206,16 @@ export default function App() {
   const [mouseCoords,     setMouseCoords]     = useState<{ lat: number; lng: number } | null>(null)
   const [selectedFeature, setSelectedFeature] = useState<GeoJSON.Feature | null>(null)
   const [stackOpen,       setStackOpen]       = useState(false)
-  const [hoveredStackKey, setHoveredStackKey] = useState<string | null>(null)
+  const [hoveredStackKey,  setHoveredStackKey]  = useState<string | null>(null)
+  const [checkedStackKeys, setCheckedStackKeys] = useState<string[]>([])
+
   const [detailScene,     setDetailScene]     = useState<GeoJSON.Feature | null>(null)
   const [workdir,         setWorkdir]         = useState('.')
   const [settingsOpen,    setSettingsOpen]    = useState(false)
   const [settingsInitialTab,          setSettingsInitialTab]          = useState<'general' | 'auth' | 'downloader' | 'processor' | 'analyzer'>('general')
   const [settingsInitialAnalyzerType, setSettingsInitialAnalyzerType] = useState<string | undefined>(undefined)
   const [jobsOpen,        setJobsOpen]        = useState(false)
+  const [jobsWasOpened,   setJobsWasOpened]   = useState(false)
   const [rasterOverlay,   setRasterOverlay]   = useState<RasterOverlay | null>(null)
   const [rasterPixelVal,  setRasterPixelVal]  = useState<number | null>(null)
   const [downloaderType,    setDownloaderType]    = useState('S1_SLC')
@@ -267,6 +289,7 @@ export default function App() {
     setJobsOpen(false)
     setSettingsOpen(false)
     setFiltersOpen(false)
+    setStackDrawerOpen(false)
     setMapClickSignal(n => n + 1)
   }
 
@@ -325,6 +348,7 @@ export default function App() {
     pollJob(job_id, (data) => {
       setResultCount(data.summary)
       setFootprints(data.geojson)
+      setStackDrawerOpen(true)
       setSessionId(data.session_id)
     })
   }
@@ -412,7 +436,7 @@ export default function App() {
         }}
         onFiltersOpen={() => setFiltersOpen(true)}
         hasActiveFilters={hasActiveFilters(filters)}
-        onJobsOpen={() => setJobsOpen(o => !o)}
+        onJobsOpen={() => { setJobsOpen(o => !o); setJobsWasOpened(true) }}
         jobsOpen={jobsOpen}
         onSettingsOpen={() => setSettingsOpen(true)}
       />
@@ -432,6 +456,7 @@ export default function App() {
         <Map
           footprints={footprints}
           highlightStackKey={hoveredStackKey}
+          checkedStackKeys={checkedStackKeys}
           aoi={aoi}
           aoiGeojson={aoiGeoJson}
           drawMode={drawMode}
@@ -494,15 +519,35 @@ export default function App() {
               onStackClick={() => { setStackOpen(o => !o); setDetailScene(null) }}
             />
           )}
-          {footprints && (
+          {footprints && stackDrawerOpen && (
             <StackSummaryDrawer
               footprints={footprints}
               theme={theme}
               selectedStackKey={selectedFeature?.properties?._stack ?? null}
+              workdir={workdir}
+              aoiWkt={aoiWkt}
+              downloaderType={downloaderType}
               onStackHover={setHoveredStackKey}
               onStackClick={f => { setSelectedFeature(f); setStackOpen(false); setDetailScene(null) }}
-              onClose={() => { setFootprints(null); setSelectedFeature(null); setStackOpen(false); setDetailScene(null); setResultCount('') }}
+              onCheckedChange={setCheckedStackKeys}
+              onClose={() => { setFootprints(null); setSelectedFeature(null); setStackOpen(false); setDetailScene(null); setResultCount(''); setCheckedStackKeys([]) }}
             />
+          )}
+        </div>
+      )}
+
+      {/* Right-edge floating handles — stacked together, no overlap */}
+      {((footprints && !stackDrawerOpen) || (jobsWasOpened && !jobsOpen)) && (
+        <div style={{
+          position: 'absolute', right: 0, top: '40%', transform: 'translateY(-50%)',
+          zIndex: 120, display: 'flex', flexDirection: 'column', gap: 2,
+          boxShadow: '-2px 0 8px rgba(0,0,0,0.25)',
+        }}>
+          {footprints && !stackDrawerOpen && (
+            <EdgeHandle label="Stacks" theme={theme} onClick={() => setStackDrawerOpen(true)} />
+          )}
+          {!jobsOpen && (
+            <EdgeHandle label="Jobs" theme={theme} onClick={() => setJobsOpen(true)} />
           )}
         </div>
       )}

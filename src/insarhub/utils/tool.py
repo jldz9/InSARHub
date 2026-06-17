@@ -716,14 +716,25 @@ def select_pairs(
             logger.warning("avoid_low_quality_days: no valid dates extracted — skipping filter")
             return set(), {}, {}, lat, lon
 
+        # Build per-date overpass hour from scene names (YYYYMMDDTHHMMSS in name)
+        date_hour: dict[str, int] = {}
+        for p in prods:
+            name = p.properties.get("sceneName", "")
+            date = date_of.get(name, "")
+            if date and len(name) >= 28 and name[25] == "T":
+                try:
+                    date_hour[date] = int(name[26:28])
+                except ValueError:
+                    pass
+
         logger.info("avoid_low_quality_days: fetching weather/snow for %d dates …", len(unique_dates))
         try:
-            weather = fetch_weather_batch(lat, lon, unique_dates)
+            weather = fetch_weather_batch(lat, lon, unique_dates, date_hour=date_hour or None)
         except Exception as exc:
             logger.warning("avoid_low_quality_days: weather fetch failed (%s) — skipping filter", exc)
             weather = {}
         try:
-            snow = fetch_snow_features_batch(lat, lon, unique_dates)
+            snow = fetch_snow_features_batch(lat, lon, unique_dates, date_hour=date_hour or None)
         except Exception as exc:
             logger.warning("avoid_low_quality_days: snow fetch failed (%s) — skipping filter", exc)
             snow = {}
@@ -732,7 +743,8 @@ def select_pairs(
         for date in unique_dates:
             w = weather.get(date, {})
             s = snow.get(date, {})
-            temp      = w.get("temp_max")
+            _t   = w.get("temp")
+            temp = _t if _t is not None else w.get("temp_max")
             # precip_3day can be None when the API returns null for precipitation_sum.
             # Fall back to the daily precip so the check is never silently bypassed.
             precip3   = w.get("precip_3day")

@@ -18,7 +18,7 @@ from collections import defaultdict
 from colorama import Fore, Style
 from dateutil.parser import isoparse
 from hyp3_sdk import HyP3, Batch, Job
-from hyp3_sdk.exceptions import AuthenticationError, HyP3Error
+from hyp3_sdk.exceptions import AuthenticationError, HyP3Error, ServerError
 from tqdm import tqdm
 
 from insarhub.core import CloudProcessor
@@ -202,12 +202,20 @@ class Hyp3Base(CloudProcessor):
                         batchs[username].extend(batch)
                         for j in batch:
                             self.job_ids[username].append(j.job_id)
-                        
+
                         job_queue = job_queue[chunk_size:]
                         pbar.update(chunk_size)
+                    except ServerError:
+                        pbar.write(
+                            f"{Fore.RED}HyP3 server is currently unavailable (504 Gateway Timeout). "
+                            "Retry later."
+                        )
+                        raise RuntimeError(
+                            "HyP3 server unavailable — submission aborted. Retry later."
+                        )
                     except HyP3Error as e:
-                         pbar.write(f"{Fore.RED}Submission failed for {username}: {e}")
-                         max_jobs_allowed = 0 # Force switch
+                        pbar.write(f"{Fore.RED}Submission failed for {username}: {e}")
+                        max_jobs_allowed = 0  # Force switch
 
                 # If queue still exists but user is out of credits/failed
                 if job_queue and max_jobs_allowed <= 0:

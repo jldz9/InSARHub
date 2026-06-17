@@ -8,6 +8,7 @@ import type { RasterOverlay } from './JobQueueDrawer'
 interface Props {
   footprints?:        GeoJSON.FeatureCollection | null
   highlightStackKey?: string | null
+  checkedStackKeys?:  string[]
   aoi?:               Bbox | null
   aoiGeojson?:        GeoJSON.Feature | null
   drawMode:           DrawMode
@@ -41,7 +42,7 @@ const BASEMAP_TILES: Record<Basemap, { tiles: string[]; overlay?: string[]; attr
 }
 
 export default function Map({
-  footprints, highlightStackKey, aoi, aoiGeojson, drawMode, basemap,
+  footprints, highlightStackKey, checkedStackKeys, aoi, aoiGeojson, drawMode, basemap,
   footprintOpacity, rasterOverlay, tsClickPoint, onAoiDrawn, onMouseMove, onFootprintClick, onRasterPixel, onMapClick, onMapClickAny,
 }: Props) {
   const containerRef        = useRef<HTMLDivElement>(null)
@@ -82,6 +83,15 @@ export default function Map({
       }
     })
   }, [highlightStackKey])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map?.isStyleLoaded()) return
+    const filter = checkedStackKeys?.length
+      ? ['in', ['get', '_stack'], ['literal', checkedStackKeys]]
+      : ['boolean', false]
+    map.setFilter('footprints-checked-line', filter as maplibregl.FilterSpecification)
+  }, [checkedStackKeys])
 
   // ── Init map ──────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -165,6 +175,11 @@ export default function Map({
           'line-width': 2,
           'line-opacity': footprintOpacity,
         } })
+
+      // ── Checked-stack purple outline — reuses footprints source ───────────
+      map.addLayer({ id: 'footprints-checked-line', type: 'line', source: 'footprints',
+        filter: ['boolean', false],
+        paint: { 'line-color': '#7c3aed', 'line-width': 3 } })
 
       // ── Finished AOI (box/polygon) — red outline ────────────────────────
       map.addSource('aoi', { type: 'geojson', data: EMPTY_FC })

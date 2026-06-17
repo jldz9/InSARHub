@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react'
 import type { Theme } from './theme'
+import { useResizable, ResizeHandle } from './useResizable'
 
 interface Props {
   feature: GeoJSON.Feature
@@ -41,6 +42,7 @@ function fmtList(v: string[] | string | undefined | null): string {
 }
 
 export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }: Props) {
+  const { width, onHandleMouseDown } = useResizable(320)
   const p = feature.properties ?? {}
 
   const [dlStatus,  setDlStatus]  = useState<'idle'|'downloading'|'done'|'error'>('idle')
@@ -134,12 +136,13 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
 
   return (
     <div style={{
-      width: 320, height: '100%',
+      position: 'relative', width, height: '100%',
       background: t.bg,
       borderLeft: `1px solid ${t.border}`,
       display: 'flex', flexDirection: 'column',
       boxShadow: '-4px 0 12px rgba(0,0,0,0.2)',
     }}>
+      <ResizeHandle onMouseDown={onHandleMouseDown} />
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

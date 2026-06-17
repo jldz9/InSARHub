@@ -154,6 +154,8 @@ def create_parser() -> argparse.ArgumentParser:
     g_down.add_argument("-d", "--download",    action="store_true", help="Download scenes after search")
     g_down.add_argument("-O", "--orbit-files", nargs="?", const=True, default=False, metavar="PATH",
                         help="Download orbit files. Optionally specify a save directory, e.g. -O orbits/ (default: workdir)")
+    g_down.add_argument("--merge", action="store_true",
+                        help="Download all stacks into workdir/merged/slc/ instead of per-stack subdirs")
     g_down.add_argument("--workers", metavar="INT", type=int, default=_DL["max_workers"],
                         help=f"Parallel download workers (default: {_DL['max_workers']})")
     g_down.add_argument("--footprint", metavar="PATH",
@@ -253,6 +255,8 @@ def create_parser() -> argparse.ArgumentParser:
     # --- download  (HyP3) --------------------------------------------- #
     p_proc_dl = proc_sub.add_parser("download", help="Download completed HyP3 job outputs")
     _add_job_file(p_proc_dl)
+    p_proc_dl.add_argument("--max-workers", metavar="INT", type=int, default=None,
+                           help="Parallel download workers (overrides saved config)")
 
     # --- retry  (HyP3) ------------------------------------------------- #
     p_proc_retry = proc_sub.add_parser("retry", help="Resubmit failed HyP3 jobs")
@@ -590,7 +594,8 @@ def _iter_analysis_dirs(workdir: Path) -> list[Path]:
 
 def _load_hyp3_processor(workdir: Path, job_file: Path | None = None,
                           credential_pool_path: str | None = None,
-                          processor_name: str = "Hyp3_S1"):
+                          processor_name: str = "Hyp3_S1",
+                          **extra_overrides):
     """Build a HyP3 processor, loading saved jobs from job_file when provided."""
     from insarhub import Processor
 
@@ -602,6 +607,7 @@ def _load_hyp3_processor(workdir: Path, job_file: Path | None = None,
     if pool:
         overrides["earthdata_credentials_pool"] = pool
 
+    overrides.update({k: v for k, v in extra_overrides.items() if v is not None})
     return Processor.create(processor_name, **overrides)
 
 
@@ -673,7 +679,7 @@ _SEARCH_SKIP_FIELDS = {"name"}  # handled via CLI flags or internal
 _SUBMIT_SKIP_FIELDS = {
     "name", "workdir", "pairs", "saved_job_path",
     "earthdata_credentials_pool",
-    "name_prefix", "max_workers",
+    "name_prefix",
     "sbatch_options_per_step",
 }
 # Extra fields stripped when loading from a saved config file (runtime-only flags
@@ -1293,15 +1299,27 @@ def cmd_downloader(args, extra_args: list[str]):
 
     if args.download:
         orbit_dir = args.orbit_files if isinstance(args.orbit_files, str) else None
-        dl_kwargs: dict = {"max_workers": args.workers}
-        orbit_handled = False
-        if hasattr(downloader, "download") and "download_orbit" in downloader.download.__code__.co_varnames:
-            dl_kwargs["download_orbit"] = bool(args.orbit_files)
-            orbit_handled = bool(args.orbit_files)
-        result = DownloadScenesCommand(downloader, **dl_kwargs).run()
-        _fail(result, "download")
-        if args.orbit_files and not orbit_handled and hasattr(downloader, "download_orbit"):
-            downloader.download_orbit(save_dir=orbit_dir)
+        merge = getattr(args, "merge", False)
+
+        if merge:
+            merged_dir = workdir / "merged"
+            print(f"[merge] Downloading all stacks → {merged_dir}/slc/")
+            dl_kwargs: dict = {"max_workers": args.workers, "merge": True}
+            result = DownloadScenesCommand(downloader, **dl_kwargs).run()
+            _fail(result, "download")
+            if args.orbit_files and hasattr(downloader, "download_orbit"):
+                print("[merge] Downloading orbit files → merged/slc/")
+                downloader.download_orbit(save_dir=str(merged_dir))
+        else:
+            dl_kwargs = {"max_workers": args.workers}
+            orbit_handled = False
+            if hasattr(downloader, "download") and "download_orbit" in downloader.download.__code__.co_varnames:
+                dl_kwargs["download_orbit"] = bool(args.orbit_files)
+                orbit_handled = bool(args.orbit_files)
+            result = DownloadScenesCommand(downloader, **dl_kwargs).run()
+            _fail(result, "download")
+            if args.orbit_files and not orbit_handled and hasattr(downloader, "download_orbit"):
+                downloader.download_orbit(save_dir=orbit_dir)
     elif args.orbit_files:
         orbit_dir = args.orbit_files if isinstance(args.orbit_files, str) else None
         if hasattr(downloader, "download_orbit"):
@@ -1572,7 +1590,8 @@ def _proc_download_results(args):
         for jf in _find_job_files(job_dir, args.job_file):
             tag = f"[{job_dir.name}/{jf.name}] " if job_dir != workdir else f"[{jf.name}] "
             print(f"{tag}Downloading results…")
-            processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name)
+            processor = _load_hyp3_processor(job_dir, job_file=jf, processor_name=processor_name,
+                                             max_workers=getattr(args, "max_workers", None))
             RefreshCommand(processor).run()
             _fail(DownloadResultsCommand(processor).run(), f"download {tag}".strip())
 

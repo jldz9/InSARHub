@@ -157,7 +157,7 @@ def _fetch_modis_snow(
         return None
 
 
-def fetch_snow_features(lat: float, lon: float, date: str) -> dict:
+def fetch_snow_features(lat: float, lon: float, date: str, overpass_hour: int | None = None) -> dict:
     """Return snow feature dict for *date* (YYYY-MM-DD).
 
     Tries MOD10A1 first; falls back to Open-Meteo ERA5 snow proxy.
@@ -168,7 +168,8 @@ def fetch_snow_features(lat: float, lon: float, date: str) -> dict:
         "glacier_fraction":  None,
         "snow_depth":        None,
         "snowfall":          None,
-        "temp_max":          None,
+        "temp":              None,   # overpass-hour °C
+        "temp_max":          None,   # daily max °C (backward compat)
         "temp_min":          None,
         "snow_source":       "none",
     }
@@ -183,9 +184,10 @@ def fetch_snow_features(lat: float, lon: float, date: str) -> dict:
 
     # Always fetch Open-Meteo for temperature + snow depth regardless of MODIS
     try:
-        ow = _fetch_openmeteo_snow(lat, lon, date)
+        ow = _fetch_openmeteo_snow(lat, lon, date, overpass_hour=overpass_hour)
         result["snow_depth"] = ow.get("snow_depth")
         result["snowfall"]   = ow.get("snowfall")
+        result["temp"]       = ow.get("temp")
         result["temp_max"]   = ow.get("temp_max")
         result["temp_min"]   = ow.get("temp_min")
         if result["snow_source"] == "none":
@@ -196,7 +198,12 @@ def fetch_snow_features(lat: float, lon: float, date: str) -> dict:
     return result
 
 
-def fetch_snow_features_batch(lat: float, lon: float, dates: list[str]) -> dict[str, dict]:
+def fetch_snow_features_batch(
+    lat: float,
+    lon: float,
+    dates: list[str],
+    date_hour: dict[str, int] | None = None,
+) -> dict[str, dict]:
     """Fetch snow features for ALL dates: batch Open-Meteo + concurrent MODIS.
 
     Returns dict mapping each date string → feature dict (same schema as
@@ -205,7 +212,7 @@ def fetch_snow_features_batch(lat: float, lon: float, dates: list[str]) -> dict[
     _EMPTY: dict = {
         "snow_cover_frac": None, "glacier_fraction": None,
         "snow_depth": None, "snowfall": None,
-        "temp_max": None, "temp_min": None, "snow_source": "none",
+        "temp": None, "temp_max": None, "temp_min": None, "snow_source": "none",
     }
     if not dates:
         return {}
@@ -213,7 +220,7 @@ def fetch_snow_features_batch(lat: float, lon: float, dates: list[str]) -> dict[
     # 1. Batch Open-Meteo for all dates in two API calls (weather already done
     #    separately; here we only need the snow/temp fields)
     try:
-        ow_batch = _fetch_openmeteo_snow_batch(lat, lon, dates)
+        ow_batch = _fetch_openmeteo_snow_batch(lat, lon, dates, date_hour=date_hour)
     except Exception as exc:
         logger.warning("Snow batch Open-Meteo failed: %s", exc)
         ow_batch = {}
@@ -225,6 +232,7 @@ def fetch_snow_features_batch(lat: float, lon: float, dates: list[str]) -> dict[
         ow = ow_batch.get(date, {})
         r["snow_depth"] = ow.get("snow_depth")
         r["snowfall"]   = ow.get("snowfall")
+        r["temp"]       = ow.get("temp")
         r["temp_max"]   = ow.get("temp_max")
         r["temp_min"]   = ow.get("temp_min")
         r["snow_source"] = "openmeteo" if ow else "none"

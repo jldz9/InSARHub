@@ -17,7 +17,7 @@ from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 
 import insarhub.app.state as state
 from insarhub.app.models import (
-    AddJobRequest, DownloadByNameRequest, DownloadRequest,
+    AddJobRequest, DownloadByNameRequest, DownloadMergedRequest, DownloadRequest,
     DownloadSceneRequest, JobResponse, ParseAoiRequest, SearchRequest,
 )
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, write_insarhub_config
@@ -328,6 +328,95 @@ async def _run_download_orbit_stack(job_id: str, req: AddJobRequest):
                 _finish_job(job_id, status="done", progress=0, message="Stopped.")
             else:
                 _finish_job(job_id, status="done", message="Orbit files downloaded.")
+        except Exception as e:
+            _finish_job(job_id, status="error", progress=0, message=str(e))
+        finally:
+            state._stop_events.pop(job_id, None)
+
+    await asyncio.to_thread(run)
+
+
+@router.post("/api/download-merged", response_model=JobResponse)
+async def download_merged(req: DownloadMergedRequest, background_tasks: BackgroundTasks):
+    if not req.stacks:
+        raise HTTPException(status_code=422, detail="Provide at least one stack")
+    job_id, _ = _new_job("Starting merged download…")
+    stop_ev = _threading.Event()
+    state._stop_events[job_id] = stop_ev
+    background_tasks.add_task(_run_download_merged, job_id, req, stop_ev)
+    return {"job_id": job_id}
+
+
+async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev: _threading.Event):
+    def run():
+        try:
+            workdir    = Path(req.workdir).expanduser().resolve()
+            merged_dir = workdir / "merged"
+
+            all_downloaders = []
+            for i, spec in enumerate(req.stacks):
+                if stop_ev.is_set():
+                    _finish_job(job_id, status="done", progress=0, message="Stopped.")
+                    return
+                state._jobs[job_id]["message"] = (
+                    f"Searching stack {i + 1}/{len(req.stacks)} "
+                    f"(P{spec.relativeOrbit}/F{spec.frame})…"
+                )
+                cfg = S1_SLC_Config(workdir=workdir)
+                _apply_config_from_dict(cfg, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
+                _apply_config_from_dict(cfg, {
+                    "start": spec.start, "end": spec.end,
+                    "relativeOrbit": spec.relativeOrbit, "frame": spec.frame,
+                    "intersectsWith": spec.wkt, "flightDirection": spec.flightDirection,
+                    "platform": spec.platform,
+                })
+                downloader    = Downloader.create(req.downloaderType, cfg)
+                search_result = SearchCommand(downloader).run()
+                if not search_result.success:
+                    state._jobs[job_id]["message"] += f" [search failed: {search_result.message}]"
+                    continue
+                all_downloaders.append(downloader)
+
+            if not all_downloaders:
+                _finish_job(job_id, status="error", progress=0, message="All stack searches failed.")
+                return
+
+            # Merge all results into primary downloader
+            primary = all_downloaders[0]
+            for dl in all_downloaders[1:]:
+                primary.results.update(dl.results)
+
+            if req.download_slc and not stop_ev.is_set():
+                total = sum(len(v) for v in primary.results.values())
+                state._jobs[job_id]["message"] = f"Downloading 0/{total} scenes → merged/"
+
+                def _on_progress(msg: str, pct: int):
+                    count = msg.split(']')[0].lstrip('[') if ']' in msg else ''
+                    state._jobs[job_id]["message"]  = f"Downloading {count}" if count else msg
+                    state._jobs[job_id]["progress"] = pct
+
+                dl_result = DownloadScenesCommand(
+                    primary,
+                    merge=True,
+                    stop_event=stop_ev,
+                    on_progress=_on_progress,
+                ).run()
+                if not dl_result.success:
+                    _finish_job(job_id, status="error", progress=0, message=dl_result.message)
+                    return
+
+            if req.download_orbit and not stop_ev.is_set():
+                state._jobs[job_id]["message"] = "Downloading orbit files → merged/"
+                primary.download_orbit(save_dir=str(merged_dir), stop_event=stop_ev)
+
+            if stop_ev.is_set():
+                _finish_job(job_id, status="done", progress=0, message="Stopped.")
+            else:
+                _finish_job(
+                    job_id, status="done",
+                    message=f"Merged download complete → {merged_dir.name}/",
+                    data=str(merged_dir),
+                )
         except Exception as e:
             _finish_job(job_id, status="error", progress=0, message=str(e))
         finally:

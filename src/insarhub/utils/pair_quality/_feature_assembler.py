@@ -60,6 +60,7 @@ class FeatureAssembler:
         # Per-date caches built up as pairs are assembled
         self._weather_cache:  dict[str, dict] = {}
         self._snow_cache:     dict[str, dict] = {}
+        self._date_hour:      dict[str, int]  = {}   # date → UTC overpass hour from scene names
         self.remote_fetch_count: int = 0   # incremented on every network fetch
 
         # Coherence cache: {cache_key → {level_str: coh_val}}
@@ -129,7 +130,10 @@ class FeatureAssembler:
         if cached:
             self._weather_cache[date] = cached
             return cached
-        feats = _weather.fetch_weather(self._lat, self._lon, date)
+        feats = _weather.fetch_weather(
+            self._lat, self._lon, date,
+            overpass_hour=self._date_hour.get(date),
+        )
         self._cache.set("weather", cache_key, feats)
         self._weather_cache[date] = feats
         self.remote_fetch_count += 1
@@ -143,7 +147,10 @@ class FeatureAssembler:
         if cached:
             self._snow_cache[date] = cached
             return cached
-        feats = _snow_modis.fetch_snow_features(self._lat, self._lon, date)
+        feats = _snow_modis.fetch_snow_features(
+            self._lat, self._lon, date,
+            overpass_hour=self._date_hour.get(date),
+        )
         self._cache.set("snow_modis", cache_key, feats)
         self._snow_cache[date] = feats
         self.remote_fetch_count += 1
@@ -151,12 +158,24 @@ class FeatureAssembler:
 
     # ── Batch prefetch ────────────────────────────────────────────────────────
 
-    def prefetch_dates(self, dates: list[str]) -> None:
+    def prefetch_dates(
+        self,
+        dates: list[str],
+        date_hour: dict[str, int] | None = None,
+    ) -> None:
         """Batch-fetch weather and snow for all unique dates not already cached.
 
-        Call this once with all unique acquisition dates before the pair loop
-        so that assemble() hits only the in-memory cache.
+        Parameters
+        ----------
+        dates     : unique acquisition dates (YYYY-MM-DD)
+        date_hour : {date: utc_hour} parsed from scene names — each date uses
+                    its exact overpass hour instead of the module-level default.
+
+        Call once before the pair loop so assemble() hits only in-memory cache.
         """
+        if date_hour:
+            self._date_hour.update(date_hour)
+
         uncached_weather: list[str] = []
         uncached_snow:    list[str] = []
 
@@ -177,7 +196,10 @@ class FeatureAssembler:
 
         if uncached_weather:
             logger.info("Batch-fetching weather for %d dates …", len(uncached_weather))
-            batch = _weather.fetch_weather_batch(self._lat, self._lon, uncached_weather)
+            batch = _weather.fetch_weather_batch(
+                self._lat, self._lon, uncached_weather,
+                date_hour=self._date_hour or None,
+            )
             for date, feats in batch.items():
                 cache_key = f"{self._lat:.3f}:{self._lon:.3f}:{date}"
                 self._cache.set("weather", cache_key, feats)
@@ -186,7 +208,10 @@ class FeatureAssembler:
 
         if uncached_snow:
             logger.info("Batch-fetching snow for %d dates …", len(uncached_snow))
-            batch = _snow_modis.fetch_snow_features_batch(self._lat, self._lon, uncached_snow)
+            batch = _snow_modis.fetch_snow_features_batch(
+                self._lat, self._lon, uncached_snow,
+                date_hour=self._date_hour or None,
+            )
             for date, feats in batch.items():
                 cache_key = f"{self._lat:.3f}:{self._lon:.3f}:{date}"
                 self._cache.set("snow_modis", cache_key, feats)
@@ -367,9 +392,9 @@ class FeatureAssembler:
             "snow_depth_d2":       s2.get("snow_depth"),
             "snow_source":         s1.get("snow_source", "none"),
 
-            # Weather (pair-level, per-date)
-            "temp_max_d1":     w1.get("temp_max"),
-            "temp_max_d2":     w2.get("temp_max"),
+            # Weather (pair-level, per-date) — overpass-hour temp preferred
+            "temp_max_d1":     w1.get("temp") if w1.get("temp") is not None else w1.get("temp_max"),
+            "temp_max_d2":     w2.get("temp") if w2.get("temp") is not None else w2.get("temp_max"),
             "precip_d1":       w1.get("precip"),
             "precip_d2":       w2.get("precip"),
             "precip_3day_d1":  w1.get("precip_3day"),

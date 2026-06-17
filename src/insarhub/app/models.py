@@ -61,6 +61,24 @@ class DownloadByNameRequest(BaseModel):
     downloaderType: str = Field(default="S1_SLC")
 
 
+class MergedStackSpec(BaseModel):
+    relativeOrbit:   int
+    frame:           int
+    start:           str
+    end:             str
+    wkt:             str | None = None
+    flightDirection: str | None = None
+    platform:        str | None = None
+
+
+class DownloadMergedRequest(BaseModel):
+    workdir:        str
+    stacks:         list[MergedStackSpec]
+    download_slc:   bool = True
+    download_orbit: bool = True
+    downloaderType: str = "S1_SLC"
+
+
 class JobResponse(BaseModel):
     job_id: str
 

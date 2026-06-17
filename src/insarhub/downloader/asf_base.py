@@ -783,7 +783,7 @@ Check documentation for how to setup .netrc file.\n""")
 
     def download(self, save_path: str | None = None, max_workers: int = None,
                  stop_event=None, on_progress=None,
-                 scenes=None):
+                 scenes=None, merge: bool = False):
         """Download search results to the specified output directory.
 
         Args:
@@ -796,6 +796,9 @@ Check documentation for how to setup .netrc file.\n""")
                   ``dict{(path, frame): [[ref, sec], ...]}`` (multi-stack).
                   Unique scene names are extracted automatically.
                   When ``None`` (default) all search results are downloaded.
+            merge (bool): When True, all stacks are downloaded into a single
+                ``merged/slc/`` subdirectory instead of per-stack ``p{path}_f{frame}/``
+                subdirs. Useful when combining multiple overlapping stacks for ISCE/MintPy.
 
         Raises:
             ValueError: If no search results are available.
@@ -820,17 +823,32 @@ Check documentation for how to setup .netrc file.\n""")
 
         scene_filter = _parse_scene_filter(scenes)
 
+        # merge=True: all stacks land in output_dir/merged/slc/
+        if merge:
+            merged_dir = output_dir / "merged"
+            merged_dir.mkdir(parents=True, exist_ok=True)
+            write_workflow_marker(merged_dir, downloader=type(self).name)
+            _wic(merged_dir, {"downloader": {"type": type(self).name, "config": _cfg_base}})
+
         jobs = []
         stack_paths: dict = {}
         _dir_is_stack = (self.download_dir / "insarhub_config.json").exists()
         for key, results in self.active_results.items():
-            stack_path = self.download_dir if _dir_is_stack else self.download_dir / f'p{key[0]}_f{key[1]}'
-            download_path = stack_path / 'slc'
+            if merge:
+                stack_path    = output_dir / "merged"
+                download_path = stack_path / "slc"
+            elif _dir_is_stack:
+                stack_path    = self.download_dir
+                download_path = stack_path / "slc"
+            else:
+                stack_path    = self.download_dir / f'p{key[0]}_f{key[1]}'
+                download_path = stack_path / "slc"
             download_path.mkdir(parents=True, exist_ok=True)
             stack_paths[key] = download_path
-            write_workflow_marker(stack_path, downloader=type(self).name)
-            _cfg = {**_cfg_base, 'relativeOrbit': key[0], 'frame': key[1]}
-            _wic(stack_path, {"downloader": {"type": type(self).name, "config": _cfg}})
+            if not merge:
+                write_workflow_marker(stack_path, downloader=type(self).name)
+                _cfg = {**_cfg_base, 'relativeOrbit': key[0], 'frame': key[1]}
+                _wic(stack_path, {"downloader": {"type": type(self).name, "config": _cfg}})
             for result in results:
                 if scene_filter is None or result.properties['sceneName'] in scene_filter:
                     jobs.append((key, result, download_path))

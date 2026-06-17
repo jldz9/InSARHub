@@ -17,9 +17,9 @@ class S1_SLC(ASF_Base_Downloader):
     """
     A class to search and download Sentinel-1 data using ASF Search API."""
 
-    def download(self, save_path: str | None = None, max_workers: int = None, force_cdse: bool = False, download_orbit: bool = False, stop_event=None, on_progress=None):
-        from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
-        if max_workers is None: max_workers = _DL["max_workers"]
+    def download(self, save_path: str | None = None, max_workers: int = None,
+                 force_cdse: bool = False, download_orbit: bool = False,
+                 stop_event=None, on_progress=None, merge: bool = False):
         """Download SLC data and optionally associated orbit files.
 
         Args:
@@ -29,13 +29,17 @@ class S1_SLC(ASF_Base_Downloader):
             download_orbit (bool): If True, also downloads orbit files after scenes. Defaults to False.
             stop_event: Optional threading.Event to cancel the download.
             on_progress: Optional callback(message, pct) called after each file completes.
+            merge (bool): If True, all stacks download into a single merged/slc/ directory.
         """
-        super().download(save_path=save_path, max_workers=max_workers, stop_event=stop_event, on_progress=on_progress)
+        from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
+        if max_workers is None: max_workers = _DL["max_workers"]
+        super().download(save_path=save_path, max_workers=max_workers,
+                         stop_event=stop_event, on_progress=on_progress, merge=merge)
         if download_orbit:
-            self.download_orbit(force_cdse=force_cdse)
+            self.download_orbit(force_cdse=force_cdse, merge=merge)
 
     def download_orbit(self, force_cdse: bool = False, save_dir: str | None = None,
-                       stop_event=None, scenes=None):
+                       stop_event=None, scenes=None, merge: bool = False):
         """Download orbit files for the current search results.
 
         Downloads from ASF by default (no credentials required).  Pass
@@ -89,7 +93,14 @@ class S1_SLC(ASF_Base_Downloader):
                     break
                 _base = Path(base_dir)
                 _is_stack = (_base / "insarhub_config.json").exists()
-                download_path = (Path(save_dir) / 'slc') if save_dir else ((_base / 'slc') if _is_stack else (_base / f'p{key[0]}_f{key[1]}' / 'slc'))
+                if merge:
+                    download_path = _base / 'merged' / 'slc'
+                elif save_dir:
+                    download_path = Path(save_dir) / 'slc'
+                elif _is_stack:
+                    download_path = _base / 'slc'
+                else:
+                    download_path = _base / f'p{key[0]}_f{key[1]}' / 'slc'
                 download_path.mkdir(parents=True, exist_ok=True)
                 scene_name = result.properties['sceneName']
                 short_name = scene_name[:40] + "..."

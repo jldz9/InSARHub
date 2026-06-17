@@ -45,6 +45,14 @@ def _slope_degrees(dem: np.ndarray, res_m: float = 30.0) -> np.ndarray:
     return np.degrees(np.arctan(np.sqrt(dx**2 + dy**2)))
 
 
+def _aspect_degrees(dem: np.ndarray, res_m: float = 30.0) -> np.ndarray:
+    """Compute aspect in degrees clockwise from north (0–360)."""
+    dy, dx = np.gradient(dem.astype(float), res_m)
+    # atan2 returns angle from east; convert to clockwise-from-north
+    aspect = np.degrees(np.arctan2(dx, dy))
+    return aspect % 360.0
+
+
 def _roughness(dem: np.ndarray) -> np.ndarray:
     """Local relief (std-dev in a 3×3 neighbourhood) as a roughness proxy."""
     from numpy.lib.stride_tricks import sliding_window_view
@@ -79,6 +87,7 @@ def extract(aoi_wkt: str) -> dict:
         "elevation_range": None,
         "slope_mean":      None,
         "slope_p90":       None,
+        "aspect_mean":     None,
         "roughness":       None,
     }
 
@@ -109,13 +118,16 @@ def extract(aoi_wkt: str) -> dict:
         if valid.size == 0:
             return result
 
-        slope = _slope_degrees(np.nan_to_num(dem_f, nan=float(np.nanmean(dem_f))))
-        rough = _roughness(np.nan_to_num(dem_f, nan=float(np.nanmean(dem_f))))
+        dem_filled = np.nan_to_num(dem_f, nan=float(np.nanmean(dem_f)))
+        slope  = _slope_degrees(dem_filled)
+        aspect = _aspect_degrees(dem_filled)
+        rough  = _roughness(dem_filled)
 
         result["elevation_mean"]  = round(float(np.nanmean(dem_f)), 1)
         result["elevation_range"] = round(float(np.nanmax(dem_f) - np.nanmin(dem_f)), 1)
         result["slope_mean"]      = round(float(np.nanmean(slope)), 2)
         result["slope_p90"]       = round(float(np.nanpercentile(slope, 90)), 2)
+        result["aspect_mean"]     = round(float(np.nanmean(aspect)), 1)
         result["roughness"]       = round(float(np.nanmean(rough)), 2)
 
     except Exception as exc:

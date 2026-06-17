@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import type { Theme } from './theme'
+import { useResizable, ResizeHandle } from './useResizable'
 
 export function parseStack(s: string): { path: number; frame: number } | null {
   const m = s.match(/\(\s*(\d+)\s*,\s*(\d+)\s*\)/)
@@ -43,6 +44,7 @@ export default function ScenePanel({
   feature, theme: t, stackStart, stackEnd,
   stackCount, workdir, aoiWkt, downloaderType, stackOpen, onClose, onStackClick,
 }: Props) {
+  const { width, onHandleMouseDown } = useResizable(280)
   const p     = feature.properties ?? {}
   const stack = parseStack(p._stack ?? '')
 
@@ -265,12 +267,13 @@ export default function ScenePanel({
 
   return (
     <div style={{
-      width: 280, height: '100%',
+      position: 'relative', width, height: '100%',
       background: t.bg,
       borderLeft: `1px solid ${t.border}`,
       display: 'flex', flexDirection: 'column',
       boxShadow: '-4px 0 16px rgba(0,0,0,0.25)',
     }}>
+      <ResizeHandle onMouseDown={onHandleMouseDown} />
       {/* Header */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',

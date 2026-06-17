@@ -57,6 +57,21 @@ def _scene_date(name: str) -> str:
     return ""
 
 
+def _scene_hour(name: str) -> int | None:
+    """Extract UTC overpass hour from S-1 scene name.
+
+    Scene name format: S1A_IW_SLC__1SDV_YYYYMMDDTHHMMSS_...
+    The start-time field begins at position 17; 'T' separator at position 25;
+    HH at positions 26-27.
+    """
+    if len(name) >= 28 and name[25] == "T":
+        try:
+            return int(name[26:28])
+        except ValueError:
+            pass
+    return None
+
+
 def _pair_key(ref: str, sec: str) -> str:
     """Always earliest-date scene first so lookups are order-independent."""
     d1, d2 = _scene_date(ref), _scene_date(sec)
@@ -203,13 +218,21 @@ class PairQualityDB:
             all_scenes.extend(scene_list)
         all_scenes = list(dict.fromkeys(all_scenes))  # deduplicate, preserve order
 
+        # Build per-date overpass hour from scene names (exact UTC time in name)
+        date_hour: dict[str, int] = {}
+        for scene in all_scenes:
+            d = _scene_date(scene)
+            h = _scene_hour(scene)
+            if d and h is not None:
+                date_hour[d] = h
+
         # Prefetch date-level features (weather, snow, NDVI) for all unique dates
-        unique_dates: list[str] = list({
+        unique_dates: list[str] = list(date_hour.keys()) or list({
             d for s in all_scenes for d in [_scene_date(s)] if d
         })
         if _tqdm_cls and show_progress:
             _tqdm_cls.write(f"Prefetching weather/snow for {len(unique_dates)} dates …")
-        assembler.prefetch_dates(unique_dates)
+        assembler.prefetch_dates(unique_dates, date_hour=date_hour or None)
 
         # Prefetch S1 global coherence COH maps for all seasons in the pair set
         if self.coherence_aware:

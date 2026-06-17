@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { Theme } from './theme'
 import { NetworkEditor } from './NetworkEditor'
+import { useResizable, ResizeHandle } from './useResizable'
 
 // ── Raster overlay passed up to the map ──────────────────────────────────────
 
@@ -20,37 +21,6 @@ export interface RasterOverlay {
 }
 
 const API = import.meta.env.DEV ? 'http://localhost:8080' : ''
-
-// ── Resizable drawer width ─────────────────────────────────────────────────
-function useResizable(initial: number, min = 160, max = 700) {
-  const [width, setWidth] = useState(initial)
-  const startRef = useRef<{ x: number; w: number } | null>(null)
-  function onHandleMouseDown(e: React.MouseEvent) {
-    e.preventDefault()
-    startRef.current = { x: e.clientX, w: width }
-    const onMove = (ev: MouseEvent) => {
-      if (!startRef.current) return
-      setWidth(Math.max(min, Math.min(max, startRef.current.w + startRef.current.x - ev.clientX)))
-    }
-    const onUp = () => {
-      startRef.current = null
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-  }
-  return { width, onHandleMouseDown }
-}
-
-const ResizeHandle = ({ onMouseDown }: { onMouseDown: (e: React.MouseEvent) => void }) => (
-  <div
-    onMouseDown={onMouseDown}
-    style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 5, cursor: 'ew-resize', zIndex: 1 }}
-    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(128,128,128,0.25)')}
-    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-  />
-)
 
 // Persist active download job IDs across L2 drawer unmount/remount
 const _dlJobs:    Map<string, string> = new Map()
@@ -2573,8 +2543,6 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
   const [error,   setError]   = useState('')
   const [l2,        setL2]        = useState<{ job: JobFolder; role: string; cls: string } | null>(null)
   const [l2Visible, setL2Visible] = useState(false)
-  const [minimized, setMinimized] = useState(false)
-  const l2VisibleBeforeMinimize   = useRef(false)
   const [browsePath, setBrowsePath] = useState<string | null>(null)  // null = workdir root
 
   const effectivePath = browsePath ?? workdir
@@ -2611,30 +2579,11 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
 
   return (
     <>
-      {/* Standalone ‹‹‹ tab — only shown when minimized, lives outside hidden containers */}
-      {minimized && (
-        <button
-          onClick={() => { setMinimized(false); setL2Visible(l2VisibleBeforeMinimize.current) }}
-          title="Restore drawers"
-          style={{
-            position: 'fixed', right: 0, top: '50%', transform: 'translateY(-50%)',
-            width: 28, height: 72, zIndex: 120,
-            background: t.bg2, border: `1px solid ${t.border}`,
-            borderRight: 'none', borderRadius: '6px 0 0 6px',
-            cursor: 'pointer', color: t.textMuted, fontSize: 11,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            writingMode: 'vertical-rl', letterSpacing: 2,
-          }}
-        >‹‹‹</button>
-      )}
-
-      {/* Backdrop — click minimizes (hides) all drawers without unmounting */}
-      {!minimized && (
-        <div
-          onClick={() => { l2VisibleBeforeMinimize.current = l2Visible; setL2Visible(false); setMinimized(true) }}
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 110 }}
-        />
-      )}
+      {/* Backdrop — click closes drawer */}
+      <div
+        onClick={() => { setL2(null); setL2Visible(false); onClose() }}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 110 }}
+      />
 
       {/* L2 drawer — always mounted while l2 is set; hidden via CSS when not visible or minimized */}
       {l2 && (
@@ -2643,7 +2592,7 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
           job={l2.job}
           role={l2.role}
           cls={l2.cls}
-          hidden={!l2Visible || minimized}
+          hidden={!l2Visible}
           mapClickSignal={mapClickSignal}
           aoiWkt={aoiWkt}
           rightOffset={l1Width}
@@ -2661,8 +2610,6 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
         display: 'flex', flexDirection: 'column',
         zIndex: 111,
         boxShadow: '-4px 0 24px rgba(0,0,0,0.3)',
-        visibility: minimized ? 'hidden' : 'visible',
-        pointerEvents: minimized ? 'none' : 'auto',
       }}>
         <ResizeHandle onMouseDown={onL1Handle} />
         {/* Header */}

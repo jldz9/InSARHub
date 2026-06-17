@@ -91,6 +91,9 @@ git clone https://github.com/jldz9/InSARHub.git
 cd InSARHub
 conda env create -f environment.yml -n insarhub_dev
 conda activate insarhub_dev
+**Note:
+Run this command from the repository root directory after activating the Conda environment.
+The trailing "." is required because pip installs the current project in editable mode.**
 pip install -e .
 ```
 

@@ -690,6 +690,21 @@ _SAVED_CFG_SKIP = _SUBMIT_SKIP_FIELDS | {"hpc_mode", "dry_run"}
 _ANALYZER_SKIP_FIELDS = {"name", "workdir", "debug"}
 
 
+import re as _re
+_NEG_NUMBER_RE = _re.compile(r'^-\d[\d.eE+\-]*$')
+
+
+def _filter_unknown_flags(unknown: list[str]) -> list[str]:
+    """Drop standalone negative-number tokens from argparse unknown list.
+
+    When a parser has type=int/float options, argparse sets
+    _has_negative_number_optionals=True and then mis-classifies tokens like
+    '-105.51' as potential flags instead of values. Filter them out so we
+    only error on genuinely unknown flags (e.g. '--typo-flag').
+    """
+    return [u for u in unknown if not _NEG_NUMBER_RE.match(u)]
+
+
 def _build_config_parser(config_cls, skip_fields: set | None = None) -> argparse.ArgumentParser:
     """Build an ArgumentParser populated with flags from a config dataclass."""
     import dataclasses
@@ -1127,8 +1142,8 @@ def cmd_downloader(args, extra_args: list[str]):
     if config_cls is not None and dataclasses.is_dataclass(config_cls):
         config_parser = _build_config_parser(config_cls)
         config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if unknown:
-            print(f"[ERROR] Unknown flags for '{args.downloader_name}': {unknown}", file=sys.stderr)
+        if _filter_unknown_flags(unknown):
+            print(f"[ERROR] Unknown flags for '{args.downloader_name}': {_filter_unknown_flags(unknown)}", file=sys.stderr)
             sys.exit(1)
         for f in dataclasses.fields(config_cls):
             val = getattr(config_ns, f.name, None)
@@ -1457,8 +1472,8 @@ def _proc_submit(args, extra_args: list[str]):
     if config_cls is not None and dataclasses.is_dataclass(config_cls):
         config_parser = _build_config_parser(config_cls, skip_fields=_SUBMIT_SKIP_FIELDS)
         config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if unknown:
-            print(f"[ERROR] Unknown flags for '{processor_name}': {unknown}", file=sys.stderr)
+        if _filter_unknown_flags(unknown):
+            print(f"[ERROR] Unknown flags for '{processor_name}': {_filter_unknown_flags(unknown)}", file=sys.stderr)
             sys.exit(1)
         for f in dataclasses.fields(config_cls):
             if f.name in _SUBMIT_SKIP_FIELDS:
@@ -1745,8 +1760,8 @@ def _proc_local_submit(args, extra_args: list[str]):
     if config_cls is not None and dataclasses.is_dataclass(config_cls):
         config_parser = _build_config_parser(config_cls, skip_fields=_SUBMIT_SKIP_FIELDS)
         config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if unknown:
-            print(f"[ERROR] Unknown flags for '{processor_name}': {unknown}", file=sys.stderr)
+        if _filter_unknown_flags(unknown):
+            print(f"[ERROR] Unknown flags for '{processor_name}': {_filter_unknown_flags(unknown)}", file=sys.stderr)
             sys.exit(1)
         _unset = config_parser._unset_sentinel  # type: ignore[attr-defined]
         for f in dataclasses.fields(config_cls):
@@ -1934,8 +1949,8 @@ def _az_run(args, extra_args: list[str]):
         # Collect overrides from extra_args (flags passed after subcommand)
         config_parser = _build_config_parser(config_cls, skip_fields=_ANALYZER_SKIP_FIELDS)
         config_ns, unknown = config_parser.parse_known_args(extra_args)
-        if unknown:
-            print(f"[ERROR] Unknown flags for '{args.analyzer_name}': {unknown}",
+        if _filter_unknown_flags(unknown):
+            print(f"[ERROR] Unknown flags for '{args.analyzer_name}': {_filter_unknown_flags(unknown)}",
                   file=sys.stderr)
             sys.exit(1)
         for f in dataclasses.fields(config_cls):

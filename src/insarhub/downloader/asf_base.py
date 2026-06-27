@@ -289,7 +289,7 @@ Check documentation for how to setup .netrc file.\n""")
 
         print(f"Searching for SLCs....")
         search_opts = {k: v for k, v in asdict(self.config).items()
-                       if v is not None and k not in ['workdir', 'name', 'bbox', 'granule_names']}
+                       if v is not None and k not in ['workdir', 'name', 'bbox', 'granule_names', 'ssl_verify']}
 
         for attempt in range(1, 11):
             try:

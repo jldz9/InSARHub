@@ -2456,6 +2456,11 @@
 <td>Parallel download workers</td>
 </tr>
 <tr>
+<td><code>--no-verify-ssl</code></td>
+<td>—</td>
+<td>Disable SSL certificate verification for <abbr title="Alaska Satellite Facility">ASF</abbr> downloads. Use this if <abbr title="Alaska Satellite Facility">ASF</abbr>'s certificate has expired and downloads fail with an SSL error</td>
+</tr>
+<tr>
 <td><code>--footprint</code></td>
 <td><code>&lt;workdir&gt;/footprint.png</code></td>
 <td>Save a footprint map image to this path</td>
@@ -2610,9 +2615,15 @@
 <td><code>&lt;workdir&gt;/hyp3_jobs.json</code></td>
 <td>Path to saved job IDs JSON</td>
 </tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>off</td>
+<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w">   </span><span class="c1"># search all subdirs including retry files</span>
 </span></code></pre></div>
 <h4 id="download_1">download</h4>
 <p>Download all completed <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> outputs.</p>
@@ -2635,9 +2646,20 @@
 <td><code>&lt;workdir&gt;/hyp3_jobs.json</code></td>
 <td>Path to saved job IDs JSON</td>
 </tr>
+<tr>
+<td><code>--max-workers</code></td>
+<td>saved config</td>
+<td>Parallel download threads (overrides saved config)</td>
+</tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>off</td>
+<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--max-workers<span class="w"> </span><span class="m">8</span>
 </span></code></pre></div>
 <h4 id="retry">retry</h4>
 <p>Resubmit all failed <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> jobs.</p>
@@ -2660,9 +2682,15 @@
 <td>auto</td>
 <td>Saved job file</td>
 </tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>off</td>
+<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r
 </span></code></pre></div>
 <h4 id="watch">watch</h4>
 <p>Poll <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> at regular intervals; downloads results as jobs succeed.</p>
@@ -2685,9 +2713,15 @@
 <td>cwd</td>
 <td>Working directory</td>
 </tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>off</td>
+<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span><span class="w"> </span>-r
 </span></code></pre></div>
 <h4 id="credits">credits</h4>
 <p>Show remaining <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> processing credits for all accounts.</p>

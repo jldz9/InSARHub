@@ -2458,6 +2458,11 @@
 <td>并行下载工作线程数</td>
 </tr>
 <tr>
+<td><code>--no-verify-ssl</code></td>
+<td>—</td>
+<td>禁用 <abbr title="Alaska Satellite Facility">ASF</abbr> 下载的 SSL 证书验证。当 <abbr title="Alaska Satellite Facility">ASF</abbr> 证书过期导致下载失败时使用</td>
+</tr>
+<tr>
 <td><code>--footprint</code></td>
 <td><code>&lt;workdir&gt;/footprint.png</code></td>
 <td>将覆盖范围地图图像保存到此路径</td>
@@ -2612,9 +2617,15 @@
 <td><code>&lt;workdir&gt;/hyp3_jobs.json</code></td>
 <td>已保存作业 ID JSON 文件路径</td>
 </tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>关闭</td>
+<td>递归搜索 workdir 下所有 <code>hyp3*.json</code> 文件（含重试文件）</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w">   </span><span class="c1"># 递归搜索所有子目录及重试文件</span>
 </span></code></pre></div>
 <h4 id="download">download</h4>
 <p>下载所有已完成的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 输出结果。</p>
@@ -2637,9 +2648,20 @@
 <td><code>&lt;workdir&gt;/hyp3_jobs.json</code></td>
 <td>已保存作业 ID JSON 文件路径</td>
 </tr>
+<tr>
+<td><code>--max-workers</code></td>
+<td>已保存配置</td>
+<td>并行下载线程数（覆盖已保存配置）</td>
+</tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>关闭</td>
+<td>递归搜索 workdir 下所有 <code>hyp3*.json</code> 文件（含重试文件）</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--max-workers<span class="w"> </span><span class="m">8</span>
 </span></code></pre></div>
 <h4 id="retry">retry</h4>
 <p>重新提交所有失败的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 作业。</p>
@@ -2662,9 +2684,15 @@
 <td>自动</td>
 <td>已保存的作业文件</td>
 </tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>关闭</td>
+<td>递归搜索 workdir 下所有 <code>hyp3*.json</code> 文件（含重试文件）</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r
 </span></code></pre></div>
 <h4 id="watch">watch</h4>
 <p>定期轮询 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr>；在作业成功后自动下载结果。</p>
@@ -2687,9 +2715,15 @@
 <td>cwd</td>
 <td>工作目录</td>
 </tr>
+<tr>
+<td><code>-r</code>, <code>--recursive</code></td>
+<td>关闭</td>
+<td>递归搜索 workdir 下所有 <code>hyp3*.json</code> 文件（含重试文件）</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span><span class="w"> </span>-r
 </span></code></pre></div>
 <h4 id="credits">credits</h4>
 <p>显示所有账户剩余的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 处理配额。</p>

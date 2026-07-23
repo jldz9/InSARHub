@@ -22,7 +22,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -30,7 +30,7 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -2749,6 +2749,11 @@
 <td>Working directory</td>
 </tr>
 <tr>
+<td><code>--worker</code></td>
+<td>saved config</td>
+<td>Parallel download threads (overrides saved config)</td>
+</tr>
+<tr>
 <td><code>-r</code>, <code>--recursive</code></td>
 <td>off</td>
 <td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
@@ -2757,6 +2762,7 @@
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span><span class="w"> </span>-r
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
 </span></code></pre></div>
 <h4 id="credits">credits</h4>
 <p>Show remaining <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> processing credits for all accounts.</p>
@@ -2870,6 +2876,11 @@
 <td>auto</td>
 <td>Pairs JSON from <code>downloader --select-pairs</code></td>
 </tr>
+<tr>
+<td><code>--container</code></td>
+<td>—</td>
+<td>Run inside a container instead of on the host — see <a href="#running-without-a-local-isce2-install">Running without a local ISCE2 install</a> below</td>
+</tr>
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Dry run first (recommended)</span>
@@ -2910,6 +2921,17 @@
 </ul>
 <p>Edit <code>sbatch_options.json</code> to set resources per step, then re-run <code>submit</code>.</p>
 </div>
+<div class="admonition note">
+<p class="admonition-title">Running without a local ISCE2 install</p>
+<p><code>--container &lt;path-or-image&gt;</code> re-invokes the entire <code>insarhub processor ...</code> command inside a container instead of the host — pass a path to an Apptainer/Singularity <code>.sif</code> image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and <code>ISCE_S1</code> never needs to discover a host ISCE2 install at all. The container image just needs <code>insarhub</code> installed alongside ISCE2/topsStack — see <a href="https://github.com/jldz9/InSARHub/blob/main/Dockerfile"><code>Dockerfile</code></a> in the repo root for a ready-to-build example.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w">  </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w">   </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w">   </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w">  </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span></code></pre></div>
+<p><code>--container</code> is a per-invocation flag, not a saved setting — like <code>--dry-run</code>, it's never written to <code>insarhub_config.json</code>, so pass it again on every <code>submit</code>/<code>refresh</code>/<code>retry</code>/<code>watch</code>/<code>cancel</code> call you want to run inside the container.</p>
+</div>
 <h4 id="refresh_1">refresh</h4>
 <p>Read step and command statuses from disk.</p>
 <table>
@@ -2936,36 +2958,41 @@
 <td>off</td>
 <td>Show per-command (<code>cmd_XXXX</code>) detail — bare <code>--ls</code> for every step, <code>--ls 03</code> (also <code>3</code> or <code>run_03</code>) for just one step</td>
 </tr>
+<tr>
+<td><code>--container</code></td>
+<td>—</td>
+<td>Needed if the host has no local ISCE2 install — see <a href="#running-without-a-local-isce2-install">below</a></td>
+</tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <p>By default only the one-line-per-step summary prints — no <code>cmd_XXXX</code> detail:</p>
 <details class="output">
 <summary>Output</summary>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>  STEP                                          STATUS
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>-----------------------------------------------------------------
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
-</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>  - run_03_average_baseline                     PENDING
-</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>  ...
+<div class="language-text highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>  STEP                                          STATUS
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>-----------------------------------------------------------------
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>  - run_03_average_baseline                     PENDING
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>  ...
 </span></code></pre></div>
 </details>
 <p>Pass <code>--ls</code> to also see per-command detail — for every step, or a specific one:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w">        </span><span class="c1"># every step</span>
-</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w"> </span><span class="m">02</span><span class="w">     </span><span class="c1"># just run_02</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w">        </span><span class="c1"># every step</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w"> </span><span class="m">02</span><span class="w">     </span><span class="c1"># just run_02</span>
 </span></code></pre></div>
 <details class="output">
 <summary>Output</summary>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>  STEP                                          STATUS
-</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>-----------------------------------------------------------------
-</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
-</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
-</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a>      cmd_0000  SUCCEEDED
-</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a>      cmd_0001  RUNNING
-</span><span id="__span-24-7"><a id="__codelineno-24-7" name="__codelineno-24-7" href="#__codelineno-24-7"></a>      cmd_0002  PENDING
-</span><span id="__span-24-8"><a id="__codelineno-24-8" name="__codelineno-24-8" href="#__codelineno-24-8"></a>  - run_03_average_baseline                     PENDING
-</span><span id="__span-24-9"><a id="__codelineno-24-9" name="__codelineno-24-9" href="#__codelineno-24-9"></a>  ...
+<div class="language-text highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>  STEP                                          STATUS
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>-----------------------------------------------------------------
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>  - run_01_unpack_topo_reference                SUCCEEDED
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>  - run_02_unpack_secondary_slc                 RUNNING
+</span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>      cmd_0000  SUCCEEDED
+</span><span id="__span-25-6"><a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>      cmd_0001  RUNNING
+</span><span id="__span-25-7"><a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>      cmd_0002  PENDING
+</span><span id="__span-25-8"><a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a>  - run_03_average_baseline                     PENDING
+</span><span id="__span-25-9"><a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a>  ...
 </span></code></pre></div>
 </details>
 <h4 id="retry_1">retry</h4>
@@ -2989,9 +3016,14 @@
 <td>auto</td>
 <td>Saved job file</td>
 </tr>
+<tr>
+<td><code>--container</code></td>
+<td>—</td>
+<td>Needed if the host has no local ISCE2 install — see <a href="#running-without-a-local-isce2-install">below</a></td>
+</tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <h4 id="cancel">cancel</h4>
 <p>Terminate running steps. Local mode sends SIGTERM to the background process; <abbr title="High Performance Computing">HPC</abbr> mode runs <code>scancel</code> on all active SLURM job IDs.</p>
@@ -3014,9 +3046,14 @@
 <td>auto</td>
 <td>Saved job file</td>
 </tr>
+<tr>
+<td><code>--container</code></td>
+<td>—</td>
+<td>Needed if the host has no local ISCE2 install — see <a href="#running-without-a-local-isce2-install">below</a></td>
+</tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <h4 id="watch_1">watch</h4>
 <p>Poll step statuses until all steps complete.</p>
@@ -3039,9 +3076,14 @@
 <td>cwd</td>
 <td>Working directory</td>
 </tr>
+<tr>
+<td><code>--container</code></td>
+<td>—</td>
+<td>Needed if the host has no local ISCE2 install — see <a href="#running-without-a-local-isce2-install">below</a></td>
+</tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -3049,7 +3091,7 @@
 <hr>
 <h2 id="analyzer">analyzer</h2>
 <p>Run MintPy <abbr title="Small Baseline Subset">SBAS</abbr> time-series analysis on interferogram outputs.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span><span class="o">[</span>-N<span class="w"> </span>ANALYZER<span class="o">]</span><span class="w"> </span><span class="o">[</span>-w<span class="w"> </span>WORKDIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>config<span class="w"> </span>overrides<span class="o">]</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span><span class="o">[</span>-N<span class="w"> </span>ANALYZER<span class="o">]</span><span class="w"> </span><span class="o">[</span>-w<span class="w"> </span>WORKDIR<span class="o">]</span><span class="w"> </span><span class="o">[</span>config<span class="w"> </span>overrides<span class="o">]</span><span class="w"> </span>&lt;action&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3109,7 +3151,7 @@
 <div class="tabbed-block">
 <h3 id="run">run</h3>
 <p>Run the analysis workflow. Omitting <code>--step</code> runs the full pipeline (<code>prep_data</code> + all MintPy steps).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3134,6 +3176,11 @@
 <td><code>--hpc_mode</code></td>
 <td><code>False</code></td>
 <td>Submit the full MintPy run as a single SLURM <code>sbatch</code> job instead of running locally</td>
+</tr>
+<tr>
+<td><code>--container</code></td>
+<td>—</td>
+<td>Run inside a container instead of on the host — needs <code>insarhub</code> installed alongside MintPy (and ISCE2, for <code>ISCE_SBAS</code>); see <a href="#running-without-a-local-isce2-install">ISCE_S1's container note</a> for the same mechanism</td>
 </tr>
 </tbody>
 </table>
@@ -3166,6 +3213,14 @@
 <td>Select reference pixel</td>
 </tr>
 <tr>
+<td><code>quick_overview</code></td>
+<td>Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask)</td>
+</tr>
+<tr>
+<td><code>correct_unwrap_error</code></td>
+<td>Correct phase-unwrapping errors</td>
+</tr>
+<tr>
 <td><code>invert_network</code></td>
 <td>Invert the interferogram network (<abbr title="Small Baseline Subset">SBAS</abbr>)</td>
 </tr>
@@ -3217,30 +3272,34 @@
 <td><code>hdfeos5</code></td>
 <td>Export to HDF-EOS5 format</td>
 </tr>
+<tr>
+<td><code>plot</code></td>
+<td>(Re)generate figures under <code>mintpy/pic/</code>. Not a real MintPy step — handled specially. Auto-added whenever more than one real step above is requested (or the full <code>all</code> pipeline), matching MintPy's own CLI behavior; also usable standalone (e.g. to re-plot after a config change without recomputing anything)</td>
+</tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="c1"># Full pipeline</span>
-</span><span id="__span-30-2"><a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
-</span><span id="__span-30-3"><a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>
-</span><span id="__span-30-4"><a id="__codelineno-30-4" name="__codelineno-30-4" href="#__codelineno-30-4"></a><span class="c1"># Prep only</span>
-</span><span id="__span-30-5"><a id="__codelineno-30-5" name="__codelineno-30-5" href="#__codelineno-30-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
-</span><span id="__span-30-6"><a id="__codelineno-30-6" name="__codelineno-30-6" href="#__codelineno-30-6"></a>
-</span><span id="__span-30-7"><a id="__codelineno-30-7" name="__codelineno-30-7" href="#__codelineno-30-7"></a><span class="c1"># Single step</span>
-</span><span id="__span-30-8"><a id="__codelineno-30-8" name="__codelineno-30-8" href="#__codelineno-30-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
-</span><span id="__span-30-9"><a id="__codelineno-30-9" name="__codelineno-30-9" href="#__codelineno-30-9"></a>
-</span><span id="__span-30-10"><a id="__codelineno-30-10" name="__codelineno-30-10" href="#__codelineno-30-10"></a><span class="c1"># Multiple steps</span>
-</span><span id="__span-30-11"><a id="__codelineno-30-11" name="__codelineno-30-11" href="#__codelineno-30-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
-</span><span id="__span-30-12"><a id="__codelineno-30-12" name="__codelineno-30-12" href="#__codelineno-30-12"></a>
-</span><span id="__span-30-13"><a id="__codelineno-30-13" name="__codelineno-30-13" href="#__codelineno-30-13"></a><span class="c1"># Override config and run</span>
-</span><span id="__span-30-14"><a id="__codelineno-30-14" name="__codelineno-30-14" href="#__codelineno-30-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a><span class="c1"># Full pipeline</span>
+</span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
+</span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a>
+</span><span id="__span-31-4"><a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a><span class="c1"># Prep only</span>
+</span><span id="__span-31-5"><a id="__codelineno-31-5" name="__codelineno-31-5" href="#__codelineno-31-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
+</span><span id="__span-31-6"><a id="__codelineno-31-6" name="__codelineno-31-6" href="#__codelineno-31-6"></a>
+</span><span id="__span-31-7"><a id="__codelineno-31-7" name="__codelineno-31-7" href="#__codelineno-31-7"></a><span class="c1"># Single step</span>
+</span><span id="__span-31-8"><a id="__codelineno-31-8" name="__codelineno-31-8" href="#__codelineno-31-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
+</span><span id="__span-31-9"><a id="__codelineno-31-9" name="__codelineno-31-9" href="#__codelineno-31-9"></a>
+</span><span id="__span-31-10"><a id="__codelineno-31-10" name="__codelineno-31-10" href="#__codelineno-31-10"></a><span class="c1"># Multiple steps</span>
+</span><span id="__span-31-11"><a id="__codelineno-31-11" name="__codelineno-31-11" href="#__codelineno-31-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
+</span><span id="__span-31-12"><a id="__codelineno-31-12" name="__codelineno-31-12" href="#__codelineno-31-12"></a>
+</span><span id="__span-31-13"><a id="__codelineno-31-13" name="__codelineno-31-13" href="#__codelineno-31-13"></a><span class="c1"># Override config and run</span>
+</span><span id="__span-31-14"><a id="__codelineno-31-14" name="__codelineno-31-14" href="#__codelineno-31-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
 </span></code></pre></div>
 <p>Each executing step prints <code>Step N/Total: step_name</code> for batch log visibility.</p>
 <h4 id="hpc-mode"><abbr title="High Performance Computing">HPC</abbr> mode</h4>
 <p>When <code>--hpc_mode True</code> is set, a single <code>sbatch</code> script covering all selected steps is generated and submitted to SLURM instead of running locally.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-31-1"><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
-</span><span id="__span-31-2"><a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a>
-</span><span id="__span-31-3"><a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="c1"># Specific steps on HPC</span>
-</span><span id="__span-31-4"><a id="__codelineno-31-4" name="__codelineno-31-4" href="#__codelineno-31-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+</span><span id="__span-32-2"><a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>
+</span><span id="__span-32-3"><a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a><span class="c1"># Specific steps on HPC</span>
+</span><span id="__span-32-4"><a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
 </span></code></pre></div>
 <p>Script written to <code>&lt;workdir&gt;/mintpy/mintpy_sbas.sbatch</code>, job state to <code>mintpy/mintpy_job.json</code>.</p>
 <p>SLURM resources come from <code>&lt;workdir&gt;/sbatch_options.json</code>, step key <code>"17"</code> — the <strong>same file</strong> used by <code>ISCE_S1 submit --hpc_mode</code> (steps <code>01</code>–<code>16</code>), since processor and analyzer typically share one workdir. Default: <code>time=24:00:00</code>, <code>ntasks=1</code>, <code>cpus_per_task=16</code>, <code>mem=128G</code>, <code>partition=all</code>.</p>
@@ -3249,11 +3308,11 @@
 <li>If the file exists but has no <code>"17"</code> entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.</li>
 </ul>
 <p>Edit step <code>"17"</code> in <code>sbatch_options.json</code> to change resources, then re-run:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-32-1"><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
 <h3 id="cleanup">cleanup</h3>
 <p>Remove intermediate files no longer needed after MintPy has loaded all data into HDF5.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-33-1"><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>cleanup
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>cleanup
 </span></code></pre></div>
 <table>
 <thead>
@@ -3274,7 +3333,7 @@
 <div class="tabbed-block">
 <h3 id="run_1">run</h3>
 <p>Run the analysis workflow. Omitting <code>--step</code> runs the full pipeline (<code>prep_data</code> + all MintPy steps).</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span><span class="o">[</span>--step<span class="w"> </span>STEP...<span class="o">]</span><span class="w"> </span><span class="o">[</span>--debug<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3299,6 +3358,11 @@
 <td><code>--hpc_mode</code></td>
 <td><code>False</code></td>
 <td>Submit the full MintPy run as a single SLURM <code>sbatch</code> job instead of running locally</td>
+</tr>
+<tr>
+<td><code>--container</code></td>
+<td>—</td>
+<td>Run inside a container instead of on the host — needs <code>insarhub</code> installed alongside MintPy (and ISCE2, for <code>ISCE_SBAS</code>); see <a href="#running-without-a-local-isce2-install">ISCE_S1's container note</a> for the same mechanism</td>
 </tr>
 </tbody>
 </table>
@@ -3331,6 +3395,14 @@
 <td>Select reference pixel</td>
 </tr>
 <tr>
+<td><code>quick_overview</code></td>
+<td>Generate diagnostic overview layers (coherence, phase velocity, unwrapping errors, connected component mask)</td>
+</tr>
+<tr>
+<td><code>correct_unwrap_error</code></td>
+<td>Correct phase-unwrapping errors</td>
+</tr>
+<tr>
 <td><code>invert_network</code></td>
 <td>Invert the interferogram network (<abbr title="Small Baseline Subset">SBAS</abbr>)</td>
 </tr>
@@ -3382,30 +3454,34 @@
 <td><code>hdfeos5</code></td>
 <td>Export to HDF-EOS5 format</td>
 </tr>
+<tr>
+<td><code>plot</code></td>
+<td>(Re)generate figures under <code>mintpy/pic/</code>. Not a real MintPy step — handled specially. Auto-added whenever more than one real step above is requested (or the full <code>all</code> pipeline), matching MintPy's own CLI behavior; also usable standalone (e.g. to re-plot after a config change without recomputing anything)</td>
+</tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-35-1"><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a><span class="c1"># Full pipeline</span>
-</span><span id="__span-35-2"><a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
-</span><span id="__span-35-3"><a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a>
-</span><span id="__span-35-4"><a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="c1"># Prep only</span>
-</span><span id="__span-35-5"><a id="__codelineno-35-5" name="__codelineno-35-5" href="#__codelineno-35-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
-</span><span id="__span-35-6"><a id="__codelineno-35-6" name="__codelineno-35-6" href="#__codelineno-35-6"></a>
-</span><span id="__span-35-7"><a id="__codelineno-35-7" name="__codelineno-35-7" href="#__codelineno-35-7"></a><span class="c1"># Single step</span>
-</span><span id="__span-35-8"><a id="__codelineno-35-8" name="__codelineno-35-8" href="#__codelineno-35-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
-</span><span id="__span-35-9"><a id="__codelineno-35-9" name="__codelineno-35-9" href="#__codelineno-35-9"></a>
-</span><span id="__span-35-10"><a id="__codelineno-35-10" name="__codelineno-35-10" href="#__codelineno-35-10"></a><span class="c1"># Multiple steps</span>
-</span><span id="__span-35-11"><a id="__codelineno-35-11" name="__codelineno-35-11" href="#__codelineno-35-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
-</span><span id="__span-35-12"><a id="__codelineno-35-12" name="__codelineno-35-12" href="#__codelineno-35-12"></a>
-</span><span id="__span-35-13"><a id="__codelineno-35-13" name="__codelineno-35-13" href="#__codelineno-35-13"></a><span class="c1"># Override config and run</span>
-</span><span id="__span-35-14"><a id="__codelineno-35-14" name="__codelineno-35-14" href="#__codelineno-35-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="c1"># Full pipeline</span>
+</span><span id="__span-36-2"><a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
+</span><span id="__span-36-3"><a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a>
+</span><span id="__span-36-4"><a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="c1"># Prep only</span>
+</span><span id="__span-36-5"><a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>prep_data
+</span><span id="__span-36-6"><a id="__codelineno-36-6" name="__codelineno-36-6" href="#__codelineno-36-6"></a>
+</span><span id="__span-36-7"><a id="__codelineno-36-7" name="__codelineno-36-7" href="#__codelineno-36-7"></a><span class="c1"># Single step</span>
+</span><span id="__span-36-8"><a id="__codelineno-36-8" name="__codelineno-36-8" href="#__codelineno-36-8"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>velocity
+</span><span id="__span-36-9"><a id="__codelineno-36-9" name="__codelineno-36-9" href="#__codelineno-36-9"></a>
+</span><span id="__span-36-10"><a id="__codelineno-36-10" name="__codelineno-36-10" href="#__codelineno-36-10"></a><span class="c1"># Multiple steps</span>
+</span><span id="__span-36-11"><a id="__codelineno-36-11" name="__codelineno-36-11" href="#__codelineno-36-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--step<span class="w"> </span>geocode<span class="w"> </span>velocity
+</span><span id="__span-36-12"><a id="__codelineno-36-12" name="__codelineno-36-12" href="#__codelineno-36-12"></a>
+</span><span id="__span-36-13"><a id="__codelineno-36-13" name="__codelineno-36-13" href="#__codelineno-36-13"></a><span class="c1"># Override config and run</span>
+</span><span id="__span-36-14"><a id="__codelineno-36-14" name="__codelineno-36-14" href="#__codelineno-36-14"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--compute_maxMemory<span class="w"> </span><span class="m">30</span><span class="w"> </span>run
 </span></code></pre></div>
 <p>Each executing step prints <code>Step N/Total: step_name</code> for batch log visibility.</p>
 <h4 id="hpc-mode_1"><abbr title="High Performance Computing">HPC</abbr> mode</h4>
 <p>When <code>--hpc_mode True</code> is set, a single <code>sbatch</code> script covering all selected steps is generated and submitted to SLURM instead of running locally.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
-</span><span id="__span-36-2"><a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a>
-</span><span id="__span-36-3"><a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="c1"># Specific steps on HPC</span>
-</span><span id="__span-36-4"><a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+</span><span id="__span-37-2"><a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a>
+</span><span id="__span-37-3"><a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="c1"># Specific steps on HPC</span>
+</span><span id="__span-37-4"><a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
 </span></code></pre></div>
 <p>Script written to <code>&lt;workdir&gt;/mintpy/mintpy_sbas.sbatch</code>, job state to <code>mintpy/mintpy_job.json</code>.</p>
 <p>SLURM resources come from <code>&lt;workdir&gt;/sbatch_options.json</code>, step key <code>"17"</code> — the <strong>same file</strong> used by <code>ISCE_S1 submit --hpc_mode</code> (steps <code>01</code>–<code>16</code>), since processor and analyzer typically share one workdir. Default: <code>time=24:00:00</code>, <code>ntasks=1</code>, <code>cpus_per_task=16</code>, <code>mem=128G</code>, <code>partition=all</code>.</p>
@@ -3414,11 +3490,11 @@
 <li>If the file exists but has no <code>"17"</code> entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.</li>
 </ul>
 <p>Edit step <code>"17"</code> in <code>sbatch_options.json</code> to change resources, then re-run:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-37-1"><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
 <h3 id="cleanup_1">cleanup</h3>
 <p>Remove intermediate files no longer needed after MintPy has loaded all data into HDF5.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-38-1"><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>cleanup
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>cleanup
 </span></code></pre></div>
 <table>
 <thead>
@@ -3441,12 +3517,12 @@
 <hr>
 <h2 id="utils">utils</h2>
 <p>Standalone utility tools for data preparation, pair selection, network visualisation, and <abbr title="High Performance Computing">HPC</abbr> job generation.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-39-1"><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>&lt;tool&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>&lt;tool&gt;<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <h3 id="clip">clip</h3>
 <p>Clip <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> zip file contents to an <abbr title="Area of Interest">AOI</abbr> before running MintPy. Useful when working with scenes that extend well beyond the study area.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-40-1"><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00
-</span><span id="__span-40-2"><a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>study_area.geojson
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00
+</span><span id="__span-41-2"><a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>clip<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--aoi<span class="w"> </span>study_area.geojson
 </span></code></pre></div>
 <table>
 <thead>
@@ -3471,8 +3547,8 @@
 </table>
 <h3 id="h5-to-raster">h5-to-raster</h3>
 <p>Convert a MintPy HDF5 output file (e.g. <code>velocity.h5</code>) to GeoTIFF.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-41-1"><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5
-</span><span id="__span-41-2"><a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>velocity.tif
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5
+</span><span id="__span-42-2"><a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>velocity.tif
 </span></code></pre></div>
 <table>
 <thead>
@@ -3497,8 +3573,8 @@
 </table>
 <h3 id="save-footprint">save-footprint</h3>
 <p>Extract the valid-data footprint polygon from a raster and save it as a vector file.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-42-1"><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5
-</span><span id="__span-42-2"><a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>footprint.geojson
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5
+</span><span id="__span-43-2"><a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>save-footprint<span class="w"> </span>-i<span class="w"> </span>velocity.h5<span class="w"> </span>-o<span class="w"> </span>footprint.geojson
 </span></code></pre></div>
 <table>
 <thead>
@@ -3523,15 +3599,15 @@
 </table>
 <h3 id="slurm">slurm</h3>
 <p>Generate a SLURM batch script for running an <code>insarhub</code> pipeline on an <abbr title="High Performance Computing">HPC</abbr> cluster.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-43-1"><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>slurm<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-2"><a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a><span class="w">    </span>--job-name<span class="w"> </span>insar_bryce<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-3"><a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a><span class="w">    </span>--time<span class="w"> </span><span class="m">08</span>:00:00<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-4"><a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="w">    </span>--cpus<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-5"><a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a><span class="w">    </span>--mem<span class="w"> </span>64G<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-6"><a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a><span class="w">    </span>--partition<span class="w"> </span>compute<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-7"><a id="__codelineno-43-7" name="__codelineno-43-7" href="#__codelineno-43-7"></a><span class="w">    </span>--conda-env<span class="w"> </span>insarhub<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-8"><a id="__codelineno-43-8" name="__codelineno-43-8" href="#__codelineno-43-8"></a><span class="w">    </span>--command<span class="w"> </span><span class="s2">"insarhub analyzer -N Hyp3_SBAS -w /data/bryce run"</span><span class="w"> </span><span class="se">\</span>
-</span><span id="__span-43-9"><a id="__codelineno-43-9" name="__codelineno-43-9" href="#__codelineno-43-9"></a><span class="w">    </span>-o<span class="w"> </span>bryce.slurm
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>slurm<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-2"><a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="w">    </span>--job-name<span class="w"> </span>insar_bryce<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-3"><a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="w">    </span>--time<span class="w"> </span><span class="m">08</span>:00:00<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-4"><a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="w">    </span>--cpus<span class="w"> </span><span class="m">16</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-5"><a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="w">    </span>--mem<span class="w"> </span>64G<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-6"><a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a><span class="w">    </span>--partition<span class="w"> </span>compute<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-7"><a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a><span class="w">    </span>--conda-env<span class="w"> </span>insarhub<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-8"><a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="w">    </span>--command<span class="w"> </span><span class="s2">"insarhub analyzer -N Hyp3_SBAS -w /data/bryce run"</span><span class="w"> </span><span class="se">\</span>
+</span><span id="__span-44-9"><a id="__codelineno-44-9" name="__codelineno-44-9" href="#__codelineno-44-9"></a><span class="w">    </span>-o<span class="w"> </span>bryce.slurm
 </span></code></pre></div>
 <table>
 <thead>
@@ -3625,24 +3701,24 @@
 </tbody>
 </table>
 <p>The generated script follows this structure:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-44-1"><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="ch">#!/bin/bash</span>
-</span><span id="__span-44-2"><a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="c1">#SBATCH --job-name=insar_bryce</span>
-</span><span id="__span-44-3"><a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="c1">#SBATCH --time=08:00:00</span>
-</span><span id="__span-44-4"><a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a><span class="c1">#SBATCH --cpus-per-task=16</span>
-</span><span id="__span-44-5"><a id="__codelineno-44-5" name="__codelineno-44-5" href="#__codelineno-44-5"></a><span class="c1">#SBATCH --mem=64G</span>
-</span><span id="__span-44-6"><a id="__codelineno-44-6" name="__codelineno-44-6" href="#__codelineno-44-6"></a>...
-</span><span id="__span-44-7"><a id="__codelineno-44-7" name="__codelineno-44-7" href="#__codelineno-44-7"></a>
-</span><span id="__span-44-8"><a id="__codelineno-44-8" name="__codelineno-44-8" href="#__codelineno-44-8"></a><span class="nb">source</span><span class="w"> </span>activate<span class="w"> </span>insarhub
-</span><span id="__span-44-9"><a id="__codelineno-44-9" name="__codelineno-44-9" href="#__codelineno-44-9"></a>
-</span><span id="__span-44-10"><a id="__codelineno-44-10" name="__codelineno-44-10" href="#__codelineno-44-10"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Starting job on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
-</span><span id="__span-44-11"><a id="__codelineno-44-11" name="__codelineno-44-11" href="#__codelineno-44-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
-</span><span id="__span-44-12"><a id="__codelineno-44-12" name="__codelineno-44-12" href="#__codelineno-44-12"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Job finished on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-45-1"><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="ch">#!/bin/bash</span>
+</span><span id="__span-45-2"><a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="c1">#SBATCH --job-name=insar_bryce</span>
+</span><span id="__span-45-3"><a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a><span class="c1">#SBATCH --time=08:00:00</span>
+</span><span id="__span-45-4"><a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a><span class="c1">#SBATCH --cpus-per-task=16</span>
+</span><span id="__span-45-5"><a id="__codelineno-45-5" name="__codelineno-45-5" href="#__codelineno-45-5"></a><span class="c1">#SBATCH --mem=64G</span>
+</span><span id="__span-45-6"><a id="__codelineno-45-6" name="__codelineno-45-6" href="#__codelineno-45-6"></a>...
+</span><span id="__span-45-7"><a id="__codelineno-45-7" name="__codelineno-45-7" href="#__codelineno-45-7"></a>
+</span><span id="__span-45-8"><a id="__codelineno-45-8" name="__codelineno-45-8" href="#__codelineno-45-8"></a><span class="nb">source</span><span class="w"> </span>activate<span class="w"> </span>insarhub
+</span><span id="__span-45-9"><a id="__codelineno-45-9" name="__codelineno-45-9" href="#__codelineno-45-9"></a>
+</span><span id="__span-45-10"><a id="__codelineno-45-10" name="__codelineno-45-10" href="#__codelineno-45-10"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Starting job on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
+</span><span id="__span-45-11"><a id="__codelineno-45-11" name="__codelineno-45-11" href="#__codelineno-45-11"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
+</span><span id="__span-45-12"><a id="__codelineno-45-12" name="__codelineno-45-12" href="#__codelineno-45-12"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">"Job finished on </span><span class="k">$(</span>date<span class="k">)</span><span class="s2">"</span>
 </span></code></pre></div>
 <h3 id="era5-download">era5-download</h3>
 <p>Download ERA5 pressure-level weather data for MintPy tropospheric correction. Scans a workdir of <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> zip files, determines the required acquisition dates and spatial extents automatically, and saves files using MintPy-compatible naming (<code>ERA5_S*_N*_W*_E*_YYYYMMDD_HH.grb</code>).</p>
 <p>Requires a <code>~/.cdsapirc</code> file with your <a href="https://cds.climate.copernicus.eu/api-how-to">CDS API</a> credentials.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-45-1"><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5
-</span><span id="__span-45-2"><a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5<span class="w"> </span>--num-processes<span class="w"> </span><span class="m">5</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5
+</span><span id="__span-46-2"><a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>era5-download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-o<span class="w"> </span>/data/era5<span class="w"> </span>--num-processes<span class="w"> </span><span class="m">5</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -3679,56 +3755,56 @@
 <hr>
 <h2 id="end-to-end-example-hyp3">End-to-end example — <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr></h2>
 <p>The complete pipeline from search to time-series analysis using cloud <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> processing:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-46-1"><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="c1"># 1. Search and select pairs</span>
-</span><span id="__span-46-2"><a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-46-3"><a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-46-4"><a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-46-5"><a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a><span class="w">    </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-46-6"><a id="__codelineno-46-6" name="__codelineno-46-6" href="#__codelineno-46-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-46-7"><a id="__codelineno-46-7" name="__codelineno-46-7" href="#__codelineno-46-7"></a><span class="w">    </span>--select-pairs
-</span><span id="__span-46-8"><a id="__codelineno-46-8" name="__codelineno-46-8" href="#__codelineno-46-8"></a>
-</span><span id="__span-46-9"><a id="__codelineno-46-9" name="__codelineno-46-9" href="#__codelineno-46-9"></a><span class="c1"># 2. Submit interferograms to HyP3</span>
-</span><span id="__span-46-10"><a id="__codelineno-46-10" name="__codelineno-46-10" href="#__codelineno-46-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-46-11"><a id="__codelineno-46-11" name="__codelineno-46-11" href="#__codelineno-46-11"></a>
-</span><span id="__span-46-12"><a id="__codelineno-46-12" name="__codelineno-46-12" href="#__codelineno-46-12"></a><span class="c1"># 3. Wait for jobs and auto-download when complete</span>
-</span><span id="__span-46-13"><a id="__codelineno-46-13" name="__codelineno-46-13" href="#__codelineno-46-13"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-46-14"><a id="__codelineno-46-14" name="__codelineno-46-14" href="#__codelineno-46-14"></a>
-</span><span id="__span-46-15"><a id="__codelineno-46-15" name="__codelineno-46-15" href="#__codelineno-46-15"></a><span class="c1"># 4. Run time-series analysis</span>
-</span><span id="__span-46-16"><a id="__codelineno-46-16" name="__codelineno-46-16" href="#__codelineno-46-16"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
-</span><span id="__span-46-17"><a id="__codelineno-46-17" name="__codelineno-46-17" href="#__codelineno-46-17"></a>
-</span><span id="__span-46-18"><a id="__codelineno-46-18" name="__codelineno-46-18" href="#__codelineno-46-18"></a><span class="c1"># 5. Export velocity to GeoTIFF</span>
-</span><span id="__span-46-19"><a id="__codelineno-46-19" name="__codelineno-46-19" href="#__codelineno-46-19"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/bryce/p100_f466/velocity.h5
-</span></code></pre></div>
-<hr>
-<h2 id="end-to-end-example-isce_s1-local">End-to-end example — ISCE_S1 (local)</h2>
-<p>The complete pipeline using local ISCE2 processing and ISCE_SBAS time-series analysis:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-47-1"><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="c1"># 1. Search and download SLC scenes (saves to workdir/slc/ by default)</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-47-1"><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="c1"># 1. Search and select pairs</span>
 </span><span id="__span-47-2"><a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-47-3"><a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-47-4"><a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-47-5"><a id="__codelineno-47-5" name="__codelineno-47-5" href="#__codelineno-47-5"></a><span class="w">    </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-47-6"><a id="__codelineno-47-6" name="__codelineno-47-6" href="#__codelineno-47-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-47-7"><a id="__codelineno-47-7" name="__codelineno-47-7" href="#__codelineno-47-7"></a><span class="w">    </span>--select-pairs<span class="w"> </span>--download<span class="w"> </span>-O
+</span><span id="__span-47-6"><a id="__codelineno-47-6" name="__codelineno-47-6" href="#__codelineno-47-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-47-7"><a id="__codelineno-47-7" name="__codelineno-47-7" href="#__codelineno-47-7"></a><span class="w">    </span>--select-pairs
 </span><span id="__span-47-8"><a id="__codelineno-47-8" name="__codelineno-47-8" href="#__codelineno-47-8"></a>
-</span><span id="__span-47-9"><a id="__codelineno-47-9" name="__codelineno-47-9" href="#__codelineno-47-9"></a><span class="c1"># 2. Dry run to verify paths and bbox</span>
-</span><span id="__span-47-10"><a id="__codelineno-47-10" name="__codelineno-47-10" href="#__codelineno-47-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-47-11"><a id="__codelineno-47-11" name="__codelineno-47-11" href="#__codelineno-47-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68<span class="w"> </span>--dry-run
-</span><span id="__span-47-12"><a id="__codelineno-47-12" name="__codelineno-47-12" href="#__codelineno-47-12"></a>
-</span><span id="__span-47-13"><a id="__codelineno-47-13" name="__codelineno-47-13" href="#__codelineno-47-13"></a><span class="c1"># 3. Submit local processing (runs in background)</span>
-</span><span id="__span-47-14"><a id="__codelineno-47-14" name="__codelineno-47-14" href="#__codelineno-47-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-47-15"><a id="__codelineno-47-15" name="__codelineno-47-15" href="#__codelineno-47-15"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68
-</span><span id="__span-47-16"><a id="__codelineno-47-16" name="__codelineno-47-16" href="#__codelineno-47-16"></a>
-</span><span id="__span-47-17"><a id="__codelineno-47-17" name="__codelineno-47-17" href="#__codelineno-47-17"></a><span class="c1"># 4. Monitor progress</span>
-</span><span id="__span-47-18"><a id="__codelineno-47-18" name="__codelineno-47-18" href="#__codelineno-47-18"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
-</span><span id="__span-47-19"><a id="__codelineno-47-19" name="__codelineno-47-19" href="#__codelineno-47-19"></a>
-</span><span id="__span-47-20"><a id="__codelineno-47-20" name="__codelineno-47-20" href="#__codelineno-47-20"></a><span class="c1"># 5. Watch until all steps complete</span>
-</span><span id="__span-47-21"><a id="__codelineno-47-21" name="__codelineno-47-21" href="#__codelineno-47-21"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
-</span><span id="__span-47-22"><a id="__codelineno-47-22" name="__codelineno-47-22" href="#__codelineno-47-22"></a>
-</span><span id="__span-47-23"><a id="__codelineno-47-23" name="__codelineno-47-23" href="#__codelineno-47-23"></a><span class="c1"># 6. Run ISCE_SBAS time-series analysis</span>
-</span><span id="__span-47-24"><a id="__codelineno-47-24" name="__codelineno-47-24" href="#__codelineno-47-24"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
-</span><span id="__span-47-25"><a id="__codelineno-47-25" name="__codelineno-47-25" href="#__codelineno-47-25"></a>
-</span><span id="__span-47-26"><a id="__codelineno-47-26" name="__codelineno-47-26" href="#__codelineno-47-26"></a><span class="c1"># 7. Export velocity to GeoTIFF</span>
-</span><span id="__span-47-27"><a id="__codelineno-47-27" name="__codelineno-47-27" href="#__codelineno-47-27"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/p100_f466/mintpy/geo/geo_velocity.h5
+</span><span id="__span-47-9"><a id="__codelineno-47-9" name="__codelineno-47-9" href="#__codelineno-47-9"></a><span class="c1"># 2. Submit interferograms to HyP3</span>
+</span><span id="__span-47-10"><a id="__codelineno-47-10" name="__codelineno-47-10" href="#__codelineno-47-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-47-11"><a id="__codelineno-47-11" name="__codelineno-47-11" href="#__codelineno-47-11"></a>
+</span><span id="__span-47-12"><a id="__codelineno-47-12" name="__codelineno-47-12" href="#__codelineno-47-12"></a><span class="c1"># 3. Wait for jobs and auto-download when complete</span>
+</span><span id="__span-47-13"><a id="__codelineno-47-13" name="__codelineno-47-13" href="#__codelineno-47-13"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce
+</span><span id="__span-47-14"><a id="__codelineno-47-14" name="__codelineno-47-14" href="#__codelineno-47-14"></a>
+</span><span id="__span-47-15"><a id="__codelineno-47-15" name="__codelineno-47-15" href="#__codelineno-47-15"></a><span class="c1"># 4. Run time-series analysis</span>
+</span><span id="__span-47-16"><a id="__codelineno-47-16" name="__codelineno-47-16" href="#__codelineno-47-16"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run
+</span><span id="__span-47-17"><a id="__codelineno-47-17" name="__codelineno-47-17" href="#__codelineno-47-17"></a>
+</span><span id="__span-47-18"><a id="__codelineno-47-18" name="__codelineno-47-18" href="#__codelineno-47-18"></a><span class="c1"># 5. Export velocity to GeoTIFF</span>
+</span><span id="__span-47-19"><a id="__codelineno-47-19" name="__codelineno-47-19" href="#__codelineno-47-19"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/bryce/p100_f466/velocity.h5
+</span></code></pre></div>
+<hr>
+<h2 id="end-to-end-example-isce_s1-local">End-to-end example — ISCE_S1 (local)</h2>
+<p>The complete pipeline using local ISCE2 processing and ISCE_SBAS time-series analysis:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-48-1"><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="c1"># 1. Search and download SLC scenes (saves to workdir/slc/ by default)</span>
+</span><span id="__span-48-2"><a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-3"><a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a><span class="w">    </span>--AOI<span class="w"> </span>-113.05<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span>-112.68<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-4"><a id="__codelineno-48-4" name="__codelineno-48-4" href="#__codelineno-48-4"></a><span class="w">    </span>--start<span class="w"> </span><span class="m">2020</span>-01-01<span class="w"> </span>--end<span class="w"> </span><span class="m">2020</span>-12-31<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-5"><a id="__codelineno-48-5" name="__codelineno-48-5" href="#__codelineno-48-5"></a><span class="w">    </span>--stacks<span class="w"> </span><span class="m">100</span>:466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-6"><a id="__codelineno-48-6" name="__codelineno-48-6" href="#__codelineno-48-6"></a><span class="w">    </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-7"><a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a><span class="w">    </span>--select-pairs<span class="w"> </span>--download<span class="w"> </span>-O
+</span><span id="__span-48-8"><a id="__codelineno-48-8" name="__codelineno-48-8" href="#__codelineno-48-8"></a>
+</span><span id="__span-48-9"><a id="__codelineno-48-9" name="__codelineno-48-9" href="#__codelineno-48-9"></a><span class="c1"># 2. Dry run to verify paths and bbox</span>
+</span><span id="__span-48-10"><a id="__codelineno-48-10" name="__codelineno-48-10" href="#__codelineno-48-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-11"><a id="__codelineno-48-11" name="__codelineno-48-11" href="#__codelineno-48-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68<span class="w"> </span>--dry-run
+</span><span id="__span-48-12"><a id="__codelineno-48-12" name="__codelineno-48-12" href="#__codelineno-48-12"></a>
+</span><span id="__span-48-13"><a id="__codelineno-48-13" name="__codelineno-48-13" href="#__codelineno-48-13"></a><span class="c1"># 3. Submit local processing (runs in background)</span>
+</span><span id="__span-48-14"><a id="__codelineno-48-14" name="__codelineno-48-14" href="#__codelineno-48-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-15"><a id="__codelineno-48-15" name="__codelineno-48-15" href="#__codelineno-48-15"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68
+</span><span id="__span-48-16"><a id="__codelineno-48-16" name="__codelineno-48-16" href="#__codelineno-48-16"></a>
+</span><span id="__span-48-17"><a id="__codelineno-48-17" name="__codelineno-48-17" href="#__codelineno-48-17"></a><span class="c1"># 4. Monitor progress</span>
+</span><span id="__span-48-18"><a id="__codelineno-48-18" name="__codelineno-48-18" href="#__codelineno-48-18"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+</span><span id="__span-48-19"><a id="__codelineno-48-19" name="__codelineno-48-19" href="#__codelineno-48-19"></a>
+</span><span id="__span-48-20"><a id="__codelineno-48-20" name="__codelineno-48-20" href="#__codelineno-48-20"></a><span class="c1"># 5. Watch until all steps complete</span>
+</span><span id="__span-48-21"><a id="__codelineno-48-21" name="__codelineno-48-21" href="#__codelineno-48-21"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
+</span><span id="__span-48-22"><a id="__codelineno-48-22" name="__codelineno-48-22" href="#__codelineno-48-22"></a>
+</span><span id="__span-48-23"><a id="__codelineno-48-23" name="__codelineno-48-23" href="#__codelineno-48-23"></a><span class="c1"># 6. Run ISCE_SBAS time-series analysis</span>
+</span><span id="__span-48-24"><a id="__codelineno-48-24" name="__codelineno-48-24" href="#__codelineno-48-24"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run
+</span><span id="__span-48-25"><a id="__codelineno-48-25" name="__codelineno-48-25" href="#__codelineno-48-25"></a>
+</span><span id="__span-48-26"><a id="__codelineno-48-26" name="__codelineno-48-26" href="#__codelineno-48-26"></a><span class="c1"># 7. Export velocity to GeoTIFF</span>
+</span><span id="__span-48-27"><a id="__codelineno-48-27" name="__codelineno-48-27" href="#__codelineno-48-27"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/p100_f466/mintpy/geo/geo_velocity.h5
 </span></code></pre></div>
 
 
@@ -3813,7 +3889,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   

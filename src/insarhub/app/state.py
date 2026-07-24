@@ -82,11 +82,19 @@ def _build_registry_meta(registry) -> dict[str, Any]:
         if not getattr(cfg_cls, "_ui_groups", None):
             continue
         groups, fields = _build_ui_meta(cfg_cls)
+        import inspect
+        # True for processors that take pairs as their own constructor arg
+        # (ISCE_S1, GMTSAR_S1) rather than via a config field (Hyp3_S1) --
+        # same check _run_folder_process does inline to decide dispatch;
+        # exposed here so the frontend can tell local vs cloud processors
+        # apart without hardcoding processor names (JobQueueDrawer.tsx).
+        is_local = "pairs" in inspect.signature(cls.__init__).parameters
         result[name] = {
             "label":                 name,
             "description":           getattr(cls, "description", ""),
             "compatible_downloader": getattr(cls, "compatible_downloader", None),
             "compatible_processor":  getattr(cls, "compatible_processor", None),
+            "is_local":              is_local,
             "groups":                groups,
             "fields":                fields,
         }

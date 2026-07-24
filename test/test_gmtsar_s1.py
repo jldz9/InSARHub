@@ -88,6 +88,9 @@ def _make_gmtsar_s1(tmp_path: Path, frame_mode: bool = False, **cfg_kwargs):
     dem = tmp_path / "dem.grd"
     dem.write_bytes(b"fake-dem")
 
+    # the fake scene only has IW2 measurement/annotation, and the default
+    # subswath is now "1 2 3" (full frame) -- pin to 2 unless a test overrides
+    cfg_kwargs.setdefault("subswath", 2)
     cfg = GMTSAR_S1_Config(
         workdir=str(tmp_path / "work"),
         slc_dir=str(raw),

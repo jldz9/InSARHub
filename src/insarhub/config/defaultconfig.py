@@ -189,6 +189,200 @@ class S1_SLC_Config(ASF_Base_Config):
 # ---------------------------------------------------------------------------
 # Processor configurations
 # ---------------------------------------------------------------------------
+@dataclass
+class ISCE_S1_Config:
+    """Configuration for the ISCE2 stackSentinel time-series processor.
+
+    stackSentinel.py generates a set of numbered run scripts from all SLC files
+    in slc_dir, then InSARHub executes them sequentially while parallelising the
+    independent commands within each step.
+
+    Attributes:
+        workdir: Processing root.  All outputs (run_files/, merged/, etc.) live here.
+        slc_dir: Directory containing all Sentinel-1 SLC .SAFE files (or .zips).
+        orbit_dir: Directory with .EOF orbit files.  Created automatically if absent.
+        aux_dir: Directory with Sentinel-1 AUX_CAL files.  Defaults to workdir/aux;
+            ISCE2 downloads missing files there on first run.
+        dem_path: ISCE2-binary DEM (dem.wgs84 + .xml sidecar).  When None, GLO-30
+            is pre-downloaded, preferring the joint footprint of the actual SLCs
+            found in slc_dir/workdir (union of every scene's manifest corners,
+            covering every frame in a merged multi-frame stack) over bbox --
+            the search AOI only reflects what was searched for, not what ASF
+            actually returned (whole-scene footprints extend beyond it) or
+            what a merge combined. bbox is used only as a fallback when no
+            SLCs are on disk yet to derive a footprint from.
+        isce_home: ISCE2 installation root.  Falls back to $ISCE_HOME env var.
+        bbox: Area of interest as [S, N, W, E] degrees.  Only used as a DEM
+            bbox fallback when no SLCs are present yet to auto-derive a
+            footprint from (see dem_path above); otherwise informational.
+        num_overlap_connections: Connections used for NESD azimuth coregistration.
+        reference_date: Stack reference date YYYYMMDD.  None = stackSentinel auto-selects.
+        coregistration: 'NESD' (default, more accurate) or 'geometry' (faster).
+        max_workers: Parallel commands within each run step.
+    """
+
+    _ui_groups: ClassVar[list] = [
+        {"label": "Paths",
+         "fields": ["slc_dir", "orbit_dir", "aux_dir", "dem_path"]},
+        {"label": "Area of interest",
+         "fields": ["full_frame", "bbox"]},
+        {"label": "Coregistration",
+         "fields": ["coregistration", "esd_coherence_threshold", "snr_misreg_threshold"]},
+        {"label": "Interferogram",
+         "fields": ["workflow", "looks_range", "looks_azimuth", "filter_strength",
+                    "rm_filter", "polarization", "unw_method", "virtual_merge"]},
+        {"label": "Ionosphere",
+         "fields": ["param_ion", "num_connections_ion"]},
+        {"label": "Job",
+         "fields": ["max_workers", "skip_existing"]},
+        {"label": "HPC (SLURM)",
+         "fields": ["hpc_mode", "max_concurrent_hpc"]},
+        {"label": "Container",
+         "fields": ["container"]},
+    ]
+    _ui_fields: ClassVar[dict] = {
+        "workdir":                  {"type": "text", "hint": "Processing root directory (auto = folder being processed)"},
+        "slc_dir":                  {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files. 'auto' = workdir/slc"},
+        "orbit_dir":                {"type": "text", "hint": "Directory with .EOF orbit files. Default = workdir/slc"},
+        "aux_dir":                  {"type": "text", "hint": "Directory with AUX_CAL files. Default = workdir/slc"},
+        "dem_path":                 {"type": "text", "hint": "ISCE2-format DEM, GeoTIFF, or directory. Default = workdir/dem (GLO-30 auto-downloaded if absent)"},
+        "bbox":                     {"type": "text", "hint": "Bounding box S N W E, e.g. 33.0 38.0 -120.0 -115.0. Leave blank to auto-derive from SLC footprints"},
+        "full_frame":               {"type": "bool",
+                                     "hint": "Process full SLC frame — ignore AOI/bbox and let ISCE2 determine the extent"},
+        "coregistration":           {"type": "select", "options": ["NESD", "geometry"],
+                                     "hint": "NESD = geometry + ESD refinement (recommended); geometry = orbit-only (faster)"},
+        "esd_coherence_threshold":  {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.7,
+                                     "hint": "Min coherence in burst overlaps for ESD azimuth estimation"},
+        "snr_misreg_threshold":     {"type": "number", "min": 1, "max": 30, "step": 1, "default": 10,
+                                     "hint": "Min SNR for range misregistration cross-correlation"},
+        "looks_range":              {"type": "number", "min": 1, "max": 100, "step": 1, "default": 20,
+                                     "hint": "Range looks"},
+        "looks_azimuth":            {"type": "number", "min": 1, "max": 20,  "step": 1, "default": 4,
+                                     "hint": "Azimuth looks"},
+        "filter_strength":          {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.5,
+                                     "hint": "Goldstein filter strength"},
+        "polarization":             {"type": "select", "options": ["vv", "vh"],
+                                     "hint": "Polarization channel"},
+        "unw_method":               {"type": "select", "options": ["snaphu", "icu"],
+                                     "hint": "Phase unwrapping algorithm"},
+        "workflow":                 {"type": "select",
+                                     "options": ["interferogram", "slc", "offset",
+                                                 "correlation", "dense_offsets", "ionosphere"],
+                                     "hint": "Processing workflow type"},
+        "rm_filter":                {"type": "bool",
+                                     "hint": "Remove interferometric filter before unwrapping"},
+        "virtual_merge":            {"type": "select", "options": ["", "True", "False"],
+                                     "hint": "Virtual burst merging (leave blank to use ISCE2 default)"},
+        "param_ion":                {"type": "text",
+                                     "hint": "Path to ionosphere parameter file (leave blank to skip)"},
+        "num_connections_ion":      {"type": "number", "min": 1, "max": 10, "step": 1, "default": 3,
+                                     "hint": "Interferogram connections for ionosphere estimation"},
+        "max_workers":              {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
+                                     "hint": "Parallel commands within each run step"},
+        "skip_existing":            {"type": "bool",
+                                     "hint": "Skip steps that already completed successfully"},
+        "hpc_mode":                 {"type": "bool",
+                                     "hint": "Submit a sbatch manager job per step; each manager controls child job submission in batches"},
+        "max_concurrent_hpc":       {"type": "number", "min": 1, "max": 200, "step": 1, "default": 12,
+                                     "hint": "Max concurrent child jobs submitted by each step manager (default 12)"},
+        "dry_run":                  {"type": "bool",
+                                     "hint": "Preview commands without executing (HPC: generate sbatch scripts only; local: print commands only)"},
+        "sbatch_options_per_step":  {"type": "text",
+                                     "hint": "JSON dict mapping step number (or 'default') to SLURM resource keys, e.g. {\"default\": {\"partition\": \"compute\", \"account\": \"myproj\", \"time\": \"04:00:00\", \"cpus_per_task\": 2, \"mem\": \"8G\"}, \"07\": {\"cpus_per_task\": 4, \"mem\": \"32G\"}}. Steps not listed inherit the 'default' entry."},
+        "container":                {"type": "text",
+                                     "hint": "Path to a .sif/Apptainer image or a Docker image reference with insarhub installed — re-runs this command inside the container instead of on the host. Not remembered between runs; pass again for retry/subsequent submits."},
+    }
+
+    name: str                             = "ISCE_S1_Config"
+    workdir: Path | str                   = field(default_factory=lambda: Path.cwd())
+    slc_dir: Path | str                   = "auto"
+    orbit_dir: Path | str | None          = "auto"
+    aux_dir: Path | str | None            = "auto"
+    dem_path: Path | str | None           = "auto"
+    isce_home: Path | str | None          = "auto"
+    saved_job_path: Path | str | None     = None
+    # Area / dates
+    full_frame: bool                      = False  # True = no bbox, process full SLC extent
+    bbox: list[float] | None              = None   # [S, N, W, E]
+    swath_num: str                        = "1 2 3"
+    start_date: str | None                = None   # YYYY-MM-DD
+    end_date: str | None                  = None
+    exclude_dates: str | None             = None   # comma-separated YYYYMMDD
+    include_dates: str | None             = None
+    # Network
+    num_overlap_connections: int          = 3
+    reference_date: str | None            = None   # YYYYMMDD
+    # Coregistration
+    coregistration: str                   = "NESD"
+    esd_coherence_threshold: float        = 0.7
+    snr_misreg_threshold: float           = 10.0
+    # Interferogram
+    looks_range: int                      = 20
+    looks_azimuth: int                    = 4
+    filter_strength: float                = 0.5
+    polarization: str                     = "vv"
+    unw_method: str                       = "snaphu"
+    workflow: str                         = "interferogram"
+    rm_filter: bool                       = False
+    virtual_merge: str | None             = None   # "True" | "False" | None (ISCE2 default)
+    # Ionosphere
+    param_ion: str | None                 = None
+    num_connections_ion: int              = 3
+    # Compute
+    use_gpu: bool                         = False
+    num_proc: int                         = 1
+    num_proc4topo: int                    = 1
+    text_cmd: str                         = ""
+    # Job control
+    max_workers: int                      = 4
+    skip_existing: bool                   = True
+    submission_chunk_size: int            = 1
+    # HPC / SLURM
+    hpc_mode: bool                        = False
+    max_concurrent_hpc: int               = 12
+    dry_run: bool                         = False
+    sbatch_options_per_step: dict           = field(default_factory=dict)
+    container: str | None                 = None
+
+    def __post_init__(self):
+        _AUTO = {"auto", ""}
+
+        # workdir must be resolved first so other "auto" paths can reference it
+        if isinstance(self.workdir, str):
+            self.workdir = Path(self.workdir).expanduser().resolve()
+
+        # slc_dir: "auto" → workdir/slc
+        if str(self.slc_dir).strip().lower() in _AUTO:
+            self.slc_dir = Path(self.workdir) / "slc"
+        elif isinstance(self.slc_dir, str):
+            self.slc_dir = Path(self.slc_dir).expanduser().resolve()
+
+        # orbit_dir / aux_dir: "auto" → workdir/slc (same folder as downloaded SLC/orbit files)
+        for attr in ("orbit_dir", "aux_dir"):
+            val = getattr(self, attr)
+            if val is None or str(val).strip().lower() in _AUTO:
+                setattr(self, attr, Path(self.workdir) / "slc")
+            elif isinstance(val, str):
+                setattr(self, attr, Path(val).expanduser().resolve())
+
+        # dem_path: "auto" → workdir/dem directory
+        if self.dem_path is None or str(self.dem_path).strip().lower() in _AUTO:
+            self.dem_path = Path(self.workdir) / "dem"
+        elif isinstance(self.dem_path, str):
+            self.dem_path = Path(self.dem_path).expanduser().resolve()
+
+        # isce_home / saved_job_path: "auto" / None → None (resolved at runtime)
+        for attr in ("isce_home", "saved_job_path"):
+            val = getattr(self, attr)
+            if val is None or str(val).strip().lower() in _AUTO:
+                setattr(self, attr, None)
+            elif isinstance(val, str):
+                setattr(self, attr, Path(val).expanduser().resolve())
+
+        # full_frame clears bbox so the backend never uses a stale AOI
+        if self.full_frame:
+            self.bbox = None
+
 
 @dataclass
 class Hyp3_Base_Config:
@@ -340,7 +534,366 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
     include_wrapped_phase :bool=False
     apply_water_mask :bool=True
     include_displacement_maps:bool=True
-    phase_filter_parameter :float=0.6
+    # 0.5 aligns the Goldstein filter strength with ISCE_S1.filter_strength
+    # and GMTSAR's phasefilt (hardcoded alpha=0.5), so the three backends
+    # are comparable. ASF's own HyP3 default is 0.6.
+    phase_filter_parameter :float=0.5
+
+
+@dataclass
+class GMTSAR_Base_Config:
+    """Common GMTSAR configuration shared across all satellite platforms.
+
+    Holds the sensor-agnostic GMTSAR processing parameters -- the 31
+    pop_config parameters that are identical for every SAT (ERS/ENVI/ALOS/
+    ALOS2/S1/CSK/TSX/RS2/GF3, verified by diffing `pop_config <SAT>` across
+    all of them) -- plus the shared GMTSAR runtime (install paths, DEM,
+    job knobs). Sensor-specific processors subclass this and add their own
+    platform fields: GMTSAR_S1_Config adds slc_dir/orbit_dir/subswath/
+    polarization/frame_mode and the 5 S1_TOPS-only processing params
+    (spec_div/spec_mode/range_dec/azimuth_dec/det_stitch).
+
+    Field defaults match `pop_config`'s own defaults exactly, so leaving
+    them untouched reproduces GMTSAR's stock config.py; override any field
+    to change the generated config.py (see GMTSAR_S1._write_config_py()).
+    A value of -999 is GMTSAR's own "auto-derive / unset" sentinel.
+    """
+
+    _ui_groups: ClassVar[list] = [
+        {"label": "GMTSAR runtime",
+         "fields": ["sat", "dem_path", "dem_source", "dem_mode", "config_template",
+                    "gmtsar_root", "gmtsar_env_bin"]},
+        {"label": "GMTSAR: stages",
+         "fields": ["proc_stage", "skip_stage", "skip_master",
+                    "skip_1", "skip_2", "skip_3", "skip_4", "skip_5", "skip_6"]},
+        {"label": "GMTSAR: preprocess",
+         "fields": ["num_patches", "earth_radius", "near_range", "fd1", "region_cut"]},
+        {"label": "GMTSAR: coregistration",
+         "fields": ["coregistration", "esd_mode"]},
+        {"label": "GMTSAR: topo",
+         "fields": ["topo_phase", "topo_interp_mode", "shift_topo"]},
+        {"label": "GMTSAR: interferogram + filter",
+         "fields": ["switch_master", "filter_wavelength", "dec_factor",
+                    "compute_phase_gradient", "correct_iono", "iono_filt_rng",
+                    "iono_filt_azi", "iono_dsamp", "iono_skip_est"]},
+        {"label": "GMTSAR: unwrap",
+         "fields": ["threshold_snaphu", "near_interp", "mask_water", "defomax"]},
+        {"label": "GMTSAR: geocode",
+         "fields": ["threshold_geocode"]},
+        {"label": "Job",
+         "fields": ["max_workers", "skip_existing", "dry_run"]},
+    ]
+    _ui_fields: ClassVar[dict] = {
+        "sat":             {"type": "select",
+                             "options": ["S1_TOPS", "S1_STRIP", "ALOS", "ALOS_SLC", "ALOS2",
+                                         "ALOS2_SCAN", "ENVI", "ENVI_SLC", "ERS", "CSK_RAW",
+                                         "CSK_SLC", "TSX", "RS2", "GF3"],
+                             "hint": "GMTSAR SAT argument"},
+        "dem_path":        {"type": "text", "hint": "GMTSAR-format DEM (topo/dem.grd). Leave blank to auto-download via GMTSAR make_dem (SRTM) from the SLC footprint / AOI."},
+        "dem_source":      {"type": "select", "options": ["glo30", "srtm"],
+                             "hint": "Auto-DEM source when dem_path is blank. glo30 = Copernicus GLO-30 via dem_stitcher (same DEM HyP3 and ISCE_S1 use -- keeps the three backends comparable). srtm = GMTSAR's own make_dem (SRTM, resolution set by dem_mode)."},
+        "dem_mode":        {"type": "select", "options": [1, 2], "hint": "make_dem SRTM resolution when auto-downloading: 1 = 1-arcsec (~30 m), 2 = 3-arcsec (~90 m)"},
+        "config_template": {"type": "text", "hint": "Reuse an existing GMTSAR config.py verbatim (leave blank to generate from these fields)"},
+        "gmtsar_root":     {"type": "text", "hint": "GMTSAR repo root ($GMTSAR) -- its bin/ is prepended to subprocess PATH"},
+        "gmtsar_env_bin":  {"type": "text", "hint": "bin/ dir of the conda env GMTSAR needs (provides the real `gmt` binary + numba/scipy). Required -- InSARHub's own env has no `gmt` (real end-to-end test, 2026-07-21)."},
+        "proc_stage":      {"type": "number", "step": 1, "hint": "Start stage (1 preprocess ... 6 geocode)"},
+        "skip_stage":      {"type": "text", "hint": "Comma-list of stages to skip, or -999 for none"},
+        "skip_master":     {"type": "number", "step": 1, "hint": "Skip master preprocessing (0/1)"},
+        "skip_1":          {"type": "number", "step": 1, "hint": "Skip stage 1"},
+        "skip_2":          {"type": "number", "step": 1, "hint": "Skip stage 2"},
+        "skip_3":          {"type": "number", "step": 1, "hint": "Skip stage 3"},
+        "skip_4":          {"type": "number", "step": 1, "hint": "Skip stage 4"},
+        "skip_5":          {"type": "number", "step": 1, "hint": "Skip stage 5"},
+        "skip_6":          {"type": "number", "step": 1, "hint": "Skip stage 6"},
+        "coregistration":  {"type": "select", "options": ["esd", "geometry"],
+                             "hint": "Stack alignment (stack_mode). esd = enhanced spectral diversity (preproc_batch_tops_esd, matches ISCE_S1 NESD -- the default); geometry = orbit/DEM only (preproc_batch_tops)."},
+        "esd_mode":        {"type": "select", "options": [0, 1, 2],
+                             "hint": "ESD averaging when coregistration=esd: 0 average, 1 median, 2 interpolation. Ignored for geometry."},
+        "num_patches":     {"type": "number", "step": 1, "hint": "Number of patches (-999 = auto)"},
+        "earth_radius":    {"type": "number", "hint": "Earth radius, m (-999 = auto from orbit)"},
+        "near_range":      {"type": "number", "hint": "Near range, m (-999 = auto)"},
+        "fd1":             {"type": "number", "hint": "Doppler centroid fd1 (-999 = auto)"},
+        "region_cut":      {"type": "text", "hint": "Radar-coord crop 'x0/xN/y0/yN' (-999 = full frame)"},
+        "topo_phase":      {"type": "number", "step": 1, "hint": "Subtract topographic phase (0/1)"},
+        "topo_interp_mode":{"type": "number", "step": 1, "hint": "Topo interpolation mode (0/1)"},
+        "shift_topo":      {"type": "number", "step": 1, "hint": "Shift topo to align w/ amplitude (0/1)"},
+        "switch_master":   {"type": "number", "step": 1, "hint": "Swap master/aligned (0/1)"},
+        "filter_wavelength":{"type": "number", "step": 10, "hint": "Gaussian filter wavelength, m"},
+        "dec_factor":      {"type": "number", "step": 1, "hint": "Filter decimation factor"},
+        "compute_phase_gradient":{"type": "number", "step": 1, "hint": "Compute phase gradient (0/1)"},
+        "correct_iono":    {"type": "number", "step": 1, "hint": "Ionospheric correction (0/1)"},
+        "iono_filt_rng":   {"type": "number", "step": 0.1, "hint": "Iono filter range"},
+        "iono_filt_azi":   {"type": "number", "step": 0.1, "hint": "Iono filter azimuth"},
+        "iono_dsamp":      {"type": "number", "step": 1, "hint": "Iono downsample factor"},
+        "iono_skip_est":   {"type": "number", "step": 1, "hint": "Skip iono estimation (0/1)"},
+        "threshold_snaphu":{"type": "number", "step": 0.05, "hint": "SNAPHU coherence threshold (0 = skip unwrap)"},
+        "near_interp":     {"type": "number", "step": 1, "hint": "Nearest-neighbour interp of low-coh gaps (0/1)"},
+        "mask_water":      {"type": "number", "step": 1, "hint": "Mask water before unwrap (0/1)"},
+        "defomax":         {"type": "number", "step": 1, "hint": "SNAPHU max deformation phase cycles"},
+        "threshold_geocode":{"type": "number", "step": 0.05, "hint": "Coherence threshold for geocoding"},
+        "max_workers":     {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
+                             "hint": "Independent pairs processed concurrently"},
+        "skip_existing":   {"type": "bool", "hint": "Skip pairs that already succeeded"},
+        "dry_run":         {"type": "bool", "hint": "Stage the case and report what would run, without executing"},
+    }
+
+    name: str                         = "GMTSAR_Base_Config"
+    workdir: Path | str               = field(default_factory=lambda: Path.cwd())
+    dem_path: Path | str | None       = None   # None = auto-download (see dem_source)
+    # glo30 (Copernicus GLO-30 via dem_stitcher) matches the DEM HyP3 and
+    # ISCE_S1 use, so backend comparisons aren't confounded by DEM source.
+    # srtm falls back to GMTSAR's own make_dem.
+    dem_source: str                   = "glo30"
+    dem_mode: int                     = 1      # make_dem SRTM only: 1=1-arcsec, 2=3-arcsec
+    sat: str                          = "S1_TOPS"
+    config_template: Path | str | None = None
+    max_workers: int                  = 4
+    skip_existing: bool               = True
+    dry_run: bool                     = False
+    # GMTSAR's own runtime -- deliberately independent of whatever conda env
+    # the InSARHub process itself runs under. See gmtsar_s1.py's
+    # _subprocess_env() docstring for the real failure this fixes.
+    gmtsar_root: Path | str | None    = None
+    gmtsar_env_bin: Path | str | None = None
+
+    # ── GMTSAR processing params (common to every SAT; pop_config defaults) ──
+    # stack alignment: "esd" (enhanced spectral diversity, preproc_batch_tops_esd
+    # -- the structural analogue of ISCE_S1's NESD coregistration, the default)
+    # or "geometry" (orbit/DEM only, preproc_batch_tops).
+    coregistration: str          = "esd"
+    esd_mode: int                = 1     # 0 average, 1 median, 2 interpolation
+    proc_stage: int              = 1
+    skip_stage: int | str        = -999
+    skip_1: int                  = 0
+    skip_2: int                  = 0
+    skip_3: int                  = 0
+    skip_4: int                  = 0
+    skip_5: int                  = 0
+    skip_6: int                  = 0
+    skip_master: int             = 0
+    num_patches: int             = -999
+    earth_radius: float          = -999
+    near_range: float            = -999
+    fd1: float                   = -999
+    region_cut: int | str        = -999
+    topo_phase: int              = 1
+    topo_interp_mode: int        = 0
+    shift_topo: int              = 0
+    switch_master: int           = 0
+    # 25 m collapses GMTSAR's Gaussian pre-filter kernel to 1x1 (verified with
+    # make_gaussian_filter), leaving only the Goldstein phasefilt (alpha=0.5,
+    # hardcoded in GMTSAR) -- matching ISCE/HyP3, which apply Goldstein alone.
+    # GMTSAR's own default is 200 (an 11x11 Gaussian on top of Goldstein).
+    filter_wavelength: int       = 25
+    dec_factor: int              = 2
+    compute_phase_gradient: int  = 0
+    correct_iono: int            = 0
+    iono_filt_rng: float         = 1.0
+    iono_filt_azi: float         = 1.0
+    iono_dsamp: int              = 1
+    iono_skip_est: int           = 1
+    # >0 enables SNAPHU unwrapping; GMTSAR's default 0 SKIPS unwrapping, which
+    # leaves no unwrap.grd for any SBAS/MintPy step downstream.
+    threshold_snaphu: float      = 0.1
+    # 0 = no pre-unwrap gap interpolation, matching ISCE topsStack (which has
+    # no such step -- snaphu unwraps the full grid). 1 -> snaphu_interp.csh
+    # fills low-coherence gaps first, like HyP3's GAMMA workflow; useful for
+    # GMTSAR's native `sbas` (needs every pixel valid) but not for the MintPy
+    # path, which re-masks by coherence and inverts per-pixel anyway. Kept 0
+    # so GMTSAR interferograms match ISCE's before both feed the same MintPy.
+    near_interp: int             = 0
+    # 0: GMTSAR's landmask step is fragile -- intf_tops.csh derives the mask
+    # region from `gmt grdinfo phase.grd -I-` at a point where that read can
+    # fail, and the resulting broken landmask_ra.grd then corrupts snaphu's
+    # phase_patch (real failure: no unwrap.grd at all). Mask water in MintPy.
+    mask_water: int              = 0
+    defomax: int                 = 0
+    threshold_geocode: float     = 0.10
+
+    # Ordered names of the GMTSAR config.py processing params this class
+    # owns -- GMTSAR_S1._write_config_py() writes these (plus any the
+    # subclass adds via GMTSAR_CONFIG_PARAMS) into config.py. Kept as an
+    # explicit list, not derived from fields(), so runtime/infra fields
+    # (workdir, gmtsar_root, ...) are never mistaken for GMTSAR params.
+    GMTSAR_CONFIG_PARAMS: ClassVar[tuple] = (
+        "proc_stage", "skip_stage", "skip_1", "skip_2", "skip_3", "skip_4",
+        "skip_5", "skip_6", "skip_master", "num_patches", "earth_radius",
+        "near_range", "fd1", "region_cut", "topo_phase", "topo_interp_mode",
+        "shift_topo", "switch_master", "filter_wavelength", "dec_factor",
+        "compute_phase_gradient", "correct_iono", "iono_filt_rng",
+        "iono_filt_azi", "iono_dsamp", "iono_skip_est", "threshold_snaphu",
+        "near_interp", "mask_water", "defomax", "threshold_geocode",
+    )
+
+
+@dataclass
+class GMTSAR_S1_Config(GMTSAR_Base_Config):
+    """Configuration for the GMTSAR p2p_processing Sentinel-1 processor.
+
+    p2p_processing generates one interferogram per (reference, secondary)
+    pair invocation, run from a shared GMTSAR case directory (raw/, topo/,
+    config.py). InSARHub parallelises independent pairs up to max_workers,
+    mirroring how ISCE_S1 parallelises independent commands within a step.
+
+    Output lands in <workdir>/gmtsar/intf/<julian_date_pair>/ (e.g.
+    intf/2019184_2019196/ -- GMTSAR's own Julian-date pair naming, NOT
+    ref/sec stems, confirmed via a real run) using GMTSAR's native file
+    names (corr_ll.grd, phasefilt_ll.grd, *.PRM files) -- this is already
+    exactly what MintPy's own prep_gmtsar.py expects, so no
+    output-normalization step is needed before handing off to a Mintpy
+    analyzer.
+
+    Two distinct GMTSAR entry points are supported, controlled by
+    frame_mode, because they have genuinely different real CLI contracts
+    (confirmed against gmtsar/python/utils/p2p_processing and
+    utils/p2p_S1_TOPS_Frame directly, and against real recipes in
+    gmtsar/python/tests/recipes/):
+
+    Both modes take the SAME pairs shape:
+        pairs = [(ref_safe, ref_eof, sec_safe, sec_eof), ...] -- .SAFE
+        directory names + matching .EOF orbit filenames.
+
+    frame_mode=False (default) -- single-subswath, via p2p_processing.
+        p2p_processing does not read .SAFE directories itself -- it
+        expects one subswath's .tiff/.xml already extracted to raw/ under
+        matching stem names (Sentinel-1's own naming:
+        s1a-iw<N>-slc-<pol>-<start>-<end>-<orbit>-<mission>-<swath>).
+        GMTSAR_S1 does that extraction itself (see config.subswath), so
+        callers only ever hand it raw .SAFE/.EOF names, same as Frame
+        mode. One shared case_dir for the whole pairs list; output in
+        intf/<julian_date_pair>/ (GMTSAR-assigned, pair-namespaced).
+
+    frame_mode=True -- multi-subswath Frame, via p2p_S1_TOPS_Frame.
+        p2p_S1_TOPS_Frame is NOT pair-namespaced (it always writes to
+        F1/F2/F3/merge/ in its current working directory), so each pair
+        gets its OWN case subdirectory (case_dir/<ref>_<sec>/) rather
+        than sharing one -- otherwise a second pair would silently
+        overwrite the first pair's merge/ output.
+
+    Attributes:
+        workdir: Processing root. gmtsar/ (raw/, topo/, config.py,
+            intf/ or per-pair subdirs) lives here.
+        slc_dir: Directory containing Sentinel-1 SLC .SAFE dirs (or .zips).
+        orbit_dir: Directory with .EOF orbit files.
+        dem_path: GMTSAR-format DEM grid (topo/dem.grd). Unlike ISCE_S1,
+            bbox-driven auto-download is NOT implemented yet -- must be
+            supplied explicitly. See gmtsar_s1.py's module docstring for
+            the concrete "known gaps" list.
+        sat: p2p_processing's SAT argument (frame_mode=False only).
+            Exposed (not hardcoded) for forward-compat -- GMTSAR already
+            supports 14 sensor families beyond S1_TOPS (see
+            gmtsar/python/tests/cases.py upstream), this processor is
+            just the first one wired in.
+        frame_mode: False = p2p_processing (single-subswath). True =
+            p2p_S1_TOPS_Frame (multi-subswath, merged final product).
+        subswath: IW subswath number (1/2/3) to extract for frame_mode=False.
+            p2p_processing itself does not read .SAFE directories -- it
+            expects one subswath's .tiff/.xml files already extracted to
+            matching-stem files in raw/ (confirmed against GMTSAR's own
+            bundled single-subswath test fixture, H_res/raw/: its per-stem
+            files are plain symlinks into the equivalent Frame-mode F<N>/
+            subswath files pulled from the same .SAFE). GMTSAR_S1 does
+            this extraction itself now; subswath picks which IW to use.
+            Default 2 (IW2, the commonly-used middle subswath).
+        parallel: p2p_S1_TOPS_Frame's own internal subswath parallelism
+            flag (0=sequential, 1=parallel). Only used when frame_mode.
+        config_template: Path to a GMTSAR config.py to reuse as-is. If
+            None, one is auto-generated per case via `pop_config <sat>`
+            (GMTSAR's own default-config tool), matching p2p_processing's
+            own "no config.py given" behavior.
+        max_workers: Independent pairs processed concurrently.
+        skip_existing: Don't redo a pair whose output dir already
+            has a .succeeded status marker.
+        gmtsar_root: GMTSAR repo root ($GMTSAR). Required -- GMTSAR_S1
+            raises at construction time if unset. Its bin/ is prepended
+            to every GMTSAR subprocess call's PATH.
+        gmtsar_env_bin: bin/ dir of the conda env GMTSAR needs (provides
+            the real `gmt` binary plus numba/scipy). Required -- InSARHub's
+            own env does not provide `gmt` at all (confirmed via a real
+            end-to-end test, 2026-07-21), so subprocess calls fail
+            near-instantly without this. See gmtsar_s1.py's
+            _subprocess_env() docstring for the full writeup.
+    """
+
+    # S1-specific groups first, then the common GMTSAR processing groups
+    # inherited from GMTSAR_Base_Config (so the GUI form shows Sentinel-1
+    # I/O + TOPS knobs up top, the shared processing params below).
+    _ui_groups: ClassVar[list] = [
+        {"label": "Paths",
+         "fields": ["slc_dir", "orbit_dir", "dem_path"]},
+        {"label": "Area of interest",
+         "fields": ["AOI"]},
+        {"label": "Sentinel-1",
+         "fields": ["frame_mode", "subswath", "parallel", "polarization"]},
+        {"label": "Sentinel-1 TOPS processing",
+         "fields": ["spec_div", "spec_mode", "range_dec", "azimuth_dec", "det_stitch"]},
+        {"label": "Time-series stack",
+         "fields": ["stack_mode", "reference"]},
+    ] + GMTSAR_Base_Config._ui_groups
+    _ui_fields: ClassVar[dict] = {
+        **GMTSAR_Base_Config._ui_fields,
+        "slc_dir":         {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files"},
+        "orbit_dir":       {"type": "text", "hint": "Directory with .EOF orbit files"},
+        "AOI":             {"type": "text", "hint": "Geographic area of interest: same formats the downloader --aoi accepts (a bbox [min_lon, min_lat, max_lon, max_lat], a spatial file path, or a WKT string). Auto-converted to GMTSAR region_cut (radar coords) via SAT_llt2rat, cropping processing to this area, and used as the DEM-download extent fallback. Blank = read from the workdir's insarhub_config.json (downloader intersectsWith); still blank = full frame + SLC-footprint DEM."},
+        "frame_mode":      {"type": "bool",
+                             "hint": "Use p2p_S1_TOPS_Frame (multi-subswath merge) instead of single-subswath p2p_processing"},
+        "subswath":        {"type": "text",
+                             "hint": "IW subswath(s), ISCE-style space-separated (e.g. \"1 2 3\" = full frame, \"2\" = IW2 only). In stack_mode, more than one subswath runs a separate F<N> pipeline per swath and then merges them (merge_batch); a single subswath keeps the flat layout."},
+        "parallel":        {"type": "bool", "hint": "p2p_S1_TOPS_Frame internal subswath parallelism (frame_mode only)"},
+        "polarization":    {"type": "select", "options": ["vv", "vh"], "hint": "Polarization channel"},
+        "stack_mode":      {"type": "bool", "hint": "Time-series stack: align whole stack to one super-master + batch interferograms + baseline_table.dat (for GMTSAR_SBAS / GMTSAR_MINTPY_SBAS). Off = independent per-pair."},
+        "reference":       {"type": "text", "hint": "Super-master scene for stack_mode (blank = earliest scene)"},
+        "spec_div":        {"type": "number", "step": 1, "hint": "S1_TOPS spectral diversity ESD (0/1)"},
+        "spec_mode":       {"type": "number", "step": 1, "hint": "S1_TOPS spectral-diversity mode"},
+        "range_dec":       {"type": "number", "step": 1, "hint": "Range decimation factor"},
+        "azimuth_dec":     {"type": "number", "step": 1, "hint": "Azimuth decimation factor"},
+        "det_stitch":      {"type": "number", "step": 1, "hint": "Detrend/stitch across frames (0/1)"},
+    }
+
+    # S1-specific processing params (present in S1_TOPS's pop_config but NOT
+    # common to every SAT). Appended to the base list so _write_config_py()
+    # emits them into config.py too.
+    GMTSAR_CONFIG_PARAMS: ClassVar[tuple] = GMTSAR_Base_Config.GMTSAR_CONFIG_PARAMS + (
+        "spec_div", "spec_mode", "range_dec", "azimuth_dec", "det_stitch",
+    )
+
+    name: str                     = "GMTSAR_S1_Config"
+    slc_dir: Path | str | None    = "auto"
+    orbit_dir: Path | str | None  = "auto"
+    # Geographic AOI -> auto-converted to region_cut (radar coords) via
+    # SAT_llt2rat, and used as the DEM-download extent fallback. Accepts any
+    # form utils.tool._to_wkt does (same as the downloader --aoi): a bbox
+    # [min_lon, min_lat, max_lon, max_lat], a spatial file path, or a WKT
+    # string. None = read from workdir insarhub_config.json (downloader
+    # intersectsWith); if still None, full frame + SLC-footprint DEM.
+    AOI: str | list[float] | None = None
+    frame_mode: bool              = False
+    # ISCE-style space-separated subswath list, matching ISCE_S1_Config.swath_num.
+    # "1 2 3" = full frame, so GMTSAR covers the same ground as HyP3/ISCE by
+    # default. A bare int still works (back-compat).
+    subswath: int | str           = "1 2 3"
+    parallel: bool                = True
+    polarization: str             = "vv"
+    # Time-series stack mode: instead of processing each pair independently
+    # (per-pair p2p_processing/p2p_S1_TOPS_Frame), align the WHOLE stack to
+    # one shared super-master and batch-generate interferograms, producing a
+    # single baseline_table.dat spanning every date -- the coherent stack a
+    # GMTSAR_SBAS / GMTSAR_MINTPY_SBAS analyzer needs. See gmtsar_s1.py's
+    # _run_stack() for the pipeline (shells out to GMTSAR's own
+    # preproc_batch_tops / intf_tops_parallel / merge_batch).
+    stack_mode: bool              = False
+    # Super-master scene for stack_mode (first line of data.in, every date
+    # aligned to it). None = use the earliest scene across all pairs.
+    reference: str | None         = None
+    # ── S1_TOPS-only GMTSAR processing params (pop_config S1_TOPS extras) ──
+    spec_div: int                 = 0
+    spec_mode: int                = 1
+    # 20x4 matches Hyp3_S1_Config.looks ("20x4") and ISCE_S1_Config
+    # looks_range/looks_azimuth, so all three backends multilook the same.
+    # (GMTSAR's own defaults are 8/2.)
+    range_dec: int                = 20
+    azimuth_dec: int              = 4
+    det_stitch: int               = 0
 
 
 # ---------------------------------------------------------------------------
@@ -890,194 +1443,6 @@ class Hyp3_SBAS_Config(Mintpy_SBAS_Base_Config):
     plot : str = 'yes'
     save_kmz: str = 'no'
 
-
-@dataclass
-class ISCE_S1_Config:
-    """Configuration for the ISCE2 stackSentinel time-series processor.
-
-    stackSentinel.py generates a set of numbered run scripts from all SLC files
-    in slc_dir, then InSARHub executes them sequentially while parallelising the
-    independent commands within each step.
-
-    Attributes:
-        workdir: Processing root.  All outputs (run_files/, merged/, etc.) live here.
-        slc_dir: Directory containing all Sentinel-1 SLC .SAFE files (or .zips).
-        orbit_dir: Directory with .EOF orbit files.  Created automatically if absent.
-        aux_dir: Directory with Sentinel-1 AUX_CAL files.  Defaults to workdir/aux;
-            ISCE2 downloads missing files there on first run.
-        dem_path: ISCE2-binary DEM (dem.wgs84 + .xml sidecar).  When None, GLO-30
-            is pre-downloaded using bbox.
-        isce_home: ISCE2 installation root.  Falls back to $ISCE_HOME env var.
-        bbox: Area of interest as [S, N, W, E] degrees.  Required when dem_path is None.
-        num_overlap_connections: Connections used for NESD azimuth coregistration.
-        reference_date: Stack reference date YYYYMMDD.  None = stackSentinel auto-selects.
-        coregistration: 'NESD' (default, more accurate) or 'geometry' (faster).
-        max_workers: Parallel commands within each run step.
-    """
-
-    _ui_groups: ClassVar[list] = [
-        {"label": "Paths",
-         "fields": ["slc_dir", "orbit_dir", "aux_dir", "dem_path"]},
-        {"label": "Area of interest",
-         "fields": ["full_frame", "bbox"]},
-        {"label": "Coregistration",
-         "fields": ["coregistration", "esd_coherence_threshold", "snr_misreg_threshold"]},
-        {"label": "Interferogram",
-         "fields": ["workflow", "looks_range", "looks_azimuth", "filter_strength",
-                    "rm_filter", "polarization", "unw_method", "virtual_merge"]},
-        {"label": "Ionosphere",
-         "fields": ["param_ion", "num_connections_ion"]},
-        {"label": "Job",
-         "fields": ["max_workers", "skip_existing"]},
-        {"label": "HPC (SLURM)",
-         "fields": ["hpc_mode", "max_concurrent_hpc"]},
-        {"label": "Container",
-         "fields": ["container"]},
-    ]
-    _ui_fields: ClassVar[dict] = {
-        "workdir":                  {"type": "text", "hint": "Processing root directory (auto = folder being processed)"},
-        "slc_dir":                  {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files. 'auto' = workdir/slc"},
-        "orbit_dir":                {"type": "text", "hint": "Directory with .EOF orbit files. Default = workdir/slc"},
-        "aux_dir":                  {"type": "text", "hint": "Directory with AUX_CAL files. Default = workdir/slc"},
-        "dem_path":                 {"type": "text", "hint": "ISCE2-format DEM, GeoTIFF, or directory. Default = workdir/dem (GLO-30 auto-downloaded if absent)"},
-        "bbox":                     {"type": "text", "hint": "Bounding box S N W E, e.g. 33.0 38.0 -120.0 -115.0. Leave blank to auto-derive from SLC footprints"},
-        "full_frame":               {"type": "bool",
-                                     "hint": "Process full SLC frame — ignore AOI/bbox and let ISCE2 determine the extent"},
-        "coregistration":           {"type": "select", "options": ["NESD", "geometry"],
-                                     "hint": "NESD = geometry + ESD refinement (recommended); geometry = orbit-only (faster)"},
-        "esd_coherence_threshold":  {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.7,
-                                     "hint": "Min coherence in burst overlaps for ESD azimuth estimation"},
-        "snr_misreg_threshold":     {"type": "number", "min": 1, "max": 30, "step": 1, "default": 10,
-                                     "hint": "Min SNR for range misregistration cross-correlation"},
-        "looks_range":              {"type": "number", "min": 1, "max": 100, "step": 1, "default": 20,
-                                     "hint": "Range looks"},
-        "looks_azimuth":            {"type": "number", "min": 1, "max": 20,  "step": 1, "default": 4,
-                                     "hint": "Azimuth looks"},
-        "filter_strength":          {"type": "number", "min": 0, "max": 1, "step": 0.05, "default": 0.5,
-                                     "hint": "Goldstein filter strength"},
-        "polarization":             {"type": "select", "options": ["vv", "vh"],
-                                     "hint": "Polarization channel"},
-        "unw_method":               {"type": "select", "options": ["snaphu", "icu"],
-                                     "hint": "Phase unwrapping algorithm"},
-        "workflow":                 {"type": "select",
-                                     "options": ["interferogram", "slc", "offset",
-                                                 "correlation", "dense_offsets", "ionosphere"],
-                                     "hint": "Processing workflow type"},
-        "rm_filter":                {"type": "bool",
-                                     "hint": "Remove interferometric filter before unwrapping"},
-        "virtual_merge":            {"type": "select", "options": ["", "True", "False"],
-                                     "hint": "Virtual burst merging (leave blank to use ISCE2 default)"},
-        "param_ion":                {"type": "text",
-                                     "hint": "Path to ionosphere parameter file (leave blank to skip)"},
-        "num_connections_ion":      {"type": "number", "min": 1, "max": 10, "step": 1, "default": 3,
-                                     "hint": "Interferogram connections for ionosphere estimation"},
-        "max_workers":              {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
-                                     "hint": "Parallel commands within each run step"},
-        "skip_existing":            {"type": "bool",
-                                     "hint": "Skip steps that already completed successfully"},
-        "hpc_mode":                 {"type": "bool",
-                                     "hint": "Submit a sbatch manager job per step; each manager controls child job submission in batches"},
-        "max_concurrent_hpc":       {"type": "number", "min": 1, "max": 200, "step": 1, "default": 12,
-                                     "hint": "Max concurrent child jobs submitted by each step manager (default 12)"},
-        "dry_run":                  {"type": "bool",
-                                     "hint": "Preview commands without executing (HPC: generate sbatch scripts only; local: print commands only)"},
-        "sbatch_options_per_step":  {"type": "text",
-                                     "hint": "JSON dict mapping step number (or 'default') to SLURM resource keys, e.g. {\"default\": {\"partition\": \"compute\", \"account\": \"myproj\", \"time\": \"04:00:00\", \"cpus_per_task\": 2, \"mem\": \"8G\"}, \"07\": {\"cpus_per_task\": 4, \"mem\": \"32G\"}}. Steps not listed inherit the 'default' entry."},
-        "container":                {"type": "text",
-                                     "hint": "Path to a .sif/Apptainer image or a Docker image reference with insarhub installed — re-runs this command inside the container instead of on the host. Not remembered between runs; pass again for retry/subsequent submits."},
-    }
-
-    name: str                             = "ISCE_S1_Config"
-    workdir: Path | str                   = field(default_factory=lambda: Path.cwd())
-    slc_dir: Path | str                   = "auto"
-    orbit_dir: Path | str | None          = "auto"
-    aux_dir: Path | str | None            = "auto"
-    dem_path: Path | str | None           = "auto"
-    isce_home: Path | str | None          = "auto"
-    saved_job_path: Path | str | None     = None
-    # Area / dates
-    full_frame: bool                      = False  # True = no bbox, process full SLC extent
-    bbox: list[float] | None              = None   # [S, N, W, E]
-    swath_num: str                        = "1 2 3"
-    start_date: str | None                = None   # YYYY-MM-DD
-    end_date: str | None                  = None
-    exclude_dates: str | None             = None   # comma-separated YYYYMMDD
-    include_dates: str | None             = None
-    # Network
-    num_overlap_connections: int          = 3
-    reference_date: str | None            = None   # YYYYMMDD
-    # Coregistration
-    coregistration: str                   = "NESD"
-    esd_coherence_threshold: float        = 0.7
-    snr_misreg_threshold: float           = 10.0
-    # Interferogram
-    looks_range: int                      = 20
-    looks_azimuth: int                    = 4
-    filter_strength: float                = 0.5
-    polarization: str                     = "vv"
-    unw_method: str                       = "snaphu"
-    workflow: str                         = "interferogram"
-    rm_filter: bool                       = False
-    virtual_merge: str | None             = None   # "True" | "False" | None (ISCE2 default)
-    # Ionosphere
-    param_ion: str | None                 = None
-    num_connections_ion: int              = 3
-    # Compute
-    use_gpu: bool                         = False
-    num_proc: int                         = 1
-    num_proc4topo: int                    = 1
-    text_cmd: str                         = ""
-    # Job control
-    max_workers: int                      = 4
-    skip_existing: bool                   = True
-    submission_chunk_size: int            = 1
-    # HPC / SLURM
-    hpc_mode: bool                        = False
-    max_concurrent_hpc: int               = 12
-    dry_run: bool                         = False
-    sbatch_options_per_step: dict           = field(default_factory=dict)
-    container: str | None                 = None
-
-    def __post_init__(self):
-        _AUTO = {"auto", ""}
-
-        # workdir must be resolved first so other "auto" paths can reference it
-        if isinstance(self.workdir, str):
-            self.workdir = Path(self.workdir).expanduser().resolve()
-
-        # slc_dir: "auto" → workdir/slc
-        if str(self.slc_dir).strip().lower() in _AUTO:
-            self.slc_dir = Path(self.workdir) / "slc"
-        elif isinstance(self.slc_dir, str):
-            self.slc_dir = Path(self.slc_dir).expanduser().resolve()
-
-        # orbit_dir / aux_dir: "auto" → workdir/slc (same folder as downloaded SLC/orbit files)
-        for attr in ("orbit_dir", "aux_dir"):
-            val = getattr(self, attr)
-            if val is None or str(val).strip().lower() in _AUTO:
-                setattr(self, attr, Path(self.workdir) / "slc")
-            elif isinstance(val, str):
-                setattr(self, attr, Path(val).expanduser().resolve())
-
-        # dem_path: "auto" → workdir/dem directory
-        if self.dem_path is None or str(self.dem_path).strip().lower() in _AUTO:
-            self.dem_path = Path(self.workdir) / "dem"
-        elif isinstance(self.dem_path, str):
-            self.dem_path = Path(self.dem_path).expanduser().resolve()
-
-        # isce_home / saved_job_path: "auto" / None → None (resolved at runtime)
-        for attr in ("isce_home", "saved_job_path"):
-            val = getattr(self, attr)
-            if val is None or str(val).strip().lower() in _AUTO:
-                setattr(self, attr, None)
-            elif isinstance(val, str):
-                setattr(self, attr, Path(val).expanduser().resolve())
-
-        # full_frame clears bbox so the backend never uses a stale AOI
-        if self.full_frame:
-            self.bbox = None
-
-
 @dataclass
 class ISCE_SBAS_Config(Mintpy_SBAS_Base_Config):
     """MintPy SBAS config pre-wired for ISCE2 stackSentinel outputs.
@@ -1111,148 +1476,89 @@ class ISCE_SBAS_Config(Mintpy_SBAS_Base_Config):
     save_kmz: str                     = "no"
 
 
-
 @dataclass
-class GMTSAR_S1_Config:
-    """Configuration for the GMTSAR p2p_processing Sentinel-1 processor.
+class GMTSAR_SBAS_Config:
+    """Config for GMTSAR-native SBAS time-series inversion (GMTSAR_SBAS).
 
-    p2p_processing generates one interferogram per (reference, secondary)
-    pair invocation, run from a shared GMTSAR case directory (raw/, topo/,
-    config.py). InSARHub parallelises independent pairs up to max_workers,
-    mirroring how ISCE_S1 parallelises independent commands within a step.
-
-    Output lands in <workdir>/gmtsar_case/intf/<julian_date_pair>/ (e.g.
-    intf/2019184_2019196/ -- GMTSAR's own Julian-date pair naming, NOT
-    ref/sec stems, confirmed via a real run) using GMTSAR's native file
-    names (corr_ll.grd, phasefilt_ll.grd, *.PRM files) -- this is already
-    exactly what MintPy's own prep_gmtsar.py expects, so no
-    output-normalization step is needed before handing off to a Mintpy
-    analyzer.
-
-    Two distinct GMTSAR entry points are supported, controlled by
-    frame_mode, because they have genuinely different real CLI contracts
-    (confirmed against gmtsar/python/utils/p2p_processing and
-    utils/p2p_S1_TOPS_Frame directly, and against real recipes in
-    gmtsar/python/tests/recipes/):
-
-    Both modes take the SAME pairs shape:
-        pairs = [(ref_safe, ref_eof, sec_safe, sec_eof), ...] -- .SAFE
-        directory names + matching .EOF orbit filenames.
-
-    frame_mode=False (default) -- single-subswath, via p2p_processing.
-        p2p_processing does not read .SAFE directories itself -- it
-        expects one subswath's .tiff/.xml already extracted to raw/ under
-        matching stem names (Sentinel-1's own naming:
-        s1a-iw<N>-slc-<pol>-<start>-<end>-<orbit>-<mission>-<swath>).
-        GMTSAR_S1 does that extraction itself (see config.subswath), so
-        callers only ever hand it raw .SAFE/.EOF names, same as Frame
-        mode. One shared case_dir for the whole pairs list; output in
-        intf/<julian_date_pair>/ (GMTSAR-assigned, pair-namespaced).
-
-    frame_mode=True -- multi-subswath Frame, via p2p_S1_TOPS_Frame.
-        p2p_S1_TOPS_Frame is NOT pair-namespaced (it always writes to
-        F1/F2/F3/merge/ in its current working directory), so each pair
-        gets its OWN case subdirectory (case_dir/<ref>_<sec>/) rather
-        than sharing one -- otherwise a second pair would silently
-        overwrite the first pair's merge/ output.
-
-    Attributes:
-        workdir: Processing root. gmtsar_case/ (raw/, topo/, config.py,
-            intf/ or per-pair subdirs) lives here.
-        slc_dir: Directory containing Sentinel-1 SLC .SAFE dirs (or .zips).
-        orbit_dir: Directory with .EOF orbit files.
-        dem_path: GMTSAR-format DEM grid (topo/dem.grd). Unlike ISCE_S1,
-            bbox-driven auto-download is NOT implemented yet -- must be
-            supplied explicitly. See gmtsar_s1.py's module docstring for
-            the concrete "known gaps" list.
-        sat: p2p_processing's SAT argument (frame_mode=False only).
-            Exposed (not hardcoded) for forward-compat -- GMTSAR already
-            supports 14 sensor families beyond S1_TOPS (see
-            gmtsar/python/tests/cases.py upstream), this processor is
-            just the first one wired in.
-        frame_mode: False = p2p_processing (single-subswath). True =
-            p2p_S1_TOPS_Frame (multi-subswath, merged final product).
-        subswath: IW subswath number (1/2/3) to extract for frame_mode=False.
-            p2p_processing itself does not read .SAFE directories -- it
-            expects one subswath's .tiff/.xml files already extracted to
-            matching-stem files in raw/ (confirmed against GMTSAR's own
-            bundled single-subswath test fixture, H_res/raw/: its per-stem
-            files are plain symlinks into the equivalent Frame-mode F<N>/
-            subswath files pulled from the same .SAFE). GMTSAR_S1 does
-            this extraction itself now; subswath picks which IW to use.
-            Default 2 (IW2, the commonly-used middle subswath).
-        parallel: p2p_S1_TOPS_Frame's own internal subswath parallelism
-            flag (0=sequential, 1=parallel). Only used when frame_mode.
-        config_template: Path to a GMTSAR config.py to reuse as-is. If
-            None, one is auto-generated per case via `pop_config <sat>`
-            (GMTSAR's own default-config tool), matching p2p_processing's
-            own "no config.py given" behavior.
-        max_workers: Independent pairs processed concurrently.
-        skip_existing: Don't redo a pair whose output dir already
-            has a .succeeded status marker.
-        gmtsar_root: GMTSAR repo root ($GMTSAR). Required -- GMTSAR_S1
-            raises at construction time if unset. Its bin/ is prepended
-            to every GMTSAR subprocess call's PATH.
-        gmtsar_env_bin: bin/ dir of the conda env GMTSAR needs (provides
-            the real `gmt` binary plus numba/scipy). Required -- InSARHub's
-            own env does not provide `gmt` at all (confirmed via a real
-            end-to-end test, 2026-07-21), so subprocess calls fail
-            near-instantly without this. See gmtsar_s1.py's
-            _subprocess_env() docstring for the full writeup.
+    Consumes a stack produced by GMTSAR_S1 with stack_mode=True (under
+    workdir/gmtsar/: intf.in, baseline_table.dat, intf/<pair>/). Runs
+    GMTSAR's own prep_sbas + sbas C binary -- no MintPy involved. Output
+    (disp_*.grd, vel.grd) lands in workdir/gmtsar_sbas/.
     """
 
     _ui_groups: ClassVar[list] = [
-        {"label": "Paths",
-         "fields": ["slc_dir", "orbit_dir", "dem_path"]},
-        {"label": "Area of interest",
-         "fields": ["bbox"]},
+        {"label": "Inversion",
+         "fields": ["smooth", "wavelength", "incidence", "range_dist",
+                    "atm_iters", "rms", "dem_err"]},
+        {"label": "Stack input",
+         "fields": ["phase_grd", "corr_grd"]},
+        {"label": "Network pruning",
+         "fields": ["auto_prune", "max_nan_fraction"]},
         {"label": "GMTSAR",
-         "fields": ["sat", "frame_mode", "parallel", "polarization", "config_template"]},
-        {"label": "Job",
-         "fields": ["max_workers", "skip_existing", "dry_run"]},
+         "fields": ["gmtsar_root", "gmtsar_env_bin"]},
     ]
     _ui_fields: ClassVar[dict] = {
-        "slc_dir":         {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files"},
-        "orbit_dir":       {"type": "text", "hint": "Directory with .EOF orbit files"},
-        "dem_path":        {"type": "text", "hint": "GMTSAR-format DEM (topo/dem.grd). No auto-download yet -- required."},
-        "bbox":            {"type": "text", "hint": "Bounding box S N W E (reserved for future DEM auto-fetch; unused today)"},
-        "sat":             {"type": "select",
-                             "options": ["S1_TOPS", "S1_STRIP", "ALOS", "ALOS_SLC", "ALOS2",
-                                         "ALOS2_SCAN", "ENVI", "ENVI_SLC", "ERS", "CSK_RAW",
-                                         "CSK_SLC", "TSX", "RS2", "GF3"],
-                             "hint": "p2p_processing SAT argument (frame_mode=False only)"},
-        "frame_mode":      {"type": "bool",
-                             "hint": "Use p2p_S1_TOPS_Frame (multi-subswath merge) instead of single-subswath p2p_processing"},
-        "subswath":        {"type": "select", "options": [1, 2, 3],
-                             "hint": "IW subswath to extract for single-subswath mode (frame_mode=False only)"},
-        "parallel":        {"type": "bool", "hint": "p2p_S1_TOPS_Frame internal subswath parallelism (frame_mode only)"},
-        "polarization":    {"type": "select", "options": ["vv", "vh"], "hint": "Polarization channel"},
-        "config_template": {"type": "text", "hint": "Reuse an existing GMTSAR config.py (leave blank to auto-generate via pop_config)"},
-        "max_workers":     {"type": "number", "min": 1, "max": 16, "step": 1, "default": 4,
-                             "hint": "Independent pairs processed concurrently"},
-        "skip_existing":   {"type": "bool", "hint": "Skip pairs that already succeeded"},
-        "dry_run":         {"type": "bool", "hint": "Stage the case and report what would run, without executing p2p_processing"},
-        "gmtsar_root":     {"type": "text", "hint": "GMTSAR repo root ($GMTSAR) -- its bin/ is prepended to subprocess PATH"},
-        "gmtsar_env_bin":  {"type": "text", "hint": "bin/ dir of the conda env GMTSAR needs (provides the real `gmt` binary + numba/scipy) -- prepended to subprocess PATH. Required: found via a real end-to-end test (2026-07-21) that InSARHub's own env does not provide `gmt` at all, so GMTSAR subprocess calls fail near-instantly without this."},
+        "smooth":      {"type": "number", "step": 0.1, "default": 0, "hint": "sbas -smooth smoothing factor"},
+        "wavelength":  {"type": "number", "step": 0.001, "default": 0.0554658, "hint": "Radar wavelength (m). Default S1 C-band."},
+        "incidence":   {"type": "number", "step": 1, "default": 37, "hint": "sbas -incidence incidence angle (deg)"},
+        "range_dist":  {"type": "number", "step": 1000, "default": 866000, "hint": "sbas -range radar-to-scene-center range (m)"},
+        "atm_iters":   {"type": "number", "step": 1, "default": 0, "hint": "sbas -atm atmospheric-correction iterations (0 = skip)"},
+        "rms":         {"type": "bool", "hint": "sbas -rms: output velocity uncertainty grids"},
+        "dem_err":     {"type": "bool", "hint": "sbas -dem: output DEM-error grid"},
+        "auto_prune":  {"type": "bool", "hint": "Drop decorrelated pairs (and any date left orphaned) before inversion. GMTSAR's sbas needs every pixel valid in ALL interferograms, so one badly decorrelated pair can null out the whole velocity map -- GMTSAR itself does no such filtering."},
+        "max_nan_fraction": {"type": "number", "step": 0.05, "min": 0, "max": 1, "default": 0.5,
+                             "hint": "auto_prune threshold: drop a pair whose unwrapped phase is more than this fraction NaN"},
+        "phase_grd":   {"type": "text", "hint": "Per-pair unwrapped phase grid name inside intf/<pair>/ (radar coords)"},
+        "corr_grd":    {"type": "text", "hint": "Per-pair coherence grid name inside intf/<pair>/"},
+        "gmtsar_root":    {"type": "text", "hint": "GMTSAR repo root ($GMTSAR) -- its bin/ is prepended to subprocess PATH"},
+        "gmtsar_env_bin": {"type": "text", "hint": "bin/ of the conda env providing `gmt` + the sbas binary"},
     }
 
-    name: str                     = "GMTSAR_S1_Config"
-    workdir: Path | str           = field(default_factory=lambda: Path.cwd())
-    slc_dir: Path | str | None    = "auto"
-    orbit_dir: Path | str | None  = "auto"
-    dem_path: Path | str | None   = None
-    bbox: list[float] | None      = None   # [S, N, W, E] -- reserved, unused until DEM auto-fetch lands
-    sat: str                      = "S1_TOPS"
-    frame_mode: bool              = False
-    subswath: int                 = 2
-    parallel: bool                = True
-    polarization: str             = "vv"
-    config_template: Path | str | None = None
-    max_workers: int              = 4
-    skip_existing: bool           = True
-    dry_run: bool                 = False
-    # GMTSAR's own runtime -- deliberately independent of whatever conda
-    # env the InSARHub process itself is running under. See gmtsar_s1.py's
-    # _subprocess_env() docstring for the real failure this fixes.
+    name: str                          = "GMTSAR_SBAS_Config"
+    workdir: Path | str                = field(default_factory=lambda: Path.cwd())
+    smooth: float                      = 0
+    wavelength: float                  = 0.0554658   # Sentinel-1 C-band
+    incidence: float                   = 37
+    range_dist: float                  = 866000
+    atm_iters: int                     = 0
+    rms: bool                          = False
+    dem_err: bool                      = False
+    auto_prune: bool                   = True
+    max_nan_fraction: float            = 0.5
+    phase_grd: str                     = "unwrap.grd"
+    corr_grd: str                      = "corr.grd"
+    gmtsar_root: Path | str | None     = None
+    gmtsar_env_bin: Path | str | None  = None
+
+
+@dataclass
+class GMTSAR_MINTPY_SBAS_Config(Mintpy_SBAS_Base_Config):
+    """MintPy SBAS config pre-wired for GMTSAR stack_mode output.
+
+    File paths are set automatically by GMTSAR_MINTPY_SBAS.prep_data() from
+    workdir/gmtsar/ (the stack GMTSAR_S1 stack_mode produces), then handed to
+    MintPy's prep_gmtsar.py + smallbaselineApp. MintPy output → workdir/mintpy/.
+    """
+    name: str                         = "GMTSAR_MINTPY_SBAS_Config"
+    load_processor: str               = "gmtsar"
+    # Populated by GMTSAR_MINTPY_SBAS.prep_data() — left "auto" so
+    # write_mintpy_config() skips them while unset.
+    load_metaFile: str                = "auto"
+    load_baselineDir: str             = "auto"
+    load_unwFile: str                 = "auto"
+    load_corFile: str                 = "auto"
+    load_demFile: str                 = "auto"
+    load_lookupYFile: str             = "auto"
+    load_lookupXFile: str             = "auto"
+    load_incAngleFile: str            = "auto"
+    deramp: str                       = "linear"
+    troposphericDelay_method: str     = "pyaps"
+    networkInversion_maskDataset: str = "coherence"
+    networkInversion_maskThreshold: str | float = 0.5
+    network_coherenceBased: str       = "yes"
+    network_minCoherence: str | float = 0.7
+    plot: str                         = "yes"
+    save_kmz: str                     = "no"
+    # GMTSAR runtime for the prep_gmtsar shell-out
     gmtsar_root: Path | str | None    = None
     gmtsar_env_bin: Path | str | None = None

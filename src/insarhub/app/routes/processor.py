@@ -13,6 +13,7 @@ from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRe
 from insarhub.app.state import _apply_config_from_dict, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
+from insarhub.core.local_processor_reload import _jobs_glob, _find_jobs_file, _load_local_processor
 
 router = APIRouter()
 
@@ -57,6 +58,15 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
             _apply_config_from_dict(cfg, req.processor_config, skip_keys={"workdir", "pairs"})
             if hasattr(cfg, "__post_init__"):
                 cfg.__post_init__()  # re-resolve any "auto"/"" values reintroduced by user dict
+
+            if req.processor_type == "GMTSAR_S1" and pairs and len(pairs[0]) == 2:
+                # stack_p*_f*.json pairs are bare ASF scene name 2-tuples --
+                # no .SAFE suffix, no .EOF orbit filename. Expand into
+                # GMTSAR_S1's required 4-tuples, same conversion the CLI
+                # uses (cli/main.py's submit dispatch).
+                from insarhub.processor.gmtsar_s1 import pairs_from_downloader
+                pairs = pairs_from_downloader(pairs, slc_dir=cfg.slc_dir, orbit_dir=cfg.orbit_dir)
+
             cfg.pairs = pairs
 
             proc_cfg = state._cfg_dict(cfg, exclude=("workdir", "pairs", "container"))
@@ -91,7 +101,11 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                         return
                     cfg.sbatch_options_per_step = per_step
                 processor = proc_cls(pairs=pairs, config=cfg)
-                jobs = processor.submit(steps=req.steps or None)
+                # Only pass steps if actually requested -- GMTSAR_S1.submit()
+                # (unlike ISCE_S1's) takes no steps kwarg at all, so
+                # submit(steps=None) still raises TypeError.
+                submit_kwargs = {"steps": req.steps} if req.steps else {}
+                jobs = processor.submit(**submit_kwargs)
                 n_steps = len(jobs) if isinstance(jobs, dict) else len(pairs)
                 write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
                 step_msg = f" (steps: {', '.join(req.steps)})" if req.steps else ""
@@ -241,26 +255,39 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
 
 
 @router.get("/api/folder-local-jobs")
-async def get_folder_local_jobs(path: str):
-    """List isce_jobs*.json files in a folder with stored job counts."""
+async def get_folder_local_jobs(path: str, processor: str | None = None):
+    """List saved-job JSON files in a folder with stored job counts.
+
+    `processor` (e.g. "ISCE_S1"/"GMTSAR_S1") selects the right file naming
+    convention/subdir via JOBS_FILE/JOBS_SUBDIR; falls back to the folder's
+    own saved processor_type (or ISCE_S1) if not given, and to a plain
+    isce_jobs*.json glob if the processor name isn't registered.
+    """
     folder = Path(path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
+    proc_type = processor or state._read_processor_type(folder) or "ISCE_S1"
+    if proc_type in Processor._registry:
+        pattern, subdir = _jobs_glob(proc_type)
+    else:
+        pattern, subdir = "isce_jobs*.json", "isce"
     files = []
-    # Search root and isce/ subdirectory (ISCE_S1 saves jobs to workdir/isce/)
     seen = set()
-    for f in sorted(list(folder.glob("isce_jobs*.json")) + list((folder / "isce").glob("isce_jobs*.json"))):
+    candidates = list(folder.glob(pattern))
+    if subdir:
+        candidates += list((folder / subdir).glob(pattern))
+    for f in sorted(candidates):
         if f in seen:
             continue
         seen.add(f)
         try:
             data = json.loads(f.read_text())
-            total = len(data.get("jobs", {}))
+            jobs = data["jobs"] if "jobs" in data else data
+            total = len(jobs)
         except Exception:
             total = 0
         rel = f.relative_to(folder)
         files.append({"name": str(rel), "total": total, "users": []})
-    proc_type = state._read_processor_type(folder)
     return {"files": files, "processor_type": proc_type}
 
 
@@ -287,11 +314,14 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
                 state._finish_job(job_id, status="error", progress=0, message="Processor has no config")
                 return
 
-            cfg = cfg_cls(workdir=folder, saved_job_path=str(job_file))
             state._jobs[job_id]["message"] = "Initializing processor…"
-            saved_data = json.loads(job_file.read_text())
-            pairs = [(j["step"], j["step"]) for j in saved_data.get("jobs", {}).values()]
-            processor = proc_cls(pairs=pairs or [("_", "_")], config=cfg)
+            # Shared with the CLI (cli/main.py's refresh/retry/watch/cancel
+            # dispatch) -- handles both ISCE's saved-config field shape
+            # (saved_job_path field on the config) and GMTSAR_S1's (no such
+            # field, self-discovers state on construction instead), and both
+            # saved-jobs shapes (ISCE's step-keyed {"jobs": {...}} wrapper vs
+            # GMTSAR_S1's direct pair-keyed dict).
+            processor = _load_local_processor(req.processor_type, folder, job_file)
 
             if req.action == "refresh":
                 import io as _io, contextlib as _cl, re as _re
@@ -310,6 +340,10 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
                 state._finish_job(job_id, status="done", message="Retry submitted. New job file saved.")
 
             elif req.action == "cancel":
+                if not hasattr(processor, "cancel"):
+                    state._finish_job(job_id, status="error", progress=0,
+                                       message=f"{req.processor_type} does not support cancel()")
+                    return
                 state._jobs[job_id]["message"] = "Cancelling jobs…"
                 processor.cancel()
                 state._finish_job(job_id, status="done", message="Cancel sent.")
@@ -317,6 +351,15 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
             elif req.action == "force_steps":
                 if not req.steps:
                     state._finish_job(job_id, status="error", progress=0, message="No steps selected.")
+                    return
+                import inspect as _inspect
+                if "steps" not in _inspect.signature(processor.submit).parameters:
+                    # Defensive: unreachable in practice today since
+                    # /api/processor-steps returns [] for non-step-capable
+                    # processors (e.g. GMTSAR_S1) and the frontend gates the
+                    # force-steps UI on that being non-empty.
+                    state._finish_job(job_id, status="error", progress=0,
+                                       message=f"{req.processor_type} does not support forcing individual steps")
                     return
                 is_hpc = getattr(processor.config, "hpc_mode", False) or any(
                     m.get("slurm_job_ids") or m.get("hpc_manager") or m.get("hpc_array")

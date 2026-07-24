@@ -261,7 +261,7 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
 // ── Process Modal ────────────────────────────────────────────────────────────
 
 interface FieldMeta { key: string; label: string; type: string; default: any; options?: string[]; min?: number; max?: number; step?: number; hint?: string }
-interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label: string; fields: string[] }>; compatible_downloader?: string | null }
+interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label: string; fields: string[] }>; compatible_downloader?: string | null; is_local?: boolean }
 
 // ── SbatchOptionsModal — shared by ProcessModal (ISCE_S1) and AnalyzerConfigModal (ISCE_SBAS) ──
 
@@ -1242,7 +1242,11 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
   const [availSteps,  setAvailSteps]  = useState<string[]>([])
   const [forceSteps,  setForceSteps]  = useState<string[]>([])
 
-  const isLocal = processorType === 'ISCE_S1'
+  // Whether processorType takes pairs as its own constructor arg (ISCE_S1,
+  // GMTSAR_S1) rather than as a cloud-job config field (Hyp3_S1) -- derived
+  // from /api/workflows (see the effect below) instead of hardcoding a
+  // processor name, so any local processor gets the right job-management UI.
+  const [isLocal, setIsLocal] = useState(true)
 
   useEffect(() => {
     if (!isLocal) { setAvailSteps([]); return }
@@ -1255,7 +1259,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
   function loadFiles() {
     setLoading(true)
     const endpoint = isLocal
-      ? `${API}/api/folder-local-jobs?path=${encodeURIComponent(folderPath)}`
+      ? `${API}/api/folder-local-jobs?path=${encodeURIComponent(folderPath)}&processor=${encodeURIComponent(processorType)}`
       : `${API}/api/folder-hyp3-jobs?path=${encodeURIComponent(folderPath)}`
     fetch(endpoint)
       .then(r => r.json())
@@ -1280,8 +1284,10 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
       const names: string[] = Object.keys(workflows.analyzers ?? {})
       setAnalyzers(names)
       setSelectedAnalyzer(settings.analyzer || names[0] || '')
+      const procMeta: ProcMeta | undefined = workflows.processors?.[processorType]
+      if (procMeta) setIsLocal(procMeta.is_local ?? true)
     }).catch(() => {})
-  }, [])
+  }, [processorType])
 
   function runInitAnalyzer() {
     if (!selectedAnalyzer) return
@@ -1308,7 +1314,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
 
   useEffect(() => {
     loadFiles()
-  }, [folderPath])
+  }, [folderPath, isLocal])
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 

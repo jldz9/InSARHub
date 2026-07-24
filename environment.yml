@@ -8,11 +8,26 @@ dependencies:
                             # output via mintpy's prep_gmtsar.py; not always
                             # bundled with gdal depending on build variant
                             # (confirmed missing on a real pip-installed GDAL,
-                            # 2026-07-23)
+                            # 2026-07-23). Also keeps the solver on an older,
+                            # numpy<2.0-compatible companion stack: dropping
+                            # this floor let mamba resolve scipy 1.18/mintpy
+                            # 1.6.3, which require numpy>=2.0 -- combined with
+                            # this file's own numpy<2.0 pin (below), that's a
+                            # silent ABI mismatch that hard-crashes
+                            # scipy.signal at import time (confirmed
+                            # 2026-07-23: "AttributeError: module 'numpy' has
+                            # no attribute 'long'"). Do not remove without
+                            # also revisiting the numpy<2.0 pin.
     - mintpy
+    - rasterio  # conda-forge, not pip: keeps it on the same libproj/proj.db
+                # build as gdal above -- a pip wheel bundles its own newer
+                # libproj against conda's older proj.db and PROJ_DATA env
+                # var, causing "PROJ: ... DATABASE.LAYOUT.VERSION.MINOR"
+                # mismatches at runtime (confirmed 2026-07-23)
+    - psutil
+    - networkx
     - pip
     - pip:
-        - rasterio
         - asf_search
         - colorama
         - hyp3_sdk

@@ -1,0 +1,61 @@
+# InSARHub (local dev source) + ISCE2 + MintPy development version.
+#
+# Same recipe as Dockerfile.local, except MintPy is swapped for its own
+# development version straight from source (per
+# https://github.com/insarlab/MintPy/blob/main/docs/installation.md#2-install-the-development-version)
+# instead of the last conda-forge release -- for testing whether upcoming
+# MintPy changes (e.g. numpy>=2 support) work before they're released.
+#
+# Build (from repo root):
+#   docker build -f Dockerfile.mintpy-dev -t insarhub-mintpy:dev .
+#
+# Use:
+#   insarhub processor -N ISCE_S1 -w /path/to/workdir submit --container insarhub-mintpy:dev
+#   insarhub analyzer  -N ISCE_SBAS -w /path/to/workdir run  --container insarhub-mintpy:dev
+
+FROM condaforge/miniforge3:24.9.2-0
+
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+RUN mamba create -n insarhub -c conda-forge python=3.12 -y \
+    && mamba clean -afy
+
+# Same proven recipe as Dockerfile: plain `conda install`, insarhub alone
+# first (pulls its full dependency tree -- including a *released* mintpy,
+# swapped out below -- correctly respecting its own declared numpy<2.0),
+# isce2 as its own separate follow-up call second. See Dockerfile's comment
+# for why this exact order/tooling combination is what actually keeps numpy
+# pinned; every other combination tried let it drift to 2.x.
+RUN conda install -n insarhub -c conda-forge insarhub -y \
+    && mamba clean -afy
+
+RUN conda install -n insarhub -c conda-forge isce2 -y \
+    && mamba clean -afy
+
+# Swap the conda-installed released MintPy for its development version from
+# source. --no-deps on both the uninstall-replacement and the editable
+# install itself: MintPy's own requirements.txt lists numpy with no upper
+# bound, and letting pip re-resolve dependencies here risks it deciding to
+# touch numpy (or anything else conda already solved correctly above).
+RUN git clone --depth 1 https://github.com/insarlab/MintPy.git /opt/MintPy-dev
+RUN /opt/conda/envs/insarhub/bin/pip uninstall -y mintpy
+RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir --no-deps -e /opt/MintPy-dev
+
+# Local source instead of PyPI/conda-forge: copy just what the build needs
+# (pyproject.toml + src/) so unrelated repo changes (docs, test data, etc.)
+# don't bust the Docker layer cache and force a reinstall. --no-deps for the
+# same reason as above -- insarhub's own release is already fully resolved
+# by the conda install step; this just swaps in the local dev code itself.
+COPY pyproject.toml README.md /opt/insarhub-src/
+COPY src /opt/insarhub-src/src
+RUN /opt/conda/envs/insarhub/bin/pip uninstall -y insarhub
+RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir --no-deps /opt/insarhub-src
+
+# See Dockerfile for why both of these are needed.
+ENV ISCE_HOME=/opt/conda/envs/insarhub
+RUN ln -s /opt/conda/envs/insarhub/lib/python3.12/site-packages/isce/applications \
+          /opt/conda/envs/insarhub/applications
+
+ENV PATH=/opt/conda/envs/insarhub/bin:$PATH
+
+# No custom ENTRYPOINT/CMD -- see Dockerfile for why.

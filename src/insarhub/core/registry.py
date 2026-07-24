@@ -1,4 +1,5 @@
 import dataclasses
+import inspect
 from copy import deepcopy
 
 class Registry:
@@ -21,21 +22,35 @@ class Registry:
         else:
             final_config = {}
 
+        # Some processors (ISCE_S1, GMTSAR_S1) take `pairs` as its own
+        # constructor argument, separate from the config dataclass entirely
+        # -- unlike Hyp3_S1, where pairs happens to also be a config field.
+        # Route any override matching a real __init__ parameter (other than
+        # config) straight to the constructor instead of treating it as a
+        # config-field override -- otherwise dataclasses.replace() below
+        # fails with "unexpected keyword argument" for any such processor.
+        try:
+            sig_params = set(inspect.signature(cls.__init__).parameters) - {"self", "config"}
+        except (TypeError, ValueError):
+            sig_params = set()
+        ctor_kwargs = {k: v for k, v in overrides.items() if k in sig_params}
+        overrides = {k: v for k, v in overrides.items() if k not in sig_params}
+
         if overrides:
             if dataclasses.is_dataclass(final_config):
                 try:
                     final_config = dataclasses.replace(final_config, **overrides)
                 except TypeError as e:
-                    raise ValueError(f"Invalid override parameters: {e}")   
+                    raise ValueError(f"Invalid override parameters: {e}")
             elif isinstance(final_config, dict):
                 final_config.update(overrides)
-            else:   
+            else:
                 for key, value in overrides.items():
                     if hasattr(final_config, key):
                         setattr(final_config, key, value)
                     else:
                         raise AttributeError(f"'{type(final_config).__name__}' has no field '{key}'")
-        return cls(final_config)
+        return cls(config=final_config, **ctor_kwargs)
 
     def available(self):
         return list(self._registry.keys())

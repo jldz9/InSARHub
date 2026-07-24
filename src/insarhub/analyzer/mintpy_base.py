@@ -25,22 +25,31 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
     Base class for Mintpy SBAS analysis. This class provides a template for implementing 
     specific analysis methods using the Mintpy software package.
     '''
+    # Per-analyzer output folder under workdir (see MintPyPaths.subdir).
+    # Subclasses override: "hyp3_mintpy" / "isce_mintpy" / "gmtsar_mintpy".
+    MINTPY_SUBDIR = "mintpy"
+
     def __init__(self, config: Mintpy_SBAS_Base_Config | None = None):
         super().__init__(config)
 
-        self.workdir   = self.config.workdir
-        self._paths    = MintPyPaths(Path(self.workdir))
+        # absolute: MintPy's TimeSeriesAnalysis.open() os.chdir()s into
+        # mintpy_dir, and its dask workers re-resolve paths in their own cwd --
+        # a relative workdir then doubles up (".../gmtsar_mintpy/p100_f466/...")
+        # and every stack path breaks. Found via a real run.
+        self.workdir   = Path(self.config.workdir).expanduser().resolve()
+        self._paths    = MintPyPaths(Path(self.workdir), type(self).MINTPY_SUBDIR)
         self._hyp3_paths = Hyp3Paths(Path(self.workdir))
         self.mintpy_dir = self._paths.mintpy_dir
         self.tmp_dir   = self._paths.tmp_dir
         self.clip_dir  = self._paths.clip_dir
-        self.cfg_path  = self.workdir.joinpath('.mintpy.cfg')
+        self.cfg_path  = self.mintpy_dir / '.mintpy.cfg'
         write_workflow_marker(self.workdir, analyzer=type(self).name)
 
     def prep_data(self):
         """Write the MintPy config file to workdir."""
         if self.config.container:
             return self._run_via_container(["prep_data"])
+        self.mintpy_dir.mkdir(parents=True, exist_ok=True)
         self.config.write_mintpy_config(self.cfg_path)
 
     def _validate_cds_token(self, key: str) -> bool:

@@ -399,7 +399,7 @@ Processor.available()
 
     - **Save**
 
-        Job state is saved automatically after `submit()` to `<workdir>/gmtsar_case/gmtsar_jobs.json`.
+        Job state is saved automatically after `submit()` to `<workdir>/gmtsar/gmtsar_jobs.json`.
 
         ```python
         processor.save()
@@ -413,9 +413,9 @@ Processor.available()
 
     - **Output layout**
 
-        `frame_mode=False`: `<workdir>/gmtsar_case/intf/<julian_date_pair>/` (e.g. `intf/2019184_2019196/` — GMTSAR's own Julian-date pair naming, not ref/sec stems) — GMTSAR's native file names (`corr_ll.grd`, `phasefilt_ll.grd`, `*.PRM` files), which is exactly what MintPy's `prep_gmtsar.py` expects directly.
+        `frame_mode=False`: `<workdir>/gmtsar/intf/<julian_date_pair>/` (e.g. `intf/2019184_2019196/` — GMTSAR's own Julian-date pair naming, not ref/sec stems) — GMTSAR's native file names (`corr_ll.grd`, `phasefilt_ll.grd`, `*.PRM` files), which is exactly what MintPy's `prep_gmtsar.py` expects directly.
 
-        `frame_mode=True`: `<workdir>/gmtsar_case/<ref_safe>_<sec_safe>/merge/` — the merged, geocoded product across all three subswaths (`phasefilt_ll.grd`, `corr_ll.grd`, plus PNG/KML previews).
+        `frame_mode=True`: `<workdir>/gmtsar/<ref_safe>_<sec_safe>/merge/` — the merged, geocoded product across all three subswaths (`phasefilt_ll.grd`, `corr_ll.grd`, plus PNG/KML previews).
     - **Running without a local ISCE2 install**
 
         Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` all re-invoke the same `insarhub processor ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it, and ISCE2 never needs to be discovered on the host at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack (see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example).

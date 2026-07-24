@@ -54,13 +54,14 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
     description          = "SBAS time-series analysis of ISCE2 stackSentinel outputs using MintPy."
     compatible_processor = "ISCE_S1"
     default_config       = ISCE_SBAS_Config
+    # own output dir (workdir/isce_mintpy/) -- separate from other MintPy
+    # analyzers on the same workdir; layout via MintPyPaths (config/paths.py)
+    MINTPY_SUBDIR        = "isce_mintpy"
 
     def __init__(self, config: ISCE_SBAS_Config | None = None):
         super().__init__(config)
         self._isce_paths = ISCEPaths(self.workdir)
         self.isce_dir    = self._isce_paths.isce_dir
-        # cfg_path lives inside mintpy/ so MintPy finds it next to its outputs
-        self.cfg_path    = self.mintpy_dir / ".mintpy.cfg"
 
     # ── Public entry points ───────────────────────────────────────────────────
 

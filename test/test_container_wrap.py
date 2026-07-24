@@ -217,7 +217,7 @@ class TestMintpyAnalyzerContainerMode(unittest.TestCase):
             mock_subproc.return_value.stdout = "12345"
             analyzer.submit_hpc()
 
-        sbatch_script = self.workdir / "mintpy" / "mintpy_sbas.sbatch"
+        sbatch_script = analyzer.mintpy_dir / "mintpy_sbas.sbatch"
         body = sbatch_script.read_text()
         self.assertTrue("apptainer" in body or "docker" in body)
         self.assertIn("insarhub analyzer -N Hyp3_SBAS", body)
@@ -231,7 +231,7 @@ class TestMintpyAnalyzerContainerMode(unittest.TestCase):
             mock_subproc.return_value.stdout = "12345"
             analyzer.submit_hpc()
 
-        sbatch_script = self.workdir / "mintpy" / "mintpy_sbas.sbatch"
+        sbatch_script = analyzer.mintpy_dir / "mintpy_sbas.sbatch"
         body = sbatch_script.read_text()
         self.assertNotIn("apptainer", body)
         self.assertNotIn("docker run", body)

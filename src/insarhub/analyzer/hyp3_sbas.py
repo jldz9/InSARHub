@@ -19,6 +19,12 @@ class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
     default_config = Hyp3_SBAS_Config
     required = ['unw_phase.tif', 'corr.tif',  'dem.tif'] # also need meta files to get the date and other info
     optional = ['lv_theta.tif', 'lv_phi.tif', 'water_mask.tif']
+    # own output dir (workdir/hyp3_mintpy/) -- keeps this analyzer's MintPy
+    # products separate from ISCE_SBAS/GMTSAR_MINTPY_SBAS runs on the same
+    # workdir (previously all shared workdir/mintpy/ and silently overwrote
+    # each other). Path layout centralized in config/paths.py (MintPyPaths).
+    MINTPY_SUBDIR = "hyp3_mintpy"
+
     def __init__(self, config: Hyp3_SBAS_Config | None = None):
         super().__init__(config)
 

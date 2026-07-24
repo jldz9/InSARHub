@@ -180,23 +180,33 @@ def _prepare_dem(config: ISCE_S1_Config, workdir: Path) -> Path:
             return p
         # explicit path given but doesn't exist yet — fall through to download into dem_dir
 
-    bbox: list[float] | None = (
-        list(config.bbox) if config.bbox and len(config.bbox) == 4 else None
-    )
-    if bbox is None:
-        for scan_dir in dict.fromkeys([  # ordered, deduplicated
-            Path(str(config.slc_dir)) if config.slc_dir else None,
-            workdir,
-        ]):
-            if scan_dir is None:
-                continue
-            bbox = _bbox_from_slc_dir(scan_dir)
-            if bbox:
-                print(
-                    f"  Auto-derived bbox from SLCs in {scan_dir}: "
-                    f"S={bbox[0]:.4f} N={bbox[1]:.4f} W={bbox[2]:.4f} E={bbox[3]:.4f}"
-                )
-                break
+    # Prefer the actual joint footprint of the SLCs that will be processed
+    # over config.bbox (the search AOI): ASF returns whole-scene footprints
+    # that merely *contain* the search AOI rather than match it exactly, and
+    # for a merged multi-frame stack the true combined footprint can extend
+    # well beyond any single AOI used to find those frames. Deriving from
+    # the real scenes on disk ensures the DEM actually covers every frame,
+    # not just whatever AOI happened to be used at search time. config.bbox
+    # is now only a fallback for when no SLCs are on disk yet to scan (e.g.
+    # a dry run before download, or --dem_path/manual pre-staging).
+    bbox: list[float] | None = None
+    for scan_dir in dict.fromkeys([  # ordered, deduplicated
+        Path(str(config.slc_dir)) if config.slc_dir else None,
+        workdir,
+    ]):
+        if scan_dir is None:
+            continue
+        bbox = _bbox_from_slc_dir(scan_dir)
+        if bbox:
+            print(
+                f"  Auto-derived bbox from SLCs in {scan_dir}: "
+                f"S={bbox[0]:.4f} N={bbox[1]:.4f} W={bbox[2]:.4f} E={bbox[3]:.4f}"
+            )
+            break
+
+    if bbox is None and config.bbox and len(config.bbox) == 4:
+        bbox = list(config.bbox)
+        print(f"  No SLCs found to derive a footprint from yet — falling back to configured bbox {bbox}.")
 
     if bbox is None:
         raise ValueError(
@@ -472,7 +482,7 @@ class ISCE_S1(ISCE_Base):
             return
 
         cfg       = self.config
-        orbit_dir = str(cfg.orbit_dir) if cfg.orbit_dir else str(self.workdir / "slc")  # config always resolves this
+        orbit_dir = str(cfg.orbit_dir) if cfg.orbit_dir else str(self._paths.slc_dir)  # config always resolves this
         Path(orbit_dir).mkdir(parents=True, exist_ok=True)
 
         # ensure topsStack is importable

@@ -1,0 +1,47 @@
+# InSARHub + ISCE2 processing container -- LOCAL SOURCE variant for testing
+# in-progress changes that haven't been published to PyPI yet.
+#
+# For the published-release version, use ./Dockerfile instead.
+#
+# Build (from repo root):
+#   docker build -f Dockerfile.local -t insarhub-isce2:local .
+#
+# Use:
+#   insarhub processor -N ISCE_S1 -w /path/to/workdir submit --container insarhub-isce2:local
+#   insarhub analyzer  -N ISCE_SBAS -w /path/to/workdir run  --container insarhub-isce2:local
+#
+# Publish to GHCR (e.g. as a "dev" tag, distinct from versioned release tags):
+#   docker tag insarhub-isce2:local ghcr.io/jldz9/insarhub-isce2:dev
+#   docker push ghcr.io/jldz9/insarhub-isce2:dev
+
+FROM condaforge/miniforge3:24.9.2-0
+
+# Links this image to the jldz9/InSARHub repo on GHCR even when pushed
+# manually from the command line -- see Dockerfile for details.
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+COPY environment.yml /opt/environment.yml
+
+RUN mamba env create -f /opt/environment.yml \
+    && mamba clean -afy
+
+# ISCE2 isn't in environment.yml -- see Dockerfile for why this is a separate
+# step, and why numpy<2.0 is pinned again here.
+RUN mamba install -n insarhub -c conda-forge "numpy<2.0" isce2 \
+    && mamba clean -afy
+
+# Local source instead of PyPI: copy just what the build needs (pyproject.toml
+# + src/) so unrelated repo changes (docs, test data, etc.) don't bust the
+# Docker layer cache and force a reinstall.
+COPY pyproject.toml README.md /opt/insarhub-src/
+COPY src /opt/insarhub-src/src
+RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir /opt/insarhub-src
+
+# See Dockerfile for why both of these are needed.
+ENV ISCE_HOME=/opt/conda/envs/insarhub
+RUN ln -s /opt/conda/envs/insarhub/lib/python3.12/site-packages/isce/applications \
+          /opt/conda/envs/insarhub/applications
+
+ENV PATH=/opt/conda/envs/insarhub/bin:$PATH
+
+# No custom ENTRYPOINT/CMD -- see Dockerfile for why.

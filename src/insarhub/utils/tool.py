@@ -1871,10 +1871,11 @@ def clip_hyp3_s1(workdir: Path | str, aoi: list[float] | str | Path, file_suffix
     if isinstance(workdir, str):
         workdir = Path(workdir).expanduser().resolve()
 
-    outdir = workdir.joinpath('clipped')
-    outdir.mkdir(exist_ok=True)
     from insarhub.config.paths import Hyp3Paths
-    _hyp3_sub = Hyp3Paths(workdir).output_dir
+    _hyp3_paths = Hyp3Paths(workdir)
+    outdir = _hyp3_paths.clipped_dir
+    outdir.mkdir(exist_ok=True)
+    _hyp3_sub = _hyp3_paths.output_dir
     zip_files = list(_hyp3_sub.glob("*.zip")) if _hyp3_sub.exists() else list(workdir.glob("*.zip"))
 
     with tqdm(zip_files, unit="zip") as pbar:

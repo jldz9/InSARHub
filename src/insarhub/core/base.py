@@ -149,6 +149,17 @@ class LocalProcessor(ABC):
     name: str
     default_config: Optional[Type] = None
 
+    # Saved-job-file convention, so generic CLI code (cli/main.py) can find
+    # any local processor's job file without hardcoding one processor's
+    # naming. JOBS_FILE: the filename saved by save() (e.g. "isce_jobs.json").
+    # JOBS_SUBDIR: subdirectory under workdir the file lives in, or None if
+    # it's written directly to workdir. Found via a real CLI gap: cli/main.py
+    # used to hardcode "isce_jobs*.json" + an ISCE-specific subdirectory at
+    # every refresh/retry/watch/cancel call site, which silently couldn't
+    # find GMTSAR_S1's gmtsar_jobs.json at all.
+    JOBS_FILE: Optional[str] = None
+    JOBS_SUBDIR: Optional[str] = None
+
     def __init__(self, config=None):
         if config is None and self.default_config:
             self.config = self.default_config()

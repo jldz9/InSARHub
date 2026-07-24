@@ -300,6 +300,122 @@ Processor.available()
         processor.refresh()   # or .retry(), .cancel(), .watch()
         ```
 
+=== "GMTSAR_S1"
+
+    The `GMTSAR_S1` processor runs [GMTSAR](https://github.com/gmtsar/gmtsar)'s Python pipeline locally to generate Sentinel-1 interferograms from downloaded SLC `.SAFE` files. Both GMTSAR entry points are supported, selected via `frame_mode`:
+
+    - `frame_mode=False` (default) — single-subswath, via `p2p_processing`. `GMTSAR_S1` extracts the configured IW subswath + polarization from each `.SAFE` scene itself, so callers only ever pass raw `.SAFE`/`.EOF` names, the same as Frame mode.
+    - `frame_mode=True` — multi-subswath, via `p2p_S1_TOPS_Frame`, producing a merged interferogram across all three IW subswaths.
+
+    GMTSAR runs in its own conda environment, separate from InSARHub's (different numpy/GDAL stack) — `gmtsar_root` and `gmtsar_env_bin` tell `GMTSAR_S1` where to find GMTSAR's scripts and the `gmt` binary it shells out to; both are required.
+
+    - **Import processor**
+
+        ```python
+        from insarhub import Processor
+        ```
+
+    - **Create processor**
+
+        ```python
+        from insarhub.config import GMTSAR_S1_Config
+
+        cfg = GMTSAR_S1_Config(
+            workdir       = '/data/stack',
+            slc_dir       = '/data/slcs',
+            orbit_dir     = '/data/orbits',
+            dem_path      = '/data/dem.grd',   # GMTSAR-format DEM; no auto-download yet
+            subswath      = 2,                 # IW2 (default); frame_mode=False only
+            gmtsar_root   = '/path/to/gmtsar',
+            gmtsar_env_bin= '/path/to/conda/envs/gmtsar/bin',
+        )
+        pairs = [
+            ("REF.SAFE", "REF.EOF", "SEC.SAFE", "SEC.EOF"),
+        ]
+        processor = Processor.create('GMTSAR_S1', pairs=pairs, config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.GMTSAR_S1_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **Submit**
+
+        Stage the GMTSAR case directory (and, for `frame_mode=False`, extract each pair's subswath), then launch `p2p_processing`/`p2p_S1_TOPS_Frame` in the background, up to `max_workers` concurrent pairs. Returns immediately; use `refresh()`/`watch()` to monitor progress.
+
+        ```python
+        jobs = processor.submit()
+        ```
+
+        ::: insarhub.processor.gmtsar_s1.GMTSAR_S1.submit
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Refresh**
+
+        Read per-pair status from GMTSAR's own output markers (`.succeeded`/`.failed` under `intf/<julian_date_pair>/` (GMTSAR-assigned) or `merge/`).
+
+        ```python
+        jobs = processor.refresh()
+        ```
+
+        ::: insarhub.processor.gmtsar_s1.GMTSAR_S1.refresh
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Retry failed pairs**
+
+        Re-run only the pairs whose status is `FAILED`.
+
+        ```python
+        processor.retry()
+        ```
+
+        ::: insarhub.processor.gmtsar_s1.GMTSAR_S1.retry
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Watch**
+
+        Poll pair statuses at regular intervals until all pairs reach `SUCCEEDED` or `FAILED`.
+
+        ```python
+        processor.watch(poll_interval=60)
+        ```
+
+        ::: insarhub.processor.gmtsar_s1.GMTSAR_S1.watch
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Save**
+
+        Job state is saved automatically after `submit()` to `<workdir>/gmtsar_case/gmtsar_jobs.json`.
+
+        ```python
+        processor.save()
+        ```
+
+        ::: insarhub.processor.gmtsar_s1.GMTSAR_S1.save
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Output layout**
+
+        `frame_mode=False`: `<workdir>/gmtsar_case/intf/<julian_date_pair>/` (e.g. `intf/2019184_2019196/` — GMTSAR's own Julian-date pair naming, not ref/sec stems) — GMTSAR's native file names (`corr_ll.grd`, `phasefilt_ll.grd`, `*.PRM` files), which is exactly what MintPy's `prep_gmtsar.py` expects directly.
+
+        `frame_mode=True`: `<workdir>/gmtsar_case/<ref_safe>_<sec_safe>/merge/` — the merged, geocoded product across all three subswaths (`phasefilt_ll.grd`, `corr_ll.grd`, plus PNG/KML previews).
     - **Running without a local ISCE2 install**
 
         Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` all re-invoke the same `insarhub processor ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it, and ISCE2 never needs to be discovered on the host at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack (see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example).

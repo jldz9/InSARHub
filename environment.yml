@@ -4,6 +4,11 @@ channels:
 dependencies:
     - python >=3.11,<3.13
     - gdal >=3.8
+    - libgdal-netcdf >=3.8  # netCDF driver -- required to open GMTSAR's .grd
+                            # output via mintpy's prep_gmtsar.py; not always
+                            # bundled with gdal depending on build variant
+                            # (confirmed missing on a real pip-installed GDAL,
+                            # 2026-07-23)
     - mintpy
     - pip
     - pip:

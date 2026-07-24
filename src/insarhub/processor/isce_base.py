@@ -349,6 +349,9 @@ class ISCE_Base(LocalProcessor):
     step-execution machinery lives here.
     """
 
+    JOBS_FILE = JOBS_FILE  # "isce_jobs.json" -- module constant, exposed for cli/main.py
+    JOBS_SUBDIR = "isce"   # matches ISCEPaths(workdir).isce_dir
+
     def __init__(self, config):
         super().__init__(config)
         if self.config.container:

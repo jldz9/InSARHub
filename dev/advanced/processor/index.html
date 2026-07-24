@@ -1229,6 +1229,61 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.submit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        submit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.refresh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        refresh
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        retry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.watch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        watch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1709,6 +1764,61 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.submit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        submit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.refresh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        refresh
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        retry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.watch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        watch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#insarhub.processor.gmtsar_s1.GMTSAR_S1.save" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        save
+      
+    </span>
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -1757,7 +1867,7 @@
 </li>
 </ul>
 <h2 id="available-processors">Available Processors</h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3_s1" name="__tabbed_1" type="radio"><input id="isce_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3_s1">Hyp3_S1</label><label for="isce_s1">ISCE_S1</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="hyp3_s1" name="__tabbed_1" type="radio"><input id="isce_s1" name="__tabbed_1" type="radio"><input id="gmtsar_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3_s1">Hyp3_S1</label><label for="isce_s1">ISCE_S1</label><label for="gmtsar_s1">GMTSAR_S1</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>The <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> InSAR processor is a cloud-based processing service provided by the ASF <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> system for generating interferograms from Sentinel-1 SAR data.
@@ -3070,16 +3180,370 @@ is pre-downloaded using bbox.</p>
 </span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>   <span class="c1"># or .retry(), .cancel(), .watch()</span>
 </span></code></pre></div>
 </li>
+</ul>
+</div>
+<div class="tabbed-block">
+<p>The <code>GMTSAR_S1</code> processor runs <a href="https://github.com/gmtsar/gmtsar">GMTSAR</a>'s Python pipeline locally to generate Sentinel-1 interferograms from downloaded SLC <code>.SAFE</code> files. Both GMTSAR entry points are supported, selected via <code>frame_mode</code>:</p>
+<ul>
+<li><code>frame_mode=False</code> (default) — single-subswath, via <code>p2p_processing</code>. <code>GMTSAR_S1</code> extracts the configured IW subswath + polarization from each <code>.SAFE</code> scene itself, so callers only ever pass raw <code>.SAFE</code>/<code>.EOF</code> names, the same as Frame mode.</li>
+<li><code>frame_mode=True</code> — multi-subswath, via <code>p2p_S1_TOPS_Frame</code>, producing a merged interferogram across all three IW subswaths.</li>
+</ul>
+<p>GMTSAR runs in its own conda environment, separate from InSARHub's (different numpy/GDAL stack) — <code>gmtsar_root</code> and <code>gmtsar_env_bin</code> tell <code>GMTSAR_S1</code> where to find GMTSAR's scripts and the <code>gmt</code> binary it shells out to; both are required.</p>
+<ul>
+<li>
+<p><strong>Import processor</strong></p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
+</span></code></pre></div>
+</li>
+<li>
+<p><strong>Create processor</strong></p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">GMTSAR_S1_Config</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>
+</span><span id="__span-23-3"><a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">GMTSAR_S1_Config</span><span class="p">(</span>
+</span><span id="__span-23-4"><a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>    <span class="n">workdir</span>       <span class="o">=</span> <span class="s1">'/data/stack'</span><span class="p">,</span>
+</span><span id="__span-23-5"><a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a>    <span class="n">slc_dir</span>       <span class="o">=</span> <span class="s1">'/data/slcs'</span><span class="p">,</span>
+</span><span id="__span-23-6"><a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>    <span class="n">orbit_dir</span>     <span class="o">=</span> <span class="s1">'/data/orbits'</span><span class="p">,</span>
+</span><span id="__span-23-7"><a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a>    <span class="n">dem_path</span>      <span class="o">=</span> <span class="s1">'/data/dem.grd'</span><span class="p">,</span>   <span class="c1"># GMTSAR-format DEM; no auto-download yet</span>
+</span><span id="__span-23-8"><a id="__codelineno-23-8" name="__codelineno-23-8" href="#__codelineno-23-8"></a>    <span class="n">subswath</span>      <span class="o">=</span> <span class="mi">2</span><span class="p">,</span>                 <span class="c1"># IW2 (default); frame_mode=False only</span>
+</span><span id="__span-23-9"><a id="__codelineno-23-9" name="__codelineno-23-9" href="#__codelineno-23-9"></a>    <span class="n">gmtsar_root</span>   <span class="o">=</span> <span class="s1">'/path/to/gmtsar'</span><span class="p">,</span>
+</span><span id="__span-23-10"><a id="__codelineno-23-10" name="__codelineno-23-10" href="#__codelineno-23-10"></a>    <span class="n">gmtsar_env_bin</span><span class="o">=</span> <span class="s1">'/path/to/conda/envs/gmtsar/bin'</span><span class="p">,</span>
+</span><span id="__span-23-11"><a id="__codelineno-23-11" name="__codelineno-23-11" href="#__codelineno-23-11"></a><span class="p">)</span>
+</span><span id="__span-23-12"><a id="__codelineno-23-12" name="__codelineno-23-12" href="#__codelineno-23-12"></a><span class="n">pairs</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-23-13"><a id="__codelineno-23-13" name="__codelineno-23-13" href="#__codelineno-23-13"></a>    <span class="p">(</span><span class="s2">"REF.SAFE"</span><span class="p">,</span> <span class="s2">"REF.EOF"</span><span class="p">,</span> <span class="s2">"SEC.SAFE"</span><span class="p">,</span> <span class="s2">"SEC.EOF"</span><span class="p">),</span>
+</span><span id="__span-23-14"><a id="__codelineno-23-14" name="__codelineno-23-14" href="#__codelineno-23-14"></a><span class="p">]</span>
+</span><span id="__span-23-15"><a id="__codelineno-23-15" name="__codelineno-23-15" href="#__codelineno-23-15"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'GMTSAR_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span></code></pre></div>
+
+
+<div class="doc doc-object doc-class">
+
+
+
+<a id="insarhub.config.defaultconfig.GMTSAR_S1_Config"></a>
+    <div class="doc doc-contents first">
+
+
+
+
+
+<p><span class="doc-section-title">Attributes:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.workdir">workdir</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Processing root. gmtsar_case/ (raw/, topo/, config.py,
+intf/ or per-pair subdirs) lives here.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.slc_dir">slc_dir</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory containing Sentinel-1 SLC .SAFE dirs (or .zips).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.orbit_dir">orbit_dir</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Directory with .EOF orbit files.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.dem_path">dem_path</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>GMTSAR-format DEM grid (topo/dem.grd). Unlike ISCE_S1,
+bbox-driven auto-download is NOT implemented yet -- must be
+supplied explicitly. See gmtsar_s1.py's module docstring for
+the concrete "known gaps" list.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.sat">sat</span></code></td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>p2p_processing's SAT argument (frame_mode=False only).
+Exposed (not hardcoded) for forward-compat -- GMTSAR already
+supports 14 sensor families beyond S1_TOPS (see
+gmtsar/python/tests/cases.py upstream), this processor is
+just the first one wired in.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.frame_mode">frame_mode</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>False = p2p_processing (single-subswath). True =
+p2p_S1_TOPS_Frame (multi-subswath, merged final product).</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.subswath">subswath</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>IW subswath number (1/2/3) to extract for frame_mode=False.
+p2p_processing itself does not read .SAFE directories -- it
+expects one subswath's .tiff/.xml files already extracted to
+matching-stem files in raw/ (confirmed against GMTSAR's own
+bundled single-subswath test fixture, H_res/raw/: its per-stem
+files are plain symlinks into the equivalent Frame-mode F<n>/
+subswath files pulled from the same .SAFE). GMTSAR_S1 does
+this extraction itself now; subswath picks which IW to use.
+Default 2 (IW2, the commonly-used middle subswath).</n></p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.parallel">parallel</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>p2p_S1_TOPS_Frame's own internal subswath parallelism
+flag (0=sequential, 1=parallel). Only used when frame_mode.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.config_template">config_template</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to a GMTSAR config.py to reuse as-is. If
+None, one is auto-generated per case via <code>pop_config &lt;sat&gt;</code>
+(GMTSAR's own default-config tool), matching p2p_processing's
+own "no config.py given" behavior.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.max_workers">max_workers</span></code></td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Independent pairs processed concurrently.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.skip_existing">skip_existing</span></code></td>
+            <td>
+                  <code><span title="bool">bool</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Don't redo a pair whose output dir already
+has a .succeeded status marker.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.gmtsar_root">gmtsar_root</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>GMTSAR repo root ($GMTSAR). Required -- GMTSAR_S1
+raises at construction time if unset. Its bin/ is prepended
+to every GMTSAR subprocess call's PATH.</p>
+              </div>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td><code><span title="insarhub.config.defaultconfig.GMTSAR_S1_Config.gmtsar_env_bin">gmtsar_env_bin</span></code></td>
+            <td>
+                  <code><span title="pathlib.Path">Path</span> | <span title="str">str</span> | None</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>bin/ dir of the conda env GMTSAR needs (provides
+the real <code>gmt</code> binary plus numba/scipy). Required -- InSARHub's
+own env does not provide <code>gmt</code> at all (confirmed via a real
+end-to-end test, 2026-07-21), so subprocess calls fail
+near-instantly without this. See gmtsar_s1.py's
+_subprocess_env() docstring for the full writeup.</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div></li>
+<li>
+<p><strong>Submit</strong></p>
+<p>Stage the GMTSAR case directory (and, for <code>frame_mode=False</code>, extract each pair's subswath), then launch <code>p2p_processing</code>/<code>p2p_S1_TOPS_Frame</code> in the background, up to <code>max_workers</code> concurrent pairs. Returns immediately; use <code>refresh()</code>/<code>watch()</code> to monitor progress.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="n">jobs</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+</span></code></pre></div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="insarhub.processor.gmtsar_s1.GMTSAR_S1.submit"></a>
+    <div class="doc doc-contents first">
+
+
+    </div>
+
+</div></li>
+<li>
+<p><strong>Refresh</strong></p>
+<p>Read per-pair status from GMTSAR's own output markers (<code>.succeeded</code>/<code>.failed</code> under <code>intf/&lt;julian_date_pair&gt;/</code> (GMTSAR-assigned) or <code>merge/</code>).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="n">jobs</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+</span></code></pre></div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="insarhub.processor.gmtsar_s1.GMTSAR_S1.refresh"></a>
+    <div class="doc doc-contents first">
+
+
+    </div>
+
+</div></li>
+<li>
+<p><strong>Retry failed pairs</strong></p>
+<p>Re-run only the pairs whose status is <code>FAILED</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">retry</span><span class="p">()</span>
+</span></code></pre></div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="insarhub.processor.gmtsar_s1.GMTSAR_S1.retry"></a>
+    <div class="doc doc-contents first">
+
+
+    </div>
+
+</div></li>
+<li>
+<p><strong>Watch</strong></p>
+<p>Poll pair statuses at regular intervals until all pairs reach <code>SUCCEEDED</code> or <code>FAILED</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">poll_interval</span><span class="o">=</span><span class="mi">60</span><span class="p">)</span>
+</span></code></pre></div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="insarhub.processor.gmtsar_s1.GMTSAR_S1.watch"></a>
+    <div class="doc doc-contents first">
+
+
+    </div>
+
+</div></li>
+<li>
+<p><strong>Save</strong></p>
+<p>Job state is saved automatically after <code>submit()</code> to <code>&lt;workdir&gt;/gmtsar_case/gmtsar_jobs.json</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">save</span><span class="p">()</span>
+</span></code></pre></div>
+
+
+<div class="doc doc-object doc-function">
+
+
+
+<a id="insarhub.processor.gmtsar_s1.GMTSAR_S1.save"></a>
+    <div class="doc doc-contents first">
+
+
+    </div>
+
+</div></li>
+<li>
+<p><strong>Output layout</strong></p>
+<p><code>frame_mode=False</code>: <code>&lt;workdir&gt;/gmtsar_case/intf/&lt;julian_date_pair&gt;/</code> (e.g. <code>intf/2019184_2019196/</code> — GMTSAR's own Julian-date pair naming, not ref/sec stems) — GMTSAR's native file names (<code>corr_ll.grd</code>, <code>phasefilt_ll.grd</code>, <code>*.PRM</code> files), which is exactly what MintPy's <code>prep_gmtsar.py</code> expects directly.</p>
+<p><code>frame_mode=True</code>: <code>&lt;workdir&gt;/gmtsar_case/&lt;ref_safe&gt;_&lt;sec_safe&gt;/merge/</code> — the merged, geocoded product across all three subswaths (<code>phasefilt_ll.grd</code>, <code>corr_ll.grd</code>, plus PNG/KML previews).</p>
+</li>
 <li>
 <p><strong>Running without a local ISCE2 install</strong></p>
 <p>Set the <code>container</code> field to a path to an Apptainer/Singularity <code>.sif</code> image, or a Docker image reference (name[:tag]), and <code>submit()</code>/<code>retry()</code>/<code>refresh()</code>/<code>watch()</code>/<code>cancel()</code> all re-invoke the same <code>insarhub processor ...</code> CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it, and ISCE2 never needs to be discovered on the host at all. The container image just needs <code>insarhub</code> installed alongside ISCE2/topsStack (see <a href="https://github.com/jldz9/InSARHub/blob/main/Dockerfile"><code>Dockerfile</code></a> in the repo root for a ready-to-build example).</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE_S1_Config</span><span class="p">(</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>    <span class="n">workdir</span><span class="o">=</span><span class="s1">'/data/p100_f466'</span><span class="p">,</span>
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>    <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">33.0</span><span class="p">,</span> <span class="mf">38.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">120.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">115.0</span><span class="p">],</span>
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>    <span class="n">container</span><span class="o">=</span><span class="s1">'ghcr.io/jldz9/insarhub-isce2:latest'</span><span class="p">,</span>
-</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a><span class="p">)</span>
-</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
-</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-29-1"><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE_S1_Config</span><span class="p">(</span>
+</span><span id="__span-29-2"><a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>    <span class="n">workdir</span><span class="o">=</span><span class="s1">'/data/p100_f466'</span><span class="p">,</span>
+</span><span id="__span-29-3"><a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>    <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">33.0</span><span class="p">,</span> <span class="mf">38.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">120.0</span><span class="p">,</span> <span class="o">-</span><span class="mf">115.0</span><span class="p">],</span>
+</span><span id="__span-29-4"><a id="__codelineno-29-4" name="__codelineno-29-4" href="#__codelineno-29-4"></a>    <span class="n">container</span><span class="o">=</span><span class="s1">'ghcr.io/jldz9/insarhub-isce2:latest'</span><span class="p">,</span>
+</span><span id="__span-29-5"><a id="__codelineno-29-5" name="__codelineno-29-5" href="#__codelineno-29-5"></a><span class="p">)</span>
+</span><span id="__span-29-6"><a id="__codelineno-29-6" name="__codelineno-29-6" href="#__codelineno-29-6"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-29-7"><a id="__codelineno-29-7" name="__codelineno-29-7" href="#__codelineno-29-7"></a><span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
 </span></code></pre></div>
 <p><code>container</code> is a per-invocation setting, not persisted config — it must be set again on every subsequent call (<code>retry()</code>, a fresh <code>submit()</code>, etc.) that should also run inside the container.</p>
 </li>

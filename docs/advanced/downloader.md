@@ -361,3 +361,90 @@ Downloader.available()
             options:
                 show_source: false
                 heading_level: 5
+
+=== "S1_Burst"
+
+    `S1_Burst` is a specialized downloader that extends `ASF_Base_Downloader` for ASF's **SLC-BURST** dataset. A burst is roughly 1/9th of a full IW slice, so an AOI-limited burst stack pulls far less data than an equivalent `S1_SLC` search — the whole point of burst-based processing, and what makes the `ISCE3_Burst` / COMPASS workflow practical over a small target. Pair it with the `ISCE3_Burst` processor and the `Dolphin_SBAS` analyzer.
+
+    Search, filter, summary, footprint and pair selection behave exactly as for `S1_SLC` (they reuse `ASF_Base_Downloader`); only `download()` differs — it hands the selected burst granules to `burst2safe`, which assembles them into valid `.SAFE` directories by merging the annotation/calibration/noise XML and writing a manifest.
+
+    !!! note "Burst stacks are keyed by `fullBurstID`, not frame"
+        ASF returns no `frameNumber` on SLC-BURST products, so a frame filter matches nothing and is excluded from the query. A burst stack is identified by `fullBurstID` (e.g. `056_118970_IW2`); the downloader folder is named `p<path>_iw<s>_b<id>` accordingly.
+
+    ::: insarhub.downloader.s1_burst.S1_Burst
+        options:
+            show_source: true
+            heading_level: 0
+
+    - **Create downloader with parameters**
+
+        ```python
+        s1b = Downloader.create('S1_Burst',
+                                intersectsWith=[-106.06, 40.34, -105.70, 40.58],
+                                fullBurstID=['056_118970_IW2', '056_118971_IW2'],
+                                polarization=['VV'],
+                                start='2022-08-04',
+                                end='2026-07-21',
+                                workdir='path/to/dir')
+        ```
+
+        OR with explicit config:
+
+        ```python
+        from insarhub.config import S1_Burst_Config
+
+        cfg = S1_Burst_Config(
+            intersectsWith=[-106.06, 40.34, -105.70, 40.58],
+            fullBurstID=['056_118970_IW2', '056_118971_IW2'],
+            polarization=['VV'],
+            start='2022-08-04',
+            end='2026-07-21',
+            workdir='path/to/dir',
+        )
+        dl = Downloader.create('S1_Burst', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.S1_Burst_Config
+            options:
+                heading_level: 0
+                members: false
+
+    - **Search / Filter / Summary / Footprint**
+
+        Identical to `S1_SLC` — these reuse `ASF_Base_Downloader` and operate on the same ASF burst granule search.
+
+        ```python
+        results = dl.search()
+        dl.summary()
+        dl.footprint()
+        ```
+
+    - **Select Pairs**
+
+        ```python
+        pairs, baselines, scene_bperp, _ = dl.select_pairs(
+            dt_targets=(6, 12, 24, 36, 48, 72, 96),
+            dt_tol=3,
+            dt_max=120,
+            pb_max=150.0,
+            force_connect=True,
+        )
+        ```
+
+        ::: insarhub.downloader.ASF_Base_Downloader.select_pairs
+            options:
+                show_source: false
+                heading_level: 5
+
+    - **Download**
+
+        Download the selected burst granules and assemble them into `.SAFE` directories via `burst2safe`.
+
+        ```python
+        dl.download()
+        ```
+
+        ::: insarhub.downloader.s1_burst.S1_Burst.download
+            options:
+                show_source: false
+                heading_level: 5

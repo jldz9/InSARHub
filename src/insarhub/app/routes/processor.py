@@ -13,9 +13,24 @@ from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRe
 from insarhub.app.state import _apply_config_from_dict, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
-from insarhub.core.local_processor_reload import _jobs_glob, _find_jobs_file, _load_local_processor
+from insarhub.utils.local_processor_reload import _jobs_glob, _find_jobs_file, _load_local_processor
 
 router = APIRouter()
+
+
+def _sbatch_default_template_for(processor_type: str) -> dict:
+    """Which sbatch_options.json default template a fresh file should get,
+    by processor -- mirrors cli/main.py's _proc_local_submit branching (the
+    CLI already got this right; these three GUI call sites hadn't). Without
+    this, every GUI-driven HPC submission/edit -- regardless of processor --
+    silently defaulted to ISCE2_S1's numbered "01".."17" template, so a
+    GMTSAR_S1 workdir's first-ever GUI submission seeded the file with
+    irrelevant ISCE steps instead of GMTSAR's own align/topo/intf/merge."""
+    if processor_type == "GMTSAR_S1":
+        from insarhub.processor.gmtsar_s1 import _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+        return _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+    from insarhub.processor.isce2_base import _SBATCH_DEFAULT_TEMPLATE
+    return _SBATCH_DEFAULT_TEMPLATE
 
 
 @router.post("/api/folder-process")
@@ -87,11 +102,12 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
 
             state._jobs[job_id]["message"] = "Submitting jobs…"
             if is_local:
-                # Local processor (e.g. ISCE_S1): load sbatch options, submit directly.
+                # Local processor (e.g. ISCE2_S1): load sbatch options, submit directly.
                 # Only relevant in HPC mode; auto-generates the file (steps 01-17) if missing.
                 if getattr(cfg, "hpc_mode", False):
-                    from insarhub.processor.isce_base import load_or_init_sbatch_options
-                    per_step = load_or_init_sbatch_options(folder)
+                    from insarhub.processor.isce2_base import load_or_init_sbatch_options
+                    per_step = load_or_init_sbatch_options(
+                        folder, default_template=_sbatch_default_template_for(req.processor_type))
                     if per_step is None:
                         _finish_job(
                             job_id, status="error", progress=0,
@@ -102,7 +118,7 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                     cfg.sbatch_options_per_step = per_step
                 processor = proc_cls(pairs=pairs, config=cfg)
                 # Only pass steps if actually requested -- GMTSAR_S1.submit()
-                # (unlike ISCE_S1's) takes no steps kwarg at all, so
+                # (unlike ISCE2_S1's) takes no steps kwarg at all, so
                 # submit(steps=None) still raises TypeError.
                 submit_kwargs = {"steps": req.steps} if req.steps else {}
                 jobs = processor.submit(**submit_kwargs)
@@ -234,7 +250,7 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
                     state._jobs[job_id]["message"] = "Downloading succeeded jobs…"
 
                     def _dl_progress(msg: str, pct: int):
-                        state._jobs[job_id]["progress"] = pct
+                        state._jobs[job_id]["progress"] = int(pct)
                         state._jobs[job_id]["message"]  = msg
 
                     _, dl_results = processor.download(progress_callback=_dl_progress, stop_event=dl_stop)
@@ -258,15 +274,15 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
 async def get_folder_local_jobs(path: str, processor: str | None = None):
     """List saved-job JSON files in a folder with stored job counts.
 
-    `processor` (e.g. "ISCE_S1"/"GMTSAR_S1") selects the right file naming
+    `processor` (e.g. "ISCE2_S1"/"GMTSAR_S1") selects the right file naming
     convention/subdir via JOBS_FILE/JOBS_SUBDIR; falls back to the folder's
-    own saved processor_type (or ISCE_S1) if not given, and to a plain
+    own saved processor_type (or ISCE2_S1) if not given, and to a plain
     isce_jobs*.json glob if the processor name isn't registered.
     """
     folder = Path(path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
-    proc_type = processor or state._read_processor_type(folder) or "ISCE_S1"
+    proc_type = processor or state._read_processor_type(folder) or "ISCE2_S1"
     if proc_type in Processor._registry:
         pattern, subdir = _jobs_glob(proc_type)
     else:
@@ -366,8 +382,9 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
                     for m in processor.jobs.values()
                 )
                 if is_hpc:
-                    from insarhub.processor.isce_base import load_or_init_sbatch_options
-                    per_step = load_or_init_sbatch_options(folder)
+                    from insarhub.processor.isce2_base import load_or_init_sbatch_options
+                    per_step = load_or_init_sbatch_options(
+                        folder, default_template=_sbatch_default_template_for(req.processor_type))
                     if per_step is None:
                         state._finish_job(
                             job_id, status="error", progress=0,
@@ -392,43 +409,57 @@ async def _run_local_action(job_id: str, req: LocalActionRequest):
 
 @router.get("/api/processor-steps")
 async def get_processor_steps(processor: str):
-    """List forceable step names for a local processor (e.g. ISCE_S1), for --step-style GUI submission."""
-    if processor != "ISCE_S1":
+    """List forceable step names for a local processor (e.g. ISCE2_S1), for --step-style GUI submission."""
+    if processor != "ISCE2_S1":
         return {"steps": []}
-    from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
+    from insarhub.processor.isce2_base import _SBATCH_DEFAULT_TEMPLATE
     steps = [
         f"run_{num}_{name}"
         for num, name in _SBATCH_DEFAULT_TEMPLATE["_steps"].items()
-        if num != "17"  # SBAS is an analyzer step, not an ISCE_S1 processor step
+        if num != "17"  # SBAS is an analyzer step, not an ISCE2_S1 processor step
     ]
     return {"steps": steps}
 
 
 
 
-from insarhub.processor.isce_base import _SBATCH_DEFAULT_TEMPLATE
+from insarhub.processor.isce2_base import _SBATCH_DEFAULT_TEMPLATE
 
 
 @router.get("/api/folder-sbatch-options")
-async def get_sbatch_options(path: str):
-    """Return sbatch_options.json, creating or upgrading to the full template (steps 01-16 + 17=SBAS)."""
+async def get_sbatch_options(path: str, processor: str | None = None):
+    """Return sbatch_options.json, creating or upgrading it to the right
+    per-processor template -- explicit `processor` query param if given
+    (the caller usually already knows, mid-configuration), else the
+    folder's own saved processor type, else ISCE2_S1.
+
+    REAL BUG FOUND: this used to always rebuild against ISCE's own
+    _SBATCH_DEFAULT_TEMPLATE regardless of which processor the workdir
+    actually uses -- for a GMTSAR_S1 workdir, that iterated only ISCE's
+    "01".."17"/"default" keys, silently dropping GMTSAR's align/topo/intf/
+    merge entries from `merged` and overwriting the file out from under
+    them. Fixed by picking the right template first, and merging additively
+    (setdefault) instead of rebuilding "in template order" -- so a key
+    belonging to a different processor's template that's already in the
+    file (e.g. a workdir genuinely shared by two processors) is preserved,
+    matching load_or_init_sbatch_options's own "nothing is ever removed"
+    guarantee.
+    """
     folder = Path(path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
-    from insarhub.processor.isce_base import load_or_init_sbatch_options
+    from insarhub.processor.isce2_base import load_or_init_sbatch_options
+    proc_type = processor or state._read_processor_type(folder) or "ISCE2_S1"
+    template = _sbatch_default_template_for(proc_type)
     # Shared migrate/load/upgrade logic (also renames legacy srun_options.json,
     # unlike the old inline copy here which left it behind as a stale duplicate).
     # Returns None only when the file was just freshly created — its content is
-    # then exactly _SBATCH_DEFAULT_TEMPLATE.
-    existing = load_or_init_sbatch_options(folder) or _SBATCH_DEFAULT_TEMPLATE
+    # then exactly `template`.
+    existing = load_or_init_sbatch_options(folder, default_template=template) or template
     sbatch_path = folder / "sbatch_options.json"
-    # Rebuild in template order, preserving any user-set per-step flags
-    merged = {}
-    for k, v in _SBATCH_DEFAULT_TEMPLATE.items():
-        if k.isdigit() or k in ("default",):
-            merged[k] = existing.get(k, v)
-        else:
-            merged[k] = v
+    merged = dict(existing)
+    for k, v in template.items():
+        merged.setdefault(k, v)
     sbatch_path.write_text(json.dumps(merged, indent=2))
     return {"content": sbatch_path.read_text()}
 

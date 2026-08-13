@@ -1,7 +1,8 @@
-import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { statusColor, type Theme } from './theme'
+import { type Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
+import { stackInfo } from './ScenePanel'
 import { API } from './api'
 
 
@@ -9,6 +10,9 @@ interface StackSummary {
   stackKey:              string
   path:                  number
   frame:                 number
+  isBurst:               boolean
+  subswath?:             string
+  burstID?:              number
   sceneCount:            number
   startDate:             string
   endDate:               string
@@ -30,9 +34,12 @@ interface Props {
   onClose:          () => void
 }
 
-function parseStack(key: string): { path: number; frame: number } {
-  const m = key.match(/\(?\s*(\d+)\s*,\s*(\d+)\s*\)?/)
-  return m ? { path: parseInt(m[1]), frame: parseInt(m[2]) } : { path: 0, frame: 0 }
+// Numeric subswath for ordering: "IW1"/"IW3"/"EW5" → 1/3/5. Non-subswath
+// stacks (S1_SLC) sort after all burst stacks.
+function burstSwathNum(swath: string | undefined): number {
+  if (!swath) return Number.MAX_SAFE_INTEGER
+  const m = swath.match(/(\d+)$/)
+  return m ? parseInt(m[1], 10) : 0
 }
 
 export default function StackSummaryDrawer({
@@ -53,10 +60,14 @@ export default function StackSummaryDrawer({
       const key = feature.properties?._stack as string | undefined
       if (!key) continue
       if (!map.has(key)) {
-        const { path, frame } = parseStack(key)
+        const info = stackInfo(feature.properties ?? {})
         map.set(key, {
           stackKey:              key,
-          path, frame,
+          path: info.path,
+          frame: info.frame,
+          isBurst: info.isBurst,
+          subswath: info.subswath,
+          burstID: info.burstID,
           sceneCount:            0,
           startDate:             '',
           endDate:               '',
@@ -80,12 +91,20 @@ export default function StackSummaryDrawer({
         if (!s.endDate   || date > s.endDate)   s.endDate   = date
       }
     }
-    return Array.from(map.values()).sort((a, b) => a.path - b.path || a.frame - b.frame)
+    return Array.from(map.values()).sort((a, b) => {
+      // Burst stacks: Path → Subswath (IW1 < IW2 < IW3) → burst number.
+      // SLC stacks have no subswath, so they fall through to frame.
+      const swA = burstSwathNum(a.subswath)
+      const swB = burstSwathNum(b.subswath)
+      return a.path - b.path
+          || swA - swB
+          || (a.burstID ?? 0) - (b.burstID ?? 0)
+          || a.frame - b.frame
+    })
   }, [footprints])
 
-  // ── Multi-select + trigger state ───────────────────────────────────────────
-  const [checked,   setChecked]   = useState<Set<string>>(new Set())
-  const [triggered, setTriggered] = useState<Set<string>>(new Set())
+  // ── Multi-select ───────────────────────────────────────────────────────────
+  const [checked, setChecked] = useState<Set<string>>(new Set())
 
   const emitChecked = useCallback((next: Set<string>) => {
     onCheckedChange(Array.from(next))
@@ -125,7 +144,9 @@ export default function StackSummaryDrawer({
           workdir, downloaderType,
           stacks: selectedStacks.map(s => ({
             relativeOrbit:   s.path,
-            frame:           s.frame,
+            frame:           s.isBurst ? undefined : s.frame,
+            subswath:        s.isBurst ? s.subswath : undefined,
+            burst_id:     s.isBurst ? s.burstID : undefined,
             start:           s.startDate,
             end:             s.endDate,
             wkt:             aoiWkt ?? undefined,
@@ -147,66 +168,7 @@ export default function StackSummaryDrawer({
     }
   }
 
-  // ── Merged download job polling ─────────────────────────────────────────────
-  const [_dlJobId, setDlJobId]  = useState<string | null>(null)
-  const [dlStatus, setDlStatus] = useState<'idle' | 'running' | 'done' | 'error'>('idle')
-  const [dlMsg,    setDlMsg]    = useState('')
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    return () => { if (pollRef.current) clearInterval(pollRef.current) }
-  }, [])
-
-  const startMergedDownload = async () => {
-    const selectedStacks = stacks.filter(s => checked.has(s.stackKey))
-    if (!selectedStacks.length) return
-    setTriggered(new Set(checked))
-
-    const body = {
-      workdir,
-      downloaderType,
-      download_slc:   true,
-      download_orbit: true,
-      stacks: selectedStacks.map(s => ({
-        relativeOrbit:   s.path,
-        frame:           s.frame,
-        start:           s.startDate,
-        end:             s.endDate,
-        wkt:             aoiWkt ?? undefined,
-        flightDirection: s.flightDirection || undefined,
-        // platform intentionally omitted for merges — see startAddJob for why.
-      })),
-    }
-
-    try {
-      const r   = await fetch(`${API}/api/download-merged`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      })
-      const { job_id } = await r.json()
-      setDlJobId(job_id)
-      setDlStatus('running')
-      setDlMsg(tr('scenePanel.starting'))
-
-      if (pollRef.current) clearInterval(pollRef.current)
-      pollRef.current = setInterval(async () => {
-        const res = await fetch(`${API}/api/jobs/${job_id}`)
-        const job = await res.json()
-        setDlMsg(job.message)
-        if (job.status === 'done' || job.status === 'error') {
-          clearInterval(pollRef.current!)
-          setDlStatus(job.status)
-          setDlJobId(null)
-        }
-      }, 1500)
-    } catch (e) {
-      setDlStatus('error')
-      setDlMsg(String(e))
-    }
-  }
-
   const checkedCount = checked.size
-  const dlColor = statusColor(dlStatus, t.accent)
 
   return (
     <div style={{
@@ -241,7 +203,8 @@ export default function StackSummaryDrawer({
         >×</button>
       </div>
 
-      {/* Merged download bar — shown when any stack is checked */}
+      {/* Selection bar — shown when any stack is checked. Add Job only; the
+          download runs from the job folder (Jobs drawer -> Download). */}
       {checkedCount > 0 && (
         <div style={{
           padding: '8px 12px', borderBottom: `1px solid ${t.border}`,
@@ -278,24 +241,9 @@ export default function StackSummaryDrawer({
               color: ajStatus === 'error' ? '#e53935' : t.textMuted,
             }}>{ajMsg}</span>
           )}
-          <button
-            onClick={startMergedDownload}
-            disabled={dlStatus === 'running'}
-            style={{
-              width: '100%', padding: '6px 10px',
-              background: dlStatus === 'running' ? t.inputBg : t.accent,
-              color: '#fff', border: 'none', borderRadius: 4,
-              cursor: dlStatus === 'running' ? 'not-allowed' : 'pointer',
-              fontWeight: 600, fontSize: 12,
-            }}
-          >
-            {dlStatus === 'running'
-              ? tr('stackSummary.downloading')
-              : tr('stackSummary.downloadSlcOrbit', { count: checkedCount })}
-          </button>
-          {dlStatus !== 'idle' && (
-            <span style={{ fontSize: 10, color: dlColor, wordBreak: 'break-all' }}>{dlMsg}</span>
-          )}
+          <span style={{ fontSize: 10, color: t.textMuted, lineHeight: 1.5 }}>
+            {tr('stackSummary.downloadFromJobHint')}
+          </span>
         </div>
       )}
 
@@ -306,9 +254,6 @@ export default function StackSummaryDrawer({
           const dirColor = dir === 'ASCENDING' ? '#f39c12' : dir === 'DESCENDING' ? '#00bcd4' : t.textMuted
           const isActive      = s.stackKey === selectedStackKey
           const isChecked     = checked.has(s.stackKey)
-          const isTriggered   = triggered.has(s.stackKey)
-          const triggerColor  = statusColor(dlStatus, t.accent)
-          const triggerLabel  = dlStatus === 'running' ? '⬇' : dlStatus === 'done' ? '✓' : dlStatus === 'error' ? '✗' : '⬇'
           return (
             <div
               key={s.stackKey}
@@ -319,16 +264,12 @@ export default function StackSummaryDrawer({
                 padding: '10px 12px',
                 borderBottom: `1px solid ${t.border}`,
                 cursor: 'pointer',
-                background: isTriggered
-                  ? `${triggerColor}33`
-                  : isChecked
-                    ? `${t.accent}33`
-                    : isActive ? t.inputBg : 'transparent',
-                borderLeft: isTriggered
-                  ? `3px solid ${triggerColor}`
-                  : isChecked
-                    ? `3px solid ${t.accent}`
-                    : '3px solid transparent',
+                background: isChecked
+                  ? `${t.accent}33`
+                  : isActive ? t.inputBg : 'transparent',
+                borderLeft: isChecked
+                  ? `3px solid ${t.accent}`
+                  : '3px solid transparent',
                 boxSizing: 'border-box',
                 display: 'flex', alignItems: 'flex-start', gap: 8,
               }}
@@ -343,17 +284,11 @@ export default function StackSummaryDrawer({
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
                   <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>
-                    {tr('scenePanel.pathFrame', { path: s.path, frame: s.frame })}
+                    {s.isBurst && s.subswath && s.burstID != null
+                      ? tr('scenePanel.burstStack', { path: s.path, subswath: s.subswath, burstID: s.burstID })
+                      : tr('scenePanel.pathFrame', { path: s.path, frame: s.frame })}
                   </span>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {isTriggered && (
-                      <span style={{
-                        color: triggerColor, fontSize: 10, fontWeight: 700,
-                        background: `${triggerColor}22`, borderRadius: 3, padding: '1px 5px',
-                      }}>
-                        {triggerLabel}
-                      </span>
-                    )}
                     <span style={{
                       color: dirColor, fontSize: 10, fontWeight: 700,
                       background: `${dirColor}22`, borderRadius: 3, padding: '1px 6px',

@@ -22,7 +22,7 @@ class Registry:
         else:
             final_config = {}
 
-        # Some processors (ISCE_S1, GMTSAR_S1) take `pairs` as its own
+        # Some processors (ISCE2_S1, GMTSAR_S1) take `pairs` as its own
         # constructor argument, separate from the config dataclass entirely
         # -- unlike Hyp3_S1, where pairs happens to also be a config field.
         # Route any override matching a real __init__ parameter (other than

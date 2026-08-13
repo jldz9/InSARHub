@@ -309,7 +309,7 @@ insarhub processor [--list-processors] <action> [options]
     insarhub processor credits --credential-pool ~/.credit_pool
     ```
 
-=== "ISCE_S1"
+=== "ISCE2_S1"
 
     Local or HPC processing using ISCE2 `stackSentinel` — requires ISCE2 installed. SLC `.SAFE` files must be downloaded first (use `insarhub downloader -d`).
 
@@ -318,12 +318,12 @@ insarhub processor [--list-processors] <action> [options]
     Generate ISCE2 run scripts and start execution.
 
     ```bash
-    insarhub processor submit -N ISCE_S1 [options]
+    insarhub processor submit -N ISCE2_S1 [options]
     ```
 
     | Flag | Default | Description |
     |------|---------|-------------|
-    | `-N`, `--name` | — | Must be `ISCE_S1` |
+    | `-N`, `--name` | — | Must be `ISCE2_S1` |
     | `--list-options` | — | Print all config fields |
     | `-w`, `--workdir` | cwd | Working directory |
     | `--config` | `<workdir>/insarhub_config.json` | Path to saved config |
@@ -342,15 +342,15 @@ insarhub processor [--list-processors] <action> [options]
 
     ```bash
     # Dry run first (recommended)
-    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0 --dry-run
 
     # Local execution (runs in background)
-    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0
 
     # HPC / SLURM mode
-    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0 --hpc_mode True
     ```
 
@@ -361,12 +361,12 @@ insarhub processor [--list-processors] <action> [options]
 
         ```bash
         # Force step 03 to re-run — equivalent forms
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 3
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step run_03
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step 03
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step 3
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step run_03
 
         # Force multiple steps
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03 04 05
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step 03 04 05
         ```
 
         In HPC mode this also clears stale per-command `.done`/`.fail` markers for the forced step(s) — otherwise the manager script would see old markers and report "already done" without submitting anything.
@@ -376,7 +376,7 @@ insarhub processor [--list-processors] <action> [options]
 
         Each sbatch script logs `START`, `DONE`, and `FAIL` lines with elapsed seconds per command.
 
-        **`sbatch_options.json`** — loaded automatically from `<workdir>/sbatch_options.json` to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.). Steps `"01"`–`"16"` are `ISCE_S1`'s own steps; step `"17"` ("SBAS") configures the `ISCE_SBAS`/`Hyp3_SBAS` analyzer's own `--hpc_mode` job (see [analyzer HPC mode](#hpc-mode)) — one file, shared by both processor and analyzer, since they typically run against the same workdir.
+        **`sbatch_options.json`** — loaded automatically from `<workdir>/sbatch_options.json` to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.). Steps `"01"`–`"16"` are `ISCE2_S1`'s own steps; step `"17"` ("SBAS") configures the `ISCE_SBAS`/`Hyp3_SBAS` analyzer's own `--hpc_mode` job (see [analyzer HPC mode](#hpc-mode)) — one file, shared by both processor and analyzer, since they typically run against the same workdir.
 
         - If `sbatch_options.json` is **not found**, a default template covering steps `01`–`17` is created and `submit` prints a reminder to edit it before resubmitting.
         - If the file exists but is missing a step you're about to use (e.g. `"17"` the first time you run the analyzer in HPC mode), it's added automatically with default resources, the file is rewritten, and a warning is printed — review the added defaults before relying on them.
@@ -385,14 +385,14 @@ insarhub processor [--list-processors] <action> [options]
         Edit `sbatch_options.json` to set resources per step, then re-run `submit`.
 
     !!! note "Running without a local ISCE2 install"
-        `--container <path-or-image>` re-invokes the entire `insarhub processor ...` command inside a container instead of the host — pass a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and `ISCE_S1` never needs to discover a host ISCE2 install at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example.
+        `--container <path-or-image>` re-invokes the entire `insarhub processor ...` command inside a container instead of the host — pass a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and `ISCE2_S1` never needs to discover a host ISCE2 install at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example.
 
         ```bash
-        insarhub processor submit  -N ISCE_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor retry   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor watch   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor cancel  -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor retry   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor watch   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor cancel  -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
         ```
 
         `--container` is a per-invocation flag, not a saved setting — like `--dry-run`, it's never written to `insarhub_config.json`, so pass it again on every `submit`/`refresh`/`retry`/`watch`/`cancel` call you want to run inside the container.
@@ -409,7 +409,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+    insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466
     ```
 
     By default only the one-line-per-step summary prints — no `cmd_XXXX` detail:
@@ -427,8 +427,8 @@ insarhub processor [--list-processors] <action> [options]
     Pass `--ls` to also see per-command detail — for every step, or a specific one:
 
     ```bash
-    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls        # every step
-    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls 02     # just run_02
+    insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --ls        # every step
+    insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --ls 02     # just run_02
     ```
 
     ??? output
@@ -455,7 +455,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor retry -N ISCE_S1 -w /data/p100_f466
+    insarhub processor retry -N ISCE2_S1 -w /data/p100_f466
     ```
 
     #### cancel
@@ -469,7 +469,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor cancel -N ISCE_S1 -w /data/p100_f466
+    insarhub processor cancel -N ISCE2_S1 -w /data/p100_f466
     ```
 
     #### watch
@@ -483,7 +483,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | Needed if the host has no local ISCE2 install — see [below](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
+    insarhub processor watch -N ISCE2_S1 -w /data/p100_f466 --interval 120
     ```
 
 ---
@@ -506,7 +506,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 | Analyzer | Processor | Input |
 |---|---|---|
 | `Hyp3_SBAS` | [`Hyp3_S1`](#hyp3_s1) | HyP3 zip outputs |
-| `ISCE_SBAS` | [`ISCE_S1`](#isce_s1) | ISCE2 `merged/interferograms/` |
+| `ISCE_SBAS` | [`ISCE2_S1`](#isce2_s1) | ISCE2 `merged/interferograms/` |
 
 Any field shown by `--list-options` can be overridden on the command line before the action. Values are written into `mintpy.cfg` and persist across runs. If `workdir` contains multiple `p*_f*` subfolders, overrides and analysis are applied to each in sequence.
 
@@ -525,7 +525,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `--step` | all | Step(s) to run (space-separated) |
     | `--debug` | — | Enable MintPy debug mode |
     | `--hpc_mode` | `False` | Submit the full MintPy run as a single SLURM `sbatch` job instead of running locally |
-    | `--container` | — | Run inside a container instead of on the host — needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`); see [ISCE_S1's container note](#running-without-a-local-isce2-install) for the same mechanism |
+    | `--container` | — | Run inside a container instead of on the host — needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`); see [ISCE2_S1's container note](#running-without-a-local-isce2-install) for the same mechanism |
 
     | Step keyword | Description |
     |---|---|
@@ -583,7 +583,7 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     Script written to `<workdir>/mintpy/mintpy_sbas.sbatch`, job state to `mintpy/mintpy_job.json`.
 
-    SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the **same file** used by `ISCE_S1 submit --hpc_mode` (steps `01`–`16`), since processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
+    SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the **same file** used by `ISCE2_S1 submit --hpc_mode` (steps `01`–`16`), since processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
 
     - If `sbatch_options.json` doesn't exist yet, it's created (covering steps `01`–`17`) and the run stops so you can review it before resubmitting.
     - If the file exists but has no `"17"` entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.
@@ -623,7 +623,7 @@ Any field shown by `--list-options` can be overridden on the command line before
     | `--step` | all | Step(s) to run (space-separated) |
     | `--debug` | — | Enable MintPy debug mode |
     | `--hpc_mode` | `False` | Submit the full MintPy run as a single SLURM `sbatch` job instead of running locally |
-    | `--container` | — | Run inside a container instead of on the host — needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`); see [ISCE_S1's container note](#running-without-a-local-isce2-install) for the same mechanism |
+    | `--container` | — | Run inside a container instead of on the host — needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`); see [ISCE2_S1's container note](#running-without-a-local-isce2-install) for the same mechanism |
 
     | Step keyword | Description |
     |---|---|
@@ -681,7 +681,7 @@ Any field shown by `--list-options` can be overridden on the command line before
 
     Script written to `<workdir>/mintpy/mintpy_sbas.sbatch`, job state to `mintpy/mintpy_job.json`.
 
-    SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the **same file** used by `ISCE_S1 submit --hpc_mode` (steps `01`–`16`), since processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
+    SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the **same file** used by `ISCE2_S1 submit --hpc_mode` (steps `01`–`16`), since processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
 
     - If `sbatch_options.json` doesn't exist yet, it's created (covering steps `01`–`17`) and the run stops so you can review it before resubmitting.
     - If the file exists but has no `"17"` entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.
@@ -860,7 +860,7 @@ insarhub utils h5-to-raster -i /data/bryce/p100_f466/velocity.h5
 
 ---
 
-## End-to-end example — ISCE_S1 (local)
+## End-to-end example — ISCE2_S1 (local)
 
 The complete pipeline using local ISCE2 processing and ISCE_SBAS time-series analysis:
 
@@ -874,18 +874,18 @@ insarhub downloader -N S1_SLC \
     --select-pairs --download -O
 
 # 2. Dry run to verify paths and bbox
-insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
     --bbox 37.74 38.00 -113.05 -112.68 --dry-run
 
 # 3. Submit local processing (runs in background)
-insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
     --bbox 37.74 38.00 -113.05 -112.68
 
 # 4. Monitor progress
-insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466
 
 # 5. Watch until all steps complete
-insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
+insarhub processor watch -N ISCE2_S1 -w /data/p100_f466 --interval 120
 
 # 6. Run ISCE_SBAS time-series analysis
 insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run

@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next'
-import { parseStack } from './ScenePanel'
+import { stackInfo } from './ScenePanel'
 import type { Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
 
 interface Props {
-  stackKey:      string
   scenes:        GeoJSON.Feature[]
   theme:         Theme
   selectedScene: GeoJSON.Feature | null
@@ -47,11 +46,16 @@ function productLabel(p: Record<string, any>): string {
 }
 
 export default function StackSceneList({
-  stackKey, scenes, theme: t, selectedScene, onClose, onSceneClick,
+  scenes, theme: t, selectedScene, onClose, onSceneClick,
 }: Props) {
   const { width, onHandleMouseDown } = useResizable(240)
   const { t: tr } = useTranslation()
-  const stack = parseStack(stackKey)
+  const info = stackInfo(scenes[0]?.properties ?? {})
+  const headerLabel = info.isBurst && info.subswath && info.burstID != null
+    ? tr('scenePanel.burstStack', { path: info.path, subswath: info.subswath, burstID: info.burstID })
+    : scenes.length > 0
+      ? tr('scenePanel.pathFrame', { path: info.path, frame: info.frame })
+      : tr('stackSceneList.title')
 
   const sorted = [...scenes].sort((a, b) => {
     const ta = a.properties?.startTime ?? ''
@@ -77,7 +81,7 @@ export default function StackSceneList({
       }}>
         <div>
           <div style={{ color: t.text, fontWeight: 600, fontSize: 13 }}>
-            {stack ? tr('scenePanel.pathFrame', { path: stack.path, frame: stack.frame }) : tr('stackSceneList.title')}
+            {headerLabel}
           </div>
           <div style={{ color: t.textMuted, fontSize: 11 }}>
             {tr('stackSceneList.scenesCount', { count: scenes.length })}

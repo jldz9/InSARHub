@@ -18,6 +18,8 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from insarhub.utils.pair_quality._dates import _date_id
+
 
 _DT_SATURATE       = 180.0   # days at which dt penalty maxes out
 _BPERP_DEAD_ZONE   = 150.0   # metres below which bperp penalty is zero
@@ -30,8 +32,8 @@ _ANNUAL_TOL        = 20      # day tolerance for annual-repeat detection
 
 
 def _scene_date(name: str) -> datetime | None:
-    """Parse acquisition date from a Sentinel-1 scene name."""
-    raw = name[17:25] if len(name) > 25 else ""
+    """Parse acquisition date from a bare date id, SLC scene, or BURST granule."""
+    raw = _date_id(name)
     if len(raw) == 8:
         try:
             return datetime(int(raw[:4]), int(raw[4:6]), int(raw[6:8]))

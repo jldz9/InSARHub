@@ -113,6 +113,16 @@ function fmtVal(key: string, val: any): string {
 // ── L4: Pair detail drawer ────────────────────────────────────────────────────
 
 function parseScene(name: string) {
+  // Burst stacks key pairs by bare YYYYMMDD; scene stacks by full SLC names.
+  if (/^\d{8}$/.test(name ?? '')) {
+    return {
+      platform: '',
+      date: `${name.slice(0,4)}-${name.slice(4,6)}-${name.slice(6,8)}`,
+      time: '',
+      orbit: '',
+      full: name,
+    }
+  }
   const dateStr = name?.slice(17, 25) ?? ''
   const timeStr = name?.slice(26, 32) ?? ''
   const orbitRaw = name?.slice(49, 55) ?? ''
@@ -204,6 +214,10 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
   const fname = data?.file ?? ''
 
   const extractDate = (name: string) => {
+    // Burst pairs are bare YYYYMMDD; scene pairs are full SLC names.
+    if (/^\d{8}$/.test(name ?? '')) {
+      return `${name.slice(0,4)}-${name.slice(4,6)}-${name.slice(6,8)}`
+    }
     const d = name?.slice(17, 25)
     return d?.match(/^\d{8}$/) ? `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6,8)}` : (name ?? '')
   }
@@ -263,11 +277,12 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
 interface FieldMeta { key: string; label: string; type: string; default: any; options?: string[]; min?: number; max?: number; step?: number; hint?: string }
 interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label: string; fields: string[] }>; compatible_downloader?: string | null; is_local?: boolean }
 
-// ── SbatchOptionsModal — shared by ProcessModal (ISCE_S1) and AnalyzerConfigModal (ISCE_SBAS) ──
+// ── SbatchOptionsModal — shared by ProcessModal (ISCE2_S1, GMTSAR_S1) and
+// AnalyzerConfigModal (ISCE_SBAS, Hyp3_SBAS, GMTSAR_MINTPY_SBAS) ──
 
-interface SbatchOptionsModalProps { theme: Theme; folderPath: string; onClose: () => void; onSaved?: (msg: string) => void; zIndex?: number }
+interface SbatchOptionsModalProps { theme: Theme; folderPath: string; processorType?: string; onClose: () => void; onSaved?: (msg: string) => void; zIndex?: number }
 
-function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 220 }: SbatchOptionsModalProps) {
+function SbatchOptionsModal({ theme: t, folderPath, processorType, onClose, onSaved, zIndex = 220 }: SbatchOptionsModalProps) {
   const { t: tr } = useTranslation()
   const [text,    setText]    = useState('')
   const [loading, setLoading] = useState(true)
@@ -276,11 +291,18 @@ function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 2
   const [msgOk,   setMsgOk]   = useState(false)
 
   useEffect(() => {
-    fetch(`${API}/api/folder-sbatch-options?path=${encodeURIComponent(folderPath)}`)
+    // processorType tells the backend which per-processor default template to
+    // use when the file doesn't exist yet (or needs a missing key added) --
+    // without it, a brand-new GMTSAR_S1 workdir's first-ever open here would
+    // seed the file with ISCE's numbered steps instead of GMTSAR's own
+    // align/topo/intf/merge (see app/routes/processor.py's get_sbatch_options).
+    const q = `path=${encodeURIComponent(folderPath)}` +
+      (processorType ? `&processor=${encodeURIComponent(processorType)}` : '')
+    fetch(`${API}/api/folder-sbatch-options?${q}`)
       .then(r => r.json())
       .then(d => { setText(d.content ?? ''); setLoading(false) })
       .catch(e => { setMsg(String(e)); setMsgOk(false); setLoading(false) })
-  }, [folderPath])
+  }, [folderPath, processorType])
 
   function save() {
     setSaving(true); setMsg('')
@@ -307,7 +329,9 @@ function SbatchOptionsModal({ theme: t, folderPath, onClose, onSaved, zIndex = 2
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: t.textMuted, fontSize: 18 }}>×</button>
         </div>
         <span style={{ color: t.textMuted, fontSize: 10 }}>
-          JSON object mapping two-digit step number → <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>Slurmjob_Config</code> fields. <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"default"</code> applies to any unlisted step; step keys override it. Step <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"17"</code> configures the MintPy SBAS analyzer's HPC job. Available fields: <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>time, partition, nodes, ntasks, cpus_per_task, mem, account, qos, nodelist, gpus, mail_user</code>.
+          JSON object mapping {processorType === 'GMTSAR_S1'
+            ? <>stage name (<code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>align</code>, <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>topo</code>, <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>intf</code>, <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>merge</code>)</>
+            : <>two-digit step number</>} → <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>Slurmjob_Config</code> fields, configuring the jobs that do the real processing. <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"default"</code> applies to any unlisted step; step keys override it. Step <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>{processorType === 'GMTSAR_S1' ? '"sbas"' : '"17"'}</code> configures the MintPy SBAS analyzer's HPC job. <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>"manager"</code> sets only the <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>partition</code> that job managers run on — their cores/memory/walltime are fixed (1 idle core, 1G, and the most walltime that partition allows). Available fields: <code style={{ background: t.inputBg, padding: '0 3px', borderRadius: 3 }}>time, partition, nodes, ntasks, cpus_per_task, mem, account, qos, nodelist, gpus, mail_user</code>.
         </span>
         {loading ? (
           <div style={{ color: t.textMuted, fontSize: 12, textAlign: 'center', padding: '20px 0' }}>{tr('jobQueue.loading')}</div>
@@ -393,7 +417,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
   // Pre-fill bbox from map AOI (or folder's saved intersectsWith) whenever proc type or AOI changes
   const effectiveAoi = aoiWkt ?? folderAoiWkt
   useEffect(() => {
-    if (procType !== 'ISCE_S1' || !effectiveAoi) return
+    if (procType !== 'ISCE2_S1' || !effectiveAoi) return
     const box = wktToBbox(effectiveAoi)
     if (!box) return
     setProcConfig(c => {
@@ -413,7 +437,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
     setStatus('running'); setMessage(tr('jobQueue.submitting'))
     try {
       let submitConfig = procConfig
-      if (procType === 'ISCE_S1') {
+      if (procType === 'ISCE2_S1') {
         submitConfig = { ...procConfig }
         if (submitConfig.full_frame) {
           submitConfig.bbox = null
@@ -532,7 +556,13 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
               const grpFields = grp.fields.map(k => byKey[k]).filter(Boolean)
               if (!grpFields.length) return null
               const isPathsGroup = grp.label.toLowerCase() === 'paths'
-              const isIsceProc   = procType === 'ISCE_S1'
+              // Both ISCE2_S1 and GMTSAR_S1 are local SLURM/HPC-capable
+              // processors with their own sbatch_options.json (auto-set
+              // workdir field, hpc_mode + per-stage resource editor) --
+              // GMTSAR_S1 used to be silently excluded from this UI even
+              // though its backend support (fixed alongside this) works the
+              // same way.
+              const isIsceProc   = procType === 'ISCE2_S1' || procType === 'GMTSAR_S1'
               return (
                 <div key={grp.label}>
                   <div style={{
@@ -620,7 +650,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
 
       {/* sbatch options modal — z-index above ProcessModal (211) */}
       {sbatchOpen && (
-        <SbatchOptionsModal theme={t} folderPath={folderPath} onClose={() => setSbatchOpen(false)}
+        <SbatchOptionsModal theme={t} folderPath={folderPath} processorType={procType} onClose={() => setSbatchOpen(false)}
           onSaved={m => setSbatchMsg(m)} />
       )}
     </>
@@ -634,6 +664,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
 interface AzCompMeta {
   fields: FieldMeta[]
   groups?: Array<{ label: string; fields: string[] }>
+  compatible_processor?: string | null
 }
 
 interface AnalyzerConfigModalProps { theme: Theme; folderPath: string; analyzerType: string; onClose: () => void }
@@ -810,8 +841,8 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
       </div>
     </div>
     {sbatchOpen && (
-      <SbatchOptionsModal theme={t} folderPath={folderPath} onClose={() => setSbatchOpen(false)}
-        onSaved={m => setSbatchMsg(m)} zIndex={10000} />
+      <SbatchOptionsModal theme={t} folderPath={folderPath} processorType={meta?.compatible_processor ?? undefined}
+        onClose={() => setSbatchOpen(false)} onSaved={m => setSbatchMsg(m)} zIndex={10000} />
     )}
     </>
   )
@@ -1242,7 +1273,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
   const [availSteps,  setAvailSteps]  = useState<string[]>([])
   const [forceSteps,  setForceSteps]  = useState<string[]>([])
 
-  // Whether processorType takes pairs as its own constructor arg (ISCE_S1,
+  // Whether processorType takes pairs as its own constructor arg (ISCE2_S1,
   // GMTSAR_S1) rather than as a cloud-job config field (Hyp3_S1) -- derived
   // from /api/workflows (see the effect below) instead of hardcoding a
   // processor name, so any local processor gets the right job-management UI.
@@ -1425,7 +1456,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
             )}
           </div>
 
-          {/* Force specific step(s) — ISCE_S1 only, mirrors CLI `--step` */}
+          {/* Force specific step(s) — ISCE2_S1 only, mirrors CLI `--step` */}
           {isLocal && availSteps.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ color: t.textMuted, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -2003,6 +2034,16 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
   const rc = ROLE_COLORS[role] ?? ROLE_FALLBACK
 
   // Downloader-specific state
+  // Whether this downloader exposes download_orbit. Previously the orbit
+  // controls were gated on `cls === 'S1_SLC'`, which hid them for every other
+  // downloader that supports orbits (S1_Burst does). Driven by the
+  // supports_orbit capability flag from /api/workflows instead.
+  const [supportsOrbit, setSupportsOrbit] = useState(false)
+  useEffect(() => {
+    fetch(`${API}/api/workflows`).then(r => r.json())
+      .then(d => setSupportsOrbit(!!d.downloaders?.[cls]?.supports_orbit))
+      .catch(() => {})
+  }, [cls])
   const [details,      setDetails]      = useState<FolderDetails | null>(null)
   const [detLoading,   setDetLoading]   = useState(false)
   const [netEditorOpen, setNetEditorOpen] = useState(false)
@@ -2443,7 +2484,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                   )}
                 </>
               )}
-              {cls === 'S1_SLC' && (
+              {supportsOrbit && (
                 <>
                   {orbitJobId ? (
                     <button

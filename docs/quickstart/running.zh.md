@@ -169,20 +169,20 @@ s1.reset()
 
     ```python
     from insarhub import Processor
-    from insarhub.config import ISCE_S1_Config
+    from insarhub.config import ISCE2_S1_Config
 
     for (path, frame), pairs in pair_stacks.items():
-        cfg = ISCE_S1_Config(
+        cfg = ISCE2_S1_Config(
             workdir=f'your/directory/p{path}_f{frame}',
             bbox=[37.74, 38.00, -113.05, -112.68],   # [南, 北, 西, 东]
             slc_dir=f'your/directory/p{path}_f{frame}/slc',
         )
-        processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
+        processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
         processor.submit()   # 在后台启动处理
     ```
 
     !!! tip "建议先进行试运行"
-        在 `ISCE_S1_Config` 中添加 `dry_run=True` 可预览运行脚本和路径检查，而不执行任何操作。
+        在 `ISCE2_S1_Config` 中添加 `dry_run=True` 可预览运行脚本和路径检查，而不执行任何操作。
 
     监控步骤进度并等待完成：
 

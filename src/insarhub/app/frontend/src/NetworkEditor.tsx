@@ -84,6 +84,13 @@ function daysBetween(a: string, b: string): number {
   return Math.abs((new Date(b).getTime() - new Date(a).getTime()) / 86_400_000)
 }
 
+// Compact date label for a node id: a burst stack keys nodes by bare YYYYMMDD,
+// a scene stack by a full SLC granule name. Return the YYYYMMDD either way.
+function nodeDateId(name: string): string {
+  if (/^\d{8}$/.test(name)) return name
+  return (name?.slice(17, 25) ?? '').match(/^\d{8}$/) ? name.slice(17, 25) : name
+}
+
 function ptSegDist(px: number, py: number,
                    ax: number, ay: number,
                    bx: number, by: number): number {
@@ -120,16 +127,20 @@ function computeLayout(rawNodes: RawNode[], W: number, H: number): LayoutNode[] 
  * Matches the Python _QUALITY_CMAP used in plot_pair_network.
  */
 // Two score scales:
-//   Coherence mode (analyzer): 0–1 float  — Good ≥0.6, Risky 0.3–0.6, Bad <0.3
-//   Quality mode (pair quality): 0–100 int — Good ≥60,  Risky 30–59,   Bad <30
+//   Coherence mode (analyzer): 0–1 float  — Good ≥0.40, Risky 0.25–0.40, Bad <0.25
+//   Quality mode (pair quality): 0–100 int — Good ≥40,  Risky 25–39,   Bad <25
+// Calibrated for TRUE (unfiltered) coherence from the global S1 seasonal
+// coherence dataset (Kellndorfer et al. 2022): 12-day median ~0.31, 6-day
+// median ~0.42. The previous 0.60/0.30 values assumed Goldstein-filtered
+// coherence, which inflates the scale.
 function qualityCategory(score: number): 'good' | 'risky' | 'bad' {
   if (score <= 1) {
-    if (score >= 0.6) return 'good'
-    if (score >= 0.3) return 'risky'
+    if (score >= 0.4) return 'good'
+    if (score >= 0.25) return 'risky'
     return 'bad'
   }
-  if (score >= 60) return 'good'
-  if (score >= 30) return 'risky'
+  if (score >= 40) return 'good'
+  if (score >= 25) return 'risky'
   return 'bad'
 }
 
@@ -1537,8 +1548,8 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           }}>
             <span style={{ color: t.text, fontWeight: 600, marginBottom: 2 }}>{saveUrl ? tr('networkEditor.coherence') : tr('networkEditor.pairQuality')}</span>
             {(saveUrl
-              ? [{ score: 0.8, label: 'good' as const }, { score: 0.45, label: 'risky' as const }, { score: 0.1, label: 'bad' as const }]
-              : [{ score: 100, label: 'good' as const }, { score: 50,   label: 'risky' as const }, { score: 0,   label: 'bad' as const }]
+              ? [{ score: 0.5, label: 'good' as const }, { score: 0.32, label: 'risky' as const }, { score: 0.15, label: 'bad' as const }]
+              : [{ score: 60, label: 'good' as const }, { score: 32,   label: 'risky' as const }, { score: 15,   label: 'bad' as const }]
             ).map(({ score, label }) => (
               <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
                 <div style={{ width: 28, height: 3, background: qualityCSS(score, 0.9), borderRadius: 1 }} />
@@ -1659,9 +1670,9 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                 <div style={{ fontWeight: 700, marginBottom: 6, color: t.accent }}>{saveUrl ? tr('networkEditor.interferogram') : tr('networkEditor.pairQuality')}</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', marginBottom: 8 }}>
                   <span style={{ color: t.textMuted }}>{tr('networkEditor.ref')}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.ref : hovEdge.ref.slice(17, 25)}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.ref : nodeDateId(hovEdge.ref)}</span>
                   <span style={{ color: t.textMuted }}>{tr('networkEditor.sec')}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.sec : hovEdge.sec.slice(17, 25)}</span>
+                  <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.sec : nodeDateId(hovEdge.sec)}</span>
                   <span style={{ color: t.textMuted }}>Δt</span>
                   <span>{tr('jobQueue.days', { count: Math.round(hovEdge.dt) })}</span>
                   <span style={{ color: t.textMuted }}>{tr('networkEditor.perpBaseline')}</span>
@@ -1781,11 +1792,11 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           ) : hovEdge ? (
             <>
               <span style={{ color: '#90caf9', fontFamily: 'monospace' }}>
-                {hovEdge.ref.slice(0, 8)}…{hovEdge.ref.slice(17, 25)}
+                {nodeDateId(hovEdge.ref)}
               </span>
               <span>→</span>
               <span style={{ color: '#90caf9', fontFamily: 'monospace' }}>
-                {hovEdge.sec.slice(0, 8)}…{hovEdge.sec.slice(17, 25)}
+                {nodeDateId(hovEdge.sec)}
               </span>
               <span>Δt {Math.round(hovEdge.dt)} d</span>
               <span>⊥ {Math.round(hovEdge.bperpDiff)} m</span>

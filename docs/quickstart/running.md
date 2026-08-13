@@ -193,20 +193,20 @@ After locating SAR scene stack(s), generate unwrapped interferograms for time-se
 
     ```python
     from insarhub import Processor
-    from insarhub.config import ISCE_S1_Config
+    from insarhub.config import ISCE2_S1_Config
 
     for (path, frame), pairs in pair_stacks.items():
-        cfg = ISCE_S1_Config(
+        cfg = ISCE2_S1_Config(
             workdir=f'your/directory/p{path}_f{frame}',
             bbox=[37.74, 38.00, -113.05, -112.68],   # [S, N, W, E]
             slc_dir=f'your/directory/p{path}_f{frame}/slc',
         )
-        processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
+        processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
         processor.submit()   # starts processing in the background
     ```
 
     !!! tip "Dry run first"
-        Add `dry_run=True` to `ISCE_S1_Config` to preview run scripts without executing.
+        Add `dry_run=True` to `ISCE2_S1_Config` to preview run scripts without executing.
 
     Monitor progress and wait for completion:
 

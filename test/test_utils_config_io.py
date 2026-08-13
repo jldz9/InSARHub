@@ -6,7 +6,7 @@ Run: pytest test/test_utils_config_io.py -v
 Covers:
   - read_insarhub_config: reads new format, legacy format, missing file, corrupt JSON
   - write_insarhub_config: creates, merges, updates timestamp
-  - Legacy key rename (Hyp3_InSAR → Hyp3_S1, ISCE_InSAR → ISCE_S1)
+  - Legacy key rename (Hyp3_InSAR → Hyp3_S1, ISCE_InSAR → ISCE2_S1)
   - String role values promoted to {"type": value} dicts
 """
 
@@ -77,7 +77,14 @@ class TestReadInsarhubConfig:
         cfg = {"processor": {"type": "ISCE_InSAR"}}
         (tmp_path / "insarhub_config.json").write_text(json.dumps(cfg))
         result = read_insarhub_config(tmp_path)
-        assert result["processor"]["type"] == "ISCE_S1"
+        assert result["processor"]["type"] == "ISCE2_S1"
+
+    def test_legacy_isce_s1_renamed(self, tmp_path):
+        from insarhub.utils.config_io import read_insarhub_config
+        cfg = {"processor": {"type": "ISCE_S1"}}
+        (tmp_path / "insarhub_config.json").write_text(json.dumps(cfg))
+        result = read_insarhub_config(tmp_path)
+        assert result["processor"]["type"] == "ISCE2_S1"
 
     def test_unknown_roles_pass_through_unchanged(self, tmp_path):
         from insarhub.utils.config_io import read_insarhub_config

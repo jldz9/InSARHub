@@ -16,17 +16,23 @@ InSARHub uses a registry pattern. Every `Processor`, `Analyzer`, and `Downloader
 
 ```
 CloudProcessor (ABC) ──► Hyp3Base   ──► Hyp3_S1
-LocalProcessor (ABC) ──► ISCE_Base ──► ISCE_S1
+LocalProcessor (ABC) ──► ISCE2_Base ──► ISCE2_S1
+                       ├──► GMTSAR_S1
+                       └──► ISCE3_Base ──► ISCE3_Burst
 
 BaseDownloader (ABC) ──► ASF_Base_Downloader ──► S1_SLC
+                                             └──► S1_Burst
 
 BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_SBAS
-                                                  └──► ISCE_SBAS
+                                                   ├──► ISCE_SBAS
+                                                   └──► GMTSAR_MINTPY_SBAS
+                    ├──► GMTSAR_SBAS   (GMTSAR's own sbas binary, no MintPy)
+                    └──► Dolphin_SBAS  (dolphin timeseries for ISCE3_Burst)
 ```
 
-Each mid-layer base class (`Hyp3Base`, `ISCE_Base`, `ASF_Base_Downloader`, `Mintpy_SBAS_Base_Analyzer`) implements all the shared infrastructure — auth, job tracking, HPC submission, file I/O. Concrete leaf classes only need to implement `submit()` (and `prep_data()` for analyzers) with sensor-specific logic.
+Each mid-layer base class (`Hyp3Base`, `ISCE2_Base`, `ISCE3_Base`, `ASF_Base_Downloader`, `Mintpy_SBAS_Base_Analyzer`) implements all the shared infrastructure — auth, job tracking, HPC submission, file I/O. Concrete leaf classes only need to implement `submit()` (and `prep_data()`/`run()` for analyzers) with sensor-specific logic. `GMTSAR_S1` and `ISCE3_Burst` additionally split off large, single-processor helpers into private sibling modules (`processor/_gmtsar_esd_network.py` for GMTSAR's network-ESD misregistration, `processor/isce3_base.py` for ISCE3's stage/HPC machinery).
 
-The CLI (`cli/main.py`) and GUI routes (`app/routes/`) are thin shells over the same Python API — any workflow that works from the CLI works identically in the browser.
+The CLI (`cli/main.py`) and GUI routes (`app/routes/`) are thin shells over the same Python API — any workflow that works from the CLI works identically in the browser. The saved-job discovery / processor-reload logic they share lives in `utils/local_processor_reload.py` (not `core/`), so both surfaces stay in sync instead of drifting apart.
 
 ## Path Conventions
 
@@ -154,17 +160,17 @@ Implement all abstract methods, then subclass your new base for each sensor.
         ]
     ```
 
-=== "ISCE_Base"
+=== "ISCE2_Base"
 
-    `ISCE_Base` handles run-file execution, per-step status tracking (`.done`/`.fail`), sliding-window HPC submission via SLURM, `refresh()`, `retry()`, `watch()`, and `save()`. Only `submit()` is needed — set up the ISCE2 input namespace and generate run scripts, then call `_step_executor`.
+    `ISCE2_Base` handles run-file execution, per-step status tracking (`.done`/`.fail`), sliding-window HPC submission via SLURM, `refresh()`, `retry()`, `watch()`, and `save()`. Only `submit()` is needed — set up the ISCE2 input namespace and generate run scripts, then call `_step_executor`.
 
     ```python
     # src/insarhub/processor/isce_mysensor.py
-    from insarhub.processor.isce_base import ISCE_Base
+    from insarhub.processor.isce2_base import ISCE2_Base
     from insarhub.config import ISCE_MySensor_Config
     from insarhub.config.paths import ISCEPaths
 
-    class ISCE_MySensor(ISCE_Base):
+    class ISCE_MySensor(ISCE2_Base):
         name = "ISCE_MySensor"
         description = "ISCE2 processing for MySensor."
         compatible_downloader = "MySensor_SLC"
@@ -177,11 +183,11 @@ Implement all abstract methods, then subclass your new base for each sensor.
             inps = self._build_inps_namespace()
             self._run_stack_tool(inps)
 
-            # Hand off — ISCE_Base discovers run_files/ and executes each step
+            # Hand off — ISCE2_Base discovers run_files/ and executes each step
             self._step_executor(self.steps)
     ```
 
-    Config — inherit from `ISCE_Base_Config` and add `_ui_groups` / `_ui_fields` for any new fields.
+    Config — inherit from `ISCE2_Base_Config` and add `_ui_groups` / `_ui_fields` for any new fields.
 
 ## Adding a New Downloader
 
@@ -329,6 +335,31 @@ async def _run_my_action(job_id: str, req: MyRequest):
 ```
 
 Always pop `state._stop_events[job_id]` before returning on both success and error paths.
+
+## Testing
+
+### Universal smoke test
+
+`test/e2e/universal_smoke_test.py` is the go/no-go check across every pipeline, against real (already-completed) workdirs. It exercises three surfaces at once:
+
+1. **Python import** — imports every package/submodule in a fresh process (catches broken/circular imports).
+2. **CLI** — `--list-*` commands, per-pipeline `--list-options`, and `processor … refresh` via subprocess.
+3. **API** — a throwaway `uvicorn` server hit over HTTP with `requests` (no `httpx` needed): `/api/health`, `/api/folder-local-jobs`, `/api/folder-local-action` refresh, `/api/analyzer-steps`.
+
+It auto-detects each workdir's processor/analyzer from `insarhub_config.json`, so it covers `GMTSAR_S1`, `ISCE2_S1`, `ISCE3_Burst` and their analyzers without per-pipeline configuration. Missing optional dependencies (isce2, gmt/gmtsar, dolphin/compass, slurm) classify a check `SKIP` rather than `FAIL`.
+
+```bash
+python test/e2e/universal_smoke_test.py \
+    --scan-dir /path/to/real/workdirs \
+    --workdir /path/to/p56 \
+    --mode both          # cli | api | both
+```
+
+Exit code is non-zero if any check `FAIL`s. Use `--json` for machine-readable output, or set `INSARHUB_TEST_SCAN_DIRS` to point at your workdirs instead of passing `--scan-dir`.
+
+### Unit tests
+
+`test/` contains the per-module pytest suites (`test_config.py`, `test_gmtsar_s1.py`, `test_utils_config_io.py`, …). Run them with `pytest test/`. The `e2e/` scripts (`cli_e2e_*.sh`, `api_e2e_*.py`) are **not** auto-run by pytest — they drive real ASF search/download/processing and are invoked directly when full end-to-end runs are wanted.
 
 ## Code Style
 

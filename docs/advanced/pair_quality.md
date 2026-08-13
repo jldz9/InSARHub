@@ -58,14 +58,21 @@ Per-pixel decay model parameters (γ∞, γ0, τ) are fitted per season from the
 
 For cross-season pairs the pair span is split at season boundaries and the segments are chained using duration-weighted effective parameters.
 
-**Coherence penalty** — shifted quadratic, zero penalty above γ = 0.60, full penalty at γ ≤ 0.10:
+**Coherence penalty** — shifted quadratic, zero penalty above γ = 0.40, full penalty at γ ≤ 0.10:
 
 ```
-clamped     = clamp((0.60 − γ) / 0.50, 0, 1)
+clamped     = clamp((0.40 − γ) / 0.30, 0, 1)
 coh_penalty = clamped²
 ```
 
-This avoids penalising workable pairs just for not being perfect — global S1 average at 12 days is 0.30–0.45, which is usable.
+Calibrated for **true (unfiltered)** coherence as published by the global S1
+seasonal coherence dataset (Kellndorfer et al. 2022): its 12-day median is
+~0.31 and 6-day median ~0.42, so 0.40 marks the top of the workable band.
+(0.60 was the value appropriate for Goldstein-filtered coherence, which
+inflates the scale.)
+
+**Good / Risky / Bad** display thresholds are likewise true-coherence based:
+Good ≥ 0.40, Risky 0.25–0.40, Bad < 0.25.
 
 **Environmental penalties** applied on top:
 

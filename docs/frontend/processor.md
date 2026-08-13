@@ -173,10 +173,10 @@ Click **Process** to open the processor selection dialog.
     ![Processor Selection](fig/processor_dialog_ISCE_light.png#only-light){: .doc-img style="width: 60%"}
     ![Processor Selection](fig/processor_dialog_ISCE_dark.png#only-dark){: .doc-img style="width: 60%"}
     /// caption
-    Select `ISCE_S1` for local / HPC processing via ISCE2.
+    Select `ISCE2_S1` for local / HPC processing via ISCE2.
     ///
 
-    Select `ISCE_S1` and configure the required parameters — bounding box (`S N W E`), SLC directory, and optionally HPC mode. Click **Submit** to start `stackSentinel` locally in the background, or submit steps to SLURM with **HPC Mode** enabled.
+    Select `ISCE2_S1` and configure the required parameters — bounding box (`S N W E`), SLC directory, and optionally HPC mode. Click **Submit** to start `stackSentinel` locally in the background, or submit steps to SLURM with **HPC Mode** enabled.
 
     In HPC mode, each step runs through a sliding-window SLURM manager that keeps at most **Max Concurrent HPC** (default 12) child jobs active at once. Steps are chained automatically via `--dependency=afterok`. **Retry** detects HPC mode from the saved job state — no reconfiguration needed after a failure.
 

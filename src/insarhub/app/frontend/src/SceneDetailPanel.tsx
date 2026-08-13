@@ -42,10 +42,24 @@ function fmtList(v: string[] | string | undefined | null): string {
   return String(v)
 }
 
+// ASF does not return a frequency property on products, so the radar band is
+// derived from sensor/platform. Keeps the panel generic across S1 (C-band),
+// ALOS/PALSAR and NISAR (L-band), RADARSAT/ERS (C), JERS/SEASAT (L).
+function radarBand(p: Record<string, any>): string | null {
+  const s  = String(p.sensor ?? '').toUpperCase()
+  const pl = String(p.platform ?? '').toUpperCase()
+  if (/C-SAR|RADARSAT|\bERS\b|SENTINEL/.test(s) || /SENTINEL/.test(pl)) return 'C-band'
+  if (/PALSAR|ALOS|NISAR|JERS|SEASAT/.test(s) || /ALOS|NISAR/.test(pl)) return 'L-band'
+  return null
+}
+
 export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }: Props) {
   const { width, onHandleMouseDown } = useResizable(320)
   const { t: tr } = useTranslation()
   const p = feature.properties ?? {}
+  // Burst granules carry subswath/fullBurstID (flattened by the search API)
+  // instead of frameNumber — the detail fields differ from a whole SLC.
+  const isBurst = !!p.subswath || !!p.fullBurstID
 
   const [dlStatus,  setDlStatus]  = useState<'idle'|'downloading'|'done'|'error'>('idle')
   const [dlMessage, setDlMessage] = useState('')
@@ -173,7 +187,7 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
       <div style={{ overflowY: 'auto', padding: '10px 12px', flex: 1 }}>
 
         {section(tr('sceneDetail.acquisition'), <>
-          {field(tr('sceneDetail.radarFrequency'), 'C-band')}
+          {field(tr('sceneDetail.radarFrequency'), radarBand(p) ?? '—')}
           {field(tr('sceneDetail.startTime'),      fmtTime(p.startTime))}
           {field(tr('sceneDetail.stopTime'),       fmtTime(p.stopTime))}
           {field(tr('sceneDetail.processingDate'), fmtTime(p.processingDate), true)}
@@ -184,7 +198,14 @@ export default function SceneDetailPanel({ feature, theme: t, workdir, onClose }
           {field(tr('sceneDetail.sensor'),             p.sensor        ?? '—')}
           {field(tr('scenePanel.beamMode'),            p.beamModeType  ?? p.beamMode ?? '—')}
           {field(tr('searchFilters.fields.path'),      p.pathNumber    ?? '—')}
-          {field(tr('searchFilters.fields.frame'),     p.frameNumber   ?? '—')}
+          {isBurst ? <>
+            {field(tr('sceneDetail.subswath'),      p.subswath        ?? '—')}
+            {field(tr('sceneDetail.relativeBurstId'), p.relativeBurstID ?? '—')}
+            {field(tr('sceneDetail.fullBurstId'),   p.fullBurstID     ?? '—')}
+            {field(tr('sceneDetail.burstIndex'),    p.burstIndex      ?? '—')}
+          </> : (
+            field(tr('searchFilters.fields.frame'), p.frameNumber   ?? '—')
+          )}
           {field(tr('searchFilters.fields.flightDirection'), p.flightDirection ?? '—')}
           {field(tr('sceneDetail.absoluteOrbit'),      p.orbit         ?? '—')}
           {field(tr('scenePanel.polarization'),        p.polarization  ?? '—', true)}

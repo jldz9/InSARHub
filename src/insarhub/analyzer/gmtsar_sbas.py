@@ -13,6 +13,7 @@ Shells out to GMTSAR exactly like GMTSAR_S1 does (its own conda env's `gmt`
 from __future__ import annotations
 
 import logging
+import math
 import os
 import re
 import subprocess
@@ -220,6 +221,98 @@ class GMTSAR_SBAS(BaseAnalyzer):
         n = len([l for l in (self.sbas_dir / "intf.tab").read_text().splitlines() if l.strip()])
         return f"sbas intf.tab scene.tab {n} {s} {xdim} {ydim}"
 
+    def _resolve_geometry(self) -> tuple[float, float]:
+        """sbas's -range and -incidence for this scene: (metres, degrees).
+
+        Both feed one term in sbas -- ``scale = 4*pi / wl / rng / sin(theta)``
+        (sbas.c), which forms the DEM-error column of the design matrix
+        (``G[...] = bperp[i] * scale`` in sbas_utils.c). Neither scales the
+        displacement time series itself, which is why GMTSAR's recipe calls
+        the incidence value "largely irrelevant" -- but both are scene
+        geometry that the super-master PRM already knows exactly, so neither
+        is guessed.
+
+        -range follows the recipe's formula (§12b):
+
+            Range = ({[(c / rng_samp_rate) / 2] * ((x_min + x_max) / 2)} / 2)
+                    + near_range
+
+        -incidence is the standard spherical-earth conversion from that
+        range, with Rs = earth_radius + SC_height:
+
+            cos(look) = (Rs^2 + R^2 - Re^2) / (2 * Rs * R)
+            sin(inc)  = Rs * sin(look) / Re
+
+        Measured on a real 3-subswath p100_f466 frame this gives 39.53 deg at
+        mid-swath, against sbas's built-in default of 37 (~6% off on that
+        term) and the recipe's own hardcoded 40 (~1% off) -- so the recipe's
+        choice is about right for Sentinel-1 IW while sbas's default is not,
+        and computing it is exact for any frame or sensor. Validated against
+        the published Sentinel-1 IW geometry: evaluating the same conversion
+        at the merged grid's near and far edges gives 30.49 and 45.98 deg,
+        reproducing the documented ~29.1-46.0 deg IW1-IW3 span.
+
+        Falls back to config.range_dist / config.incidence with a warning if
+        the PRM can't be read.
+        """
+        cfg = self.config
+        try:
+            prm = next(iter(sorted(self._gmtsar_paths.meta_raw_dir.glob("S1_*_ALL_F*.PRM"))), None)
+            if prm is None:
+                raise FileNotFoundError("no super-master PRM")
+            txt = prm.read_text()
+
+            def _prm(key: str) -> float:
+                m = re.search(rf"(?m)^{key}\s*=\s*(\S+)", txt)
+                if not m:
+                    raise KeyError(key)
+                return float(m.group(1))
+
+            rng_samp_rate = _prm("rng_samp_rate")
+            near_range = _prm("near_range")
+
+            grd = next(iter(sorted(self._gmtsar_paths.product_dir().glob(f"*/{cfg.phase_grd}"))), None)
+            if grd is None:
+                raise FileNotFoundError(f"no {cfg.phase_grd} to size the grid from")
+            info = subprocess.run(["gmt", "grdinfo", "-C", str(grd)],
+                                  capture_output=True, text=True,
+                                  env=self._subprocess_env())
+            fields = info.stdout.split()
+            x_min, x_max = float(fields[1]), float(fields[2])
+
+            # NB: the recipe's prose and its worked example disagree. Written
+            # out it reads "({[(c/rng_samp_rate)/2] * ((x_min+x_max)/2)} / 2)
+            # + near_range", but its own numbers are
+            # "({[3e8/64345238.125714/2] * 47704} / 2) + 845481.851848 =
+            # 901,085" -- i.e. it multiplies by x_max and halves that, not by
+            # the midpoint and halves again. Taking the prose literally gives
+            # 873,283 for the same scene, 28 km low. The worked example is
+            # the physically sensible one and is what's implemented here:
+            #   range = (slant range per sample) * (midpoint sample) + near_range
+            # Exact c is used where the recipe writes "~3 x 10^8 m/s"
+            # (a 0.004% difference).
+            c = 299792458.0
+            rng = ((c / rng_samp_rate) / 2.0) * ((x_min + x_max) / 2.0) + near_range
+
+            earth_radius = _prm("earth_radius")
+            sc_height = _prm("SC_height")
+            rs = earth_radius + sc_height
+            look = math.acos((rs ** 2 + rng ** 2 - earth_radius ** 2) / (2 * rs * rng))
+            inc = math.degrees(math.asin(rs * math.sin(look) / earth_radius))
+
+            print(f"  -range {rng:.0f} m  -incidence {inc:.2f} deg  "
+                  f"(computed from {prm.name}: rng_samp_rate={rng_samp_rate:.6g}, "
+                  f"near_range={near_range:.6g}, Re={earth_radius:.0f}, "
+                  f"H={sc_height:.0f}, x={x_min:.0f}..{x_max:.0f})")
+            return rng, inc
+        except Exception as e:
+            logger.warning(
+                "Could not compute sbas -range/-incidence from the PRM (%s); falling "
+                "back to config.range_dist=%s, config.incidence=%s. Both are "
+                "frame-specific -- verify them, or set them explicitly.",
+                e, cfg.range_dist, cfg.incidence)
+            return float(cfg.range_dist), float(cfg.incidence)
+
     def run(self, steps=None) -> None:
         """prep_data() (if needed) then run the sbas inversion with the
         configured flags → disp_*.grd + vel.grd in sbas_dir."""
@@ -231,9 +324,10 @@ class GMTSAR_SBAS(BaseAnalyzer):
             cmd += ["-smooth", str(cfg.smooth)]
         if cfg.atm_iters:
             cmd += ["-atm", str(cfg.atm_iters)]
+        rng, inc = self._resolve_geometry()
         cmd += ["-wavelength", str(cfg.wavelength),
-                "-incidence", str(cfg.incidence),
-                "-range", str(cfg.range_dist)]
+                "-incidence", f"{inc:.2f}",
+                "-range", f"{rng:.0f}"]
         if cfg.rms:
             cmd += ["-rms"]
         if cfg.dem_err:
@@ -259,6 +353,69 @@ class GMTSAR_SBAS(BaseAnalyzer):
         print(f"SBAS inversion complete: {self.sbas_dir}\n"
               f"  vel.grd + {n_disp} disp_*.grd (cumulative displacement per date)")
         logger.info("SBAS inversion complete: %s (vel.grd, disp_*.grd)", self.sbas_dir)
+        self.geocode()
+
+    def geocode(self) -> None:
+        """Project sbas's radar-coordinate output into lat/lon (recipe §12c).
+
+        sbas writes vel.grd and disp_*.grd in RADAR coordinates, which can't
+        be mapped or compared against anything geographic until projected --
+        the recipe's own last step, and the reason its results are viewable
+        in Google Earth. Needs trans.dat, which the merge stage produced
+        (mergeprep, for a multi-subswath stack); linked in rather than copied,
+        as the recipe does, since it can be well over a gigabyte.
+
+        Non-fatal: the inversion itself has already succeeded and its radar
+        grids are on disk by this point, so a missing trans.dat degrades this
+        to a warning rather than throwing away the run.
+        """
+        env = self._subprocess_env()
+        trans_src = self._gmtsar_paths.merge_dir / "trans.dat"
+        if not trans_src.exists():
+            trans_src = self._gmtsar_paths.topo_dir / "trans.dat"
+        if not trans_src.exists():
+            logger.warning(
+                "No trans.dat found (looked in %s and %s) -- skipping geocoding; "
+                "vel.grd/disp_*.grd remain in radar coordinates.",
+                self._gmtsar_paths.merge_dir, self._gmtsar_paths.topo_dir)
+            return
+
+        trans = self.sbas_dir / "trans.dat"
+        if not trans.exists():
+            trans.symlink_to(os.path.relpath(trans_src, self.sbas_dir))
+
+        targets = [p for p in ([self.sbas_dir / "vel.grd"]
+                               + sorted(self.sbas_dir.glob("disp_*.grd"))) if p.exists()]
+        done = 0
+        for grd in targets:
+            out = grd.with_name(f"{grd.stem}_ll.grd")
+            if out.exists():
+                done += 1
+                continue
+            # proj_ra2ll.csh caches raln.grd/ralt.grd and will not regenerate
+            # them, which is what makes projecting many grids cheap after the
+            # first -- but also why a stale pair has to be cleared by hand.
+            r = subprocess.run(["proj_ra2ll.csh", "trans.dat", grd.name, out.name],
+                               cwd=str(self.sbas_dir), capture_output=True,
+                               text=True, env=env)
+            if r.returncode == 0 and out.exists():
+                done += 1
+            else:
+                logger.warning("proj_ra2ll failed for %s: %s",
+                               grd.name, (r.stderr or r.stdout).strip()[:300])
+
+        vel_ll = self.sbas_dir / "vel_ll.grd"
+        if vel_ll.exists():
+            cpt = self.sbas_dir / "vel_ll.cpt"
+            with open(cpt, "w") as fh:
+                subprocess.run(["gmt", "grd2cpt", vel_ll.name, "-Z", "-Cjet"],
+                               cwd=str(self.sbas_dir), stdout=fh,
+                               stderr=subprocess.DEVNULL, env=env)
+            if cpt.stat().st_size:
+                subprocess.run(["grd2kml.csh", "vel_ll", cpt.name],
+                               cwd=str(self.sbas_dir), capture_output=True, env=env)
+        print(f"  geocoded {done}/{len(targets)} grid(s) -> *_ll.grd"
+              + (" (+ vel_ll.kml)" if (self.sbas_dir / "vel_ll.kml").exists() else ""))
 
     def extract_time_series(self, lon: float, lat: float,
                             m_rng: int = 5, m_azi: int = 5) -> Path:

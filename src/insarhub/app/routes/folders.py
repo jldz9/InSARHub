@@ -4,6 +4,7 @@
 import asyncio
 import json
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -16,6 +17,7 @@ from insarhub.app.models import FolderDownloadRequest, SelectPairsRequest, SaveP
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
+from insarhub.app.routes.search import _download_workers
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, read_insarhub_config, write_insarhub_config
 from insarhub.utils.pair_quality._cache import seed_prefetch
 from insarhub.utils.pair_quality._geom import footprint_wkt_from_products
@@ -87,11 +89,18 @@ async def _run_folder_download(job_id: str, folder_path: str):
             total = sum(len(v) for v in downloader.results.values())
             state._jobs[job_id]["message"] = f"Downloading 0/{total}"
 
+            # S1_SLC.download treats save_path as a root and re-creates the
+            # per-stack <p<path>_f<frame>>/slc folder itself; S1_Burst.download
+            # assembles .SAFE directly into save_path. Send the burst folder
+            # so its SAFEs land inside the job folder, matching the layout.
+            _dl_save = (str(folder.parent) if dl_type != "S1_Burst"
+                        else str((folder / "slc")))
             dl_result = DownloadScenesCommand(
                 downloader,
                 stop_event=stop_ev,
                 on_progress=state._make_download_progress(job_id),
-                save_path=str(folder.parent),
+                save_path=_dl_save,
+                max_workers=_download_workers(cfg),
             ).run()
 
             if stop_ev.is_set():
@@ -366,9 +375,15 @@ async def get_folder_network_data(path: str):
                 seen.setdefault(pair[1], None)
         nodes = []
         for name in seen:
-            raw_date = name[17:25] if len(name) > 25 else ""
-            iso_date = (f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
-                        if len(raw_date) == 8 else "")
+            # Burst stacks key nodes by bare YYYYMMDD acquisition dates (one
+            # date = one stitched SAFE). Scene stacks key by full SLC granule
+            # names. Both must resolve to an ISO date for the editor layout.
+            if re.fullmatch(r"\d{8}", name):
+                iso_date = f"{name[:4]}-{name[4:6]}-{name[6:8]}"
+            else:
+                raw_date = name[17:25] if len(name) > 25 else ""
+                iso_date = (f"{raw_date[:4]}-{raw_date[4:6]}-{raw_date[6:8]}"
+                            if len(raw_date) == 8 else "")
             nodes.append({
                 "id":    name,
                 "date":  iso_date,

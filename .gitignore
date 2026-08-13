@@ -213,3 +213,5 @@ __marimo__/
 
 #files
 *.zip
+*.SAFE
+p56*

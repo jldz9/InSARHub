@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ISCE_S1 — Sentinel-1 time-series InSAR processor backed by ISCE2 stackSentinel.
+ISCE2_S1 — Sentinel-1 time-series InSAR processor backed by ISCE2 stackSentinel.
 
 stackSentinel.py (part of ISCE2's topsStack contrib package) generates a set of
 numbered run scripts from all SLCs in slc_dir, then executes them in order.
@@ -28,16 +28,17 @@ from pathlib import Path
 import numpy as np
 from colorama import Fore, Style
 
-from insarhub.config import ISCE_S1_Config
+from insarhub.config import ISCE2_S1_Config
 from insarhub.config.paths import ISCEPaths, MintPyPaths
-from insarhub.processor.isce_base import (
-    ISCE_Base,
+from insarhub.processor.isce2_base import (
+    ISCE2_Base,
     _PENDING,
     _SUCCEEDED,
     _read_status,
     _write_status,
     _resolve_step_names,
     _clear_step_markers,
+    _merge_sbatch_opts,
 )
 
 logger = logging.getLogger(__name__)
@@ -163,7 +164,7 @@ def _geotiff_to_isce_dem(tif_path: Path, out_dir: Path) -> Path:
     return dem_out
 
 
-def _prepare_dem(config: ISCE_S1_Config, workdir: Path) -> Path:
+def _prepare_dem(config: ISCE2_S1_Config, workdir: Path) -> Path:
     """Return path to an ISCE2-format DEM, downloading GLO-30 if needed."""
     raw = config.dem_path
     dem_dir = ISCEPaths(workdir).dem_dir
@@ -267,7 +268,7 @@ def _prepare_dem(config: ISCE_S1_Config, workdir: Path) -> Path:
 
 # ── Main class ────────────────────────────────────────────────────────────────
 
-class ISCE_S1(ISCE_Base):
+class ISCE2_S1(ISCE2_Base):
     """Time-series InSAR processor using ISCE2 stackSentinel.
 
     stackSentinel.py generates a numbered series of run scripts from all SLCs
@@ -277,12 +278,12 @@ class ISCE_S1(ISCE_Base):
 
     Usage::
 
-        from insarhub.processor import ISCE_S1
-        from insarhub.config import ISCE_S1_Config
+        from insarhub.processor import ISCE2_S1
+        from insarhub.config import ISCE2_S1_Config
 
-        proc = ISCE_S1(
+        proc = ISCE2_S1(
             pairs  = [("20200101", "20200113"), ("20200101", "20200125")],
-            config = ISCE_S1_Config(
+            config = ISCE2_S1_Config(
                 workdir   = '/data/stack',
                 slc_dir   = '/data/slcs',
                 orbit_dir = '/data/orbits',
@@ -293,16 +294,16 @@ class ISCE_S1(ISCE_Base):
         proc.watch()
     """
 
-    name                  = "ISCE_S1"
+    name                  = "ISCE2_S1"
     description           = ("Time-series InSAR with ISCE2 stackSentinel. "
                               "Requires ISCE2 with topsStack contrib.")
     compatible_downloader = "S1_SLC"
-    default_config        = ISCE_S1_Config
+    default_config        = ISCE2_S1_Config
 
-    def __init__(self, pairs: list[tuple[str, str]], config: ISCE_S1_Config | None = None):
+    def __init__(self, pairs: list[tuple[str, str]], config: ISCE2_S1_Config | None = None):
         super().__init__(config)
-        self.config: ISCE_S1_Config = (
-            self.config if self.config is not None else ISCE_S1_Config()
+        self.config: ISCE2_S1_Config = (
+            self.config if self.config is not None else ISCE2_S1_Config()
         )
         # Allow empty/dummy pairs when loading from a saved job file (refresh/watch/retry)
         if not pairs and not self.jobs:
@@ -422,6 +423,38 @@ class ISCE_S1(ISCE_Base):
         p.mkdir(parents=True, exist_ok=True)
         return p
 
+    def _resolve_num_proc(self) -> tuple[int, int]:
+        """(numProcess, numProcess4topo) for stackSentinel.py.
+
+        In HPC mode, sbatch_options.json's cpus_per_task for steps 01/09/10
+        is the source of truth -- overriding config.num_proc/num_proc4topo
+        -- so ISCE2's own multiprocessing pool size always matches however
+        many cores the corresponding step manager actually allocates.
+        Mismatched values otherwise leave allocated cores idle (found via a
+        real p100_f466 run: num_proc4topo=1 left run_01 single-threaded on
+        a 3-swath, 25-burst stack regardless of what sbatch_options.json's
+        "01" cpus_per_task was set to) or oversubscribe them. num_proc uses
+        min(09, 10)'s cpus_per_task, not max, so ISCE2 never spawns more
+        workers than the more-constrained of the two steps' allocations.
+        Local mode has no sbatch_options.json, so config.num_proc/
+        num_proc4topo apply as given.
+        """
+        cfg = self.config
+        if not getattr(cfg, "hpc_mode", False):
+            return cfg.num_proc, cfg.num_proc4topo
+        per_step = getattr(cfg, "sbatch_options_per_step", {}) or {}
+        if not per_step:
+            return cfg.num_proc, cfg.num_proc4topo
+        topo_cpus = _merge_sbatch_opts(per_step, "01").get("cpus_per_task")
+        geo_cpus = [
+            c.get("cpus_per_task") for c in
+            (_merge_sbatch_opts(per_step, "09"), _merge_sbatch_opts(per_step, "10"))
+            if c.get("cpus_per_task") is not None
+        ]
+        num_proc4topo = int(topo_cpus) if topo_cpus is not None else cfg.num_proc4topo
+        num_proc = int(min(geo_cpus)) if geo_cpus else cfg.num_proc
+        return num_proc, num_proc4topo
+
     def _build_inps_namespace(self, dem_path: Path, aux_dir: Path, orbit_dir_str: str):
         import types
         cfg = self.config
@@ -466,8 +499,7 @@ class ISCE_S1(ISCE_Base):
 
         # compute
         ns.useGPU                  = cfg.use_gpu
-        ns.numProcess              = cfg.num_proc
-        ns.numProcess4topo         = cfg.num_proc4topo
+        ns.numProcess, ns.numProcess4topo = self._resolve_num_proc()
         ns.text_cmd                = cfg.text_cmd
 
         return ns

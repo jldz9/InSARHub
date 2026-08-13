@@ -83,7 +83,7 @@ Analyzer.available()
         analyzer.submit_hpc(steps=["velocity", "geocode"])
         ```
 
-        脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE_S1` 自身 HPC 提交（步骤 `01`–`16`）使用同一个文件，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
+        脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE2_S1` 自身 HPC 提交（步骤 `01`–`16`）使用同一个文件，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
 
         `submit_hpc()` 成功时返回 SLURM 作业 ID 字符串；若 `sbatch_options.json` 刚被创建（或补充了缺失的 `"17"` 条目），则返回 `None` — 调用方应检查 `None` 并停止，而不是将其当作提交成功处理：
 
@@ -310,6 +310,206 @@ Analyzer.available()
         ```
 
         ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.cleanup
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+=== "GMTSAR_MINTPY_SBAS"
+
+    `GMTSAR_MINTPY_SBAS` 分析器对 `GMTSAR_S1` 处理器生成的相干堆叠运行 MintPy SBAS 时序分析。它将 GMTSAR 的地理编码 `*_ll.grd` 产品和 `baseline_table.dat` 交给 MintPy 自带的 `prep_gmtsar.py` 加载器（通过 `mintpy.load.*` 键），因此无需任何公共配准参考即可工作——每对干涉图已经共享同一地理网格。它是 `ISCE_SBAS` 的 MintPy 对应物，唯一区别在于如何配置 `load_*` 路径。输出写入 `workdir/gmtsar_mintpy/`（独立目录，不会与同一工作目录中的 Hyp3/ISCE MintPy 运行相互覆盖）。
+
+    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS
+        options:
+            members: false
+            heading_level: 0
+
+    ### 使用方法
+
+    - **创建分析器**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', workdir='/your/work/dir')
+        ```
+
+        或使用显式配置：
+
+        ```python
+        from insarhub.config.defaultconfig import GMTSAR_MINTPY_SBAS_Config
+
+        cfg = GMTSAR_MINTPY_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.GMTSAR_MINTPY_SBAS_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **准备数据**
+
+        发现 GMTSAR 输出（stack_mode 的 `merge/<julian_pair>/`，或 p2p 的 `gmtsar/<ref>_<sec>/merge/`）并写入 MintPy 配置。对于 p2p 输出，它将合并后的 `unwrap_ll.grd`/`corr_ll.grd` 暂存为 MintPy 期望的 `<pair>/unwrap_ll.grd` 结构（符号链接，无需复制数 GB 网格），并保留 GMTSAR 的儒略日 `yyyyddd_yyyyddd` 目录命名，`prep_gmtsar.py` 据此推导配对日期。
+
+        ```python
+        analyzer.prep_data()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.prep_data
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **运行**
+
+        运行 MintPy SBAS 时序分析。所有输出写入 `workdir/gmtsar_mintpy/`。
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.run
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **提交（HPC / SLURM 模式）**
+
+        继承自 `Mintpy_SBAS_Base_Analyzer`，将完整 MintPy 流程作为单个 sbatch 作业提交（脚本写入 `workdir/gmtsar_mintpy/mintpy_sbas.sbatch`）。
+
+        ```python
+        analyzer.submit_hpc()
+        ```
+
+    - **清理**
+
+        ```python
+        analyzer.cleanup()
+        ```
+
+        ::: insarhub.analyzer.mintpy_base.Mintpy_SBAS_Base_Analyzer.cleanup
+            options:
+                members: true
+                show_source: false
+                heading_level: 5
+
+=== "GMTSAR_SBAS"
+
+    `GMTSAR_SBAS` 分析器在 `GMTSAR_S1` stack_mode 堆叠上运行 **GMTSAR 自带的原生 SBAS 反演**（`prep_sbas` + `sbas` C 二进制程序）——不涉及 MintPy。它读取 `workdir/gmtsar/`（`intf.in`、`baseline_table.dat`、`intf/<pair>/`），并在 `workdir/gmtsar_sbas/` 下以雷达坐标生成每个日期的累计位移（`disp_*.grd`）和线性速度（`vel.grd`）。
+
+    由于反演是 GMTSAR 的 C 二进制程序，配置中的 `gmtsar_root` 和 `gmtsar_env_bin` **均为必需项**——`sbas` 二进制程序和 `gmt` 来自 GMTSAR 自身的安装/conda 环境，而非 InSARHub。
+
+    ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS
+        options:
+            members: false
+            heading_level: 0
+
+    ### 使用方法
+
+    - **创建分析器**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('GMTSAR_SBAS', workdir='/your/work/dir',
+                                   gmtsar_root='/path/to/gmtsar',
+                                   gmtsar_env_bin='/path/to/conda/envs/gmtsar/bin')
+        ```
+
+        或使用显式配置：
+
+        ```python
+        from insarhub.config.defaultconfig import GMTSAR_SBAS_Config
+
+        cfg = GMTSAR_SBAS_Config(
+            workdir='/your/work/dir',
+            gmtsar_root='/path/to/gmtsar',
+            gmtsar_env_bin='/path/to/conda/envs/gmtsar/bin',
+        )
+        analyzer = Analyzer.create('GMTSAR_SBAS', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.GMTSAR_SBAS_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **准备数据**
+
+        从堆叠的 `baseline_table.dat` 构建 `intf.tab` 和 `scene.tab`，然后回显待运行的 `sbas intf.tab scene.tab N S xdim ydim` 命令行。
+
+        ```python
+        analyzer.prep_data()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.prep_data
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **运行**
+
+        运行 `sbas` 反演，将进度实时输出到控制台及 `workdir/gmtsar_sbas/` 下的 `sbas.log`。
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.run
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+=== "Dolphin_SBAS"
+
+    `Dolphin_SBAS` 分析器对 `ISCE3_Burst` 生成的解缠干涉图堆叠运行 dolphin 的 `timeseries.run`。同一分析器同时服务于该处理器的**两种**缠绕相位估计器（`ifg_mode="network"` 与 `ifg_mode="phase_link"`）——两者的线性反演完全相同；区别仅在于用于选择参考点和掩膜低质量像素的质量栅格（`phase_link` 用时序相干性，`network` 用逐对相关性的时间平均）。估计器选择从堆叠的 `ifg_manifest.json` 读取，绝不会在此处重复指定。输出写入 `workdir/timeseries/`。
+
+    ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS
+        options:
+            members: false
+            heading_level: 0
+
+    ### 使用方法
+
+    - **创建分析器**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('Dolphin_SBAS', workdir='/your/work/dir')
+        ```
+
+        或使用显式配置：
+
+        ```python
+        from insarhub.config.defaultconfig import Dolphin_SBAS_Config
+
+        cfg = Dolphin_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('Dolphin_SBAS', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.Dolphin_SBAS_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **运行**
+
+        对当前工作目录中的堆叠运行 dolphin 时序反演（累计位移、速度、残差）。
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS.run
             options:
                 members: false
                 show_source: false

@@ -85,11 +85,9 @@ def _load_aoi(folder: Path) -> tuple[float, float, str]:
 # ── Pair / baseline loading ───────────────────────────────────────────────────
 
 def _scene_date(name: str) -> str:
-    """Extract ISO-8601 date from a Sentinel-1 scene name."""
-    raw = name[17:25] if len(name) > 25 else ""
-    if len(raw) == 8:
-        return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
-    return ""
+    """Extract ISO-8601 date from a bare date id, SLC scene, or BURST granule."""
+    from insarhub.utils.pair_quality._dates import scene_date
+    return scene_date(name)
 
 
 def _load_pairs(folder: Path) -> list[tuple[str, str, float, float]]:
@@ -285,7 +283,8 @@ class PairQuality:
         print("-" * 110)
         for key in sorted(result.scores, key=lambda k: result.scores[k], reverse=True):
             ref, _, sec = key.partition(":")
-            label = f"{ref[17:25]}–{sec[17:25]}"
+            from insarhub.utils.pair_quality._dates import scene_date_compact
+            label = f"{scene_date_compact(ref)}–{scene_date_compact(sec)}"
             sc    = result.scores[key]
             fct   = result.factors[key]
             bar   = "█" * int(sc * 20)

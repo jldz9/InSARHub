@@ -192,7 +192,7 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
     """Quality score with three-tier fallback chain.
 
     Tier 1 — AWS S3 coherence (``coherence_source == "s3"``)
-        Coherence penalty = shifted quadratic (weight 1.00): zero at γ ≥ 0.60,
+        Coherence penalty = shifted quadratic (weight 1.00): zero at γ ≥ 0.40,
         full at γ ≤ 0.10, quadratic ramp between.
         γ = 1.0 incurs no penalty; γ = 0.0 incurs full penalty.
         Environmental penalties (snow 0.25, precip 0.75+0.75, freeze-thaw 0.05)
@@ -253,10 +253,13 @@ def coherence_score(fv: dict) -> tuple[float, dict]:
         coh_penalty  = snow_penalty = pr_penalty_d1 = pr_penalty_d2 = ft_penalty = 0.0
     else:
         # ── Coherence penalty (weight 1.00) ──────────────────────────────────
-        # Shifted quadratic: zero penalty above γ_good (0.60), full penalty at/
+        # Shifted quadratic: zero penalty above γ_good (0.40), full penalty at/
         # below γ_min (0.10).  Avoids penalising usable pairs just for not being
-        # perfect — global S1 average at 12 days is 0.30–0.45, which is workable.
-        _GAMMA_GOOD = 0.60
+        # perfect. Calibrated for TRUE (unfiltered) coherence as published by
+        # the global S1 seasonal coherence dataset (Kellndorfer et al. 2022):
+        # its 12-day median is ~0.31 and 6-day median ~0.42, so 0.40 marks the
+        # top of the workable band. (0.60 was the Goldstein-filtered value.)
+        _GAMMA_GOOD = 0.40
         _GAMMA_MIN  = 0.10
         clamped     = max(0.0, min(1.0, (_GAMMA_GOOD - base) / (_GAMMA_GOOD - _GAMMA_MIN)))
         coh_penalty = clamped ** 2

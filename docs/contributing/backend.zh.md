@@ -16,17 +16,23 @@ InSARHub 使用注册表模式。所有带有 `name` 属性的 `Processor`、`An
 
 ```
 CloudProcessor (ABC) ──► Hyp3Base   ──► Hyp3_S1
-LocalProcessor (ABC) ──► ISCE_Base ──► ISCE_S1
+LocalProcessor (ABC) ──► ISCE2_Base ──► ISCE2_S1
+                       ├──► GMTSAR_S1
+                       └──► ISCE3_Base ──► ISCE3_Burst
 
 BaseDownloader (ABC) ──► ASF_Base_Downloader ──► S1_SLC
+                                             └──► S1_Burst
 
 BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_SBAS
-                                                  └──► ISCE_SBAS
+                                                   ├──► ISCE_SBAS
+                                                   └──► GMTSAR_MINTPY_SBAS
+                    ├──► GMTSAR_SBAS   （GMTSAR 自带的 sbas 二进制程序，无需 MintPy）
+                    └──► Dolphin_SBAS  （面向 ISCE3_Burst 的 dolphin timeseries）
 ```
 
-每个中间基类（`Hyp3Base`、`ISCE_Base`、`ASF_Base_Downloader`、`Mintpy_SBAS_Base_Analyzer`）已实现所有共享基础设施——认证、任务跟踪、HPC 提交、文件 I/O。具体的叶子类只需实现 `submit()`（分析器还需实现 `prep_data()`）来处理传感器特定的逻辑。
+每个中间基类（`Hyp3Base`、`ISCE2_Base`、`ISCE3_Base`、`ASF_Base_Downloader`、`Mintpy_SBAS_Base_Analyzer`）已实现所有共享基础设施——认证、任务跟踪、HPC 提交、文件 I/O。具体的叶子类只需实现 `submit()`（分析器还需实现 `prep_data()`/`run()`）来处理传感器特定的逻辑。`GMTSAR_S1` 和 `ISCE3_Burst` 还将大型、仅限单一处理器的辅助逻辑拆分为私有的同级模块（`processor/_gmtsar_esd_network.py` 用于 GMTSAR 的网络 ESD 配准，`processor/isce3_base.py` 用于 ISCE3 的阶段/HPC 机制）。
 
-CLI（`cli/main.py`）和 GUI 路由（`app/routes/`）都是对同一套 Python API 的薄封装——任何在 CLI 中可运行的工作流，在浏览器中同样可以运行。
+CLI（`cli/main.py`）和 GUI 路由（`app/routes/`）都是对同一套 Python API 的薄封装——任何在 CLI 中可运行的工作流，在浏览器中同样可以运行。它们共享的已保存任务发现/处理器重载逻辑位于 `utils/local_processor_reload.py`（而非 `core/`），从而使两个界面保持一致，避免逐渐偏离。
 
 ## 路径规范
 
@@ -154,17 +160,17 @@ MintPyPaths(workdir).clip_dir       # workdir/mintpy/clip
         ]
     ```
 
-=== "ISCE_Base"
+=== "ISCE2_Base"
 
-    `ISCE_Base` 处理所有运行文件执行、逐步状态跟踪（`.done`/`.fail` 标记）、通过 SLURM 的滑动窗口 HPC 提交、`refresh()`、`retry()`、`watch()` 和 `save()`。子类只需实现 `submit()`——设置 ISCE2 输入命名空间并生成运行脚本，再调用 `_step_executor`。
+    `ISCE2_Base` 处理所有运行文件执行、逐步状态跟踪（`.done`/`.fail` 标记）、通过 SLURM 的滑动窗口 HPC 提交、`refresh()`、`retry()`、`watch()` 和 `save()`。子类只需实现 `submit()`——设置 ISCE2 输入命名空间并生成运行脚本，再调用 `_step_executor`。
 
     ```python
     # src/insarhub/processor/isce_mysensor.py
-    from insarhub.processor.isce_base import ISCE_Base
+    from insarhub.processor.isce2_base import ISCE2_Base
     from insarhub.config import ISCE_MySensor_Config
     from insarhub.config.paths import ISCEPaths
 
-    class ISCE_MySensor(ISCE_Base):
+    class ISCE_MySensor(ISCE2_Base):
         name = "ISCE_MySensor"
         description = "MySensor 的 ISCE2 处理。"
         compatible_downloader = "MySensor_SLC"
@@ -181,7 +187,7 @@ MintPyPaths(workdir).clip_dir       # workdir/mintpy/clip
             self._step_executor(self.steps)
     ```
 
-    Config — 继承 `ISCE_Base_Config`，为新字段添加 `_ui_groups` / `_ui_fields`。
+    Config — 继承 `ISCE2_Base_Config`，为新字段添加 `_ui_groups` / `_ui_fields`。
 
 ## 添加新下载器
 
@@ -328,6 +334,31 @@ async def _run_my_action(job_id: str, req: MyRequest):
 ```
 
 在成功和错误路径中都必须 pop `state._stop_events[job_id]`。
+
+## 测试
+
+### 通用冒烟测试
+
+`test/e2e/universal_smoke_test.py` 是针对每一条流水线、基于真实（已完成的）工作目录的“通过/不通过”检查，同时覆盖三个界面：
+
+1. **Python 导入** — 在全新进程中导入每一个包/子模块（捕捉损坏的导入或循环导入）。
+2. **CLI** — `--list-*` 命令、每条流水线的 `--list-options`，以及通过子进程运行 `processor … refresh`。
+3. **API** — 启动一个临时 `uvicorn` 服务器，用 `requests` 通过 HTTP 访问（无需 `httpx`）：`/api/health`、`/api/folder-local-jobs`、`/api/folder-local-action` refresh、`/api/analyzer-steps`。
+
+它会从每个工作目录的 `insarhub_config.json` 自动识别处理器/分析器，因此无需逐条流水线配置即可覆盖 `GMTSAR_S1`、`ISCE2_S1`、`ISCE3_Burst` 及其分析器。缺失的可选依赖（isce2、gmt/gmtsar、dolphin/compass、slurm）会将相应检查标记为 `SKIP` 而非 `FAIL`。
+
+```bash
+python test/e2e/universal_smoke_test.py \
+    --scan-dir /path/to/real/workdirs \
+    --workdir /path/to/p56 \
+    --mode both          # cli | api | both
+```
+
+任一检查 `FAIL` 时退出码非零。使用 `--json` 获取机器可读输出，或设置 `INSARHUB_TEST_SCAN_DIRS` 指向你的工作目录，以替代 `--scan-dir` 参数。
+
+### 单元测试
+
+`test/` 包含各模块的 pytest 测试套件（`test_config.py`、`test_gmtsar_s1.py`、`test_utils_config_io.py` 等），通过 `pytest test/` 运行。`e2e/` 下的脚本（`cli_e2e_*.sh`、`api_e2e_*.py`）**不会**被 pytest 自动运行——它们驱动真实的 ASF 搜索/下载/处理，仅在需要完整端到端运行时直接调用。
 
 ## 代码风格
 

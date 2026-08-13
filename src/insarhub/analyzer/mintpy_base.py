@@ -2,6 +2,7 @@
 import dataclasses
 import getpass
 import json
+import logging
 import requests
 import shutil
 import subprocess
@@ -14,6 +15,8 @@ from insarhub.config.defaultconfig import Mintpy_SBAS_Base_Config
 from insarhub.config.paths import MintPyPaths, Hyp3Paths
 from insarhub.core.base import BaseAnalyzer
 from insarhub.utils.tool import write_workflow_marker
+
+logger = logging.getLogger(__name__)
 
 
 class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
@@ -50,7 +53,138 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         if self.config.container:
             return self._run_via_container(["prep_data"])
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        self._resolve_adaptive_coherence()
         self.config.write_mintpy_config(self.cfg_path)
+
+    # ------------------------------------------------------------------ #
+    #  Adaptive coherence thresholds                                      #
+    # ------------------------------------------------------------------ #
+    #: Value that asks InSARHub to derive a threshold from THIS stack.
+    #: Distinct from "auto", which is MintPy's own token and resolves to its
+    #: fixed defaults (0.7 network / 0.4 inversion) regardless of the data.
+    ADAPTIVE = "adaptive"
+
+    def _pair_mean_coherence(self) -> dict[str, float]:
+        """{pair_dir_name: mean coherence} read from the configured corFile
+        glob. Works for any processor, since every SBAS analyzer sets
+        mintpy.load.corFile to a per-pair glob."""
+        import glob as _glob
+        import numpy as np
+
+        pattern = str(getattr(self.config, "load_corFile", "") or "")
+        if not pattern or pattern == "auto":
+            return {}
+        out: dict[str, float] = {}
+        for f in sorted(_glob.glob(pattern)):
+            try:
+                from osgeo import gdal
+                gdal.UseExceptions()
+                a = gdal.Open(f).ReadAsArray().astype("float32")
+            except Exception:                                    # noqa: BLE001
+                continue
+            a = a[np.isfinite(a) & (a > 0)]
+            if a.size:
+                out[Path(f).parent.name] = float(a.mean())
+        return out
+
+    @staticmethod
+    def _network_is_connected(pairs: list[tuple[str, str]], dates: set[str]) -> bool:
+        """Every date reachable from any other via the kept interferograms."""
+        if not dates:
+            return False
+        adj: dict[str, set[str]] = {d: set() for d in dates}
+        for a, b in pairs:
+            if a in adj and b in adj:
+                adj[a].add(b); adj[b].add(a)
+        seen, stack = set(), [next(iter(dates))]
+        while stack:
+            d = stack.pop()
+            if d in seen:
+                continue
+            seen.add(d)
+            stack.extend(adj[d] - seen)
+        return seen == dates
+
+    def _adaptive_min_coherence(self, coh: dict[str, float],
+                                redundancy: float = 1.5) -> float | None:
+        """The STRICTEST coherence threshold this stack can afford.
+
+        A fixed threshold is a guess about absolute coherence, which varies
+        hugely with band, land cover and season -- MintPy's 0.7 default is
+        reasonable for a well-correlated C-band stack and discards everything
+        here, where the best pair reaches 0.70 and the median is 0.47. With
+        keepMinSpanTree on, that does not error; it silently collapses the
+        network to its spanning tree, which removes every closed triplet and
+        with them any redundancy for least squares or unwrapping-error repair.
+
+        So rather than pick a number, pick the largest threshold that still
+        leaves a network worth inverting:
+
+          1. it must span every date (no isolated acquisition), and
+          2. it must keep >= redundancy x (n_dates - 1) interferograms --
+             1.5 means half again as many as a spanning tree, so closed
+             triplets survive.
+
+        Returns None when the stack cannot satisfy both, leaving the
+        configured value untouched rather than inventing one.
+        """
+        if len(coh) < 2:
+            return None
+        pairs = {}
+        for name, c in coh.items():
+            parts = name.replace("-", "_").split("_")
+            if len(parts) == 2:
+                pairs[name] = (parts[0], parts[1])
+        if len(pairs) < 2:
+            return None
+        dates = {d for p in pairs.values() for d in p}
+        need = max(1, int(round(redundancy * (len(dates) - 1))))
+
+        best = None
+        for t in sorted(set(round(c, 3) for c in coh.values())):
+            kept = [pairs[n] for n, c in coh.items() if c >= t and n in pairs]
+            if len(kept) >= need and self._network_is_connected(kept, dates):
+                best = t
+        return best
+
+    def _resolve_adaptive_coherence(self) -> None:
+        """Replace ADAPTIVE sentinels with values derived from the stack."""
+        fields = ("network_minCoherence", "networkInversion_maskThreshold")
+        wanted = [f for f in fields
+                  if str(getattr(self.config, f, "")).lower() == self.ADAPTIVE]
+        if not wanted:
+            return
+        coh = self._pair_mean_coherence()
+        if not coh:
+            logger.warning("adaptive coherence: no per-pair coherence found via "
+                           "mintpy.load.corFile; leaving thresholds unchanged")
+            for f in wanted:
+                setattr(self.config, f, "auto")
+            return
+        import numpy as np
+        vals = np.array(list(coh.values()))
+        thr = self._adaptive_min_coherence(coh)
+        print(f"{Fore.CYAN}Adaptive coherence: {len(coh)} pairs, "
+              f"coherence {vals.min():.2f}–{vals.max():.2f} (median {np.median(vals):.2f})"
+              f"{Fore.RESET}")
+        if thr is None:
+            logger.warning("adaptive coherence: no threshold keeps the network "
+                           "connected with redundancy; falling back to MintPy auto")
+            for f in wanted:
+                setattr(self.config, f, "auto")
+            return
+        for f in wanted:
+            if f == "network_minCoherence":
+                setattr(self.config, f, round(float(thr), 2))
+                kept = int((vals >= thr).sum())
+                print(f"  network.minCoherence -> {thr:.2f}  "
+                      f"(keeps {kept}/{len(coh)} interferograms)")
+            else:
+                # Pixel mask: the network threshold is a per-pair AVERAGE, so
+                # reusing it would mask ~half of every kept pair. Sit below it.
+                px = round(max(0.1, float(thr) * 0.6), 2)
+                setattr(self.config, f, px)
+                print(f"  networkInversion.maskThreshold -> {px:.2f}")
 
     def _validate_cds_token(self, key: str) -> bool:
         """Validate a CDS API token via a lightweight HTTP request (no download)."""
@@ -140,11 +274,56 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
         return (" " + " ".join(override_flags)) if override_flags else ""
 
+    @staticmethod
+    def _plot_result_safe(app, max_attempts: int = 3) -> None:
+        """Call app.plot_result(), retrying past a known matplotlib race.
+
+        MintPy's plot_result() parallelizes per-file plotting via
+        joblib.Parallel over view.py calls that all use pyplot's global,
+        not-thread-safe figure registry -- two calls landing close enough
+        together can both try to claim the same figure number. Pre-3.11
+        matplotlib silently warned and reused the figure; matplotlib >=3.11
+        made that a hard ValueError ("Figure N already exists..."),
+        turning a harmless race into a crash. Since the underlying SBAS
+        numbers (velocity.h5, timeseries.h5, etc.) are already fully
+        computed by this point -- only the pic/ figures are at risk -- a
+        plain retry is cheap and usually succeeds (view.py's own --update
+        flag skips replotting files already written by the failed attempt).
+        """
+        import matplotlib
+
+        for attempt in range(1, max_attempts + 1):
+            try:
+                app.plot_result()
+                return
+            except ValueError as e:
+                msg = str(e)
+                if "already exists" not in msg or "igure" not in msg:
+                    raise  # not the known matplotlib figure-registry race
+                if attempt < max_attempts:
+                    print(
+                        f"{Fore.YELLOW}[WARNING] Plotting hit a known matplotlib "
+                        f"{matplotlib.__version__} bug (parallel figure-number "
+                        f"race, see plt.figure()'s strict num-reuse check added "
+                        f"in matplotlib 3.11) -- retrying ({attempt}/{max_attempts - 1})...{Fore.RESET}"
+                    )
+                else:
+                    print(
+                        f"{Fore.YELLOW}[WARNING] SBAS analysis succeeded, but "
+                        f"plotting failed after {max_attempts} attempts due to a "
+                        f"known matplotlib {matplotlib.__version__} bug ('{msg}'). "
+                        f"All numerical results (velocity.h5, timeseries.h5, etc.) "
+                        f"are complete and valid -- only mintpy_dir/pic/ figures "
+                        f"may be missing/incomplete. Re-run with '--step plot' to "
+                        f"try generating them again, or install matplotlib<3.11 "
+                        f"to eliminate the underlying race entirely.{Fore.RESET}"
+                    )
+
     def _run_via_container(self, steps: list[str] | None = None) -> None:
         """Re-invoke `insarhub analyzer ... run` inside self.config.container.
 
         The container image is expected to have `insarhub` (plus MintPy)
-        installed — mirrors ISCE_Base._reinvoke_via_container's approach for
+        installed — mirrors ISCE2_Base._reinvoke_via_container's approach for
         the processor side.
         """
         from insarhub.utils.container import wrap_container_cmd
@@ -166,15 +345,33 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         must check for this and stop rather than treat it as success.
         """
         from insarhub.utils.tool import Slurmjob_Config
-        from insarhub.processor.isce_base import _merge_sbatch_opts, load_or_init_sbatch_options
+        from insarhub.processor.isce2_base import (
+            _merge_sbatch_opts, _SBATCH_DEFAULT_TEMPLATE, load_or_init_sbatch_options,
+        )
 
         mintpy_dir = self._paths.mintpy_dir
         mintpy_dir.mkdir(parents=True, exist_ok=True)
 
-        per_step = load_or_init_sbatch_options(Path(self.workdir), "17", "SBAS")
+        # This method is shared by ISCE_SBAS/Hyp3_SBAS/GMTSAR_MINTPY_SBAS, but
+        # both the sbatch_options.json step key and a *fresh* file's initial
+        # content follow whichever processor the workdir actually uses (each
+        # subclass's compatible_processor says which). ISCE's own step keys
+        # are stackSentinel's run-file numbers, where SBAS is the 17th and
+        # last step -- a GMTSAR workdir has no such numbering (its stages are
+        # named align/topo/intf/merge), so "17" there would be a meaningless
+        # borrowed label; it uses "sbas" instead.
+        if self.compatible_processor == "GMTSAR_S1":
+            from insarhub.processor.gmtsar_s1 import _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+            default_template = _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+            step_key = "sbas"
+        else:
+            default_template = _SBATCH_DEFAULT_TEMPLATE
+            step_key = "17"
+        per_step = load_or_init_sbatch_options(
+            Path(self.workdir), step_key, "SBAS", default_template=default_template)
         if per_step is None:
             return None
-        opts = _merge_sbatch_opts(per_step, "17")
+        opts = _merge_sbatch_opts(per_step, step_key)
 
         _slurm_fields = {f.name for f in dataclasses.fields(Slurmjob_Config)}
         _skip = {"job_name", "output_file", "error_file", "command",
@@ -312,7 +509,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             # long-running server process permanently cd'd into the last
             # analyzed folder).
             if app.template.get('mintpy.plot') and len(run_steps) > 1:
-                app.plot_result()
+                self._plot_result_safe(app)
         finally:
             app.close()
 
@@ -339,7 +536,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
         try:
             app.open()
-            app.plot_result()
+            self._plot_result_safe(app)
         finally:
             app.close()
 

@@ -11,7 +11,7 @@ Pipeline subcommands
 insarhub downloader -N S1_SLC --AOI -113.05 37.74 -112.68 38.00 --start 2021-01-01 --end 2022-01-01
 insarhub downloader ... --select-pairs --download --orbit-files --worker 8
 insarhub processor -N Hyp3_S1 -w /data/bryce submit --worker 4
-insarhub processor -N ISCE_S1 -w /data/bryce --hpc-mode submit --worker 7
+insarhub processor -N ISCE2_S1 -w /data/bryce --hpc-mode submit --worker 7
 insarhub processor -N Hyp3_S1 -w /data/bryce refresh [-r]
 insarhub processor -N Hyp3_S1 -w /data/bryce download [-r]
 insarhub processor -N Hyp3_S1 -w /data/bryce retry [-r]
@@ -32,6 +32,7 @@ insarhub utils era5-download  -w /data/bryce -o /data/era5
 
 import argparse
 import json
+import logging
 import re
 import sys
 from pathlib import Path
@@ -39,7 +40,7 @@ from pathlib import Path
 from insarhub._version import __version__
 from insarhub.config.paths import Hyp3Paths, StackPaths
 from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP, DOWNLOAD_DEFAULTS as _DL
-from insarhub.core.local_processor_reload import (
+from insarhub.utils.local_processor_reload import (
     _parse_group_key, _read_config_json, _ROLE_CONFIG_STRIP_FIELDS,
     _read_proc_config_from_folder, _find_subfolder_config, _find_jobs_file,
     _jobs_glob, _load_local_processor, _call_if_supported, _SAVED_CFG_SKIP,
@@ -73,6 +74,9 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="Use 'insarhub <command> --help' for details on each command.",
     )
     parser.add_argument("-v", "--version", action="version", version=f"insarhub {__version__}")
+    _VERBOSE_HELP = ("Show per-step progress (INFO). Repeat (--verbose --verbose) "
+                     "for DEBUG. Warnings and errors are always shown.")
+    parser.add_argument("--verbose", action="count", default=0, help=_VERBOSE_HELP)
 
     sub = parser.add_subparsers(dest="command", required=False, metavar="COMMAND")
 
@@ -93,6 +97,7 @@ def create_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    p_search.add_argument("--verbose", action="count", default=0, help=_VERBOSE_HELP)
 
     g_dl = p_search.add_argument_group("downloader")
     g_dl.add_argument(
@@ -177,7 +182,7 @@ def create_parser() -> argparse.ArgumentParser:
     # Usage: insarhub processor -N <ProcessorName> <action> [options]
     #
     # HyP3 processors (online): submit | refresh | download | retry | watch | credits
-    # Local processors (ISCE_S1): submit | refresh | retry | watch
+    # Local processors (ISCE2_S1): submit | refresh | retry | watch
     # ------------------------------------------------------------------ #
     p_proc = sub.add_parser(
         "processor",
@@ -191,7 +196,7 @@ def create_parser() -> argparse.ArgumentParser:
             "  retry            Resubmit failed jobs       [-r to search recursively incl. retry files]\n"
             "  watch            Poll until all jobs complete [-r to search recursively incl. retry files]\n"
             "  credits          Show remaining HyP3 credits\n"
-            "\nLocal processor actions (ISCE_S1):\n"
+            "\nLocal processor actions (ISCE2_S1):\n"
             "  submit           Submit pairs to local ISCE2 processor (runs in background)\n"
             "  refresh          Show current job statuses\n"
             "  retry            Resubmit failed pairs\n"
@@ -201,6 +206,7 @@ def create_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    p_proc.add_argument("--verbose", action="count", default=0, help=_VERBOSE_HELP)
     p_proc.add_argument(
         "-N", "--name", metavar="STR", default="Hyp3_S1", dest="processor_name",
         help="Processor name (default: Hyp3_S1; see --list-processors)",
@@ -242,8 +248,12 @@ def create_parser() -> argparse.ArgumentParser:
     g_sub.add_argument("--name-prefix", metavar="STR", default="ifg",
                        help="Job name prefix (default: ifg)")
     g_sub.add_argument("--worker", metavar="INT", type=int, default=None,
-                       help="Workers: in HPC mode = max concurrent SLURM jobs; "
-                            "otherwise = parallel threads per step (default: 4 / 12)")
+                       help="Parallelism. Sets both axes so you need not know "
+                            "which one a stage uses: concurrent SLURM jobs for "
+                            "a stage that fans out, and threads inside the job "
+                            "for one that cannot (e.g. ISCE3_Burst's ifg is a "
+                            "single process). Override either individually with "
+                            "--max_workers / --max_concurrent_hpc.")
     g_sub.add_argument("--step", metavar="STEP", nargs="+", default=None,
                        help="Local/ISCE processors only: force (re)run only these step(s), "
                             "regardless of saved status. Give the full name "
@@ -336,6 +346,33 @@ def create_parser() -> argparse.ArgumentParser:
              "with no local ISCE2 install, since the processor is constructed "
              "(and ISCE2 discovery attempted) before cancel's own logic runs.")
 
+    # --- run-stage-unit  (internal: one HPC child job's unit of work) --- #
+    p_proc_run_stage_unit = proc_sub.add_parser(
+        "run-stage-unit",
+        help="Internal: run one HPC child job's unit of work (GMTSAR_S1 stack_mode)",
+        description=(
+            "Not meant to be run by hand -- this is what GMTSAR_S1's HPC-mode "
+            "child sbatch jobs invoke to re-enter insarhub and run one stack "
+            "stage's unit of work (align/intf/merge), since GMTSAR_S1 has no "
+            "flat shell-command-list generator the way ISCE2_S1's stackSentinel.py "
+            "run_NN_* files do. See gmtsar_s1.py's run_stage_unit() docstring."
+        ),
+    )
+    p_proc_run_stage_unit.add_argument(
+        "--config", metavar="PATH", nargs="?", const="__default__", default="__default__",
+        help="Path to insarhub_config.json; omit the value to use "
+             "<workdir>/insarhub_config.json (the default)")
+    p_proc_run_stage_unit.add_argument(
+        "--stage", metavar="STAGE", required=True,
+        help="Stack stage name: align / topo / intf / merge")
+    p_proc_run_stage_unit.add_argument(
+        "--subswath", metavar="INT", type=int, default=None,
+        help="Which subswath's align/topo/intf unit to run (multi-subswath "
+             "stacks only; omit for single-subswath)")
+    p_proc_run_stage_unit.add_argument(
+        "--index", metavar="INT", type=int, default=None,
+        help="Pair index within the subswath (intf stage only)")
+
     # ------------------------------------------------------------------ #
     # analyzer — prepare + run MintPy SBAS time-series analysis
     #
@@ -380,6 +417,7 @@ def create_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    p_analyzer.add_argument("--verbose", action="count", default=0, help=_VERBOSE_HELP)
     p_analyzer.add_argument(
         "-N", "--name", metavar="STR", default="Hyp3_SBAS", dest="analyzer_name",
         help="Analyzer name (default: Hyp3_SBAS; see --list-analyzers)",
@@ -460,6 +498,7 @@ def create_parser() -> argparse.ArgumentParser:
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
+    p_utils.add_argument("--verbose", action="count", default=0, help=_VERBOSE_HELP)
     ut_sub = p_utils.add_subparsers(dest="ut_action", required=False, metavar="TOOL")
 
     # --- clip ---------------------------------------------------------- #
@@ -579,7 +618,24 @@ def create_parser() -> argparse.ArgumentParser:
 # ---------------------------------------------------------------------------
 
 def _resolve_workdir(raw: str | None) -> Path:
-    return Path(raw).expanduser().resolve() if raw else Path.cwd()
+    """Resolve -w, failing loudly when it does not exist.
+
+    A relative -w is resolved against the CURRENT directory, so running
+    `-w p56` from inside p56 silently yields p56/p56. Without this check the
+    first thing to notice was whatever the command needed next -- typically
+    "No pairs file found under current workdir .../p56/p56", which blames a
+    missing pairs file for what is really a mistyped path.
+    """
+    if not raw:
+        return Path.cwd()
+    p = Path(raw).expanduser().resolve()
+    if not p.exists():
+        print(f"[ERROR] workdir does not exist: {p}", file=sys.stderr)
+        if Path(raw).name == Path.cwd().name:
+            print(f"        You may already be inside it -- use '-w .' "
+                  f"or run from {Path.cwd().parent}", file=sys.stderr)
+        sys.exit(1)
+    return p
 
 
 def _find_job_files(job_dir: Path, override: str | None = None,
@@ -712,6 +768,7 @@ def _unwrap_optional(annotation):
 
 
 
+
 def _field_argparse_kwargs(annotation, default) -> dict:
     """Return kwargs for ArgumentParser.add_argument() inferred from a type annotation."""
     import typing
@@ -721,7 +778,15 @@ def _field_argparse_kwargs(annotation, default) -> dict:
     origin = typing.get_origin(base)
 
     if base is bool:
-        return {"action": "store_true", "default": bool(default) if default is not None else False}
+        # Pure boolean trigger: the flag never consumes a following token, so
+        # `--hpc-mode run` (flag before the ACTION subcommand) sets True and
+        # leaves `run` as the action. The old nargs="?" form greedily ate
+        # `run` and died with "expected a boolean, got 'run'". Config files
+        # and the frontend pass booleans as JSON, and _serialize_config_overrides
+        # only re-emits bare flags for True, so the explicit `--flag false`
+        # value form has no caller here.
+        return {"action": "store_true",
+                "default": bool(default) if default is not None else False}
 
     if origin is list:
         inner_args = typing.get_args(base)
@@ -757,12 +822,27 @@ _SUBMIT_SKIP_FIELDS = {
 # from insarhub_config.json — pass again each invocation, like --dry-run.
 _RUNTIME_ONLY_FIELDS = {"container"}
 # _SAVED_CFG_SKIP / _ROLE_CONFIG_STRIP_FIELDS / _read_config_json now live in
-# core/local_processor_reload.py (shared with app/routes/processor.py) --
+# utils/local_processor_reload.py (shared with app/routes/processor.py) --
 # imported below.
 
 # Fields handled by static flags or internal state in cmd_analyzer
 _ANALYZER_SKIP_FIELDS = {"name", "workdir", "debug"}
 
+# str fields whose value is really "LAT LON" (two numbers) rather than one
+# opaque token -- accept two space-separated CLI args instead of requiring
+# the caller to quote them into one shell argument (e.g. --reference_lalo
+# 37.84 -112.82, not just --reference_lalo "37.84 -112.82" -- both work).
+# Re-joined with a space in _apply_config_overrides() before being stored,
+# since the rest of the codebase (MintPy config generation, GUI text field)
+# still expects the field as a single "LAT LON" string, unchanged.
+_LATLON_FIELDS = {"reference_lalo"}
+
+# str/int|str fields holding an ISCE-style space-separated list of a
+# *variable* number of values (unlike _LATLON_FIELDS' fixed count of 2) --
+# same footgun, same fix: accept space-separated CLI tokens unquoted and
+# rejoin them, instead of silently dropping everything after the first
+# token (default "1 2 3" means e.g. --subswath 1 2 3 unquoted).
+_SPACE_JOINED_FIELDS = {"subswath", "swath_num"}
 
 _NEG_NUMBER_RE = re.compile(r'^-\d[\d.eE+\-]*$')
 
@@ -802,6 +882,21 @@ def _build_config_parser(config_cls, skip_fields: set | None = None) -> argparse
         flag_hyphen = "--" + field.name.replace("_", "-")
         flag_under  = "--" + field.name
         kwargs = _field_argparse_kwargs(annotation, None)
+        if field.name in _LATLON_FIELDS:
+            # nargs=2 would reject a quoted single "LAT LON" token (argparse
+            # applies type= per-token, and float("37.8 -112.8") raises) --
+            # accept 1+ raw string tokens instead and sort out unquoted vs.
+            # quoted (and validate the count/parseability) in
+            # _apply_config_overrides, so both forms work:
+            #   --reference_lalo 37.84 -112.82
+            #   --reference_lalo "37.84 -112.82"
+            kwargs["nargs"] = "+"
+            kwargs["type"] = str
+            kwargs["metavar"] = "LAT_LON"
+        elif field.name in _SPACE_JOINED_FIELDS:
+            kwargs["nargs"] = "+"
+            kwargs["type"] = str
+            kwargs["metavar"] = "VALUE"
         kwargs["default"] = _UNSET  # distinguish "not provided" from any real value
         kwargs["help"] = argparse.SUPPRESS  # hidden; shown only via --list-options
         try:
@@ -842,6 +937,27 @@ def _apply_config_overrides(overrides: dict, config_cls, extra_args: list[str],
     for f in dataclasses.fields(config_cls):
         val = getattr(config_ns, f.name, unset)
         if val is not unset and val is not None:
+            if f.name in _LATLON_FIELDS and isinstance(val, list):
+                # 1 token: already one quoted "LAT LON" string, used as-is.
+                # 2+ tokens: unquoted "LAT LON" split by the shell, rejoin.
+                joined = val[0] if len(val) == 1 else " ".join(val)
+                parts = joined.split()
+                flag = "--" + f.name.replace("_", "-")
+                if len(parts) != 2:
+                    print(f"[ERROR] {flag} expects LAT LON (two numbers), got: {joined!r}",
+                          file=sys.stderr)
+                    sys.exit(1)
+                try:
+                    float(parts[0]), float(parts[1])
+                except ValueError:
+                    print(f"[ERROR] {flag} expects two numbers (LAT LON), got: {joined!r}",
+                          file=sys.stderr)
+                    sys.exit(1)
+                val = joined
+            elif f.name in _SPACE_JOINED_FIELDS and isinstance(val, list):
+                # Any count is valid here (unlike _LATLON_FIELDS' exactly 2)
+                # -- e.g. --subswath 1, --subswath 1 2, --subswath 1 2 3.
+                val = val[0] if len(val) == 1 else " ".join(val)
             overrides[f.name] = val
 
 
@@ -1407,7 +1523,7 @@ def cmd_processor(args, extra_args: list[str]):
         # else: no action → help shown by main()
 
     elif is_local:
-        _LOCAL_ACTIONS = {"submit", "refresh", "retry", "watch", "cancel"}
+        _LOCAL_ACTIONS = {"submit", "refresh", "retry", "watch", "cancel", "run-stage-unit"}
         if action == "submit":
             _proc_local_submit(args, extra_args)
         elif action == "refresh":
@@ -1418,6 +1534,8 @@ def cmd_processor(args, extra_args: list[str]):
             _proc_local_cancel(args)
         elif action == "watch":
             _proc_local_watch(args)
+        elif action == "run-stage-unit":
+            _proc_run_stage_unit(args)
         # else: no action → help shown by main()
 
     else:
@@ -1489,6 +1607,9 @@ def _proc_submit(args, extra_args: list[str]):
         _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool", "workdir", "pairs"}
         _preview_overrides = {k: v for k, v in overrides.items()
                               if k not in _SUBMIT_SKIP_FIELDS | {"name", "config"}}
+        # Carry dry_run into the preview processor so its __init__ knows not to
+        # stamp the folder (Hyp3Base writes a workflow marker on construction).
+        _preview_overrides["dry_run"] = True
 
         def _is_process_dir(d: Path) -> bool:
             return (d / "insarhub_config.json").exists() or (d / "downloader_config.json").exists()
@@ -1500,9 +1621,14 @@ def _proc_submit(args, extra_args: list[str]):
                 proc_cfg = {f.name: getattr(_preview_proc.config, f.name)
                             for f in dataclasses.fields(_preview_proc.config)
                             if f.name not in _skip_write}
-                write_insarhub_config(d, {"processor": {"type": processor_name, "config": proc_cfg}})
+                # Report only. This used to WRITE the resolved config into every
+                # process dir, which made --dry-run permanently reconfigure a
+                # stack: any flag being trialled was persisted, and every later
+                # run inherited it. Resolving and showing the config is the
+                # useful half; committing it is what submit() is for.
                 print(f"[dry-run] {d}")
-                print(f"[dry-run]   wrote  insarhub_config.json  processor={processor_name}")
+                print(f"[dry-run]   would write insarhub_config.json  "
+                      f"processor={processor_name}  ({len(proc_cfg)} field(s))")
             except Exception as e:
                 print(f"[dry-run] Could not update {d}: {e}", file=sys.stderr)
 
@@ -1554,14 +1680,22 @@ def _proc_submit(args, extra_args: list[str]):
                            if k not in ("name", "config")}
         group_overrides.update({"workdir": job_dir, "pairs": group_pairs,
                                  "name_prefix": group_prefix})
+        # Hyp3Base stamps the folder from __init__, so the flag has to reach
+        # the processor being constructed -- not just this function's local
+        # `dry_run` -- or building it writes insarhub_config.json.
+        group_overrides["dry_run"] = dry_run
         processor = Processor.create(processor_name, **group_overrides)
-        # Write full resolved config into insarhub_config.json (consistent with GUI)
-        _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool", "workdir", "pairs"}
-        from insarhub.utils.config_io import write_insarhub_config as _wic
-        _wic(job_dir, {"processor": {"type": processor_name,
-                                     "config": {f.name: getattr(processor.config, f.name)
-                                                for f in dataclasses.fields(processor.config)
-                                                if f.name not in _skip_write}}})
+        # Write full resolved config into insarhub_config.json (consistent with
+        # GUI) -- but NOT on a dry run, which previously fell through to here
+        # and wrote one per job dir before deciding it had nothing to submit.
+        if not dry_run:
+            _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool",
+                                                 "workdir", "pairs"}
+            from insarhub.utils.config_io import write_insarhub_config as _wic
+            _wic(job_dir, {"processor": {"type": processor_name,
+                                         "config": {f.name: getattr(processor.config, f.name)
+                                                    for f in dataclasses.fields(processor.config)
+                                                    if f.name not in _skip_write}}})
         if dry_run:
             print(f"\n{tag}Would submit {len(group_pairs)} pairs → {job_dir}")
             print(f"{tag}  name_prefix : {group_prefix}")
@@ -1746,7 +1880,7 @@ def _proc_local_submit(args, extra_args: list[str]):
     from insarhub import Processor
     from insarhub.utils.config_io import write_insarhub_config as _wic
 
-    processor_name = getattr(args, "processor_name", "ISCE_S1")
+    processor_name = getattr(args, "processor_name", "ISCE2_S1")
     processor_cls  = Processor._registry[processor_name]
     workdir        = _resolve_workdir(args.workdir)
 
@@ -1782,11 +1916,40 @@ def _proc_local_submit(args, extra_args: list[str]):
 
     overrides["workdir"] = str(workdir)
 
-    # --worker routes to max_concurrent_hpc in HPC mode, max_workers otherwise
+    # --worker is the single parallelism knob and sets BOTH axes, because which
+    # one governs a given stage is an implementation detail the user should not
+    # have to track. A stage that fans out becomes N concurrent SLURM jobs; a
+    # stage that cannot (ISCE3_Burst's ifg is one process -- phase linking needs
+    # the whole covariance) instead runs N threads inside its single job.
+    #
+    # Previously --worker set only max_concurrent_hpc under --hpc-mode, so for a
+    # single-job stage it did nothing at all: `--worker 16` left max_workers at
+    # its saved value (3) while SLURM reserved whatever cpus_per_task said, and
+    # the cores sat idle with no indication why. There was no CLI route to
+    # max_workers in HPC mode at all -- it had to be hand-edited into the
+    # config file.
+    #
+    # An explicit --max_workers / --max_concurrent_hpc still wins. It has to be
+    # detected from the raw args, not from `overrides`: that dict is already
+    # seeded from the saved config, so both keys are normally present and
+    # nothing there distinguishes "the user typed it" from "it was loaded".
     if getattr(args, "worker", None) is not None:
+        def _typed(field: str) -> bool:
+            flags = (f"--{field}", "--" + field.replace("_", "-"))
+            return any(a == f or a.startswith(f + "=")
+                       for a in (extra_args or []) for f in flags)
+
         if overrides.get("hpc_mode", False):
-            overrides["max_concurrent_hpc"] = args.worker
-        else:
+            # HPC: --worker is CONCURRENT JOBS only. Threads inside each child
+            # are derived per stage from that stage's cpus_per_task in
+            # sbatch_options.json (see _submit_hpc), because a single global
+            # max_workers cannot match stages that reserve different amounts --
+            # 2 for stitch/filt, 4 for unwrap, 8 for ifg. Setting it here would
+            # be wrong for all but one of them.
+            if not _typed("max_concurrent_hpc"):
+                overrides["max_concurrent_hpc"] = args.worker
+        elif not _typed("max_workers"):
+            # Local: there are no jobs, so --worker is the thread count.
             overrides["max_workers"] = args.worker
 
     # --dry-run is registered in the HyP3 submit subparser so argparse consumes
@@ -1797,7 +1960,7 @@ def _proc_local_submit(args, extra_args: list[str]):
     # ── Load pairs (same helpers as Hyp3) ──────────────────────────────────
     pairs_data = _load_pairs(args, workdir)
     raw_pairs  = pairs_data if isinstance(pairs_data, list) else next(iter(pairs_data.values()), [])
-    # Preserve full arity -- ISCE_S1/Hyp3_S1 use 2-tuples (ref, sec), but
+    # Preserve full arity -- ISCE2_S1/Hyp3_S1 use 2-tuples (ref, sec), but
     # GMTSAR_S1 requires 4-tuples (ref_safe, ref_eof, sec_safe, sec_eof).
     # Used to hardcode (p[0], p[1]), silently truncating GMTSAR_S1 pairs.
     pairs      = [tuple(str(x) for x in p) for p in raw_pairs]
@@ -1818,8 +1981,18 @@ def _proc_local_submit(args, extra_args: list[str]):
 
     # ── Auto-load sbatch_options.json if hpc_mode ─────────────────────────────
     if overrides.get("hpc_mode"):
-        from insarhub.processor.isce_base import load_or_init_sbatch_options
-        per_step = load_or_init_sbatch_options(workdir)
+        from insarhub.processor.isce2_base import load_or_init_sbatch_options
+        # Each processor's stage set is its own: ISCE2 numbers steps 01..17,
+        # GMTSAR uses align/topo/intf/merge, ISCE3_Burst uses dem..unwrap.
+        # Falling through to ISCE2's template for anything unrecognised wrote a
+        # file full of numbered entries that never match a real stage, so every
+        # stage silently fell back to "default" resources.
+        tmpl = getattr(processor_cls, "SBATCH_DEFAULT_TEMPLATE", None)
+        if not tmpl and processor_name == "GMTSAR_S1":
+            from insarhub.processor.gmtsar_s1 import _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+            tmpl = _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+        per_step = (load_or_init_sbatch_options(workdir, default_template=tmpl)
+                    if tmpl else load_or_init_sbatch_options(workdir))
         if per_step is None:
             print(
                 f"  Then rerun:\n\n"
@@ -1838,11 +2011,23 @@ def _proc_local_submit(args, extra_args: list[str]):
     # ── Persist resolved config to insarhub_config.json (mirrors Hyp3) ────
     # sbatch_options_per_step is excluded: sbatch_options.json is the source of truth
     # container is excluded: runtime-only flag, see _RUNTIME_ONLY_FIELDS
-    _skip_write = _SUBMIT_SKIP_FIELDS | {"workdir", "sbatch_options_per_step"} | _RUNTIME_ONLY_FIELDS
-    _wic(workdir, {"processor": {"type": processor_name,
-                                 "config": {f.name: getattr(cfg, f.name)
-                                            for f in dataclasses.fields(cfg)
-                                            if f.name not in _skip_write}}})
+    #
+    # NOT under --dry-run. This write happens before submit(), so a dry run was
+    # permanently rewriting the folder's saved config even though it submitted
+    # nothing -- every LATER run then inherited whatever the dry run was
+    # exploring. That is exactly how a `--process-full-extent` flag test left
+    # process_full_extent=true in a stack's config, silently switching the
+    # processing extent from the user's AOI to the full burst footprint for
+    # every subsequent run. A dry run must be inspectable without side effects.
+    if getattr(cfg, "dry_run", False):
+        print("[INFO] dry run: leaving insarhub_config.json unchanged")
+    else:
+        _skip_write = (_SUBMIT_SKIP_FIELDS | {"workdir", "sbatch_options_per_step"}
+                       | _RUNTIME_ONLY_FIELDS)
+        _wic(workdir, {"processor": {"type": processor_name,
+                                     "config": {f.name: getattr(cfg, f.name)
+                                                for f in dataclasses.fields(cfg)
+                                                if f.name not in _skip_write}}})
 
     submit_kwargs = {}
     if getattr(args, "step", None):
@@ -1851,12 +2036,12 @@ def _proc_local_submit(args, extra_args: list[str]):
 
 
 def _proc_local_refresh(args):
-    processor_name = getattr(args, "processor_name", "ISCE_S1")
+    processor_name = getattr(args, "processor_name", "ISCE2_S1")
     workdir        = _resolve_workdir(args.workdir)
     jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
     jobs_path      = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
-        print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
+        print(f"[ERROR] No {jobs_pattern} found in {workdir}. Run submit first.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
     container = getattr(args, "container", None)
@@ -1866,12 +2051,12 @@ def _proc_local_refresh(args):
 
 
 def _proc_local_retry(args):
-    processor_name = getattr(args, "processor_name", "ISCE_S1")
+    processor_name = getattr(args, "processor_name", "ISCE2_S1")
     workdir        = _resolve_workdir(args.workdir)
     jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
     jobs_path      = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
-        print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
+        print(f"[ERROR] No {jobs_pattern} found in {workdir}. Run submit first.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
     dry_run  = getattr(args, "dry_run", False)
@@ -1882,12 +2067,12 @@ def _proc_local_retry(args):
 
 
 def _proc_local_cancel(args):
-    processor_name = getattr(args, "processor_name", "ISCE_S1")
+    processor_name = getattr(args, "processor_name", "ISCE2_S1")
     workdir        = _resolve_workdir(args.workdir)
     jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
     jobs_path      = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
-        print("[ERROR] No isce_jobs.json found. Nothing to cancel.", file=sys.stderr)
+        print(f"[ERROR] No {jobs_pattern} found in {workdir}. Nothing to cancel.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
     container = getattr(args, "container", None)
@@ -1899,21 +2084,96 @@ def _proc_local_cancel(args):
     processor.cancel()
 
 
+def _proc_run_stage_unit(args):
+    """Internal action: one HPC child job's unit of work (GMTSAR_S1
+    stack_mode). Not meant to be run by hand -- see this parser's --help
+    description and gmtsar_s1.py's run_stage_unit() docstring for why this
+    exists (GMTSAR_S1 has no flat shell-command-list generator the way
+    ISCE2_S1's stackSentinel.py run_NN_* files do, so each HPC child job
+    re-enters `insarhub` itself to call one already-implemented per-unit
+    method instead of a raw shell command line)."""
+    import dataclasses
+    from insarhub import Processor
+
+    processor_name = getattr(args, "processor_name", "GMTSAR_S1")
+    processor_cls  = Processor._registry[processor_name]
+    workdir        = _resolve_workdir(args.workdir)
+
+    saved_cfg = _read_proc_config_from_folder(workdir)
+    if not saved_cfg:
+        print(f"[ERROR] No insarhub_config.json found in {workdir}", file=sys.stderr)
+        sys.exit(1)
+
+    config_cls = getattr(processor_cls, "default_config", None)
+    overrides: dict = {k: v for k, v in saved_cfg.items() if k not in _SAVED_CFG_SKIP}
+    overrides["workdir"] = str(workdir)
+    if overrides.get("hpc_mode"):
+        # The sbatch template is the processor's own -- GMTSAR and ISCE3_Burst
+        # have completely different stage sets, and writing one's template into
+        # the other's workdir would fill sbatch_options.json with entries that
+        # never match a real stage.
+        from insarhub.processor.isce2_base import load_or_init_sbatch_options
+        tmpl = getattr(processor_cls, "SBATCH_DEFAULT_TEMPLATE", None)
+        if not tmpl:
+            from insarhub.processor.gmtsar_s1 import _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+            tmpl = _GMTSAR_SBATCH_DEFAULT_TEMPLATE
+        overrides["sbatch_options_per_step"] = load_or_init_sbatch_options(
+            workdir, default_template=tmpl) or {}
+
+    pairs_data = _load_pairs(args, workdir)
+    raw_pairs  = pairs_data if isinstance(pairs_data, list) else next(iter(pairs_data.values()), [])
+    pairs      = [tuple(str(x) for x in p) for p in raw_pairs]
+    if processor_name == "GMTSAR_S1" and pairs and len(pairs[0]) == 2:
+        from insarhub.processor.gmtsar_s1 import pairs_from_downloader
+        slc_dir_val   = overrides.get("slc_dir") or str(workdir)
+        orbit_dir_val = overrides.get("orbit_dir") or slc_dir_val
+        pairs = pairs_from_downloader(pairs, slc_dir=slc_dir_val, orbit_dir=orbit_dir_val)
+    if not pairs:
+        print("[ERROR] No pairs found.", file=sys.stderr)
+        sys.exit(1)
+
+    valid_keys  = {f.name for f in dataclasses.fields(config_cls)} if config_cls else set()
+    init_kwargs = {k: v for k, v in overrides.items() if k in valid_keys}
+    cfg         = config_cls(**init_kwargs)
+    processor   = processor_cls(pairs=pairs, config=cfg)
+
+    if not hasattr(processor, "run_stage_unit"):
+        print(f"[ERROR] '{processor_name}' does not support run-stage-unit.", file=sys.stderr)
+        sys.exit(1)
+    try:
+        # GMTSAR_S1 takes (stage, index, subswath); ISCE3_Burst has no
+        # subswath concept and takes (stage, index). Pass only what the
+        # processor's own signature accepts rather than assuming one shape.
+        import inspect as _inspect
+        _params = _inspect.signature(processor.run_stage_unit).parameters
+        if "subswath" in _params:
+            ok = processor.run_stage_unit(args.stage, args.index, args.subswath)
+        else:
+            ok = processor.run_stage_unit(args.stage, args.index)
+    except Exception as e:
+        print(f"[ERROR] run-stage-unit failed (stage={args.stage!r} subswath={args.subswath!r} "
+              f"index={args.index!r}): {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+    sys.exit(0 if ok else 1)
+
+
 def _proc_local_watch(args):
-    processor_name   = getattr(args, "processor_name", "ISCE_S1")
+    processor_name   = getattr(args, "processor_name", "ISCE2_S1")
     workdir          = _resolve_workdir(args.workdir)
     refresh_interval = getattr(args, "interval", 60)
     jobs_pattern, jobs_subdir = _jobs_glob(processor_name)
     jobs_path        = _find_jobs_file(workdir, pattern=jobs_pattern, subdir=jobs_subdir)
     if jobs_path is None:
-        print("[ERROR] No isce_jobs.json found. Run submit first.", file=sys.stderr)
+        print(f"[ERROR] No {jobs_pattern} found in {workdir}. Run submit first.", file=sys.stderr)
         sys.exit(1)
 
     hpc_mode = getattr(args, "hpc_mode", False)
     container = getattr(args, "container", None)
     processor = _load_local_processor(processor_name, workdir, jobs_path,
                                       hpc_mode=hpc_mode, container=container)
-    # refresh_interval (ISCE_Base) vs poll_interval (GMTSAR_S1) -- pass both
+    # refresh_interval (ISCE2_Base) vs poll_interval (GMTSAR_S1) -- pass both
     # spellings, _call_if_supported keeps only the one the method actually has.
     _call_if_supported(processor.watch, refresh_interval=refresh_interval,
                        poll_interval=refresh_interval)
@@ -2201,6 +2461,25 @@ _HANDLERS = {
 def main():
     parser = create_parser()
     args, extra_args = parser.parse_known_args()
+
+    # Nothing in the library installs a logging handler, so until this was
+    # added every logger.info/warning/error was dropped silently -- Python's
+    # last-resort handler only passes WARNING and above, and insarhub/__init__
+    # additionally called logging.disable(CRITICAL), which killed even those.
+    # That made whole commands look like no-ops (`cancel` scancelled every job
+    # and printed nothing at all).
+    #
+    # WARNING is the default level, not INFO: warnings and errors are what was
+    # genuinely being lost, while INFO is per-step progress chatter that turns
+    # ordinary output into a wall of "[INFO] [ 0%] ..." lines. --verbose opts
+    # into it, -vv into DEBUG. basicConfig is a no-op when a handler already
+    # exists, so an embedding application's own setup still wins; the root
+    # stays at WARNING regardless so third-party libraries (matplotlib,
+    # botocore, asyncio, ...) never flood the terminal.
+    logging.basicConfig(level=logging.WARNING, format="[%(levelname)s] %(message)s")
+    _v = getattr(args, "verbose", 0) or 0
+    logging.getLogger("insarhub").setLevel(
+        logging.DEBUG if _v >= 2 else logging.INFO if _v == 1 else logging.WARNING)
 
     if not args.command:
         parser.print_help()

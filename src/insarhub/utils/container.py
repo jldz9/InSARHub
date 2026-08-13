@@ -53,7 +53,7 @@ def wrap_container_cmd(
     # WSL2) since those run containers inside Docker Desktop's own VM, sharing
     # a PID namespace with *that* VM rather than the user's real host shell --
     # so a PID recorded inside the container would still be unrelated to
-    # anything in the host's own process table. See isce_base.py's
+    # anything in the host's own process table. See isce2_base.py's
     # INSARHUB_HOST_PID (in _reinvoke_via_container/_step_executor) for how
     # container-run step liveness is actually tracked instead.
     return (

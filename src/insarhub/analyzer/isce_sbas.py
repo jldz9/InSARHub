@@ -5,7 +5,7 @@ ISCE_SBAS — MintPy SBAS analyzer for ISCE2 stackSentinel outputs.
 prep_data() auto-discovers outputs from isce/ and wires MintPy load paths.
 run() writes all MintPy results to workdir/mintpy/.
 
-Expected layout (produced by ISCE_S1 / stackSentinel):
+Expected layout (produced by ISCE2_S1 / stackSentinel):
 
     p{path}_f{frame}/
       isce/
@@ -52,7 +52,7 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
 
     name                 = "ISCE_SBAS"
     description          = "SBAS time-series analysis of ISCE2 stackSentinel outputs using MintPy."
-    compatible_processor = "ISCE_S1"
+    compatible_processor = "ISCE2_S1"
     default_config       = ISCE_SBAS_Config
     # own output dir (workdir/isce_mintpy/) -- separate from other MintPy
     # analyzers on the same workdir; layout via MintPyPaths (config/paths.py)
@@ -73,14 +73,14 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
         if not self.isce_dir.exists():
             raise FileNotFoundError(
                 f"ISCE processing directory not found: {self.isce_dir}. "
-                "Run ISCE_S1 and wait for all steps to complete."
+                "Run ISCE2_S1 and wait for all steps to complete."
             )
         ifg_dir = self.isce_dir / "merged" / "interferograms"
         pairs = sorted(d for d in ifg_dir.iterdir() if d.is_dir()) if ifg_dir.exists() else []
         if not pairs:
             raise FileNotFoundError(
                 f"No interferogram directories in {ifg_dir}. "
-                "ISCE_S1 processing must reach the interferogram stage first."
+                "ISCE2_S1 processing must reach the interferogram stage first."
             )
         print(f"{Fore.CYAN}Found {len(pairs)} interferogram pair(s). "
               f"Configuring MintPy load paths…{Fore.RESET}")
@@ -119,7 +119,7 @@ class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
             # long-running server process permanently cd'd into the last
             # analyzed folder).
             if app.template.get('mintpy.plot') and len(run_steps) > 1:
-                app.plot_result()
+                self._plot_result_safe(app)
         finally:
             app.close()
 

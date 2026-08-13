@@ -63,6 +63,49 @@ Single-stack layout — when only one track/frame is found, all files are writte
         └── timeseries*.h5, velocity.h5, ...
     ```
 
+=== "GMTSAR_S1"
+
+    ```
+    workdir/
+    ├── insarhub_config.json
+    ├── stack_p0_f0.json
+    ├── network_p0_f0.png
+    ├── slc/                            # downloaded SLC .SAFE files and orbit .EOF files
+    ├── topo/                           # GMTSAR-format DEM (dem.grd)
+    └── gmtsar/                         # GMTSAR case directory
+        ├── gmtsar_jobs.json            # saved job state (per-pair)
+        ├── baseline_table.dat
+        ├── raw/                        # unpacked SLCs + PRM/LED/SLC per scene
+        ├── <ref>.SAFE_<sec>.SAFE/      # per-pair case dir (multi-subswath)
+        │   └── merge/                  #   merged geocoded product (phasefilt_ll.grd, corr_ll.grd)
+        └── intf/<julian_pair>/         # single-subswath output (GMTSAR Julian naming)
+    ```
+
+    Analyzer outputs (either, or both in the same workdir):
+
+    | analyzer | output dir | contents |
+    |---|---|---|
+    | `GMTSAR_MINTPY_SBAS` | `gmtsar_mintpy/` | MintPy `smallbaselineApp` outputs (`timeseries*.h5`, `velocity.h5`, …) |
+    | `GMTSAR_SBAS` | `gmtsar_sbas/` | `disp_*.grd` per date, `vel.grd` linear velocity |
+
+=== "ISCE3_Burst"
+
+    ```
+    workdir/
+    ├── insarhub_config.json
+    ├── stack_p56_merged_*.json         # pairs (burst-based, keyed by fullBurstID)
+    ├── slc/                            # assembled .SAFE dirs (via burst2safe)
+    ├── s1-burst-db/                    # cached OPERA burst bbox sqlite3
+    ├── dem/                            # Copernicus DEM + water mask
+    ├── tec/                            # IONEX maps (one per acquisition date)
+    ├── cslc/                           # geocoded CSLC per burst-date (COMPASS)
+    ├── ifgrams/                        # interferograms (dolphin)
+    ├── stitched/                       # per-pair merged bursts
+    ├── timeseries/                     # dolphin timeseries output (Dolphin_SBAS)
+    ├── isce3_burst_jobs.json           # saved job state (per stage)
+    └── .stage_status/                  # per-stage .succeeded/.failed markers
+    ```
+
 **Multi-stack run** — when the search covers more than one track/frame, each group gets its own `p{path}_f{frame}/` subfolder. Each subfolder contains exactly the same file structure as the relevant single-stack layout above; nothing is written to the top-level workdir.
 
 ```
@@ -135,6 +178,14 @@ Produced by `insarhub processor submit` or GUI **Process**.
 | `hyp3_jobs.json` | HyP3 job IDs grouped by account |
 | `hyp3_retry_jobs_{timestamp}.json` | Job IDs for a retry batch (written on each **Retry**) |
 | `.insarhub_cache.json` | Updated after each **Check** with succeeded filenames and output directory |
+
+Local processors write their own job file instead of `hyp3_jobs.json`:
+
+| Processor | Job file |
+|-----------|----------|
+| `ISCE2_S1` | `isce/isce_jobs_{timestamp}.json` |
+| `GMTSAR_S1` | `gmtsar/gmtsar_jobs.json` |
+| `ISCE3_Burst` | `isce3_burst_jobs.json` |
 
 ### Stage 3 — Analysis
 

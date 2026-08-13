@@ -32,7 +32,7 @@
 #   - Time: real ISCE2 stackSentinel processing of 27 pairs on a single
 #     (non-HPC) machine can take many hours to multiple days. Pass
 #     --hpc-mode (after configuring sbatch_options.json — see
-#     `insarhub processor -N ISCE_S1 --hpc-mode -w <workdir> submit` docs)
+#     `insarhub processor -N ISCE2_S1 --hpc-mode -w <workdir> submit` docs)
 #     if a SLURM cluster is available instead.
 #   - (optional) ~/.cdsapirc — see cli_e2e_hyp3_mintpy.sh for why.
 #
@@ -42,7 +42,7 @@
 #   bash test/e2e/cli_e2e_isce_mintpy.sh [workdir]
 #
 # Safe to re-run: SLC download skips files that already exist and match the
-# expected size; ISCE_S1.submit() skips any run-file step already marked
+# expected size; ISCE2_S1.submit() skips any run-file step already marked
 # SUCCEEDED (skip_existing, on by default) — so re-running this script after
 # a partial/interrupted run resumes rather than restarting from scratch.
 
@@ -77,15 +77,15 @@ fi
 echo "== Stage 1/4: Download real Sentinel-1 SLC scenes ============================"
 insarhub downloader -N S1_SLC -w "$WORKDIR" --config -d -O --worker 8
 
-echo "== Stage 2/4: Submit real ISCE_S1 processing (runs detached in background) ===="
-insarhub processor -N ISCE_S1 -w "$WORKDIR" submit
+echo "== Stage 2/4: Submit real ISCE2_S1 processing (runs detached in background) ===="
+insarhub processor -N ISCE2_S1 -w "$WORKDIR" submit
 
 echo "== Stage 3/4: Watch real ISCE2 processing to completion ======================"
 # Polls run-file .status files until every step is SUCCEEDED/FAILED. This can
 # run for hours; safe to Ctrl+C and re-run this script later — submit()
 # resumes from the last completed step, watch() just re-attaches to the
 # on-disk state.
-insarhub processor -N ISCE_S1 -w "$WORKDIR" watch
+insarhub processor -N ISCE2_S1 -w "$WORKDIR" watch
 
 echo "== Stage 4/4: ISCE_SBAS prep_data + real MintPy run ==========================="
 insarhub analyzer -N ISCE_SBAS -w "$WORKDIR" run --step prep_data

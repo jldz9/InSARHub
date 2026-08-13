@@ -183,13 +183,16 @@ def _get_season(month: int, lat: float = 90.0) -> str:
 
 
 def _normalize_date(s: str) -> str:
-    """Return YYYYMMDD string from any of three input formats:
+    """Return YYYYMMDD string from any of four input formats:
       - ``'YYYYMMDD'``       — used as-is
       - ``'YYYY-MM-DD...'``  — dashes stripped
       - Sentinel-1 scene name (len > 25) — date extracted from chars 17–24
+      - SLC-BURST granule name (``S1_118971_IW2_YYYYMMDDTHHMMSS_...``)
     """
-    if len(s) > 25:          # full scene name: S1A_IW_SLC__1SDV_YYYYMMDD...
-        return s[17:25]
+    from insarhub.utils.pair_quality._dates import scene_date_compact
+    d = scene_date_compact(s)
+    if d:
+        return d
     return s.replace("-", "")[:8]
 
 

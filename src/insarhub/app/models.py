@@ -38,23 +38,32 @@ class DownloadSceneRequest(BaseModel):
 class AddJobRequest(BaseModel):
     workdir:         str
     relativeOrbit:   int
-    frame:           int
+    frame:           int | None = None
     start:           str
     end:             str
     wkt:             str | None = None
     flightDirection: str | None = None
     platform:        str | None = None
     downloaderType:  str = "S1_SLC"
+    # Burst-only (S1_Burst): identify a single burst position. frame is
+    # meaningless for bursts (ASF returns no frameNumber), so the folder is
+    # named p<path>_iw<s>_b<id> from subswath + the OPERA relative burst ID.
+    subswath: str | None = None
+    burst_id: int | None = None
 
 
 class MergedStackSpec(BaseModel):
     relativeOrbit:   int
-    frame:           int
+    frame:           int | None = None
     start:           str
     end:             str
     wkt:             str | None = None
     flightDirection: str | None = None
     platform:        str | None = None
+    # Burst-only: identify a single burst position when the merged selection
+    # contains exactly one burst (see AddJobRequest).
+    subswath: str | None = None
+    burst_id: int | None = None
 
 
 class DownloadMergedRequest(BaseModel):
@@ -84,7 +93,6 @@ class JobStatus(BaseModel):
 
 class SettingsUpdate(BaseModel):
     workdir:              str | None             = None
-    max_download_workers: int | None             = None
     downloader:           str | None             = None
     downloader_config:    dict[str, Any] | None  = None
     processor:            str | None             = None
@@ -155,7 +163,7 @@ class LocalActionRequest(BaseModel):
     folder_path:    str
     job_file:       str
     action:         str   # "refresh" | "retry" | "cancel" | "force_steps"
-    processor_type: str = "ISCE_S1"
+    processor_type: str = "ISCE2_S1"
     steps:          list[str] | None = None  # required for action == "force_steps"
 
 

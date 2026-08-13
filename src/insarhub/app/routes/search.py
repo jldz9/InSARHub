@@ -4,6 +4,7 @@
 import asyncio
 import base64
 import dataclasses
+import logging
 import os
 import tempfile
 import threading as _threading
@@ -24,23 +25,180 @@ from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.config.paths import StackPaths
 from insarhub.core.registry import Downloader
+from insarhub.downloader.s1_burst import S1_Burst
 
 router = APIRouter()
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _is_burst(downloader_type: str) -> bool:
+    """True for the burst-based S1 downloader, whose results have no frame."""
+    return downloader_type == "S1_Burst"
+
+
+def _download_workers(cfg) -> int:
+    """Download concurrency for a request, from the downloader's own config.
+
+    Applies to EVERY downloader, not just bursts. This was previously passed
+    only on the S1_Burst branch, so a GUI-set max_workers had no effect on
+    S1_SLC -- the download fell back to its built-in 3 regardless.
+
+    There is deliberately no global fallback: ``max_workers`` lives on
+    ``ASF_Base_Config`` so every ASF downloader carries its own, and the two
+    parallelise different work -- S1_SLC opens concurrent HTTP transfers,
+    S1_Burst assembles whole dates via burst2safe. A single shared number
+    could not suit both.
+    """
+    return max(1, int(getattr(cfg, "max_workers", None) or 3))
+
+
+def _burst_full_burst_id(path: int, subswath: str | None,
+                         burst_id: int | None) -> str | None:
+    """ASF ``fullBurstID`` for a GUI-selected burst position.
+
+    The GUI selects bursts by (path, subswath, relativeBurstID) — the same
+    triple that names a burst stack. ASF identifies a burst position by its
+    ``fullBurstID`` = ``{path:03d}_{relativeBurstID}_{subswath}`` (e.g.
+    ``056_118969_IW2``), which is what the ASF search filter expects. Without
+    this, a burst download re-searched the whole AOI and pulled every adjacent
+    burst position, not just the ones the user checked.
+    """
+    if not subswath or burst_id is None:
+        return None
+    return f"{int(path):03d}_{int(burst_id)}_{str(subswath).upper()}"
+
+
+def _apply_burst_ids(base_cfg: dict, fids: list[str | None]) -> None:
+    """Restrict a burst search to exactly the burst positions the user selected.
+
+    ``fullBurstID`` accepts a list, so a whole multi-burst selection is one
+    filter rather than one search per burst.
+
+    The AOI is deliberately KEPT. An earlier version of this dropped it, on the
+    stated grounds that ASF returns nothing when ``fullBurstID`` is combined
+    with ``intersectsWith``. That is false. Measured against the live API
+    (track 56, IW2, three consecutive burst positions, 2024-01-01..2024-03-01)::
+
+        3x fullBurstID, no AOI    ->  15 granules
+        3x fullBurstID + AOI      ->  15 granules      (identical)
+
+    The AND costs nothing — every selected burst came out of an AOI search in
+    the first place, so its footprint necessarily intersects that AOI — while
+    dropping it left ``intersectsWith: null`` in the folder's
+    insarhub_config.json, leaving ISCE3_Burst with no AOI to crop to, size a
+    DEM from, or bound a stack with.
+
+    ``flightDirection`` is kept for the same reason (AOI + track + direction
+    and AOI + track both return 65; a track has one direction anyway).
+
+    What genuinely does return zero is ``beamSwath``: ASF leaves it empty on
+    SLC-BURST products, so any value at all matches nothing (AOI alone -> 13
+    granules, AOI + ``beamSwath=IW2`` -> 0). It is therefore not offered as a
+    burst search filter; subswath selection is client-side, via
+    ``config.swaths`` in :meth:`S1_Burst._group_by_date`.
+    """
+    fids = [f for f in fids if f]
+    if not fids:
+        return
+    base_cfg["fullBurstID"] = fids if len(fids) > 1 else fids[0]
+
+
+def _apply_burst_selection(base_cfg: dict, relative_orbit: int,
+                           subswath: str | None, burst_id: int | None) -> None:
+    """Restrict a burst search to one exact burst position (see _apply_burst_ids)."""
+    _apply_burst_ids(base_cfg,
+                     [_burst_full_burst_id(relative_orbit, subswath, burst_id)])
+
+
+# Settings downloader_config is meant to carry *assembly / download* options.
+# The settings form renders the base search-filter fields (dataset, beamMode,
+# processingLevel, polarization, beamSwath, flightDirection, relativeOrbit,
+# fullBurstID, ...) in its "Dataset" / "SAR Parameters" / "Orbit & Frame" /
+# "Burst IDs" groups. Those are S1_SLC-flavoured identity + per-search filters
+# and must NOT be inherited into a merged per-stack burst search: the settings
+# form may be showing S1_SLC (the app's default downloader) even while the
+# request is an S1_Burst download, and its `dataset=SENTINEL-1`,
+# `processingLevel=SLC`, `polarization=['VV','VV+VH']` would overwrite the
+# burst defaults and make ASF return empty results ("all stack searches
+# failed"). Only burst-ASSEMBLY options are safe to inherit.
+_BURST_GLOBAL_CONFIG_FIELDS = {
+    "swaths", "mode", "min_bursts", "all_anns", "keep_files", "max_workers",
+}
+
+# Config that controls HOW a download runs rather than WHAT it searches for.
+# These live on ASF_Base_Config, mean the same thing for every downloader, and
+# so are safe to carry across a downloader-type mismatch.
+_EXECUTION_CONFIG_FIELDS = {"max_workers", "ssl_verify"}
+
+
+def _apply_global_downloader_config(cfg, downloader_type: str) -> None:
+    """Apply the in-memory global downloader config to a freshly built config.
+
+    The global ``downloader_config`` belongs to whatever downloader is selected
+    in the settings panel. Applying it unconditionally lets an S1_SLC config
+    (``dataset=SENTINEL-1``, ``polarization=['VV','VV+VH']``, ...) silently
+    pollute an S1_Burst config and turn the burst search into an SLC search —
+    which is exactly what produced SLC granule names being fed to burst2safe.
+    Only apply it when it belongs to the same downloader type, and for the burst
+    downloader only carry over assembly/download options (see
+    ``_BURST_GLOBAL_CONFIG_FIELDS``) — the per-search filters come from the
+    request's stacks, never from the settings form.
+    """
+    global_cfg = state._settings.get("downloader_config", {}) or {}
+
+    if state._settings.get("downloader") != downloader_type:
+        # The saved form belongs to a DIFFERENT downloader, so its search
+        # filters must not leak into this run. Execution settings are not
+        # search filters, though, and they are meaningful for every ASF
+        # downloader -- dropping them here is why a GUI-set max_workers was
+        # silently ignored whenever the settings form was left on S1_SLC
+        # (which is also the state after every backend restart, since
+        # _settings is in-memory only).
+        global_cfg = {k: v for k, v in global_cfg.items()
+                      if k in _EXECUTION_CONFIG_FIELDS}
+    elif _is_burst(downloader_type):
+        global_cfg = {k: v for k, v in global_cfg.items()
+                      if k in _BURST_GLOBAL_CONFIG_FIELDS}
+    _apply_config_from_dict(cfg, global_cfg, skip_keys={"workdir"})
+
+
+def _burst_job_dir(workdir: Path, path: int, stacks: list,
+                   single_subswath: str | None = None,
+                   single_burst_id: int | None = None) -> Path:
+    """Job-folder for a burst selection: per-burst when exactly one burst is
+    chosen, per-track otherwise (see S1_Burst.folder_name)."""
+    if len(stacks) == 1:
+        s = stacks[0]
+        return workdir / S1_Burst.folder_name(
+            path, getattr(s, "subswath", None) or single_subswath,
+            getattr(s, "burst_id", None) if getattr(s, "burst_id", None) is not None else single_burst_id)
+    return workdir / S1_Burst.folder_name(path)
+
 def _to_geojson(results: dict) -> dict:
     features = []
     for stack_key, scenes in results.items():
         for scene in scenes:
             try:
+                props = dict(scene.properties)
+                # ASF nests burst identity under properties['burst']; flatten
+                # it so the frontend can render a burst stack (path, subswath,
+                # burst index) without parsing the "_stack" tuple string.
+                burst = props.get("burst") or {}
+                if burst:
+                    props.setdefault("fullBurstID", burst.get("fullBurstID"))
+                    props.setdefault("relativeBurstID", burst.get("relativeBurstID"))
+                    props.setdefault("absoluteBurstID", burst.get("absoluteBurstID"))
+                    props.setdefault("subswath", burst.get("subswath"))
+                    props.setdefault("burstIndex", burst.get("burstIndex"))
                 features.append({
                     "type": "Feature",
                     "geometry":   scene.geometry,
-                    "properties": {**scene.properties, "_stack": str(stack_key)},
+                    "properties": {**props, "_stack": str(stack_key)},
                 })
             except Exception:
                 continue
@@ -201,6 +359,21 @@ async def _run_download_scene(job_id: str, req: DownloadSceneRequest):
         await asyncio.to_thread(run, stop_ev)
 
 
+# ---------------------------------------------------------------------------
+# DEPRECATED — download-from-the-map endpoints.
+#
+# /api/download-stack, /api/download-orbit-stack and /api/download-merged used
+# to back "Download SLC/Burst + Orbit" buttons in the stack panels. Those
+# buttons are gone: the map selects, and downloading happens from the job folder
+# (/api/folder-download, /api/folder-download-orbit) so there is exactly one
+# path that re-searches, writes insarhub_config.json and reports progress.
+#
+# Nothing in the frontend calls these any more. They are kept for API
+# compatibility with external scripts; do not wire new UI to them. Any new
+# downloader gets the folder flow for free and needs no per-downloader work
+# here.
+# ---------------------------------------------------------------------------
+
 @router.post("/api/download-stack", response_model=JobResponse)
 async def download_stack(req: AddJobRequest, background_tasks: BackgroundTasks):
     job_id, _ = _new_job("Starting…")
@@ -215,16 +388,24 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
         try:
             workdir = Path(req.workdir).expanduser().resolve()
             workdir.mkdir(parents=True, exist_ok=True)
-            cfg = S1_SLC_Config(workdir=workdir)
-            _apply_config_from_dict(cfg, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
-            _apply_config_from_dict(cfg, {
+            dl_cls  = Downloader._registry.get(req.downloaderType)
+            cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
+            cfg = cfg_cls(workdir=workdir)
+            _apply_global_downloader_config(cfg, req.downloaderType)
+            base_cfg = {
                 "start": req.start, "end": req.end,
-                "relativeOrbit": req.relativeOrbit, "frame": req.frame,
+                "relativeOrbit": req.relativeOrbit,
                 "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
                 "platform": req.platform,
-            })
+            }
+            if _is_burst(req.downloaderType):
+                _apply_burst_selection(base_cfg, req.relativeOrbit,
+                                       req.subswath, req.burst_id)
+            else:
+                base_cfg["frame"] = req.frame
+            _apply_config_from_dict(cfg, base_cfg)
 
-            downloader    = Downloader.create("S1_SLC", cfg)
+            downloader    = Downloader.create(req.downloaderType, cfg)
             state._jobs[job_id]["message"] = "Searching scenes…"
             search_result = SearchCommand(downloader).run()
             if not search_result.success:
@@ -237,10 +418,21 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
             total = sum(len(v) for v in downloader.results.values())
             state._jobs[job_id]["message"] = f"Downloading 0/{total}"
 
-            dl_result = DownloadScenesCommand(
-                downloader, stop_event=stop_ev, on_progress=state._make_download_progress(job_id)
-            ).run()
-            save_dir  = workdir / f"p{req.relativeOrbit}_f{req.frame}"
+            if _is_burst(req.downloaderType):
+                # SAFEs assemble into <folder>/slc, mirroring S1_SLC's layout.
+                save_dir   = _burst_job_dir(workdir, req.relativeOrbit, [req],
+                                            req.subswath, req.burst_id)
+                dl_kwargs  = dict(stop_event=stop_ev,
+                                  on_progress=state._make_download_progress(job_id),
+                                  save_path=str(save_dir / "slc"),
+                                  max_workers=_download_workers(cfg))
+            else:
+                save_dir  = workdir / f"p{req.relativeOrbit}_f{req.frame}"
+                dl_kwargs = dict(stop_event=stop_ev,
+                                 on_progress=state._make_download_progress(job_id),
+                                 max_workers=_download_workers(cfg))
+
+            dl_result = DownloadScenesCommand(downloader, **dl_kwargs).run()
             if stop_ev.is_set():
                 _finish_job(job_id, status="done", progress=0, message="Stopped.")
             else:
@@ -257,19 +449,30 @@ async def _run_download_stack(job_id: str, req: AddJobRequest, stop_ev: _threadi
 @router.post("/api/add-job")
 async def add_job(req: AddJobRequest):
     workdir = Path(req.workdir).expanduser().resolve()
-    subdir  = StackPaths(workdir).stack_dir(req.relativeOrbit, req.frame)
+    if _is_burst(req.downloaderType):
+        # Bursts have no frame: the folder is per-burst position (or per track
+        # when only the path is known) instead of p<path>_f<frame>.
+        subdir = _burst_job_dir(workdir, req.relativeOrbit, [req], req.subswath, req.burst_id)
+    else:
+        subdir = StackPaths(workdir).stack_dir(req.relativeOrbit, req.frame)
     subdir.mkdir(parents=True, exist_ok=True)
 
     dl_cls      = Downloader._registry.get(req.downloaderType)
     cfg_cls     = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
     cfg_instance = cfg_cls(workdir=subdir)
-    _apply_config_from_dict(cfg_instance, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
-    _apply_config_from_dict(cfg_instance, {
+    _apply_global_downloader_config(cfg_instance, req.downloaderType)
+    base_cfg = {
         "start": req.start, "end": req.end,
-        "relativeOrbit": req.relativeOrbit, "frame": req.frame,
+        "relativeOrbit": req.relativeOrbit,
         "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
         "platform": req.platform,
-    })
+    }
+    if _is_burst(req.downloaderType):
+        _apply_burst_selection(base_cfg, req.relativeOrbit,
+                               req.subswath, req.burst_id)
+    else:
+        base_cfg["frame"] = req.frame
+    _apply_config_from_dict(cfg_instance, base_cfg)
     cfg = state._cfg_dict(cfg_instance)
     write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
     return {"path": str(subdir), "name": subdir.name}
@@ -293,15 +496,20 @@ async def add_merged_job(req: AddMergedJobRequest):
     path    = next(iter(paths))
     frames  = [s.frame for s in req.stacks]
     workdir = Path(req.workdir).expanduser().resolve()
-    subdir  = StackPaths(workdir).merge_dir(path, frames)
+    if _is_burst(req.downloaderType):
+        # One burst -> per-burst folder; several -> one per-track folder
+        # (SAFEs assemble per date+path, the unit ISCE3_Burst consumes).
+        subdir = _burst_job_dir(workdir, path, req.stacks)
+    else:
+        subdir = StackPaths(workdir).merge_dir(path, frames)
     subdir.mkdir(parents=True, exist_ok=True)
 
     dl_cls       = Downloader._registry.get(req.downloaderType)
     cfg_cls      = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
     cfg_instance = cfg_cls(workdir=subdir)
-    _apply_config_from_dict(cfg_instance, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
+    _apply_global_downloader_config(cfg_instance, req.downloaderType)
     first = req.stacks[0]
-    _apply_config_from_dict(cfg_instance, {
+    merged_cfg = {
         "start": min(s.start for s in req.stacks),
         "end":   max(s.end for s in req.stacks),
         "relativeOrbit": path,
@@ -313,7 +521,16 @@ async def add_merged_job(req: AddMergedJobRequest):
         # handover (e.g. Sentinel-1C → Sentinel-1D); using only the first
         # selected stack's platform would silently restrict every future
         # re-search on this folder to one satellite and starve the network.
-    })
+    }
+    if _is_burst(req.downloaderType):
+        # Persist the exact burst positions the user selected so the folder's
+        # re-search (select_pairs / download) stays limited to them instead of
+        # re-searching the whole AOI, while keeping the AOI itself for the
+        # processor to crop/size against. See _apply_burst_ids.
+        _apply_burst_ids(merged_cfg,
+                         [_burst_full_burst_id(s.relativeOrbit, s.subswath, s.burst_id)
+                          for s in req.stacks])
+    _apply_config_from_dict(cfg_instance, merged_cfg)
     cfg = state._cfg_dict(cfg_instance)
     write_insarhub_config(subdir, {"downloader": {"type": req.downloaderType, "config": cfg}})
     return {"path": str(subdir), "name": subdir.name}
@@ -329,18 +546,30 @@ async def _run_download_orbit_stack(job_id: str, req: AddJobRequest):
     def run(stop_ev):
         try:
             workdir  = Path(req.workdir).expanduser().resolve()
-            save_dir = workdir / f"p{req.relativeOrbit}_f{req.frame}"
+            if _is_burst(req.downloaderType):
+                save_dir = _burst_job_dir(workdir, req.relativeOrbit, [req],
+                                          req.subswath, req.burst_id)
+            else:
+                save_dir = workdir / f"p{req.relativeOrbit}_f{req.frame}"
             save_dir.mkdir(parents=True, exist_ok=True)
-            cfg = S1_SLC_Config(workdir=save_dir)
-            _apply_config_from_dict(cfg, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
-            _apply_config_from_dict(cfg, {
+            dl_cls  = Downloader._registry.get(req.downloaderType)
+            cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
+            cfg = cfg_cls(workdir=save_dir)
+            _apply_global_downloader_config(cfg, req.downloaderType)
+            base_cfg = {
                 "start": req.start, "end": req.end,
-                "relativeOrbit": req.relativeOrbit, "frame": req.frame,
+                "relativeOrbit": req.relativeOrbit,
                 "intersectsWith": req.wkt, "flightDirection": req.flightDirection,
                 "platform": req.platform,
-            })
+            }
+            if _is_burst(req.downloaderType):
+                _apply_burst_selection(base_cfg, req.relativeOrbit,
+                                       req.subswath, req.burst_id)
+            else:
+                base_cfg["frame"] = req.frame
+            _apply_config_from_dict(cfg, base_cfg)
 
-            downloader    = Downloader.create("S1_SLC", cfg)
+            downloader    = Downloader.create(req.downloaderType, cfg)
             state._jobs[job_id]["message"] = "Searching scenes…"
             search_result = SearchCommand(downloader, progress_callback=state._make_progress(job_id)).run()
             if not search_result.success:
@@ -376,34 +605,52 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
             workdir = Path(req.workdir).expanduser().resolve()
 
             all_downloaders = []
+            search_errors: list[str] = []
             for i, spec in enumerate(req.stacks):
                 if stop_ev.is_set():
                     _finish_job(job_id, status="done", progress=0, message="Stopped.")
                     return
                 state._jobs[job_id]["message"] = (
                     f"Searching stack {i + 1}/{len(req.stacks)} "
-                    f"(P{spec.relativeOrbit}/F{spec.frame})…"
+                    f"(P{spec.relativeOrbit}/{('F' + str(spec.frame)) if spec.frame is not None else 'burst'})…"
                 )
-                cfg = S1_SLC_Config(workdir=workdir)
-                _apply_config_from_dict(cfg, state._settings.get("downloader_config", {}), skip_keys={"workdir"})
-                _apply_config_from_dict(cfg, {
+                dl_cls  = Downloader._registry.get(req.downloaderType)
+                cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
+                cfg = cfg_cls(workdir=workdir)
+                _apply_global_downloader_config(cfg, req.downloaderType)
+                base_cfg = {
                     "start": spec.start, "end": spec.end,
-                    "relativeOrbit": spec.relativeOrbit, "frame": spec.frame,
+                    "relativeOrbit": spec.relativeOrbit,
                     "intersectsWith": spec.wkt, "flightDirection": spec.flightDirection,
                     # platform intentionally omitted — see add_merged_job for why
                     # (a frame's own scene history can span a satellite handover;
                     # spec.platform here is derived client-side from a single
                     # representative scene and must not gate the real search).
-                })
+                }
+                if _is_burst(req.downloaderType):
+                    # Restrict the search to exactly the burst position(s) the
+                    # user selected in the GUI — one fullBurstID per stack —
+                    # instead of pulling every burst intersecting the AOI.
+                    _apply_burst_selection(base_cfg, spec.relativeOrbit,
+                                           spec.subswath, spec.burst_id)
+                else:
+                    base_cfg["frame"] = spec.frame
+                _apply_config_from_dict(cfg, base_cfg)
                 downloader    = Downloader.create(req.downloaderType, cfg)
                 search_result = SearchCommand(downloader).run()
                 if not search_result.success:
-                    state._jobs[job_id]["message"] += f" [search failed: {search_result.message}]"
+                    err = f"stack {i+1} (P{spec.relativeOrbit}, burst_id={spec.burst_id}, subswath={spec.subswath}): {search_result.message}"
+                    logger.error("S1_Burst merged: %s", err)
+                    search_errors.append(err)
+                    state._jobs[job_id]["message"] += f" [search failed: {err}]"
                     continue
                 all_downloaders.append(downloader)
 
             if not all_downloaders:
-                _finish_job(job_id, status="error", progress=0, message="All stack searches failed.")
+                _finish_job(
+                    job_id, status="error", progress=0,
+                    message="All stack searches failed: " + " | ".join(search_errors)
+                            if search_errors else "All stack searches failed.")
                 return
 
             # Merge all results into primary downloader
@@ -411,11 +658,26 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
             for dl in all_downloaders[1:]:
                 primary.results.update(dl.results)
 
+            if _is_burst(req.downloaderType) and len(req.stacks) > 1:
+                # The loop above searched ONE burst per downloader, so
+                # primary.config carries only the first stack's fullBurstID --
+                # but primary.results now holds every selected burst. S1_Burst
+                # .download() persists insarhub_config.json from self.config
+                # (_mark_stack_dir), so leaving it alone writes a folder config
+                # that claims a single burst while the folder actually contains
+                # several. Any later re-search from that folder (select_pairs,
+                # processor reload) would then silently drop the rest.
+                # Widen it to the full selection before the download writes it.
+                _apply_config_from_dict(primary.config, {
+                    "fullBurstID": [f for f in (
+                        _burst_full_burst_id(s.relativeOrbit, s.subswath, s.burst_id)
+                        for s in req.stacks) if f],
+                })
+
             # Directory name must match what downloader.download(merge=True) itself
             # computes (path + every constituent frame number) — not a fixed
             # "merged" literal — so orbit files (saved explicitly below, bypassing
             # download_orbit()'s own merge-aware logic) land next to the SLCs.
-            from insarhub.downloader.asf_base import _merge_frame_tag
             paths = {path for (path, _frame) in primary.active_results.keys()}
             if len(paths) > 1:
                 _finish_job(
@@ -424,19 +686,30 @@ async def _run_download_merged(job_id: str, req: DownloadMergedRequest, stop_ev:
                             f"relative orbit (path), got {sorted(paths)}.")
                 return
             path = next(iter(paths))
-            frames = [frame for (_path, frame) in primary.active_results.keys()]
-            merged_dir = workdir / f"p{path}_{_merge_frame_tag(frames)}"
+            if _is_burst(req.downloaderType):
+                # Bursts: one burst -> per-burst folder, several -> per-track
+                # folder (SAFEs assemble per date+path).
+                merged_dir = _burst_job_dir(workdir, path, req.stacks)
+                frames     = []
+            else:
+                frames     = [frame for (_path, frame) in primary.active_results.keys()]
+                merged_dir = workdir / f"p{path}_{StackPaths.merge_tag(frames)}"
 
             if req.download_slc and not stop_ev.is_set():
                 total = sum(len(v) for v in primary.results.values())
                 state._jobs[job_id]["message"] = f"Downloading 0/{total} scenes → {merged_dir.name}/"
 
-                dl_result = DownloadScenesCommand(
-                    primary,
+                dl_kwargs = dict(
                     merge=True,
                     stop_event=stop_ev,
                     on_progress=state._make_download_progress(job_id),
-                ).run()
+                )
+                dl_kwargs["max_workers"] = _download_workers(cfg)
+                if _is_burst(req.downloaderType):
+                    # S1_Burst assembles .SAFE into save_path (no per-stack
+                    # subdir); put them under <folder>/slc like S1_SLC.
+                    dl_kwargs["save_path"] = str(merged_dir / "slc")
+                dl_result = DownloadScenesCommand(primary, **dl_kwargs).run()
                 if not dl_result.success:
                     _finish_job(job_id, status="error", progress=0, message=dl_result.message)
                     return

@@ -8,13 +8,18 @@ import importlib.resources
 from pathlib import Path
 
 
-def serve(host: str = "127.0.0.1", port: int = 8080, reload: bool = False, workdir: str | None = None) -> None:
+def serve(host: str = "127.0.0.1", port: int = 8080, reload: bool = False, workdir: str | None = None,
+          debug: bool = False) -> None:
     import uvicorn
     from fastapi.staticfiles import StaticFiles
     from fastapi.responses import FileResponse
     from .api import app
     from insarhub.app import state
     _settings = state._settings
+
+    if debug:
+        import os
+        os.environ.setdefault("INSARHUB_DEBUG_SEARCH", "1")
 
     if workdir is not None:
         resolved = Path(workdir).expanduser().resolve()
@@ -50,6 +55,9 @@ def serve(host: str = "127.0.0.1", port: int = 8080, reload: bool = False, workd
         app,
         host=host,
         port=port,
+        # The frontend polls /api/jobs/{id} every ~1.5s while a job runs, which
+        # would otherwise spam the console with one access-log line per poll.
+        access_log=False,
     )
 
 
@@ -60,13 +68,15 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8080)
     parser.add_argument("--reload", action="store_true", help="Enable auto-reload (dev only)")
     parser.add_argument("-w", "--workdir", default=None, help="Working directory (default: current directory)")
+    parser.add_argument("--debug", action="store_true",
+                        help="Enable debug output (print the exact ASF search parameters on every search)")
     parser.add_argument("-v", "--version", action="store_true", help="Print version and exit")
     args = parser.parse_args()
     if args.version:
         from insarhub._version import __version__
         print(__version__)
         return
-    serve(host=args.host, port=args.port, reload=args.reload, workdir=args.workdir)
+    serve(host=args.host, port=args.port, reload=args.reload, workdir=args.workdir, debug=args.debug)
 
 
 if __name__ == "__main__":

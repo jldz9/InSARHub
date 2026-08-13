@@ -4,11 +4,15 @@ InSARHub is a modular Python framework for automated InSAR and time-series proce
 
 The primary goal of this package is to provide a streamlined and user-friendly InSAR processing experience across multiple satellite products. InSARHub currently supports: 
 
-| Satellite | Mode | Download | IFG Generation | Timeseries Analysis |
-|-----------|------|----------|----------------|---------------------|
-| Sentinel-1 SLC | Mixed¹ / Local / HPC | ✅ | ✅ | ✅ |
+| Satellite | Product | Mode | Download | IFG Generation | Timeseries Analysis |
+|-----------|---------|------|----------|----------------|---------------------|
+| Sentinel-1 | SLC | Mixed¹ / Local / HPC | ✅ | ✅ | ✅ |
+| Sentinel-1 | Burst² | Local / HPC | ✅ | ✅ | ✅ |
 
 > ¹ **Mixed** — process pipeline that mixed with cloud processing and local processing
+>
+> ² **Burst** — ASF `SLC-BURST` granules assembled into `.SAFE` with
+
 
 ## Table of Contents
 - [Web UI](#web-ui)
@@ -103,7 +107,7 @@ conda install -c conda-forge "numpy<2.0" isce2
 
 > The explicit `numpy<2.0` keeps conda's solver from re-resolving numpy upward when adding isce2 to an already-created environment. See the [ISCE2 installation guide](https://github.com/isce-framework/isce2) for details.
 >
-> Alternatively, skip installing ISCE2 locally entirely and run ISCE_S1 processing inside a container via `--container` — see `Dockerfile` for a ready-to-build image with ISCE2 + insarhub included.
+> Alternatively, skip installing ISCE2 locally entirely and run ISCE2_S1 processing inside a container via `--container` — see `Dockerfile` for a ready-to-build image with ISCE2 + insarhub included.
 
 ## Requirements
 - Python >=3.11,<3.13
@@ -199,13 +203,13 @@ processor.download()
 Requires SLC `.SAFE` files already downloaded. Runs ISCE2 `stackSentinel` locally or submits each step to SLURM with `hpc_mode=True`.
 
 ```python
-from insarhub.config import ISCE_S1_Config
+from insarhub.config import ISCE2_S1_Config
 
-cfg = ISCE_S1_Config(
+cfg = ISCE2_S1_Config(
     workdir='/data/p100_f466',
     bbox=[33.0, 38.0, -120.0, -115.0],   # [S, N, W, E]
 )
-processor = Processor.create('ISCE_S1', pairs=pairs, config=cfg)
+processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
 processor.submit()        # starts background execution
 processor.refresh()       # check step status
 ```
@@ -280,15 +284,15 @@ insarhub downloader -N S1_SLC \
     --select-pairs --download --orbits
 
 # Dry run to verify ISCE2 config before committing
-insarhub processor -N ISCE_S1 -w /data/p100_f466 \
+insarhub processor -N ISCE2_S1 -w /data/p100_f466 \
     --bbox 33.0 38.0 -120.0 -115.0 submit --dry-run
 
 # Run ISCE2 stackSentinel locally (background) or on SLURM (--hpc_mode True)
-insarhub processor -N ISCE_S1 -w /data/p100_f466 \
+insarhub processor -N ISCE2_S1 -w /data/p100_f466 \
     --bbox 33.0 38.0 -120.0 -115.0 submit
 
 # Monitor step progress
-insarhub processor -N ISCE_S1 -w /data/p100_f466 refresh
+insarhub processor -N ISCE2_S1 -w /data/p100_f466 refresh
 
 # Run MintPy time-series analysis on ISCE2 outputs
 insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run

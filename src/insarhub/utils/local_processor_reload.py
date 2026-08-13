@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Shared job-file discovery / saved-processor-reload logic for local
-processors (ISCE_S1, GMTSAR_S1, ...), used by both the CLI (cli/main.py)
+processors (ISCE2_S1, GMTSAR_S1, ...), used by both the CLI (cli/main.py)
 and the web GUI (app/routes/processor.py) so job-file naming conventions,
 saved-config field filtering, and per-processor method-signature
 differences are handled identically in both places instead of drifting
@@ -11,8 +11,11 @@ already fixed on the CLI).
 from __future__ import annotations
 
 import json
+import logging
 import re
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 _GROUP_KEY_RE = re.compile(r"p(\d+)_f(\d+)")
 
@@ -77,7 +80,7 @@ def _find_jobs_file(workdir: Path, pattern: str, subdir: str | None = None) -> P
 
     Search order:
       1. workdir/ directly
-      2. workdir/<subdir>/      ← e.g. "isce" for ISCE_S1, "gmtsar" for
+      2. workdir/<subdir>/      ← e.g. "isce" for ISCE2_S1, "gmtsar" for
                                    GMTSAR_S1 (processor_cls.JOBS_SUBDIR)
       3. workdir/<p*_f*>/
       4. workdir/<p*_f*>/<subdir>/
@@ -94,7 +97,16 @@ def _find_jobs_file(workdir: Path, pattern: str, subdir: str | None = None) -> P
             for p in sorted(sub.glob(pattern)):
                 return p
     for d in sorted(workdir.iterdir()):
-        if d.is_dir() and _parse_group_key(d.name):
+        # Skip entries we cannot stat rather than aborting the scan. A workdir
+        # can legitimately contain sockets, dangling symlinks or other-user
+        # files -- e.g. running from /tmp hit a VS Code SSH agent socket and
+        # took down `refresh` with PermissionError before it ever reached the
+        # "no jobs file" message it should have printed.
+        try:
+            is_dir = d.is_dir()
+        except OSError:
+            continue
+        if is_dir and _parse_group_key(d.name):
             for p in sorted(d.glob(pattern)):
                 return p
             if subdir:
@@ -135,18 +147,44 @@ def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
         cfg = cfg_cls(**{k: v for k, v in overrides.items() if k in valid})
     else:
         cfg = None
-    saved = json.loads(jobs_path.read_text())
+    # A job file can legitimately be empty or truncated: submit() creates it
+    # before there is anything to record, and a process killed mid-write leaves
+    # a 0-byte or partial file behind. Both used to raise JSONDecodeError here
+    # and take down `refresh`/`watch`/`cancel` -- the very commands you reach
+    # for when a run has gone wrong. Treat unreadable as "no jobs recorded yet".
+    raw_text = jobs_path.read_text().strip() if jobs_path.exists() else ""
+    if not raw_text:
+        saved = {}
+    else:
+        try:
+            saved = json.loads(raw_text)
+        except json.JSONDecodeError as exc:
+            logger.warning("%s is not valid JSON (%s); treating as empty. "
+                           "Job state will be rebuilt from status markers.",
+                           jobs_path, exc)
+            saved = {}
     # ISCE wraps its saved jobs as {"jobs": {...}, "workdir": ...}; other
     # local processors (e.g. GMTSAR_S1.save()) write the jobs dict directly
     # at the top level, no wrapper. Handle both shapes.
-    jobs = (saved["jobs"] if "jobs" in saved else saved).values()
-    # ISCE's saved jobs are keyed by step name (no real "pair" concept);
-    # other local processors (e.g. GMTSAR_S1) store the real pair tuple
-    # under "pair" -- prefer that when present instead of assuming ISCE's
-    # step-based shape (found via a real gap: this used to always rebuild
-    # (j["step"], j["step"]), which is meaningless for GMTSAR_S1's 4-tuple
-    # pairs and would crash its pairs-arity validation).
-    pairs = [tuple(j["pair"]) if "pair" in j else (j["step"], j["step"]) for j in jobs]
+    jobs = list((saved["jobs"] if "jobs" in saved else saved).values())
+    if jobs and all("stage" in j and "pair" not in j for j in jobs):
+        # GMTSAR_S1 stack_mode: gmtsar_jobs.json is keyed by stack stage
+        # (align_F1, intf_F1, merge, ...), not by real scene-pair -- there's
+        # no pair-tuple to reconstruct. retry()/refresh()/cancel() for
+        # stack_mode never touch self.pairs (see GMTSAR_S1._rediscover_state()),
+        # so a single placeholder satisfies __init__'s non-empty/4-tuple
+        # validation without ever being used. (Found via a real retry() crash:
+        # the step-shaped fallback below produced (j["step"], j["step"]),
+        # KeyError'ing on "step" since stack-stage entries have neither key.)
+        pairs = [("_", "_", "_", "_")]
+    else:
+        # ISCE's saved jobs are keyed by step name (no real "pair" concept);
+        # other local processors (e.g. GMTSAR_S1 pair mode) store the real
+        # pair tuple under "pair" -- prefer that when present instead of
+        # assuming ISCE's step-based shape (found via a real gap: this used
+        # to always rebuild (j["step"], j["step"]), which is meaningless for
+        # GMTSAR_S1's 4-tuple pairs and would crash its pairs-arity validation).
+        pairs = [tuple(j["pair"]) if "pair" in j else (j["step"], j["step"]) for j in jobs]
     return processor_cls(pairs=pairs or [("_", "_")], config=cfg)
 
 
@@ -154,7 +192,7 @@ def _call_if_supported(bound_method, **kwargs):
     """Call bound_method with only the kwargs its real signature accepts.
 
     Local processors don't all share the same refresh()/watch() shape --
-    e.g. ISCE_Base.refresh(ls=...) shows per-command detail, a concept
+    e.g. ISCE2_Base.refresh(ls=...) shows per-command detail, a concept
     GMTSAR_S1 has no equivalent of. Rather than force every processor to
     accept every other processor's kwargs (or crash on TypeError), only
     pass what's actually supported; the rest are silently no-ops for

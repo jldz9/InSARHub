@@ -63,6 +63,49 @@ InSARHub 在流程推进过程中会向磁盘写入一组一致的文件。每�
         └── timeseries*.h5, velocity.h5, ...
     ```
 
+=== "GMTSAR_S1"
+
+    ```
+    workdir/
+    ├── insarhub_config.json
+    ├── stack_p0_f0.json
+    ├── network_p0_f0.png
+    ├── slc/                            # 下载的 SLC .SAFE 文件和轨道 .EOF 文件
+    ├── topo/                           # GMTSAR 格式 DEM（dem.grd）
+    └── gmtsar/                         # GMTSAR 实例目录
+        ├── gmtsar_jobs.json            # 已保存任务状态（按配对）
+        ├── baseline_table.dat
+        ├── raw/                        # 解包的 SLC + 每个场景的 PRM/LED/SLC
+        ├── <ref>.SAFE_<sec>.SAFE/      # 每对实例目录（多子条带）
+        │   └── merge/                  #   合并后的地理编码产品（phasefilt_ll.grd、corr_ll.grd）
+        └── intf/<julian_pair>/         # 单子条带输出（GMTSAR 儒略日命名）
+    ```
+
+    分析器输出（同一工作目录中可选其一或两者）：
+
+    | 分析器 | 输出目录 | 内容 |
+    |---|---|---|
+    | `GMTSAR_MINTPY_SBAS` | `gmtsar_mintpy/` | MintPy `smallbaselineApp` 输出（`timeseries*.h5`、`velocity.h5` 等） |
+    | `GMTSAR_SBAS` | `gmtsar_sbas/` | 每个日期的 `disp_*.grd`、线性速度 `vel.grd` |
+
+=== "ISCE3_Burst"
+
+    ```
+    workdir/
+    ├── insarhub_config.json
+    ├── stack_p56_merged_*.json         # 配对（基于 burst，以 fullBurstID 为键）
+    ├── slc/                            # 组装的 .SAFE 目录（通过 burst2safe）
+    ├── s1-burst-db/                    # 缓存的 OPERA burst bbox sqlite3
+    ├── dem/                            # Copernicus DEM + 水体掩膜
+    ├── tec/                            # IONEX 地图（每个采集日期一张）
+    ├── cslc/                           # 每个 burst-日期的地理编码 CSLC（COMPASS）
+    ├── ifgrams/                        # 干涉图（dolphin）
+    ├── stitched/                       # 每对合并的 burst
+    ├── timeseries/                     # dolphin 时序输出（Dolphin_SBAS）
+    ├── isce3_burst_jobs.json           # 已保存任务状态（按阶段）
+    └── .stage_status/                  # 每个阶段的 .succeeded/.failed 标记
+    ```
+
 **多堆叠运行** — 搜索覆盖多个轨道/帧时，每个组获得自己的 `p{path}_f{frame}/` 子文件夹，结构与对应单堆叠布局完全相同。
 
 ```
@@ -113,6 +156,14 @@ workdir/
 | `hyp3_jobs.json` | 按账户分组的 HyP3 任务 ID |
 | `hyp3_retry_jobs_{timestamp}.json` | 重试批次的任务 ID（每次**重试**时写入） |
 | `.insarhub_cache.json` | 每次**检查**后更新，包含已成功文件名和输出目录 |
+
+本地处理器会写入各自的任务文件，而非 `hyp3_jobs.json`：
+
+| 处理器 | 任务文件 |
+|-----------|----------|
+| `ISCE2_S1` | `isce/isce_jobs_{timestamp}.json` |
+| `GMTSAR_S1` | `gmtsar/gmtsar_jobs.json` |
+| `ISCE3_Burst` | `isce3_burst_jobs.json` |
 
 ### 第三阶段 — 分析
 

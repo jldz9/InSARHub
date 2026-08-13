@@ -189,15 +189,15 @@ def run_tests():
         # ─────────────────────────────────────────────────────────────────────
         print("\n── STAGE 4: ISCE processing ────────────────────────────────")
 
-        from insarhub.config import ISCE_S1_Config
-        from insarhub.processor.isce_s1 import ISCE_S1
+        from insarhub.config import ISCE2_S1_Config
+        from insarhub.processor.isce2_s1 import ISCE2_S1
 
-        cfg_isce = ISCE_S1_Config(
+        cfg_isce = ISCE2_S1_Config(
             workdir    = str(workdir),
             max_workers= 4,
             skip_existing = True,
         )
-        proc = ISCE_S1(cfg_isce)
+        proc = ISCE2_S1(cfg_isce)
         proc._topsapp_bin = fake_bin
 
         jobs = proc.submit(pairs=pairs_dict)

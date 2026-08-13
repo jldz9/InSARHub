@@ -40,7 +40,7 @@ This file is NOT auto-run by pytest (no test_ prefix, and everything lives
 behind `if __name__ == "__main__":`) -- invoke it directly when you actually
 want real ISCE2 processing to run. Safe to re-run: search/select-pairs is
 skipped if a stack_*.json already exists; SLC download skips already-complete
-files; ISCE_S1.submit() skips any run-file step already marked SUCCEEDED
+files; ISCE2_S1.submit() skips any run-file step already marked SUCCEEDED
 (skip_existing, on by default).
 """
 
@@ -71,9 +71,9 @@ def run_pipeline(workdir: Path) -> None:
             "&& mamba install -n insarhub_isce -c conda-forge \"numpy<2.0\" isce2)"
         )
 
-    from insarhub.config import S1_SLC_Config, ISCE_S1_Config, ISCE_SBAS_Config
+    from insarhub.config import S1_SLC_Config, ISCE2_S1_Config, ISCE_SBAS_Config
     from insarhub.downloader.s1_slc import S1_SLC
-    from insarhub.processor.isce_s1 import ISCE_S1
+    from insarhub.processor.isce2_s1 import ISCE2_S1
     from insarhub.analyzer.isce_sbas import ISCE_SBAS
 
     workdir.mkdir(parents=True, exist_ok=True)
@@ -90,8 +90,8 @@ def run_pipeline(workdir: Path) -> None:
     print("== Stage 2/4: Download real Sentinel-1 SLC scenes " + "=" * 28)
     downloader.download(max_workers=4)  # skips scenes already downloaded at full size
 
-    print("== Stage 3/4: Submit real ISCE_S1 processing (runs detached in background) " + "=" * 5)
-    proc = ISCE_S1(pairs=pairs, config=ISCE_S1_Config(workdir=str(workdir)))
+    print("== Stage 3/4: Submit real ISCE2_S1 processing (runs detached in background) " + "=" * 5)
+    proc = ISCE2_S1(pairs=pairs, config=ISCE2_S1_Config(workdir=str(workdir)))
     proc.submit()  # skip_existing (default True) makes re-running this safe
 
     print("== Stage 4/4: Watch real ISCE2 processing to completion " + "=" * 22)

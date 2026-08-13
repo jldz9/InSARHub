@@ -10,6 +10,7 @@ import time
 import logging
 import zipfile
 import shutil
+from xml.etree import ElementTree as ET
 
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -824,6 +825,13 @@ def _enforce_connectivity(
 
 def _simplify_to_fit(geom, max_len: int = _WKT_MAX_LEN):
     """Progressively simplify a Shapely geometry until its WKT fits within max_len chars."""
+    from shapely.geometry.polygon import orient
+
+    # ASF's WKT validation rejects (and auto-repairs) polygons whose exterior
+    # ring is wound clockwise — which then warns and can silently change the
+    # AOI. Normalise ring orientation here (exterior CCW, holes CW, the OGC
+    # convention ASF expects) so every AOI we send is already correct.
+    geom = orient(geom, sign=1.0)
     wkt_str = wkt.dumps(geom, rounding_precision=5)
     if len(wkt_str) <= max_len:
         return wkt_str
@@ -920,6 +928,24 @@ def _collapse_by_date(prods: list) -> tuple[list, int]:
     return collapsed, n_dropped
 
 
+def _stack_scene_ids(prods: list) -> list[str]:
+    """Node ids for one stack: scene names for SLC, acquisition dates for BURST.
+
+    A burst stack pairs by acquisition date (one date = one stitched SAFE), and
+    ``select_pairs(burst=True)`` returns date-keyed pairs/baselines — so the
+    stack file's ``scenes`` list and the pair-quality DB must be date-keyed to
+    stay consistent with the network editor's date nodes.
+    """
+    if prods and (getattr(prods[0], "properties", {}) or {}).get("processingLevel") == "BURST":
+        seen: dict[str, None] = {}
+        for p in prods:
+            d = (getattr(p, "properties", {}) or {}).get("startTime", "")
+            if len(str(d)) >= 10:
+                seen.setdefault(str(d)[:10].replace("-", ""), None)
+        return sorted(seen)
+    return [p.properties["sceneName"] for p in prods]
+
+
 def group_scenes_by_stack(
     active_results: Union[dict[tuple[int, int], list[ASFProduct]], list[ASFProduct]],
     merge: bool = False,
@@ -939,19 +965,119 @@ def group_scenes_by_stack(
     stay complete even though pairing collapses by date.
     """
     if not isinstance(active_results, dict):
-        return {(0, 0): [p.properties["sceneName"] for p in active_results]}
+        return {(0, 0): _stack_scene_ids(active_results)}
     if merge and len(active_results) > 1:
         from insarhub.config.paths import StackPaths
         by_path: dict[int, list[str]] = {}
         frames_by_path: dict[int, list[int]] = {}
         for (path, frame), prods in active_results.items():
-            by_path.setdefault(path, []).extend(p.properties["sceneName"] for p in prods)
+            by_path.setdefault(path, []).extend(_stack_scene_ids(prods))
             frames_by_path.setdefault(path, []).append(frame)
         return {
             (path, StackPaths.merge_tag(frames_by_path[path])): names
             for path, names in by_path.items()
         }
-    return {k: [p.properties["sceneName"] for p in prods] for k, prods in active_results.items()}
+    return {k: _stack_scene_ids(prods) for k, prods in active_results.items()}
+
+
+def _bad_scene_names(
+    prods: list,
+    snow_thr: float,
+    precip_thr: float,
+    aoi_wkt: str | None = None,
+) -> tuple[set[str], dict[str, dict], dict[str, dict], float, float]:
+    """Return (bad_names, weather_dict, snow_dict, lat, lon).
+
+    weather_dict / snow_dict are {date: feats} for ALL unique dates — not
+    just the bad ones — so callers can seed FeatureAssembler's cache and
+    avoid a second fetch during scoring.
+
+    Flags a date bad when:
+      - wet snow  : snow_frac > 0.3 AND temp_max > 0 °C  (C-band hard kill)
+      - heavy snow: snow_frac >= snow_thr
+      - heavy rain: precip_3day (or daily precip fallback) >= precip_thr mm
+    """
+    from shapely.geometry import shape as _shape
+    from shapely.ops import unary_union
+    from insarhub.utils.pair_quality._weather import fetch_weather_batch
+    from insarhub.utils.pair_quality._snow_modis import fetch_snow_features_batch
+
+    # Prefer the explicit AOI centroid (same geometry FeatureAssembler uses).
+    # Fall back to the union centroid of all scene footprints.
+    try:
+        from shapely import wkt as _wkt
+        if aoi_wkt:
+            c = _wkt.loads(aoi_wkt).centroid
+        else:
+            union = unary_union([_shape(p.geometry) for p in prods])
+            c = union.centroid
+        lat, lon = c.y, c.x
+    except Exception as exc:
+        logger.warning("avoid_low_quality_days: could not extract centroid (%s) — skipping filter", exc)
+        return set(), {}, {}, 0.0, 0.0
+
+    # Use startTime property (already ISO-8601) rather than parsing the scene
+    # name at fixed character positions — more reliable across sensor types.
+    date_of: dict[str, str] = {
+        p.properties["sceneName"]: (p.properties.get("startTime") or "")[:10]
+        for p in prods
+    }
+    unique_dates = list({d for d in date_of.values() if len(d) == 10})
+
+    if not unique_dates:
+        logger.warning("avoid_low_quality_days: no valid dates extracted — skipping filter")
+        return set(), {}, {}, lat, lon
+
+    # Build per-date overpass hour from scene names (YYYYMMDDTHHMMSS in name)
+    date_hour: dict[str, int] = {}
+    for p in prods:
+        name = p.properties.get("sceneName", "")
+        date = date_of.get(name, "")
+        if date and len(name) >= 28 and name[25] == "T":
+            try:
+                date_hour[date] = int(name[26:28])
+            except ValueError:
+                pass
+
+    logger.info("avoid_low_quality_days: fetching weather/snow for %d dates …", len(unique_dates))
+    try:
+        weather = fetch_weather_batch(lat, lon, unique_dates, date_hour=date_hour or None)
+    except Exception as exc:
+        logger.warning("avoid_low_quality_days: weather fetch failed (%s) — skipping filter", exc)
+        weather = {}
+    try:
+        snow = fetch_snow_features_batch(lat, lon, unique_dates, date_hour=date_hour or None)
+    except Exception as exc:
+        logger.warning("avoid_low_quality_days: snow fetch failed (%s) — skipping filter", exc)
+        snow = {}
+
+    bad_dates: set[str] = set()
+    for date in unique_dates:
+        w = weather.get(date, {})
+        s = snow.get(date, {})
+        _t   = w.get("temp")
+        temp = _t if _t is not None else w.get("temp_max")
+        # precip_3day can be None when the API returns null for precipitation_sum.
+        # Fall back to the daily precip so the check is never silently bypassed.
+        precip3   = w.get("precip_3day")
+        precip1   = w.get("precip")
+        precip_mm = (precip3 if precip3 is not None else precip1) or 0.0
+        snow_frac = s.get("snow_cover_frac") or 0.0
+
+        wet_snow   = (temp is not None and temp > 0 and snow_frac > 0.30)
+        heavy_snow = snow_frac >= snow_thr
+        heavy_rain = precip_mm >= precip_thr
+
+        if wet_snow or heavy_snow or heavy_rain:
+            reasons = []
+            if wet_snow:   reasons.append(f"wet snow (frac={snow_frac:.2f}, temp={temp:.1f}°C)")
+            if heavy_snow: reasons.append(f"heavy snow (frac={snow_frac:.2f} ≥ {snow_thr})")
+            if heavy_rain: reasons.append(f"heavy rain (precip={precip_mm:.1f} mm ≥ {precip_thr} mm)")
+            logger.warning("avoid_low_quality_days: dropping date %s — %s", date, ", ".join(reasons))
+            bad_dates.add(date)
+
+    bad_names = {name for name, d in date_of.items() if d in bad_dates}
+    return bad_names, weather, snow, lat, lon
 
 
 def select_pairs(
@@ -968,6 +1094,10 @@ def select_pairs(
     snow_threshold: float        = _SP["snow_threshold"],
     precip_mm_threshold: float   = _SP["precip_mm_threshold"],
     aoi_wkt: str | None = None,
+    burst: bool = False,
+    safe_dir: str | Path | None = None,
+    eof_dir: str | Path | None = None,
+    poeorb_cache: str | Path | None = None,
 ) -> Union[PairGroup, list[Pair]]:
     
     """
@@ -976,6 +1106,13 @@ def select_pairs(
     This function selects interferogram pairs according to temporal spacing 
     and perpendicular baseline constraints, optionally enforcing connectivity 
     rules per scene.
+
+    When ``burst=True`` the same selection runs on SLC-BURST products:
+    nodes are acquisition dates (one date = one stitched SAFE), temporal
+    baseline comes from each burst's ``startTime``, and perpendicular baseline
+    is resolved per date from ``safe_dir`` (assembled ``.SAFE`` annotations),
+    ``eof_dir`` (local precise orbits), or a POEORB download keyed by date +
+    mission. No parent-SLC lookup is performed.
 
     Supported sensors:
     - Sentinel-1 (CALCULATED)  : stateVectors + ascendingNodeTime → local
@@ -1020,6 +1157,20 @@ def select_pairs(
             this geometry is used for weather/snow lookups instead of the union
             centroid of the scene footprints, ensuring the same location is used
             here as in FeatureAssembler.  Defaults to None.
+        burst (bool, optional):
+            Select pairs for an SLC-BURST stack. Nodes become ``YYYYMMDD``
+            acquisition dates; dt is computed from burst ``startTime`` and
+            bperp from per-date orbit state vectors (no parent-SLC lookup).
+            Defaults to False.
+        safe_dir (str | Path | None, optional):
+            Burst mode only: directory of assembled ``.SAFE`` dirs whose
+            annotation orbits are used for bperp (post-download, offline).
+        eof_dir (str | Path | None, optional):
+            Burst mode only: directory of precise-orbit ``.EOF`` files used
+            for bperp (post-download, offline).
+        poeorb_cache (str | Path | None, optional):
+            Burst mode only: directory for POEORB downloads keyed by date +
+            mission (online fallback).
 
     Returns:
         tuple of three elements:
@@ -1042,105 +1193,6 @@ def select_pairs(
             y-axis (negative/positive spread around zero). Mirrors the
             structure of *pairs* (flat or grouped).
     """
-
-    # ── bad-day pre-filter ────────────────────────────────────────────────
-    def _bad_scene_names(
-        prods: list,
-        snow_thr: float,
-        precip_thr: float,
-    ) -> tuple[set[str], dict[str, dict], dict[str, dict], float, float]:
-        """Return (bad_names, weather_dict, snow_dict, lat, lon).
-
-        weather_dict / snow_dict are {date: feats} for ALL unique dates — not
-        just the bad ones — so callers can seed FeatureAssembler's cache and
-        avoid a second fetch during scoring.
-
-        Flags a date bad when:
-          - wet snow  : snow_frac > 0.3 AND temp_max > 0 °C  (C-band hard kill)
-          - heavy snow: snow_frac >= snow_thr
-          - heavy rain: precip_3day (or daily precip fallback) >= precip_thr mm
-        """
-        from shapely.geometry import shape as _shape
-        from shapely.ops import unary_union
-        from insarhub.utils.pair_quality._weather import fetch_weather_batch
-        from insarhub.utils.pair_quality._snow_modis import fetch_snow_features_batch
-
-        # Prefer the explicit AOI centroid (same geometry FeatureAssembler uses).
-        # Fall back to the union centroid of all scene footprints.
-        try:
-            from shapely import wkt as _wkt
-            if aoi_wkt:
-                c = _wkt.loads(aoi_wkt).centroid
-            else:
-                union = unary_union([_shape(p.geometry) for p in prods])
-                c = union.centroid
-            lat, lon = c.y, c.x
-        except Exception as exc:
-            logger.warning("avoid_low_quality_days: could not extract centroid (%s) — skipping filter", exc)
-            return set(), {}, {}, 0.0, 0.0
-
-        # Use startTime property (already ISO-8601) rather than parsing the scene
-        # name at fixed character positions — more reliable across sensor types.
-        date_of: dict[str, str] = {
-            p.properties["sceneName"]: (p.properties.get("startTime") or "")[:10]
-            for p in prods
-        }
-        unique_dates = list({d for d in date_of.values() if len(d) == 10})
-
-        if not unique_dates:
-            logger.warning("avoid_low_quality_days: no valid dates extracted — skipping filter")
-            return set(), {}, {}, lat, lon
-
-        # Build per-date overpass hour from scene names (YYYYMMDDTHHMMSS in name)
-        date_hour: dict[str, int] = {}
-        for p in prods:
-            name = p.properties.get("sceneName", "")
-            date = date_of.get(name, "")
-            if date and len(name) >= 28 and name[25] == "T":
-                try:
-                    date_hour[date] = int(name[26:28])
-                except ValueError:
-                    pass
-
-        logger.info("avoid_low_quality_days: fetching weather/snow for %d dates …", len(unique_dates))
-        try:
-            weather = fetch_weather_batch(lat, lon, unique_dates, date_hour=date_hour or None)
-        except Exception as exc:
-            logger.warning("avoid_low_quality_days: weather fetch failed (%s) — skipping filter", exc)
-            weather = {}
-        try:
-            snow = fetch_snow_features_batch(lat, lon, unique_dates, date_hour=date_hour or None)
-        except Exception as exc:
-            logger.warning("avoid_low_quality_days: snow fetch failed (%s) — skipping filter", exc)
-            snow = {}
-
-        bad_dates: set[str] = set()
-        for date in unique_dates:
-            w = weather.get(date, {})
-            s = snow.get(date, {})
-            _t   = w.get("temp")
-            temp = _t if _t is not None else w.get("temp_max")
-            # precip_3day can be None when the API returns null for precipitation_sum.
-            # Fall back to the daily precip so the check is never silently bypassed.
-            precip3   = w.get("precip_3day")
-            precip1   = w.get("precip")
-            precip_mm = (precip3 if precip3 is not None else precip1) or 0.0
-            snow_frac = s.get("snow_cover_frac") or 0.0
-
-            wet_snow   = (temp is not None and temp > 0 and snow_frac > 0.30)
-            heavy_snow = snow_frac >= snow_thr
-            heavy_rain = precip_mm >= precip_thr
-
-            if wet_snow or heavy_snow or heavy_rain:
-                reasons = []
-                if wet_snow:   reasons.append(f"wet snow (frac={snow_frac:.2f}, temp={temp:.1f}°C)")
-                if heavy_snow: reasons.append(f"heavy snow (frac={snow_frac:.2f} ≥ {snow_thr})")
-                if heavy_rain: reasons.append(f"heavy rain (precip={precip_mm:.1f} mm ≥ {precip_thr} mm)")
-                logger.warning("avoid_low_quality_days: dropping date %s — %s", date, ", ".join(reasons))
-                bad_dates.add(date)
-
-        bad_names = {name for name, d in date_of.items() if d in bad_dates}
-        return bad_names, weather, snow, lat, lon
 
     # ── normalise input ───────────────────────────────────────────────────
     input_is_list = isinstance(search_results, list)
@@ -1172,70 +1224,90 @@ def select_pairs(
     # ── process each (path, frame) key ───────────────────────────────────
     for key, search_result in working_dict.items():
         if not input_is_list:
+            label = key[1] if not burst else key[1]
             logger.info(
                 "%sSearching pairs for path %d frame %s …",
-                Fore.GREEN, key[0], key[1],
+                Fore.GREEN, key[0], label,
             )
 
-        # Sort by acquisition time so `names` is chronologically ordered
-        prods = sorted(search_result, key=lambda p: p.properties["startTime"])
-
-        if not prods:
-            logger.warning("No products for key %s — skipping.", key)
-            continue
-
-        # Collapse same-calendar-date products (e.g. multiple frames of one
-        # track/orbital pass, most commonly a merge group spanning several
-        # ASF frame numbers) into a single representative product per date —
-        # mirrors ISCE2 stackSentinel's own sentinelSLC.get_dates() merge
-        # behavior, so temporal/baseline network connectivity (min_degree /
-        # max_degree) is computed per acquisition date, not per physical
-        # frame file. A no-op for the normal single-frame case, where a key
-        # never has two products sharing a date.
-        prods, n_collapsed = _collapse_by_date(prods)
-        if n_collapsed:
-            logger.info(
-                "%s: collapsed %d same-date product(s) across frames "
-                "(%d unique acquisition date(s)).",
-                key, n_collapsed, len(prods),
+        if burst:
+            # ── burst path: one node per acquisition date ──────────────────
+            # ASF publishes no baseline metadata for SLC-BURST products, so
+            # every burst inherits the geometry of the date it was acquired
+            # on. Nodes are dates, dt comes from startTime, bperp from the
+            # per-date orbit (SAFE annotation / local EOF / POEORB by date).
+            dates, id_time_dt, B, scene_bp, prefetch = _select_burst_group(
+                search_result,
+                avoid_low_quality_days=avoid_low_quality_days,
+                snow_threshold=snow_threshold,
+                precip_mm_threshold=precip_mm_threshold,
+                aoi_wkt=aoi_wkt,
+                safe_dir=safe_dir, eof_dir=eof_dir, poeorb_cache=poeorb_cache,
             )
+            if prefetch:
+                prefetch_cache[key] = prefetch
+            names = dates
+        else:
+            # Sort by acquisition time so `names` is chronologically ordered
+            prods = sorted(search_result, key=lambda p: p.properties["startTime"])
 
-        # Pre-parse acquisition datetimes to Unix timestamps (done once;
-        # reused in sort keys, dt calculations, and pair ordering)
-        id_time_raw: dict[SceneID, str] = {
-            p.properties["sceneName"]: p.properties["startTime"] for p in prods
-        }
-        id_time_dt: dict[SceneID, DateFloat] = {
-            sid: isoparse(t).timestamp() for sid, t in id_time_raw.items()
-        }
-        ids: set[SceneID] = set(id_time_raw)
-        names: list[SceneID] = [p.properties["sceneName"] for p in prods]
+            if not prods:
+                logger.warning("No products for key %s — skipping.", key)
+                continue
 
-        # ── 0. Drop bad-weather/snow acquisition dates ────────────────────
-        if avoid_low_quality_days:
-            bad, w_cache, s_cache, pc_lat, pc_lon = _bad_scene_names(
-                prods, snow_threshold, precip_mm_threshold
-            )
-            prefetch_cache[key] = {
-                "weather": w_cache,
-                "snow":    s_cache,
-                "lat":     pc_lat,
-                "lon":     pc_lon,
-            }
-            if bad:
-                before = len(prods)
-                prods  = [p for p in prods if p.properties["sceneName"] not in bad]
-                names  = [n for n in names if n not in bad]
-                ids    = set(names)
-                id_time_raw = {k: v for k, v in id_time_raw.items() if k not in bad}
-                id_time_dt  = {k: v for k, v in id_time_dt.items()  if k not in bad}
-                logger.warning(
-                    "Key %s — avoid_low_quality_days: removed %d / %d scenes.",
-                    key, before - len(prods), before,
+            # Collapse same-calendar-date products (e.g. multiple frames of one
+            # track/orbital pass, most commonly a merge group spanning several
+            # ASF frame numbers) into a single representative product per date —
+            # mirrors ISCE2 stackSentinel's own sentinelSLC.get_dates() merge
+            # behavior, so temporal/baseline network connectivity (min_degree /
+            # max_degree) is computed per acquisition date, not per physical
+            # frame file. A no-op for the normal single-frame case, where a key
+            # never has two products sharing a date.
+            prods, n_collapsed = _collapse_by_date(prods)
+            if n_collapsed:
+                logger.info(
+                    "%s: collapsed %d same-date product(s) across frames "
+                    "(%d unique acquisition date(s)).",
+                    key, n_collapsed, len(prods),
                 )
 
-        # ── 1. Build pairwise baseline table ─────────────────────────────
-        B, scene_bp = _build_baseline_table(prods, ids, id_time_dt, max_workers=max_workers)
+            # Pre-parse acquisition datetimes to Unix timestamps (done once;
+            # reused in sort keys, dt calculations, and pair ordering)
+            id_time_raw: dict[SceneID, str] = {
+                p.properties["sceneName"]: p.properties["startTime"] for p in prods
+            }
+            id_time_dt: dict[SceneID, DateFloat] = {
+                sid: isoparse(t).timestamp() for sid, t in id_time_raw.items()
+            }
+            ids: set[SceneID] = set(id_time_raw)
+            names: list[SceneID] = [p.properties["sceneName"] for p in prods]
+
+            # ── 0. Drop bad-weather/snow acquisition dates ────────────────
+            if avoid_low_quality_days:
+                bad, w_cache, s_cache, pc_lat, pc_lon = _bad_scene_names(
+                    prods, snow_threshold, precip_mm_threshold, aoi_wkt
+                )
+                prefetch_cache[key] = {
+                    "weather": w_cache,
+                    "snow":    s_cache,
+                    "lat":     pc_lat,
+                    "lon":     pc_lon,
+                }
+                if bad:
+                    before = len(prods)
+                    prods  = [p for p in prods if p.properties["sceneName"] not in bad]
+                    names  = [n for n in names if n not in bad]
+                    ids    = set(names)
+                    id_time_raw = {k: v for k, v in id_time_raw.items() if k not in bad}
+                    id_time_dt  = {k: v for k, v in id_time_dt.items()  if k not in bad}
+                    logger.warning(
+                        "Key %s — avoid_low_quality_days: removed %d / %d scenes.",
+                        key, before - len(prods), before,
+                    )
+
+            # ── 1. Build pairwise baseline table ─────────────────────────
+            B, scene_bp = _build_baseline_table(prods, ids, id_time_dt, max_workers=max_workers)
+
         baseline_group[key] = B
         scene_bperp_group[key] = scene_bp
         # ── 2. Primary pair selection ─────────────────────────────────────
@@ -1269,6 +1341,328 @@ def select_pairs(
     prefetch = prefetch_cache.get((0, 0), {}) if input_is_list else prefetch_cache
 
     return pairs, baseline_group, scene_bperp, prefetch
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  BURST-NATIVE PAIR SELECTION
+# ═══════════════════════════════════════════════════════════════════════════
+
+def _burst_date_of(result) -> str | None:
+    """YYYYMMDD acquisition date from a burst product's startTime."""
+    start = (getattr(result, "properties", None) or {}).get("startTime")
+    if not start:
+        return None
+    return str(start)[:10].replace("-", "")
+
+
+def _burst_center_time(props: dict) -> float | None:
+    """UTC center time of a burst acquisition from startTime/stopTime."""
+    st = props.get("startTime")
+    sp = props.get("stopTime")
+    if not (st and sp):
+        return None
+    try:
+        t0 = isoparse(str(st))
+        t1 = isoparse(str(sp))
+    except Exception:
+        return None
+    if t0.tzinfo is None:
+        t0 = t0.replace(tzinfo=timezone.utc)
+    if t1.tzinfo is None:
+        t1 = t1.replace(tzinfo=timezone.utc)
+    return (t0.timestamp() + t1.timestamp()) / 2.0
+
+
+def _burst_mission(props: dict) -> str | None:
+    """ASF platform ('SENTINEL-1A') -> eof mission ('S1A')."""
+    pl = (props.get("platform") or "").upper()
+    if "1A" in pl:
+        return "S1A"
+    if "1B" in pl:
+        return "S1B"
+    if "1C" in pl:
+        return "S1C"
+    if "1D" in pl:
+        return "S1D"
+    return None
+
+
+def _parse_safe_annotation_orbits(safe_dir: Path) -> tuple | None:
+    """Return (center_ts, (times, positions, velocities), (lat, lon)) from a
+    burst2safe-assembled .SAFE's annotation, or None if unreadable.
+
+    The assembled SAFE is a genuine Sentinel-1 SLC layout: the measurement is a
+    single stitched tiff, and the iw2 annotation carries the full ``orbitList``
+    (17 state vectors) plus the ``geolocationGrid`` used for the ground anchor.
+    ``centerLat``/``centerLon`` do NOT exist in SAFE annotations, so the ground
+    point is the geolocation-grid centroid.
+    """
+    ann_dir = safe_dir / "annotation"
+    if not ann_dir.is_dir():
+        return None
+    cands = [p for p in ann_dir.glob("*.xml")
+             if "calibration" not in p.name and "noise" not in p.name
+             and "rfi" not in p.name]
+    cands.sort(key=lambda p: ("iw2" not in p.stem))   # iw2 first
+    for xml in cands:
+        txt = xml.read_text()
+        if "<orbitList" not in txt:
+            continue
+        root = ET.fromstring(txt)
+        orbit_list = root.find(".//orbitList")
+        if orbit_list is None:
+            continue
+        times, pos, vel = [], [], []
+        for orb in orbit_list:
+            t = orb.findtext("time")
+            p = orb.find("position")
+            v = orb.find("velocity")
+            if not (t and p is not None and v is not None):
+                continue
+            try:
+                tt = isoparse(t.strip())
+            except Exception:
+                continue
+            if tt.tzinfo is None:
+                tt = tt.replace(tzinfo=timezone.utc)
+            times.append(tt.timestamp())
+            pos.append([float(p.findtext(x)) for x in ("x", "y", "z")])
+            vel.append([float(v.findtext(x)) for x in ("x", "y", "z")])
+        if not times:
+            continue
+        st = root.find(".//startTime")
+        sp = root.find(".//stopTime")
+        center = None
+        if st is not None and sp is not None:
+            try:
+                a = isoparse(st.text.strip())
+                b = isoparse(sp.text.strip())
+                if a.tzinfo is None:
+                    a = a.replace(tzinfo=timezone.utc)
+                if b.tzinfo is None:
+                    b = b.replace(tzinfo=timezone.utc)
+                center = (a.timestamp() + b.timestamp()) / 2.0
+            except Exception:
+                center = None
+        if center is None:
+            center = times[0]
+        lats = [float(x) for x in re.findall(r"<latitude>([^<]+)</latitude>", txt)]
+        lons = [float(x) for x in re.findall(r"<longitude>([^<]+)</longitude>", txt)]
+        ground = ((sum(lats) / len(lats), sum(lons) / len(lons))
+                  if lats and lons else None)
+        return center, (np.asarray(times), np.asarray(pos), np.asarray(vel)), ground
+    return None
+
+
+def _safe_dir_for_date(safe_dir: Path, date: str) -> Path | None:
+    """The .SAFE directory whose granule name contains *date* (YYYYMMDD)."""
+    if not safe_dir:
+        return None
+    safe_dir = Path(safe_dir)
+    if not safe_dir.is_dir():
+        return None
+    for d in safe_dir.iterdir():
+        if d.is_dir() and d.name.endswith(".SAFE") and date in d.name:
+            return d
+    return None
+
+
+def _eof_for_time(eof_dir: Path, t: float) -> Path | None:
+    """First .EOF in *eof_dir* whose validity window covers time *t*."""
+    if not eof_dir:
+        return None
+    eof_dir = Path(eof_dir)
+    if not eof_dir.is_dir():
+        return None
+    for e in eof_dir.glob("*.EOF"):
+        m = re.search(r"_V(\d{8}T\d{6})_(\d{8}T\d{6})", e.name)
+        if not m:
+            continue
+        try:
+            t0 = isoparse(m.group(1)).replace(tzinfo=timezone.utc).timestamp()
+            t1 = isoparse(m.group(2)).replace(tzinfo=timezone.utc).timestamp()
+        except Exception:
+            continue
+        if t0 <= t <= t1:
+            return e
+    return None
+
+
+def _resolve_burst_orbit(
+    date: str,
+    center_ts: float | None,
+    mission: str | None,
+    safe_dir: Path | None = None,
+    eof_dir: Path | None = None,
+    poeorb_cache: Path | None = None,
+) -> tuple | None:
+    """Resolve orbit state vectors for one acquisition date.
+
+    Sources, in order:
+      1. local .SAFE annotation (post-download, offline)
+      2. local .EOF precise orbit (post-download, offline)
+      3. POEORB download by date+mission (online, no SLC name required)
+
+    Returns (center_ts, (times, positions, velocities), ground) or None.
+    """
+    safe = _safe_dir_for_date(safe_dir, date) if safe_dir else None
+    if safe is not None:
+        parsed = _parse_safe_annotation_orbits(safe)
+        if parsed is not None:
+            return parsed
+    if center_ts is not None:
+        eof = _eof_for_time(eof_dir, center_ts) if eof_dir else None
+        if eof is not None:
+            svs = _parse_poeorb(eof)
+            return center_ts, svs, None
+    if center_ts is not None and mission is not None and poeorb_cache is not None:
+        try:
+            from eof.download import download_eofs
+            cache = Path(poeorb_cache)
+            cache.mkdir(parents=True, exist_ok=True)
+            # eof's orbit selection compares against naive datetimes internally,
+            # so pass a naive UTC time (not tz-aware) or the comparison raises
+            # "can't compare offset-naive and offset-aware datetimes".
+            dt = datetime.utcfromtimestamp(center_ts)
+            paths = download_eofs(orbit_dts=[dt], missions=[mission],
+                                  save_dir=str(cache), force_asf=True)
+            if not paths:
+                paths = download_eofs(orbit_dts=[dt], missions=[mission],
+                                      save_dir=str(cache), force_asf=False)
+            if paths:
+                svs = _parse_poeorb(Path(paths[0]))
+                return center_ts, svs, None
+        except Exception as exc:
+            logger.warning("Burst orbit download failed for %s: %s", date, exc)
+    return None
+
+
+def _select_burst_group(
+    prods: list[ASFProduct],
+    avoid_low_quality_days: bool = False,
+    snow_threshold: float        = _SP["snow_threshold"],
+    precip_mm_threshold: float   = _SP["precip_mm_threshold"],
+    aoi_wkt: str | None = None,
+    safe_dir: str | Path | None = None,
+    eof_dir: str | Path | None = None,
+    poeorb_cache: str | Path | None = None,
+) -> tuple:
+    """Compute baselines for one burst group, nodes being acquisition dates.
+
+    Burst-native: ASF publishes no baseline metadata for SLC-BURST products, so
+    every burst inherits the geometry of the date it was acquired on:
+
+    - temporal baseline (dt) comes from each burst's ``startTime``;
+    - perpendicular baseline (bperp) comes from orbit state vectors resolved
+      per date from, in order: the assembled ``.SAFE`` annotation, a local
+      precise-orbit ``.EOF``, or a POEORB download keyed by date + mission.
+      No parent-SLC lookup is performed.
+
+    Returns ``(dates, id_time_dt, B, scene_bp, prefetch)``:
+        dates       sorted ``YYYYMMDD`` nodes
+        id_time_dt  node -> Unix timestamp
+        B           pairwise ``(dt_days, bperp_m)`` table keyed by ``(date, date)``
+        scene_bp    date -> signed bperp relative to the anchor date
+        prefetch    weather/snow cache ``{weather, snow, lat, lon}`` (or ``{}``)
+    """
+    # ── collapse bursts of one date into a single date node ────────────────
+    date_prod: dict[str, list] = defaultdict(list)
+    for p in prods:
+        d = _burst_date_of(p)
+        if d:
+            date_prod[d].append(p)
+    if not date_prod:
+        logger.warning("Burst group — no valid acquisition dates; skipping.")
+        return [], {}, {}, {}, {}
+
+    dates = sorted(date_prod)
+
+    # ── drop bad-weather/snow dates (shared with the scene path) ──────────
+    prefetch: dict = {}
+    if avoid_low_quality_days:
+        bad, w_cache, s_cache, pc_lat, pc_lon = _bad_scene_names(
+            prods, snow_threshold, precip_mm_threshold, aoi_wkt
+        )
+        prefetch = {"weather": w_cache, "snow": s_cache,
+                    "lat": pc_lat, "lon": pc_lon}
+        if bad:
+            bad_dates = {d for p, d in ((p, _burst_date_of(p)) for p in prods)
+                         if d and p.properties["sceneName"] in bad}
+            dates = [d for d in dates if d not in bad_dates]
+            logger.warning("avoid_low_quality_days: removed %d / %d burst dates.",
+                           len(bad_dates), len(date_prod))
+            if not dates:
+                return [], {}, {}, {}, prefetch
+
+    rep = {d: date_prod[d][0] for d in dates}   # representative product
+
+    # ── temporal + perpendicular baselines per date ────────────────────────
+    id_time_dt: dict[str, float] = {}
+    orbits: dict[str, tuple] = {}
+    for d in dates:
+        props = rep[d].properties
+        center = _burst_center_time(props)
+        if center is None:
+            center = isoparse(f"{d[:4]}-{d[4:6]}-{d[6:]}T12:00:00Z"
+                              ).replace(tzinfo=timezone.utc).timestamp()
+        id_time_dt[d] = center
+        orbits[d] = _resolve_burst_orbit(
+            d, center, _burst_mission(props),
+            safe_dir=Path(safe_dir) if safe_dir else None,
+            eof_dir=Path(eof_dir) if eof_dir else None,
+            poeorb_cache=Path(poeorb_cache) if poeorb_cache else None,
+        )
+
+    have_orbit = sum(1 for o in orbits.values() if o is not None)
+    if not have_orbit:
+        logger.warning("Burst group — no orbit source resolved; bperp is "
+                       "unavailable for this stack.")
+
+    # ── ground anchor for the look direction ───────────────────────────────
+    anchor_date = dates[0]
+    anc_orbit = orbits.get(anchor_date)
+    if anc_orbit is not None:
+        anc_tc, anc_svs, anc_ground = anc_orbit
+        r_anc, v_anc = _orbit_at_time(anc_svs, anc_tc)
+        if anc_ground is None:
+            ap = rep[anchor_date].properties
+            glat = float(ap.get("centerLat", 0))
+            glon = float(ap.get("centerLon", 0))
+            anc_ground = (glat, glon)
+        ground_anc = _ecef_from_latlon(*anc_ground)
+        along_beam = r_anc - ground_anc
+        along_beam /= np.linalg.norm(along_beam)
+        up_beam = np.cross(v_anc, along_beam)
+        up_beam /= np.linalg.norm(up_beam)
+    else:
+        up_beam = None
+
+    # ── per-date bperp relative to anchor ──────────────────────────────────
+    bp_vector: dict[str, float] = {anchor_date: 0.0}
+    for d in dates[1:]:
+        orb = orbits.get(d)
+        if orb is None or up_beam is None:
+            bp_vector[d] = _MISSING
+            continue
+        tc, svs, _ = orb
+        r_sec, _ = _orbit_at_time(svs, tc)
+        bperp = float(np.dot(up_beam, r_sec - r_anc))
+        bp_vector[d] = bperp if abs(bperp) <= 5_000 else _MISSING
+
+    # ── pairwise baseline table ────────────────────────────────────────────
+    B: BaselineTable = {}
+    for i, a in enumerate(dates):
+        for b in dates[i + 1:]:
+            dt = abs(id_time_dt[b] - id_time_dt[a]) / 86_400.0
+            bp_a, bp_b = bp_vector.get(a), bp_vector.get(b)
+            bp = (abs(bp_b - bp_a)
+                  if (bp_a is not None and bp_b is not None
+                      and bp_a != _MISSING and bp_b != _MISSING)
+                  else _MISSING)
+            B[(a, b)] = (dt, bp)
+    scene_bp = {d: float(v) for d, v in bp_vector.items()}
+    return dates, id_time_dt, B, scene_bp, prefetch
+
 
 def get_config(config_path=None):
 
@@ -1480,8 +1874,11 @@ def plot_pair_network(
         if sc is None:  return _Q_NONE
         # support both 0-1 (coherence) and 0-100 (pair quality) scales
         v = sc if sc <= 1 else sc / 100.0
-        if v >= 0.60:  return _Q_GOOD
-        if v >= 0.30:  return _Q_RISKY
+        # Calibrated for TRUE (unfiltered) coherence (Kellndorfer et al. 2022):
+        # 12-day median ~0.31, 6-day median ~0.42. 0.60/0.30 were the
+        # Goldstein-filtered values and made every 12-day pair "risky"/"bad".
+        if v >= 0.40:  return _Q_GOOD
+        if v >= 0.25:  return _Q_RISKY
         return _Q_BAD
 
     # ── Extract per-class scores from quality_factors ─────────────────────
@@ -1515,8 +1912,8 @@ def plot_pair_network(
             sc = quality_scores.get(f"{a}:{b}") or quality_scores.get(f"{b}:{a}")
             edge_colours.append(_quality_colour(sc))
             sv = (sc / 100.0 if sc is not None and sc > 1 else sc)
-            edge_widths.append(2.0 if sv is not None and sv >= 0.60 else
-                               1.2 if sv is not None and sv >= 0.30 else 0.7)
+            edge_widths.append(2.0 if sv is not None and sv >= 0.40 else
+                               1.2 if sv is not None and sv >= 0.25 else 0.7)
     else:
         edge_colours = [plt.cm.RdYlGn_r(min(dt, max_dt) / max_dt) for dt in edge_dts]
         edge_widths  = [0.5 + 2.5 * (1.0 - min(dt, max_dt) / max_dt) for dt in edge_dts]
@@ -1719,8 +2116,8 @@ def plot_pair_network(
                 sc = cls_map.get(f"{a}:{b}") or cls_map.get(f"{b}:{a}")
                 c_colours.append(_quality_colour(sc))
                 sv = (sc / 100.0 if sc is not None and sc > 1 else sc)
-                c_widths.append(2.0 if sv is not None and sv >= 0.60 else
-                                1.2 if sv is not None and sv >= 0.30 else 0.7)
+                c_widths.append(2.0 if sv is not None and sv >= 0.40 else
+                                1.2 if sv is not None and sv >= 0.25 else 0.7)
 
             fig_c = plt.figure(figsize=figsize)
             gs_c  = fig_c.add_gridspec(1, 2, width_ratios=[3, 1], wspace=0.35)
@@ -1771,9 +2168,9 @@ def plot_pair_network(
 
             ax_c.legend(
                 handles=[
-                    mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.60)"),
-                    mpatches.Patch(color=_Q_RISKY, label="Risky (0.30–0.60)"),
-                    mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.30)"),
+                    mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.40)"),
+                    mpatches.Patch(color=_Q_RISKY, label="Risky (0.25–0.40)"),
+                    mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.25)"),
                     mpatches.Patch(color=_Q_NONE,  label="Unscored"),
                 ],
                 title=f"{cls_label} coherence", loc="lower right",

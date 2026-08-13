@@ -34,15 +34,14 @@ class S1_SLC(ASF_Base_Downloader):
 
         Args:
             save_path (str | None): Optional path to save the downloaded files. Defaults to None.
-            max_workers (int): Parallel download workers. Defaults to 3.
+            max_workers (int): Parallel download workers. None lets the base
+                resolve config.max_workers, then the built-in default.
             force_cdse (bool): If True, forces downloading orbit files from CDSE instead of ASF. Defaults to False.
             download_orbit (bool): If True, also downloads orbit files after scenes. Defaults to False.
             stop_event: Optional threading.Event to cancel the download.
             on_progress: Optional callback(message, pct) called after each file completes.
             merge (bool): If True, all stacks download into a single merged/slc/ directory.
         """
-        from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
-        if max_workers is None: max_workers = _DL["max_workers"]
         super().download(save_path=save_path, max_workers=max_workers,
                          stop_event=stop_event, on_progress=on_progress, merge=merge)
         if download_orbit:

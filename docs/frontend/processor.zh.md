@@ -172,10 +172,10 @@
     ![处理器选择](fig/processor_dialog_ISCE_light.png#only-light){: .doc-img style="width: 60%"}
     ![处理器选择](fig/processor_dialog_ISCE_dark.png#only-dark){: .doc-img style="width: 60%"}
     /// caption
-    选择 `ISCE_S1` 通过 ISCE2 进行本地 / HPC 处理。
+    选择 `ISCE2_S1` 通过 ISCE2 进行本地 / HPC 处理。
     ///
 
-    选择 `ISCE_S1` 并配置所需参数 — 边界框（南北西东）、SLC 目录，以及可选的 HPC 模式。点击**提交**在后台本地启动 `stackSentinel`，或启用 **HPC 模式**将步骤提交至 SLURM。
+    选择 `ISCE2_S1` 并配置所需参数 — 边界框（南北西东）、SLC 目录，以及可选的 HPC 模式。点击**提交**在后台本地启动 `stackSentinel`，或启用 **HPC 模式**将步骤提交至 SLURM。
 
     HPC 模式下，每个步骤通过滑动窗口 SLURM 管理器运行，随时保持最多 **Max Concurrent HPC**（默认 12）个子作业同时活跃。步骤之间自动串联。**重试**会从已保存的作业状态中检测 HPC 模式，失败后无需重新配置。
 

@@ -361,3 +361,90 @@ Downloader.available()
             options:
                 show_source: false
                 heading_level: 5
+
+=== "S1_Burst"
+
+    `S1_Burst` 是一个专用下载器，扩展自 `ASF_Base_Downloader`，用于 ASF 的 **SLC-BURST** 数据集。一个 burst 大约是完整 IW 切片（slice）的 1/9，因此面向 AOI 的 burst 堆叠比等效的 `S1_SLC` 搜索拉取的数据少得多——这正是 burst 处理的意义所在，也使 `ISCE3_Burst` / COMPASS 工作流在小目标区域上切实可行。请与 `ISCE3_Burst` 处理器和 `Dolphin_SBAS` 分析器配合使用。
+
+    搜索、过滤、摘要、足迹和配对选择与 `S1_SLC` 完全一致（它们复用 `ASF_Base_Downloader`）；只有 `download()` 不同——它将选中的 burst 颗粒交给 `burst2safe`，由后者合并注释/定标/噪声 XML 并写入清单，从而组装成合法的 `.SAFE` 目录。
+
+    !!! note "Burst 堆叠以 `fullBurstID` 为键，而非 frame"
+        ASF 的 SLC-BURST 产品不返回 `frameNumber`，因此 frame 过滤器匹配不到任何内容，已从查询中排除。burst 堆叠由 `fullBurstID`（如 `056_118970_IW2`）标识；下载器文件夹据此命名为 `p<path>_iw<s>_b<id>`。
+
+    ::: insarhub.downloader.s1_burst.S1_Burst
+        options:
+            show_source: true
+            heading_level: 0
+
+    - **创建下载器**
+
+        ```python
+        s1b = Downloader.create('S1_Burst',
+                                intersectsWith=[-106.06, 40.34, -105.70, 40.58],
+                                fullBurstID=['056_118970_IW2', '056_118971_IW2'],
+                                polarization=['VV'],
+                                start='2022-08-04',
+                                end='2026-07-21',
+                                workdir='path/to/dir')
+        ```
+
+        或使用显式配置：
+
+        ```python
+        from insarhub.config import S1_Burst_Config
+
+        cfg = S1_Burst_Config(
+            intersectsWith=[-106.06, 40.34, -105.70, 40.58],
+            fullBurstID=['056_118970_IW2', '056_118971_IW2'],
+            polarization=['VV'],
+            start='2022-08-04',
+            end='2026-07-21',
+            workdir='path/to/dir',
+        )
+        dl = Downloader.create('S1_Burst', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.S1_Burst_Config
+            options:
+                heading_level: 0
+                members: false
+
+    - **搜索 / 过滤 / 摘要 / 足迹**
+
+        与 `S1_SLC` 完全一致——这些操作复用 `ASF_Base_Downloader`，作用于相同的 ASF burst 颗粒搜索。
+
+        ```python
+        results = dl.search()
+        dl.summary()
+        dl.footprint()
+        ```
+
+    - **选择配对**
+
+        ```python
+        pairs, baselines, scene_bperp, _ = dl.select_pairs(
+            dt_targets=(6, 12, 24, 36, 48, 72, 96),
+            dt_tol=3,
+            dt_max=120,
+            pb_max=150.0,
+            force_connect=True,
+        )
+        ```
+
+        ::: insarhub.downloader.ASF_Base_Downloader.select_pairs
+            options:
+                show_source: false
+                heading_level: 5
+
+    - **下载**
+
+        下载选中的 burst 颗粒，并通过 `burst2safe` 组装为 `.SAFE` 目录。
+
+        ```python
+        dl.download()
+        ```
+
+        ::: insarhub.downloader.s1_burst.S1_Burst.download
+            options:
+                show_source: false
+                heading_level: 5

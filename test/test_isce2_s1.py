@@ -1,10 +1,10 @@
 """
-Integration test for ISCE_S1 (stackSentinel backend).
+Integration test for ISCE2_S1 (stackSentinel backend).
 
 Requires a real ISCE2 installation and a directory of Sentinel-1 SLC files.
 Fill in the paths below, then run:
 
-    python test/test_isce_s1.py
+    python test/test_isce2_s1.py
 
 What it tests
 -------------
@@ -46,11 +46,11 @@ def _load_pairs() -> list[tuple[str, str]]:
 
 
 def _make_proc(skip_existing: bool = True):
-    from insarhub.config import ISCE_S1_Config
-    from insarhub.processor.isce_s1 import ISCE_S1
-    return ISCE_S1(
+    from insarhub.config import ISCE2_S1_Config
+    from insarhub.processor.isce2_s1 import ISCE2_S1
+    return ISCE2_S1(
         pairs  = _load_pairs(),
-        config = ISCE_S1_Config(
+        config = ISCE2_S1_Config(
             workdir       = WORKDIR,
             slc_dir       = SLC_DIR,
             orbit_dir     = ORBIT_DIR,

@@ -8,7 +8,7 @@ Covers:
   - __post_init__ path conversion
   - Field inheritance
   - Hyp3_S1_Config specific fields
-  - ISCE_S1_Config specific fields
+  - ISCE2_S1_Config specific fields
 """
 
 import pytest
@@ -174,28 +174,28 @@ class TestHyp3SBASConfig:
 
 
 # ===========================================================================
-# ISCE_S1_Config
+# ISCE2_S1_Config
 # ===========================================================================
 
 class TestISCES1Config:
     def test_workdir_converts_to_path(self):
-        from insarhub.config import ISCE_S1_Config
-        cfg = ISCE_S1_Config(workdir="/tmp/isce_test")
+        from insarhub.config import ISCE2_S1_Config
+        cfg = ISCE2_S1_Config(workdir="/tmp/isce_test")
         assert isinstance(cfg.workdir, Path)
 
     def test_hpc_mode_default_false(self):
-        from insarhub.config import ISCE_S1_Config
-        cfg = ISCE_S1_Config()
+        from insarhub.config import ISCE2_S1_Config
+        cfg = ISCE2_S1_Config()
         assert cfg.hpc_mode is False
 
     def test_max_workers_positive(self):
-        from insarhub.config import ISCE_S1_Config
-        cfg = ISCE_S1_Config()
+        from insarhub.config import ISCE2_S1_Config
+        cfg = ISCE2_S1_Config()
         assert cfg.max_workers >= 1
 
     def test_slc_dir_default_none(self):
-        from insarhub.config import ISCE_S1_Config
-        cfg = ISCE_S1_Config()
+        from insarhub.config import ISCE2_S1_Config
+        cfg = ISCE2_S1_Config()
         assert cfg.slc_dir is None or isinstance(cfg.slc_dir, (Path, type(None)))
 
 

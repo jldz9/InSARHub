@@ -1,6 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
-import { statusColor, type Theme } from './theme'
+import { type Theme } from './theme'
 import { useResizable, ResizeHandle } from './useResizable'
 import { API } from './api'
 
@@ -10,11 +10,39 @@ export function parseStack(s: string): { path: number; frame: number } | null {
   return { path: parseInt(m[1]), frame: parseInt(m[2]) }
 }
 
+// Stack identity for one footprint. SLC stacks encode "(path, frame)" in
+// `_stack`; burst stacks carry no frame, so the flattened ASF burst
+// properties (pathNumber, subswath, relativeBurstID) are read instead — a
+// burst stack is one fixed burst position that repeats every revisit.
+export interface StackInfo {
+  path: number
+  frame: number
+  isBurst: boolean
+  subswath?: string
+  burstID?: number
+}
 
-// Persist active job IDs across ScenePanel unmount/remount, keyed by stack key "(path, frame)"
-const _dlJobs:    Map<string, string> = new Map()
-const _orbitJobs: Map<string, string> = new Map()
+export function stackInfo(p: Record<string, any>): StackInfo {
+  const slc = parseStack(p._stack ?? '')
+  if (slc) return { path: slc.path, frame: slc.frame, isBurst: false }
+  const path = parseInt(p.pathNumber ?? '', 10) || 0
+  const sw   = String(p.subswath ?? '').toUpperCase()
+  // OPERA relative burst ID — the "official" burst number, unique per
+  // subswath across the orbit (unlike the 0-based burstIndex position that
+  // repeats for every subswath).
+  const rbi  = p.relativeBurstID != null ? Number(p.relativeBurstID) : undefined
+  return { path, frame: 0, isBurst: true, subswath: sw, burstID: rbi }
+}
 
+
+// Downloading is deliberately NOT offered here. The stack panel's job is
+// selection: pick a stack, hit Add Job, and the download runs from the job
+// folder (Jobs drawer -> Download). Two entry points to the same transfer meant
+// the map path and the folder path could each write the folder's
+// insarhub_config.json with a different idea of what the stack was, and the map
+// path had no folder to attribute progress or a failure to. One path, one
+// config, one place to watch it. Applies to every downloader, present and
+// future -- there is no per-downloader opt-in.
 interface Props {
   feature:      GeoJSON.Feature
   theme:        Theme
@@ -49,68 +77,10 @@ export default function ScenePanel({
   const { t: tr } = useTranslation()
   const { width, onHandleMouseDown } = useResizable(280)
   const p     = feature.properties ?? {}
-  const stack = parseStack(p._stack ?? '')
-
-  const stackKey = p._stack ?? ''
-
-  const [dlStatus,  setDlStatus]  = useState<'idle'|'downloading'|'done'|'error'>(
-    () => _dlJobs.has(stackKey) ? 'downloading' : 'idle'
-  )
-  const [dlMessage, setDlMessage] = useState('')
-  const pollRef    = useRef<ReturnType<typeof setInterval> | null>(null)
-  const dlJobIdRef = useRef<string | null>(_dlJobs.get(stackKey) ?? null)
+  const stack = stackInfo(p)
 
   const [ajStatus,  setAjStatus]  = useState<'idle'|'running'|'done'|'error'>('idle')
   const [ajMessage, setAjMessage] = useState('')
-
-  const [orbitStatus,  setOrbitStatus]  = useState<'idle'|'running'|'done'|'error'>(
-    () => _orbitJobs.has(stackKey) ? 'running' : 'idle'
-  )
-  const [orbitMessage, setOrbitMessage] = useState('')
-  const orbitPollRef  = useRef<ReturnType<typeof setInterval> | null>(null)
-  const orbitJobIdRef = useRef<string | null>(_orbitJobs.get(stackKey) ?? null)
-
-  // Resume polling for any in-flight jobs when this panel mounts
-  useEffect(() => {
-    const dlId = dlJobIdRef.current
-    if (dlId) {
-      pollRef.current = setInterval(async () => {
-        try {
-          const r = await fetch(`${API}/api/jobs/${dlId}`)
-          const job = await r.json()
-          setDlMessage(job.message)
-          if (job.status === 'done') {
-            clearInterval(pollRef.current!); dlJobIdRef.current = null
-            _dlJobs.delete(stackKey); setDlStatus('done')
-          } else if (job.status === 'error') {
-            clearInterval(pollRef.current!); dlJobIdRef.current = null
-            _dlJobs.delete(stackKey); setDlStatus('error')
-          }
-        } catch { clearInterval(pollRef.current!); _dlJobs.delete(stackKey); setDlStatus('error') }
-      }, 1500)
-    }
-    const orbitId = orbitJobIdRef.current
-    if (orbitId) {
-      orbitPollRef.current = setInterval(async () => {
-        try {
-          const r = await fetch(`${API}/api/jobs/${orbitId}`)
-          const job = await r.json()
-          setOrbitMessage(job.message ?? '')
-          if (job.status === 'done') {
-            clearInterval(orbitPollRef.current!); orbitJobIdRef.current = null
-            _orbitJobs.delete(stackKey); setOrbitStatus('done')
-          } else if (job.status === 'error') {
-            clearInterval(orbitPollRef.current!); orbitJobIdRef.current = null
-            _orbitJobs.delete(stackKey); setOrbitStatus('error')
-          }
-        } catch { clearInterval(orbitPollRef.current!); _orbitJobs.delete(stackKey); setOrbitStatus('error') }
-      }, 1500)
-    }
-    return () => {
-      clearInterval(pollRef.current!)
-      clearInterval(orbitPollRef.current!)
-    }
-  }, [stackKey])
 
   // Reset Add Job status when feature changes
   useEffect(() => { setAjStatus('idle'); setAjMessage('') }, [feature])
@@ -125,7 +95,11 @@ export default function ScenePanel({
         body: JSON.stringify({
           workdir,
           relativeOrbit: stack.path,
-          frame: stack.frame,
+          // frame is meaningless for bursts (ASF returns none) — the folder
+          // is named per-burst from subswath + burst_id instead.
+          frame: stack.isBurst ? undefined : stack.frame,
+          subswath:    stack.isBurst ? stack.subswath : undefined,
+          burst_id: stack.isBurst ? stack.burstID : undefined,
           start: stackStart,
           end: stackEnd,
           wkt: aoiWkt ?? null,
@@ -146,136 +120,6 @@ export default function ScenePanel({
       setAjMessage(String(e))
     }
   }, [stack, stackStart, stackEnd, workdir, aoiWkt, feature.properties, tr])
-
-  function handleStopDownload() {
-    if (pollRef.current) clearInterval(pollRef.current)
-    if (dlJobIdRef.current) {
-      fetch(`${API}/api/jobs/${dlJobIdRef.current}/stop`, { method: 'POST' }).catch(() => {})
-      dlJobIdRef.current = null
-    }
-    _dlJobs.delete(stackKey)
-    setDlStatus('idle')
-    setDlMessage(tr('scenePanel.stopped'))
-  }
-
-  async function handleDownloadStack() {
-    if (!stack || !stackStart || !stackEnd) return
-    setDlStatus('downloading')
-    setDlMessage(tr('scenePanel.searchingScenes'))
-    try {
-      const res  = await fetch(`${API}/api/download-stack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workdir,
-          relativeOrbit: stack.path,
-          frame: stack.frame,
-          start: stackStart,
-          end: stackEnd,
-          wkt: aoiWkt ?? null,
-          flightDirection: (feature.properties?.flightDirection as string) ?? null,
-          // platform intentionally omitted — the clicked feature is one scene
-          // out of the whole stack, and a track/frame can span a satellite
-          // handover (e.g. Sentinel-1C → Sentinel-1D); filtering the stack's
-          // search to one scene's platform would silently drop the rest.
-          downloaderType,
-        }),
-      })
-      const data = await res.json()
-      if (!res.ok) {
-        setDlStatus('error')
-        setDlMessage(data.detail ?? tr('scenePanel.errorStatus', { status: res.status }))
-        return
-      }
-      const { job_id } = data
-      if (!job_id) { setDlStatus('error'); setDlMessage(tr('scenePanel.noJobId')); return }
-      dlJobIdRef.current = job_id
-      _dlJobs.set(stackKey, job_id)
-      pollRef.current = setInterval(async () => {
-        try {
-          const r   = await fetch(`${API}/api/jobs/${job_id}`)
-          const job = await r.json()
-          setDlMessage(job.message)
-          if (job.status === 'done') {
-            clearInterval(pollRef.current!)
-            dlJobIdRef.current = null; _dlJobs.delete(stackKey)
-            setDlStatus('done')
-          } else if (job.status === 'error') {
-            clearInterval(pollRef.current!)
-            dlJobIdRef.current = null; _dlJobs.delete(stackKey)
-            setDlStatus('error')
-          }
-        } catch {
-          clearInterval(pollRef.current!)
-          _dlJobs.delete(stackKey)
-          setDlStatus('error')
-          setDlMessage(tr('scenePanel.lostConnection'))
-        }
-      }, 1500)
-    } catch (e) {
-      setDlStatus('error')
-      setDlMessage(String(e))
-    }
-  }
-
-  function handleStopOrbit() {
-    if (orbitPollRef.current) clearInterval(orbitPollRef.current)
-    if (orbitJobIdRef.current) {
-      fetch(`${API}/api/jobs/${orbitJobIdRef.current}/stop`, { method: 'POST' }).catch(() => {})
-      orbitJobIdRef.current = null
-    }
-    _orbitJobs.delete(stackKey)
-    setOrbitStatus('idle')
-    setOrbitMessage(tr('scenePanel.stopped'))
-  }
-
-  async function handleDownloadOrbit() {
-    if (!stack || !stackStart || !stackEnd) return
-    setOrbitStatus('running')
-    setOrbitMessage(tr('scenePanel.starting'))
-    try {
-      const res = await fetch(`${API}/api/download-orbit-stack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          workdir,
-          relativeOrbit: stack.path,
-          frame: stack.frame,
-          start: stackStart,
-          end: stackEnd,
-          wkt: aoiWkt ?? null,
-          flightDirection: (feature.properties?.flightDirection as string) ?? null,
-          // platform intentionally omitted — the clicked feature is one scene
-          // out of the whole stack, and a track/frame can span a satellite
-          // handover (e.g. Sentinel-1C → Sentinel-1D); filtering the stack's
-          // search to one scene's platform would silently drop the rest.
-          downloaderType,
-        }),
-      })
-      const { job_id } = await res.json()
-      orbitJobIdRef.current = job_id
-      _orbitJobs.set(stackKey, job_id)
-      orbitPollRef.current = setInterval(async () => {
-        const r   = await fetch(`${API}/api/jobs/${job_id}`)
-        const job = await r.json()
-        setOrbitMessage(job.message ?? '')
-        if (job.status === 'done') {
-          clearInterval(orbitPollRef.current!)
-          orbitJobIdRef.current = null; _orbitJobs.delete(stackKey)
-          setOrbitStatus('done')
-        } else if (job.status === 'error') {
-          clearInterval(orbitPollRef.current!)
-          orbitJobIdRef.current = null; _orbitJobs.delete(stackKey)
-          setOrbitStatus('error')
-        }
-      }, 1500)
-    } catch (e) {
-      setOrbitStatus('error')
-      setOrbitMessage(String(e))
-    }
-  }
-
-  const dlStatusColor = statusColor(dlStatus, t.textMuted)
 
   return (
     <div style={{
@@ -311,7 +155,9 @@ export default function ScenePanel({
             background: t.btnActiveBg, color: t.accent,
             borderRadius: 4, padding: '2px 8px', fontSize: 12, fontWeight: 600,
           }}>
-            {tr('scenePanel.pathFrame', { path: stack.path, frame: stack.frame })}
+            {stack.isBurst && stack.subswath && stack.burstID != null
+              ? tr('scenePanel.burstStack', { path: stack.path, subswath: stack.subswath, burstID: stack.burstID })
+              : tr('scenePanel.pathFrame', { path: stack.path, frame: stack.frame })}
           </span>
         </div>
       )}
@@ -346,101 +192,6 @@ export default function ScenePanel({
             {stackOpen ? tr('scenePanel.hideDetail') : tr('scenePanel.viewDetail')}
           </button>
         </div>
-
-        {/* Download Stack */}
-        <div style={{ marginTop: 8 }}>
-          {dlStatus === 'downloading' ? (
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <button
-                onClick={handleStopDownload}
-                style={{
-                  flex: 1, padding: '8px 0', textAlign: 'center',
-                  background: '#e53935', color: '#fff',
-                  border: '1px solid #e53935',
-                  borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                {tr('scenePanel.stop')}
-              </button>
-              {dlMessage && (
-                <span style={{
-                  fontSize: 11, color: t.accent, fontFamily: 'monospace',
-                  background: t.btnActiveBg, border: `1px solid ${t.btnActiveBorder}`,
-                  borderRadius: 4, padding: '4px 8px', whiteSpace: 'nowrap',
-                }}>
-                  {dlMessage}
-                </span>
-              )}
-            </div>
-          ) : (
-            <button
-              onClick={handleDownloadStack}
-              disabled={!stack || !stackStart || !stackEnd}
-              style={{
-                display: 'block', width: '100%', padding: '8px 0', textAlign: 'center',
-                background: dlStatus === 'done'  ? '#1b5e20'
-                          : dlStatus === 'error' ? '#b71c1c'
-                          : t.btnActiveBg,
-                color: dlStatus === 'done'  ? '#a5d6a7'
-                     : dlStatus === 'error' ? '#ef9a9a'
-                     : t.accent,
-                border: `1px solid ${t.btnActiveBorder}`,
-                borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              }}
-            >
-              {dlStatus === 'done'  ? tr('scenePanel.stackDownloaded')
-             : dlStatus === 'error' ? tr('scenePanel.retry')
-             : tr('scenePanel.downloadStack')}
-            </button>
-          )}
-          {dlMessage && dlStatus !== 'downloading' && (
-            <div style={{ color: dlStatusColor, fontSize: 11, marginTop: 5 }}>{dlMessage}</div>
-          )}
-        </div>
-
-        {/* Download Orbit Files — S1_SLC only */}
-        {downloaderType === 'S1_SLC' && stack && stackStart && stackEnd && (
-          <div style={{ marginTop: 8 }}>
-            {orbitStatus === 'running' ? (
-              <button
-                onClick={handleStopOrbit}
-                style={{
-                  display: 'block', width: '100%', padding: '8px 0', textAlign: 'center',
-                  background: '#e53935', color: '#fff',
-                  border: '1px solid #e53935',
-                  borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                {tr('scenePanel.stop')}
-              </button>
-            ) : (
-              <button
-                onClick={orbitStatus === 'error' ? handleDownloadOrbit : handleDownloadOrbit}
-                style={{
-                  display: 'block', width: '100%', padding: '8px 0', textAlign: 'center',
-                  background: orbitStatus === 'done'  ? '#1b3a2a'
-                            : orbitStatus === 'error' ? '#b71c1c'
-                            : 'transparent',
-                  color: orbitStatus === 'done'  ? '#a5d6a7'
-                       : orbitStatus === 'error' ? '#ef9a9a'
-                       : t.text,
-                  border: `1px solid ${t.border}`,
-                  borderRadius: 6, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                }}
-              >
-                {orbitStatus === 'done'  ? tr('scenePanel.orbitFilesDownloaded')
-               : orbitStatus === 'error' ? tr('scenePanel.retry')
-               : tr('scenePanel.downloadOrbitFiles')}
-              </button>
-            )}
-            {orbitMessage && (
-              <div style={{
-                color: orbitStatus === 'done' ? '#4caf50' : orbitStatus === 'error' ? '#e53935' : t.textMuted,
-                fontSize: 11, marginTop: 5,
-              }}>{orbitMessage}</div>
-            )}
-          </div>
-        )}
 
         {/* Add Job — run select_pairs for this stack */}
         {stack && stackStart && stackEnd && (

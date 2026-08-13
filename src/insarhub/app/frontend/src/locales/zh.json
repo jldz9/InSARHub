@@ -135,8 +135,6 @@
     "remaining": "剩余",
     "noCompatibleProcessors": "没有与以下下载器兼容的处理器：",
     "noCompatibleAnalyzers": "没有与以下处理器兼容的分析器：",
-    "parallelDownloadWorkers": "并行下载线程数",
-    "downloadWorkersHint": "同时下载的文件数。建议：3–5。",
     "docs": "文档"
   },
   "jobQueue": {
@@ -281,19 +279,15 @@
     "stackCount_other": "{{count}} 个堆栈",
     "addingJob": "⟳ 正在添加任务…",
     "addJobMerged_other": "+ 添加任务（合并 {{count}} 个堆栈）",
-    "downloading": "下载中…",
-    "downloadSlcOrbit_other": "下载 SLC + 轨道文件（{{count}} 个堆栈）"
+    "downloadFromJobHint": "添加任务后，在任务面板中打开该任务进行下载。"
   },
   "scenePanel": {
     "error": "错误",
     "stopped": "已停止。",
-    "searchingScenes": "正在搜索场景…",
-    "errorStatus": "错误 {{status}}",
-    "noJobId": "未返回任务 ID",
-    "lostConnection": "与服务器的连接已断开",
     "starting": "启动中…",
     "stackInfo": "堆栈信息",
     "pathFrame": "路径 {{path}} · 帧 {{frame}}",
+    "burstStack": "路径 {{path}} · {{subswath}} · 条带 {{burstID}}",
     "scenes": "场景数",
     "direction": "飞行方向",
     "beamMode": "波束模式",
@@ -302,11 +296,7 @@
     "hideDetail": "◂ 隐藏详情",
     "viewDetail": "▸ 查看详情",
     "stop": "停止",
-    "stackDownloaded": "✓ 堆栈已下载",
     "retry": "✕ 重试",
-    "downloadStack": "↓ 下载堆栈",
-    "orbitFilesDownloaded": "✓ 轨道文件已下载",
-    "downloadOrbitFiles": "⬡ 下载轨道文件",
     "selectingPairs": "⟳ 正在选择干涉对…",
     "jobAdded": "✓ 任务已添加",
     "addJob": "+ 添加任务"
@@ -372,6 +362,10 @@
     "processingDate": "处理日期",
     "sensor": "传感器",
     "absoluteOrbit": "绝对轨道号",
+    "subswath": "子条带",
+    "relativeBurstId": "相对条带号",
+    "fullBurstId": "完整条带 ID",
+    "burstIndex": "条带索引",
     "centerLat": "中心纬度",
     "centerLon": "中心经度",
     "perpBaseline": "垂直基线",

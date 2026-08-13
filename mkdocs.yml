@@ -57,6 +57,7 @@ nav:
         - Downloader: advanced/downloader.md
         - Processor: advanced/processor.md
         - Analyzer: advanced/analyzer.md
+        - HPC (SLURM): advanced/hpc.md
         - Utilities: advanced/utilities.md
         - Pair Quality Scoring: advanced/pair_quality.md
         - Frontend Reference: advanced/frontend.md

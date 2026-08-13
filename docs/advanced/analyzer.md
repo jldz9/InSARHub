@@ -83,7 +83,7 @@ Analyzer.available()
         analyzer.submit_hpc(steps=["velocity", "geocode"])
         ```
 
-        The script is written to `<workdir>/mintpy/mintpy_sbas.sbatch` and job state to `mintpy/mintpy_job.json`. SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the same file `ISCE_S1`'s own HPC submission uses for steps `01`–`16`, since the processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
+        The script is written to `<workdir>/mintpy/mintpy_sbas.sbatch` and job state to `mintpy/mintpy_job.json`. SLURM resources come from `<workdir>/sbatch_options.json`, step key `"17"` — the same file `ISCE2_S1`'s own HPC submission uses for steps `01`–`16`, since the processor and analyzer typically share one workdir. Default: `time=24:00:00`, `ntasks=1`, `cpus_per_task=16`, `mem=128G`, `partition=all`.
 
         `submit_hpc()` returns the SLURM job ID string on success, or `None` if `sbatch_options.json` was just created (or updated with a missing `"17"` entry) — callers should check for `None` and stop rather than treat it as a successful submission:
 
@@ -310,6 +310,206 @@ Analyzer.available()
         ```
 
         ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.cleanup
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+=== "GMTSAR_MINTPY_SBAS"
+
+    The `GMTSAR_MINTPY_SBAS` analyzer runs MintPy SBAS time-series on the coherent stack produced by the `GMTSAR_S1` processor. It hands GMTSAR's geocoded `*_ll.grd` products and `baseline_table.dat` to MintPy's own `prep_gmtsar.py` loader (via the `mintpy.load.*` keys), so it works without any common alignment reference — every pair already shares a geographic grid. It is the MintPy analogue of `ISCE_SBAS`, differing only in how it wires the `load_*` paths. Output is written to `workdir/gmtsar_mintpy/` (a dedicated directory, so it never collides with a Hyp3/ISCE MintPy run in the same workdir).
+
+    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS
+        options:
+            members: false
+            heading_level: 0
+
+    ### Usage
+
+    - **Create Analyzer**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', workdir='/your/work/dir')
+        ```
+
+        OR with explicit config:
+
+        ```python
+        from insarhub.config.defaultconfig import GMTSAR_MINTPY_SBAS_Config
+
+        cfg = GMTSAR_MINTPY_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.GMTSAR_MINTPY_SBAS_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **Prepare data**
+
+        Discover GMTSAR output (stack_mode `merge/<julian_pair>/`, or p2p `gmtsar/<ref>_<sec>/merge/`) and write the MintPy config. For p2p output it stages the merged `unwrap_ll.grd`/`corr_ll.grd` into the `<pair>/unwrap_ll.grd` shape MintPy expects (symlinked, no multi-GB copies), keeping GMTSAR's Julian `yyyyddd_yyyyddd` directory naming that `prep_gmtsar.py` derives pair dates from.
+
+        ```python
+        analyzer.prep_data()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.prep_data
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Run**
+
+        Run MintPy SBAS time-series analysis. All output is written to `workdir/gmtsar_mintpy/`.
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.run
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **HPC submission**
+
+        Inherited from `Mintpy_SBAS_Base_Analyzer`. Submit the full MintPy run as a single sbatch job (written to `workdir/gmtsar_mintpy/mintpy_sbas.sbatch`).
+
+        ```python
+        analyzer.submit_hpc()
+        ```
+
+    - **Clean up**
+
+        ```python
+        analyzer.cleanup()
+        ```
+
+        ::: insarhub.analyzer.mintpy_base.Mintpy_SBAS_Base_Analyzer.cleanup
+            options:
+                members: true
+                show_source: false
+                heading_level: 5
+
+=== "GMTSAR_SBAS"
+
+    The `GMTSAR_SBAS` analyzer runs **GMTSAR's own native SBAS inversion** (`prep_sbas` + the `sbas` C binary) on a `GMTSAR_S1` stack_mode stack — no MintPy involved. It consumes `workdir/gmtsar/` (`intf.in`, `baseline_table.dat`, `intf/<pair>/`) and produces the cumulative displacement per date (`disp_*.grd`) and the linear velocity (`vel.grd`) in radar coordinates under `workdir/gmtsar_sbas/`.
+
+    Because the inversion is a GMTSAR C binary, both `gmtsar_root` and `gmtsar_env_bin` are **required** in the config — the `sbas` binary and `gmt` come from GMTSAR's own install/conda env, not InSARHub's.
+
+    ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS
+        options:
+            members: false
+            heading_level: 0
+
+    ### Usage
+
+    - **Create Analyzer**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('GMTSAR_SBAS', workdir='/your/work/dir',
+                                   gmtsar_root='/path/to/gmtsar',
+                                   gmtsar_env_bin='/path/to/conda/envs/gmtsar/bin')
+        ```
+
+        OR with explicit config:
+
+        ```python
+        from insarhub.config.defaultconfig import GMTSAR_SBAS_Config
+
+        cfg = GMTSAR_SBAS_Config(
+            workdir='/your/work/dir',
+            gmtsar_root='/path/to/gmtsar',
+            gmtsar_env_bin='/path/to/conda/envs/gmtsar/bin',
+        )
+        analyzer = Analyzer.create('GMTSAR_SBAS', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.GMTSAR_SBAS_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **Prepare data**
+
+        Build `intf.tab` and `scene.tab` from the stack's `baseline_table.dat`, then echo the `sbas intf.tab scene.tab N S xdim ydim` command line to run.
+
+        ```python
+        analyzer.prep_data()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.prep_data
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+    - **Run**
+
+        Run the `sbas` inversion, streaming its progress to the console and `sbas.log` under `workdir/gmtsar_sbas/`.
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.run
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+=== "Dolphin_SBAS"
+
+    The `Dolphin_SBAS` analyzer runs dolphin's `timeseries.run` on the unwrapped interferogram stack produced by `ISCE3_Burst`. One analyzer serves **both** of the processor's wrapped-phase estimators (`ifg_mode="network"` and `ifg_mode="phase_link"`) — the linear inversion is identical for both; only the quality raster used to pick the reference point and mask low-quality pixels differs (temporal coherence for `phase_link`, a temporal average of pairwise correlations for `network`). The estimator choice is read from the stack's `ifg_manifest.json`, never re-specified here. Output is written under `workdir/timeseries/`.
+
+    ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS
+        options:
+            members: false
+            heading_level: 0
+
+    ### Usage
+
+    - **Create Analyzer**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('Dolphin_SBAS', workdir='/your/work/dir')
+        ```
+
+        OR with explicit config:
+
+        ```python
+        from insarhub.config.defaultconfig import Dolphin_SBAS_Config
+
+        cfg = Dolphin_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('Dolphin_SBAS', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.Dolphin_SBAS_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **Run**
+
+        Run the dolphin time-series inversion (cumulative displacement, velocity, residuals) for the stack in this workdir.
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS.run
             options:
                 members: false
                 show_source: false

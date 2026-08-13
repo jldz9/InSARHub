@@ -34,8 +34,8 @@ interface WorkflowsData {
 }
 
 interface ServerSettings {
+  version:              string
   workdir:              string
-  max_download_workers: number
   downloader:           string
   downloader_config:    Record<string, any>
   processor:            string
@@ -97,7 +97,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
 
   // General
   const [workdir,    setWorkdir]    = useState('')
-  const [maxWorkers, setMaxWorkers] = useState(3)
+  const [version,    setVersion]    = useState('')
 
   // Downloader (downloaderType is controlled by parent via prop)
   const [downloaderConfig, setDownloaderConfig] = useState<Record<string, any>>({})
@@ -146,7 +146,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
     // Fetch settings, metadata in parallel
     fetch(`${API}/api/settings`).then(r => r.json()).then((s: ServerSettings) => {
       setWorkdir(s.workdir)
-      setMaxWorkers(s.max_download_workers)
+      setVersion(s.version ?? '')
       setDownloaderConfig(s.downloader_config)
       setProcessorType(s.processor)
       setProcessorConfig(s.processor_config)
@@ -238,7 +238,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           workdir,
-          max_download_workers: maxWorkers,
           downloader: downloaderType,
           downloader_config: effectiveDownloaderConfig,
           processor: processorType,
@@ -731,13 +730,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
                 {renderGroupedFields(meta.downloaders[downloaderType], effectiveDownloaderConfig, setDownloaderField)}
               </div>
             )}
-            <div style={{ ...fieldStyle, marginTop: 16, borderTop: `1px solid ${t.border}`, paddingTop: 14 }}>
-              <label style={labelStyle}>{tr('settings.parallelDownloadWorkers')}</label>
-              <input type="number" min={1} max={99} value={maxWorkers}
-                onChange={e => setMaxWorkers(Math.max(1, parseInt(e.target.value) || 1))}
-                style={{ ...inputStyle, width: 80 }} />
-              <div style={hintStyle}>{tr('settings.downloadWorkersHint')}</div>
-            </div>
           </>) : null}
         </div>
 
@@ -748,18 +740,26 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
             gap: 10, padding: '12px 20px',
             borderTop: `1px solid ${t.border}`, background: t.bg2, flexShrink: 0,
           }}>
-            <a href="https://jldz9.github.io/InSARHub" target="_blank" rel="noopener noreferrer"
-              style={{
-                marginRight: 'auto', display: 'inline-flex', alignItems: 'center', gap: 5,
-                fontSize: 12, color: t.textMuted, textDecoration: 'none',
-                padding: '4px 10px', border: `1px solid ${t.border}`,
-                borderRadius: 6, cursor: 'pointer',
-              }}>
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style={{ width: 13, height: 13, fill: 'currentColor' }}>
-                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
-              </svg>
-              {tr('settings.docs')}
-            </a>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginRight: 'auto' }}>
+              <a href="https://jldz9.github.io/InSARHub" target="_blank" rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  fontSize: 12, color: t.textMuted, textDecoration: 'none',
+                  padding: '4px 10px', border: `1px solid ${t.border}`,
+                  borderRadius: 6, cursor: 'pointer',
+                }}>
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style={{ width: 13, height: 13, fill: 'currentColor' }}>
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17h-2v-2h2v2zm2.07-7.75-.9.92C13.45 12.9 13 13.5 13 15h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H8c0-2.21 1.79-4 4-4s4 1.79 4 4c0 .88-.36 1.68-.93 2.25z"/>
+                </svg>
+                {tr('settings.docs')}
+              </a>
+              {version && (
+                <span style={{
+                  fontSize: 12, color: t.textMuted, padding: '4px 8px',
+                  border: `1px solid ${t.border}`, borderRadius: 6,
+                }}>v{version}</span>
+              )}
+            </div>
             {saveMsg && (
               <span style={{ fontSize: 12,
                 color: saveMsgIsError ? '#e53935' : '#4caf50' }}>

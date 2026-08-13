@@ -1,6 +1,6 @@
 """
 Tests for the `--container` feature: wrap_container_cmd() plus the
-container-mode branches in ISCE_S1/ISCE_Base and Mintpy_SBAS_Base_Analyzer.
+container-mode branches in ISCE2_S1/ISCE2_Base and Mintpy_SBAS_Base_Analyzer.
 
 Does NOT require ISCE2, MintPy, or SLURM — ISCE2/topsStack discovery is
 patched out (mirroring test_hpc_mock.py's approach) and mintpy/osgeo are
@@ -90,29 +90,29 @@ class TestIsceS1ContainerMode(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def _make_isce_s1(self, container: str | None):
-        from insarhub.processor.isce_s1 import ISCE_S1
-        from insarhub.config.defaultconfig import ISCE_S1_Config
+    def _make_isce2_s1(self, container: str | None):
+        from insarhub.processor.isce2_s1 import ISCE2_S1
+        from insarhub.config.defaultconfig import ISCE2_S1_Config
 
         fake_bin = self.workdir / "fake_isce" / "topsApp.py"
         fake_bin.parent.mkdir(parents=True, exist_ok=True)
         fake_bin.touch()
 
-        cfg = ISCE_S1_Config(workdir=str(self.workdir), container=container)
-        with patch("insarhub.processor.isce_base._find_topsstack",
+        cfg = ISCE2_S1_Config(workdir=str(self.workdir), container=container)
+        with patch("insarhub.processor.isce2_base._find_topsstack",
                    return_value=(fake_bin, fake_bin.parent)), \
-             patch("insarhub.processor.isce_base._check_isce2",
+             patch("insarhub.processor.isce2_base._check_isce2",
                    return_value=fake_bin):
-            return ISCE_S1(pairs=[("20200101", "20200113")], config=cfg)
+            return ISCE2_S1(pairs=[("20200101", "20200113")], config=cfg)
 
     def test_submit_short_circuits_to_container(self):
-        proc = self._make_isce_s1("/fake/image.sif")
+        proc = self._make_isce2_s1("/fake/image.sif")
         with patch.object(proc, "_reinvoke_via_container") as mock_reinvoke:
             proc.submit(steps=["run_01"])
         mock_reinvoke.assert_called_once_with("submit", ["run_01"])
 
     def test_submit_runs_normally_without_container(self):
-        proc = self._make_isce_s1(None)
+        proc = self._make_isce2_s1(None)
         with patch.object(proc, "_reinvoke_via_container") as mock_reinvoke, \
              patch.object(proc, "_generate_run_files") as mock_gen:
             # No SLCs/bbox available, so submit() should raise (from DEM prep,
@@ -125,15 +125,15 @@ class TestIsceS1ContainerMode(unittest.TestCase):
         mock_gen.assert_not_called()
 
     def test_retry_short_circuits_to_container(self):
-        proc = self._make_isce_s1("/fake/image.sif")
+        proc = self._make_isce2_s1("/fake/image.sif")
         with patch.object(proc, "_reinvoke_via_container") as mock_reinvoke:
             result = proc.retry()
         mock_reinvoke.assert_called_once_with("retry")
         self.assertEqual(result, proc.jobs)
 
     def test_reinvoke_via_container_builds_wrapped_command_and_excludes_container_field(self):
-        proc = self._make_isce_s1("/fake/image.sif")
-        with patch("insarhub.processor.isce_base.os.fork", return_value=999), \
+        proc = self._make_isce2_s1("/fake/image.sif")
+        with patch("insarhub.processor.isce2_base.os.fork", return_value=999), \
              patch("insarhub.utils.container.wrap_container_cmd") as mock_wrap:
             mock_wrap.return_value = "WRAPPED_CMD"
             proc._reinvoke_via_container("submit", ["run_01", "run_02"])
@@ -141,7 +141,7 @@ class TestIsceS1ContainerMode(unittest.TestCase):
         mock_wrap.assert_called_once()
         container_arg, cli_cmd, bind_dir = mock_wrap.call_args[0]
         self.assertEqual(container_arg, "/fake/image.sif")
-        self.assertIn("insarhub processor -N ISCE_S1", cli_cmd)
+        self.assertIn("insarhub processor -N ISCE2_S1", cli_cmd)
         self.assertIn(f"-w {proc.workdir}", cli_cmd)
         self.assertIn("submit", cli_cmd)
         self.assertIn("--step run_01 run_02", cli_cmd)
@@ -149,7 +149,7 @@ class TestIsceS1ContainerMode(unittest.TestCase):
 
         written = json.loads((proc.workdir / "insarhub_config.json").read_text())
         self.assertNotIn("container", written["processor"]["config"])
-        self.assertEqual(written["processor"]["type"], "ISCE_S1")
+        self.assertEqual(written["processor"]["type"], "ISCE2_S1")
 
         pid_file = proc._run_files_dir / "executor.pid"
         self.assertEqual(pid_file.read_text(), "999")
@@ -210,7 +210,7 @@ class TestMintpyAnalyzerContainerMode(unittest.TestCase):
 
     def test_submit_hpc_wraps_body_command_when_container_set(self):
         analyzer = self._make_analyzer("/fake/image.sif")
-        with patch("insarhub.processor.isce_base.load_or_init_sbatch_options",
+        with patch("insarhub.processor.isce2_base.load_or_init_sbatch_options",
                    return_value={"default": {}, "17": {}}), \
              patch("subprocess.run") as mock_subproc:
             mock_subproc.return_value.returncode = 0
@@ -224,7 +224,7 @@ class TestMintpyAnalyzerContainerMode(unittest.TestCase):
 
     def test_submit_hpc_body_unwrapped_without_container(self):
         analyzer = self._make_analyzer(None)
-        with patch("insarhub.processor.isce_base.load_or_init_sbatch_options",
+        with patch("insarhub.processor.isce2_base.load_or_init_sbatch_options",
                    return_value={"default": {}, "17": {}}), \
              patch("subprocess.run") as mock_subproc:
             mock_subproc.return_value.returncode = 0

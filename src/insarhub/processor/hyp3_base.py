@@ -84,11 +84,17 @@ class Hyp3Base(CloudProcessor):
         self.batchs = defaultdict(list)
         self.failed_jobs = []
         self.cost = 1 # Default cost, override in subclass
-        _roles: dict = {"processor": type(self).name}
-        _dl = getattr(type(self), "compatible_downloader", None)
-        if _dl and _dl != "all":
-            _roles["downloader"] = _dl
-        write_workflow_marker(self.config.workdir, **_roles)
+        # Marking the folder is a side effect of CONSTRUCTION, so anything that
+        # merely builds a processor to inspect it -- notably the --dry-run
+        # preview -- was writing insarhub_config.json. Skip it when dry_run is
+        # set so a dry run is genuinely read-only; a real submit still stamps
+        # the folder from here as before.
+        if not getattr(self.config, "dry_run", False):
+            _roles: dict = {"processor": type(self).name}
+            _dl = getattr(type(self), "compatible_downloader", None)
+            if _dl and _dl != "all":
+                _roles["downloader"] = _dl
+            write_workflow_marker(self.config.workdir, **_roles)
 
     def _hyp3_authorize(self, pool: dict[str, str] | None = None):
         """Authorize the HyP3 client."""

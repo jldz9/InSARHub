@@ -41,6 +41,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from insarhub.utils.defaults import FALLBACK_AOI as _FALLBACK_AOI
+from insarhub.utils.pair_quality._dates import scene_date, scene_hour
 
 logger = logging.getLogger(__name__)
 
@@ -51,25 +52,13 @@ _SCHEMA_VERSION = 1
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _scene_date(name: str) -> str:
-    raw = name[17:25] if len(name) > 25 else ""
-    if len(raw) == 8:
-        return f"{raw[:4]}-{raw[4:6]}-{raw[6:8]}"
-    return ""
+    """ISO date for a bare date id, SLC scene name, or BURST granule name."""
+    return scene_date(name)
 
 
 def _scene_hour(name: str) -> int | None:
-    """Extract UTC overpass hour from S-1 scene name.
-
-    Scene name format: S1A_IW_SLC__1SDV_YYYYMMDDTHHMMSS_...
-    The start-time field begins at position 17; 'T' separator at position 25;
-    HH at positions 26-27.
-    """
-    if len(name) >= 28 and name[25] == "T":
-        try:
-            return int(name[26:28])
-        except ValueError:
-            pass
-    return None
+    """UTC overpass hour for a bare date id, SLC scene name, or BURST name."""
+    return scene_hour(name)
 
 
 def _pair_key(ref: str, sec: str) -> str:
@@ -334,16 +323,27 @@ class PairQualityDB:
         bperp_by_stack:  dict[tuple[int, int], dict[str, float]] = {}
 
         for stack_file in sorted(self.folder.glob("stack_p*_f*.json")):
-            stem = stack_file.stem  # "stack_p100_f466"
+            stem = stack_file.stem  # "stack_p100_f466" / "stack_p56_merged_f056_118970_IW2_..."
             parts = stem.split("_")
             try:
                 path  = int(parts[1][1:])
                 frame = int(parts[2][1:])
             except (IndexError, ValueError):
-                continue
+                # Non-integer frame (burst merge tag, e.g. merged_f056_118970_IW2):
+                # group under path with a string label instead of dropping it.
+                try:
+                    path = int(parts[1][1:])
+                except (IndexError, ValueError):
+                    continue
+                frame = parts[2] if len(parts) > 2 else "merged"
             key = (path, frame)
             data = json.loads(stack_file.read_text())
-            scenes_by_stack[key] = data.get("scenes", [])
+            scenes = data.get("scenes", [])
+            # A burst stack file may still hold granule names from an older run;
+            # fall back to the date pairs so the DB stays date-keyed.
+            if scenes and not any(str(s).isdigit() for s in scenes):
+                scenes = sorted({p for pair in data.get("pairs", []) for p in pair})
+            scenes_by_stack[key] = scenes
             bperp_by_stack[key]  = data.get("baselines", {})
 
         if not scenes_by_stack:

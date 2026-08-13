@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """Settings, health, workdir, and job-folder management endpoints."""
 
+import os
 import shutil
 import subprocess
 import sys
@@ -11,6 +12,7 @@ from fastapi import APIRouter, HTTPException
 import insarhub.app.state as state
 from insarhub.app.models import SettingsUpdate, FolderConfigPatch
 from insarhub.app.state import read_insarhub_config, write_insarhub_config
+from insarhub.app.routes.search import _BURST_GLOBAL_CONFIG_FIELDS
 
 router = APIRouter()
 
@@ -325,11 +327,12 @@ async def delete_job_folder(path: str):
 
 @router.get("/api/settings")
 async def get_settings():
+    from insarhub._version import __version__
     cur_analyzer    = state._settings["analyzer"]
     analyzer_configs: dict = state._settings.get("analyzer_configs", {})
     return {
+        "version":              __version__,
         "workdir":              state._settings["workdir"],
-        "max_download_workers": state._settings["max_download_workers"],
         "downloader":           state._settings["downloader"],
         "downloader_config":    state._settings["downloader_config"],
         "processor":            state._settings["processor"],
@@ -345,14 +348,24 @@ async def update_settings(req: SettingsUpdate):
         p = Path(req.workdir).expanduser().resolve()
         p.mkdir(parents=True, exist_ok=True)
         state._settings["workdir"] = str(p)
-    if req.max_download_workers is not None:
-        state._settings["max_download_workers"] = max(1, min(99, req.max_download_workers))
     if req.downloader is not None:
         state._settings["downloader"] = req.downloader
         state._settings["downloader_config"] = state._safe_config_values(req.downloader, state._DOWNLOADERS_META)
     if req.downloader_config is not None:
         cfg = {k: v for k, v in req.downloader_config.items() if k not in state._TOPBAR_FIELDS}
+        # The S1_Burst settings form renders the base search-filter fields
+        # (relativeOrbit, beamSwath, flightDirection, fullBurstID, ...) alongside
+        # the burst assembly options. Those filters belong to the per-search
+        # request, NOT to the persisted downloader config — if they persist and
+        # later get re-applied to a merged burst search they conflict with the
+        # stack's own fullBurstID and ASF returns empty ("all stack searches
+        # failed"). Never persist them; only keep assembly/download options.
+        if req.downloader == "S1_Burst" or state._settings.get("downloader") == "S1_Burst":
+            cfg = {k: v for k, v in cfg.items() if k in _BURST_GLOBAL_CONFIG_FIELDS}
         state._settings["downloader_config"].update(cfg)
+        if os.environ.get("INSARHUB_DEBUG_SEARCH"):
+            print(f"[debug] settings saved downloader_config: "
+                  f"{state._settings['downloader_config']}")
     if req.processor is not None:
         state._settings["processor"] = req.processor
         state._settings["processor_config"] = state._default_config_values(req.processor, state._PROCESSORS_META)

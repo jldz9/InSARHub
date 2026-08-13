@@ -222,6 +222,12 @@ export default function App() {
   const [rasterPixelVal,  setRasterPixelVal]  = useState<number | null>(null)
   const [downloaderType,    setDownloaderType]    = useState('S1_SLC')
   const [downloaderOptions, setDownloaderOptions] = useState<string[]>(['S1_SLC'])
+  // Full downloader metadata, so capability flags (supports_orbit, ...) drive
+  // the UI instead of hardcoded downloader names. Nothing on the map side reads
+  // it any more -- orbit download moved to the job folder along with scene
+  // download -- but it is still fetched so a new capability flag has a place to
+  // land without re-plumbing the request.
+  const [, setDownloaderMeta] = useState<Record<string, any>>({})
   const [tsData,            setTsData]            = useState<TsData | null>(null)
   const [tsClickPoint,      setTsClickPoint]      = useState<[number, number] | null>(null)
   const [mapClickSignal,    setMapClickSignal]    = useState(0)
@@ -239,7 +245,7 @@ export default function App() {
       .catch(() => {})
     fetch(`${API}/api/workflows`)
       .then(r => r.json())
-      .then(d => { if (d.downloaders) setDownloaderOptions(Object.keys(d.downloaders)) })
+      .then(d => { if (d.downloaders) { setDownloaderOptions(Object.keys(d.downloaders)); setDownloaderMeta(d.downloaders) } })
       .catch(() => {})
   }, [])
 
@@ -504,7 +510,6 @@ export default function App() {
           )}
           {selectedFeature && stackOpen && (
             <StackSceneList
-              stackKey={selectedFeature.properties?._stack ?? ''}
               scenes={stackScenes}
               theme={theme}
               selectedScene={detailScene}

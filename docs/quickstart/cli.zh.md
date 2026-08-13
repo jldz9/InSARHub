@@ -309,7 +309,7 @@ insarhub processor [--list-processors] <action> [options]
     insarhub processor credits --credential-pool ~/.credit_pool
     ```
 
-=== "ISCE_S1"
+=== "ISCE2_S1"
 
     使用 ISCE2 `stackSentinel` 进行本地或 HPC 处理——需要安装 ISCE2。必须先下载 SLC `.SAFE` 文件（使用 `insarhub downloader -d`）。
 
@@ -318,12 +318,12 @@ insarhub processor [--list-processors] <action> [options]
     生成 ISCE2 运行脚本并启动执行。
 
     ```bash
-    insarhub processor submit -N ISCE_S1 [options]
+    insarhub processor submit -N ISCE2_S1 [options]
     ```
 
     | 标志 | 默认值 | 描述 |
     |------|---------|-------------|
-    | `-N`, `--name` | — | 必须为 `ISCE_S1` |
+    | `-N`, `--name` | — | 必须为 `ISCE2_S1` |
     | `--list-options` | — | 打印所有配置字段 |
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--config` | `<workdir>/insarhub_config.json` | 已保存配置的路径 |
@@ -342,15 +342,15 @@ insarhub processor [--list-processors] <action> [options]
 
     ```bash
     # 先进行演习运行（推荐）
-    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0 --dry-run
 
     # 本地执行（在后台运行）
-    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0
 
     # HPC / SLURM 模式
-    insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+    insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0 --hpc_mode True
     ```
 
@@ -361,12 +361,12 @@ insarhub processor [--list-processors] <action> [options]
 
         ```bash
         # 强制重新运行步骤 03 — 以下写法等价
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 3
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step run_03
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step 03
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step 3
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step run_03
 
         # 强制重新运行多个步骤
-        insarhub processor submit -N ISCE_S1 -w /data/p100_f466 --step 03 04 05
+        insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 --step 03 04 05
         ```
 
         在 HPC 模式下，这还会清除被强制步骤的过期单命令 `.done`/`.fail` 标记文件 — 否则管理器脚本会看到旧标记并报告"已完成"而不实际提交任何作业。
@@ -376,7 +376,7 @@ insarhub processor [--list-processors] <action> [options]
 
         每个 sbatch 脚本会按命令记录带耗时秒数的 `START`、`DONE`、`FAIL` 日志行。
 
-        **`sbatch_options.json`** — 从 `<workdir>/sbatch_options.json` 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。步骤 `"01"`–`"16"` 是 `ISCE_S1` 自身的步骤；步骤 `"17"`（"SBAS"）用于配置 `ISCE_SBAS`/`Hyp3_SBAS` 分析器自身的 `--hpc_mode` 作业 — 由于处理器和分析器通常共用同一工作目录，两者共享同一个文件。
+        **`sbatch_options.json`** — 从 `<workdir>/sbatch_options.json` 自动加载，用于配置各步骤的 SLURM 资源（CPU、内存、墙钟时间、分区等）。步骤 `"01"`–`"16"` 是 `ISCE2_S1` 自身的步骤；步骤 `"17"`（"SBAS"）用于配置 `ISCE_SBAS`/`Hyp3_SBAS` 分析器自身的 `--hpc_mode` 作业 — 由于处理器和分析器通常共用同一工作目录，两者共享同一个文件。
 
         - 若**未找到** `sbatch_options.json`，将创建覆盖步骤 `01`–`17` 的默认模板，并提示重新提交前先编辑该文件。
         - 若文件已存在但缺少即将用到的步骤（例如首次以 HPC 模式运行分析器时缺少 `"17"`），会自动补充默认资源、重写文件并打印警告 — 使用前请检查这些默认值。
@@ -385,14 +385,14 @@ insarhub processor [--list-processors] <action> [options]
         编辑 `sbatch_options.json` 以设置每个步骤的资源，然后重新运行 `submit`。
 
     !!! note "无需本地安装 ISCE2"
-        `--container <path-or-image>` 会将整个 `insarhub processor ...` 命令重新在容器内执行，而不是在本机运行 — 传入 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]）。工作目录会以相同路径绑定挂载到容器内，因此输出文件会像本机运行一样落在宿主机上，`ISCE_S1` 也完全不需要在宿主机上发现 ISCE2 安装。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub` 即可 — 可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) 作为现成示例。
+        `--container <path-or-image>` 会将整个 `insarhub processor ...` 命令重新在容器内执行，而不是在本机运行 — 传入 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]）。工作目录会以相同路径绑定挂载到容器内，因此输出文件会像本机运行一样落在宿主机上，`ISCE2_S1` 也完全不需要在宿主机上发现 ISCE2 安装。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub` 即可 — 可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) 作为现成示例。
 
         ```bash
-        insarhub processor submit  -N ISCE_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor retry   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor watch   -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
-        insarhub processor cancel  -N ISCE_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor retry   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor watch   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
+        insarhub processor cancel  -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2:latest
         ```
 
         `--container` 是按次调用的标志，而非已保存设置 — 与 `--dry-run` 一样，它不会写入 `insarhub_config.json`，因此每次想在容器内运行 `submit`/`refresh`/`retry`/`watch`/`cancel` 时都需要再次传入。
@@ -409,7 +409,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+    insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466
     ```
 
     默认只打印每个步骤一行的摘要 — 不含 `cmd_XXXX` 详情：
@@ -427,8 +427,8 @@ insarhub processor [--list-processors] <action> [options]
     传入 `--ls` 可查看单条命令详情 — 所有步骤，或指定某一步骤：
 
     ```bash
-    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls        # 所有步骤
-    insarhub processor refresh -N ISCE_S1 -w /data/p100_f466 --ls 02     # 仅 run_02
+    insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --ls        # 所有步骤
+    insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --ls 02     # 仅 run_02
     ```
 
     ??? output
@@ -455,7 +455,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor retry -N ISCE_S1 -w /data/p100_f466
+    insarhub processor retry -N ISCE2_S1 -w /data/p100_f466
     ```
 
     #### cancel
@@ -469,7 +469,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor cancel -N ISCE_S1 -w /data/p100_f466
+    insarhub processor cancel -N ISCE2_S1 -w /data/p100_f466
     ```
 
     #### watch
@@ -483,7 +483,7 @@ insarhub processor [--list-processors] <action> [options]
     | `--container` | — | 若宿主机未安装本地 ISCE2 则需要此项 — 见[上方说明](#running-without-a-local-isce2-install) |
 
     ```bash
-    insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
+    insarhub processor watch -N ISCE2_S1 -w /data/p100_f466 --interval 120
     ```
 
 ---
@@ -506,7 +506,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 | 分析器 | 处理器 | 输入 |
 |---|---|---|
 | `Hyp3_SBAS` | [`Hyp3_S1`](#hyp3_s1) | HyP3 zip 输出 |
-| `ISCE_SBAS` | [`ISCE_S1`](#isce_s1) | ISCE2 `merged/interferograms/` |
+| `ISCE_SBAS` | [`ISCE2_S1`](#isce2_s1) | ISCE2 `merged/interferograms/` |
 
 `--list-options` 显示的任何字段均可在操作前通过命令行覆盖。值会写入 `mintpy.cfg` 并在运行间持久保存。若 `workdir` 包含多个 `p*_f*` 子文件夹，覆盖和分析将依次应用于每个文件夹。
 
@@ -525,7 +525,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `--step` | all | 要运行的步骤（空格分隔） |
     | `--debug` | — | 启用 MintPy 调试模式 |
     | `--hpc_mode` | `False` | 将完整 MintPy 流程作为单个 SLURM `sbatch` 作业提交，而非本地运行 |
-    | `--container` | — | 在容器内而非本机运行 — 需要在容器内额外安装 `insarhub`（`ISCE_SBAS` 还需要 ISCE2）；机制与 [ISCE_S1 的容器说明](#running-without-a-local-isce2-install)相同 |
+    | `--container` | — | 在容器内而非本机运行 — 需要在容器内额外安装 `insarhub`（`ISCE_SBAS` 还需要 ISCE2）；机制与 [ISCE2_S1 的容器说明](#running-without-a-local-isce2-install)相同 |
 
     | 步骤关键字 | 描述 |
     |---|---|
@@ -583,7 +583,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。
 
-    SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE_S1 submit --hpc_mode`（步骤 `01`–`16`）**使用同一个文件**，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
+    SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE2_S1 submit --hpc_mode`（步骤 `01`–`16`）**使用同一个文件**，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
 
     - 若 `sbatch_options.json` 尚不存在，将创建（覆盖步骤 `01`–`17`）并停止运行，以便重新提交前先检查该文件。
     - 若文件已存在但没有 `"17"` 条目，将自动补充上述默认值，打印警告，然后继续运行。
@@ -623,7 +623,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
     | `--step` | all | 要运行的步骤（空格分隔） |
     | `--debug` | — | 启用 MintPy 调试模式 |
     | `--hpc_mode` | `False` | 将完整 MintPy 流程作为单个 SLURM `sbatch` 作业提交，而非本地运行 |
-    | `--container` | — | 在容器内而非本机运行 — 需要在容器内额外安装 `insarhub`（`ISCE_SBAS` 还需要 ISCE2）；机制与 [ISCE_S1 的容器说明](#running-without-a-local-isce2-install)相同 |
+    | `--container` | — | 在容器内而非本机运行 — 需要在容器内额外安装 `insarhub`（`ISCE_SBAS` 还需要 ISCE2）；机制与 [ISCE2_S1 的容器说明](#running-without-a-local-isce2-install)相同 |
 
     | 步骤关键字 | 描述 |
     |---|---|
@@ -681,7 +681,7 @@ insarhub analyzer [-N ANALYZER] [-w WORKDIR] [config overrides] <action> [option
 
     脚本写入 `<workdir>/mintpy/mintpy_sbas.sbatch`，作业状态保存至 `mintpy/mintpy_job.json`。
 
-    SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE_S1 submit --hpc_mode`（步骤 `01`–`16`）**使用同一个文件**，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
+    SLURM 资源来自 `<workdir>/sbatch_options.json` 的 `"17"` 步骤键 — 与 `ISCE2_S1 submit --hpc_mode`（步骤 `01`–`16`）**使用同一个文件**，因为处理器和分析器通常共用同一工作目录。默认值：`time=24:00:00`、`ntasks=1`、`cpus_per_task=16`、`mem=128G`、`partition=all`。
 
     - 若 `sbatch_options.json` 尚不存在，将创建（覆盖步骤 `01`–`17`）并停止运行，以便重新提交前先检查该文件。
     - 若文件已存在但没有 `"17"` 条目，将自动补充上述默认值，打印警告，然后继续运行。
@@ -860,7 +860,7 @@ insarhub utils h5-to-raster -i /data/bryce/p100_f466/velocity.h5
 
 ---
 
-## 端到端示例 — ISCE_S1（本地）
+## 端到端示例 — ISCE2_S1（本地）
 
 使用本地 ISCE2 处理和 ISCE_SBAS 时间序列分析的完整流程：
 
@@ -874,18 +874,18 @@ insarhub downloader -N S1_SLC \
     --select-pairs --download -O
 
 # 2. 演习运行以验证路径和 bbox
-insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
     --bbox 37.74 38.00 -113.05 -112.68 --dry-run
 
 # 3. 提交本地处理（在后台运行）
-insarhub processor submit -N ISCE_S1 -w /data/p100_f466 \
+insarhub processor submit -N ISCE2_S1 -w /data/p100_f466 \
     --bbox 37.74 38.00 -113.05 -112.68
 
 # 4. 监控进度
-insarhub processor refresh -N ISCE_S1 -w /data/p100_f466
+insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466
 
 # 5. 等待所有步骤完成
-insarhub processor watch -N ISCE_S1 -w /data/p100_f466 --interval 120
+insarhub processor watch -N ISCE2_S1 -w /data/p100_f466 --interval 120
 
 # 6. 运行 ISCE_SBAS 时间序列分析
 insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run

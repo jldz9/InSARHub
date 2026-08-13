@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import getpass
+import os
 import threading
 import time
 from dataclasses import asdict
@@ -77,6 +78,15 @@ class ASF_Base_Downloader(BaseDownloader):
     """
     description = "Generic ASF Search API downloader. Supports Sentinel-1, ALOS, NISAR, and more."
     default_config = ASF_Base_Config
+
+    # Config fields that are NOT asf.search() keywords. search() builds its query
+    # from asdict(config), so any subclass field that configures post-search
+    # behaviour instead of the query itself must be listed here -- otherwise it
+    # is forwarded to asf.search() as an unknown kwarg, the call raises, and the
+    # retry loop below burns ~17 minutes of exponential backoff before surfacing
+    # it. Subclasses extend this set rather than overriding search().
+    _NON_SEARCH_FIELDS: frozenset = frozenset(
+        {"workdir", "name", "bbox", "granule_names", "ssl_verify", "max_workers"})
     _DATASET_GROUP_KEYS = {
         'SENTINEL-1': ('pathNumber', 'frameNumber'),
         'ALOS':       ('pathNumber', 'frameNumber'),
@@ -306,9 +316,11 @@ Check documentation for how to setup .netrc file.\n""")
 
         print(f"Searching for SLCs....")
         search_opts = {k: v for k, v in asdict(self.config).items()
-                       if v is not None and k not in ['workdir', 'name', 'bbox', 'granule_names', 'ssl_verify']}
+                       if v is not None and k not in self._NON_SEARCH_FIELDS}
         if 'end' in search_opts and isinstance(search_opts['end'], str):
             search_opts['end'] = _end_of_day(search_opts['end'])
+        if os.environ.get("INSARHUB_DEBUG_SEARCH"):
+            print(f"[debug] asf.search opts: {search_opts}")
 
         for attempt in range(1, 11):
             try:
@@ -316,6 +328,8 @@ Check documentation for how to setup .netrc file.\n""")
                 break
             except Exception as e:
                 print(f"{Fore.RED}Search failed: {e}")
+                if os.environ.get("INSARHUB_DEBUG_SEARCH"):
+                    import traceback; traceback.print_exc()
                 if attempt == 10:
                     raise
                 time.sleep(2 ** attempt)
@@ -739,6 +753,10 @@ Check documentation for how to setup .netrc file.\n""")
         precip_mm_threshold: float = None,
         aoi_wkt: str | None = None,
         merge: bool = False,
+        burst: bool = False,
+        safe_dir: str | None = None,
+        eof_dir: str | None = None,
+        poeorb_cache: str | None = None,
     ) -> tuple:
         """Compute interferogram pairs for all active stacks.
 
@@ -763,6 +781,16 @@ Check documentation for how to setup .netrc file.\n""")
                 (cross-track pairs have no physical baseline). Use together with
                 ``download(merge=True)``, which puts all scenes in one
                 ``merged/slc/`` directory. Defaults to False.
+            burst (bool, optional): Select pairs for an SLC-BURST stack. Nodes
+                become acquisition dates and baselines are computed from the
+                bursts' own startTime/orbits — no parent-SLC lookup. Defaults
+                to False.
+            safe_dir (str, optional): Burst mode: directory of assembled
+                ``.SAFE`` dirs whose annotation orbits supply bperp (offline).
+            eof_dir (str, optional): Burst mode: directory of precise-orbit
+                ``.EOF`` files used for bperp (offline).
+            poeorb_cache (str, optional): Burst mode: directory for POEORB
+                downloads keyed by date + mission (online fallback).
 
         Returns:
             tuple: (pairs, baselines, scene_bperp, prefetch_cache)
@@ -828,12 +856,43 @@ Check documentation for how to setup .netrc file.\n""")
             snow_threshold=snow_threshold,
             precip_mm_threshold=precip_mm_threshold,
             aoi_wkt=_aoi_wkt,
+            burst=burst,
+            safe_dir=safe_dir,
+            eof_dir=eof_dir,
+            poeorb_cache=poeorb_cache,
         )
         pairs      = _sp_result[0]
         baselines  = _sp_result[1]
         scene_bperp: dict = _sp_result[2] if len(_sp_result) > 2 else {}
         prefetch:   dict  = _sp_result[3] if len(_sp_result) > 3 else {}
         return pairs, baselines, scene_bperp, prefetch
+
+    def _mark_stack_dir(self, stack_dir, extra_cfg: dict | None = None) -> None:
+        """Write the two files that make a directory a recognised stack.
+
+        ``insarhub_config.json`` + the workflow marker are what the GUI, the CLI
+        and every processor use to identify a stack folder and recover which
+        downloader produced it. Both ``download()`` implementations need this,
+        and S1_Burst cannot reuse the base's copy because it overrides
+        ``download()`` wholesale (burst2safe owns the transfer), so it lives
+        here rather than being written out twice.
+        """
+        from dataclasses import asdict as _asdict
+        from pathlib import Path as _Path
+
+        from insarhub.utils.config_io import write_insarhub_config as _wic
+        from insarhub.utils.tool import write_workflow_marker
+
+        stack_dir = _Path(stack_dir)
+        try:
+            stack_dir.mkdir(parents=True, exist_ok=True)
+            write_workflow_marker(stack_dir, downloader=type(self).name)
+            cfg = {k: v for k, v in _asdict(self.config).items() if k != "workdir"}
+            cfg.update(extra_cfg or {})
+            _wic(stack_dir, {"downloader": {"type": type(self).name, "config": cfg}})
+        except Exception as exc:                                    # noqa: BLE001
+            logger.error("%s: could not write stack config to %s: %s",
+                         type(self).name, stack_dir, exc)
 
     def download(self, save_path: str | None = None, max_workers: int = None,
                  stop_event=None, on_progress=None,
@@ -842,7 +901,12 @@ Check documentation for how to setup .netrc file.\n""")
 
         Args:
             save_path (str, optional): Download path. Defaults to config.workdir.
-            max_workers (int, optional): Concurrent downloads (3–5 recommended). Defaults to 3.
+            max_workers (int, optional): Concurrent downloads. When None, falls
+                back to ``config.max_workers`` (the GUI's per-downloader
+                "Download" setting), then to 3. Resolving it here rather than in
+                each caller means the config field takes effect from every entry
+                point; previously only the S1_Burst routes passed it explicitly,
+                so a GUI-set value was silently ignored for S1_SLC.
             scenes: Restrict download to a subset of scenes. Accepts any of:
                 - ``list | set`` of scene name strings
                 - The direct output of ``select_pairs()`` — either a
@@ -858,11 +922,11 @@ Check documentation for how to setup .netrc file.\n""")
             ValueError: If no search results are available.
         """
         from insarhub.utils.defaults import DOWNLOAD_DEFAULTS as _DL
-        if max_workers is None: max_workers = _DL["max_workers"]
+        if max_workers is None:
+            max_workers = getattr(self.config, "max_workers", None) or _DL["max_workers"]
+        max_workers = max(1, int(max_workers))
         import json as _json
         from concurrent.futures import ThreadPoolExecutor, as_completed
-        from insarhub.utils.tool import write_workflow_marker
-        from insarhub.utils.config_io import write_insarhub_config as _wic
         output_dir = Path(save_path).expanduser().resolve() if save_path else self.config.workdir
         output_dir.mkdir(exist_ok=True, parents=True)
 
@@ -873,7 +937,6 @@ Check documentation for how to setup .netrc file.\n""")
 
         if stop_event is None:
             stop_event = threading.Event()
-        _cfg_base = {k: v for k, v in asdict(self.config).items() if k != 'workdir'}
 
         scene_filter = _parse_scene_filter(scenes)
 
@@ -896,8 +959,7 @@ Check documentation for how to setup .netrc file.\n""")
             frames = [frame for (_path, frame) in self.active_results.keys()]
             merged_dir = _sp.merge_dir(path, frames)
             merged_dir.mkdir(parents=True, exist_ok=True)
-            write_workflow_marker(merged_dir, downloader=type(self).name)
-            _wic(merged_dir, {"downloader": {"type": type(self).name, "config": _cfg_base}})
+            self._mark_stack_dir(merged_dir)
 
         jobs = []
         stack_paths: dict = {}
@@ -915,9 +977,17 @@ Check documentation for how to setup .netrc file.\n""")
             download_path.mkdir(parents=True, exist_ok=True)
             stack_paths[key] = download_path
             if not merge:
-                write_workflow_marker(stack_path, downloader=type(self).name)
-                _cfg = {**_cfg_base, 'relativeOrbit': key[0], 'frame': key[1]}
-                _wic(stack_path, {"downloader": {"type": type(self).name, "config": _cfg}})
+                # key[1] is only a FRAME NUMBER for frame-based datasets. Burst
+                # stacks key on fullBurstID, so writing it as 'frame' puts a
+                # string into an int-range search field and the folder's next
+                # search dies in asf_search's validator. Persist it only when it
+                # really is an integer frame.
+                extra = {'relativeOrbit': key[0]}
+                try:
+                    extra['frame'] = int(key[1])
+                except (TypeError, ValueError):
+                    pass
+                self._mark_stack_dir(stack_path, extra)
             for result in results:
                 if scene_filter is None or result.properties['sceneName'] in scene_filter:
                     jobs.append((key, result, download_path))

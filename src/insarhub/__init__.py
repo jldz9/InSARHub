@@ -11,7 +11,19 @@ from colorama import init
 init(autoreset=True)
 from colorama import Fore, Style, Back
 
-logging.disable(logging.CRITICAL)
+# NOTE: do not reintroduce `logging.disable(logging.CRITICAL)` here. It was a
+# process-global kill switch -- not scoped to InSARHub's own loggers, and not
+# undoable by a caller's own logging setup -- so it silently swallowed every
+# logger.info/warning/error in the entire codebase (and any host application's
+# too, since importing insarhub applied it to their loggers as well). Whole
+# commands looked like no-ops as a result: `processor ... cancel` scancelled
+# every job and printed nothing at all. It also wasn't buying anything -- with
+# it removed, importing insarhub and every heavy submodule emits no log records
+# whatsoever, even at DEBUG. (The one visible import-time line, pyproj's
+# "unable to set PROJ database path", comes from the warnings module, which
+# logging.disable() never affected.) Silence third-party chatter by setting a
+# level on that library's own logger instead; cli/main.py's main() configures
+# the CLI's levels (root WARNING, insarhub INFO).
 from insarhub._version import __version__
 _system_info = platform.system()
 
@@ -32,28 +44,78 @@ os.environ["VRT_SHARED_SOURCE"] = "0"
 os.environ["HDF5_DISABLE_VERSION_CHECK"] = "2"
 os.environ["HDF5_USE_FILE_LOCKING"] = "FALSE"
 
-# ---------------------pyproj PROJ data-dir fix (conda envs)-----------------
-# In some conda environments, pyproj's compiled extension dynamically links
-# against the environment's own shared libproj.so rather than pyproj's
-# private bundled copy, but pyproj's default data-dir resolution still points
-# at that private bundled copy — a mismatch that makes every CRS/Transformer
-# call fail with "proj_create: no database context specified", even though
-# the environment's own PROJ install is otherwise completely fine and the
-# `PROJ_DATA`/`PROJ_LIB` env vars are set correctly (pyproj doesn't honor
-# either at the point its internal context is first created). Redirect
-# pyproj to the running interpreter's own PROJ data directory when one is
-# present. sys.prefix (the actual running interpreter's install location) is
-# used rather than $CONDA_PREFIX, which only reflects the shell's *activated*
-# environment and can point at the wrong one if a different env's Python is
-# invoked directly (e.g. by absolute path) without activating it first.
-for _proj_prefix in (sys.prefix, os.environ.get("CONDA_PREFIX")):
-    if not _proj_prefix:
-        continue
-    _candidate_proj_data = Path(_proj_prefix) / "share" / "proj"
-    if (_candidate_proj_data / "proj.db").is_file():
-        import pyproj
-        pyproj.datadir.set_data_dir(str(_candidate_proj_data))
-        break
+# ---------------------PROJ data-dir sanity (conda envs)----------------------
+# MUST run before rasterio/GDAL/pyproj are imported anywhere below.
+#
+# conda-forge's proj package ships etc/conda/activate.d/proj4-activate.sh,
+# which unconditionally exports
+#     PROJ_DATA="${CONDA_PREFIX}/share/proj"
+# on `conda activate`. GDAL, rasterio and pyproj all honour that variable.
+# The problem is that an environment can easily end up with a share/proj that
+# is OLDER than the libproj those wheels are linked against -- e.g. a GMTSAR
+# env where gmt/gdal pinned proj 9.2 (proj.db layout 1.2) while rasterio
+# bundles 9.7 (layout 1.6). libproj refuses to read a database whose layout
+# predates it, so every CRS call dies with
+#     "proj.db contains DATABASE.LAYOUT.VERSION.MINOR = 2 whereas a number
+#      >= 6 is expected. It comes from another PROJ installation."
+# and, because dem_stitcher builds a CRS at import time, `import insarhub`
+# itself fails. Unset, the same env works fine: each library falls back to
+# its own bundled, self-consistent proj.db.
+#
+# So: pick the NEWEST proj.db available, and only point PROJ_DATA at a
+# directory if it is at least as new as what the libraries bundle. When the
+# activated environment's copy is the stale one, drop the variable entirely
+# rather than guessing a replacement.
+def _proj_db_layout(db: Path) -> tuple[int, int] | None:
+    """(major, minor) of a proj.db's DATABASE.LAYOUT.VERSION, or None."""
+    try:
+        import sqlite3
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+        try:
+            meta = dict(con.execute("select key, value from metadata").fetchall())
+        finally:
+            con.close()
+        return (int(meta["DATABASE.LAYOUT.VERSION.MAJOR"]),
+                int(meta["DATABASE.LAYOUT.VERSION.MINOR"]))
+    except Exception:
+        return None
+
+
+def _sanitize_proj_data() -> None:
+    # NOT Path(__file__).parent.parent -- under `pip install -e .` that is the
+    # source checkout's src/, where none of these packages live, so every
+    # bundled database would be "missing" and the stale one would win.
+    import sysconfig
+    site = Path(sysconfig.get_paths()["purelib"])
+    candidates = [Path(p) for p in (os.environ.get("PROJ_DATA"),
+                                    os.environ.get("PROJ_LIB")) if p]
+    candidates.append(Path(sys.prefix) / "share" / "proj")
+    bundled = [site / pkg / sub for pkg, sub in
+               (("rasterio", "proj_data"), ("pyogrio", "proj_data"),
+                ("pyproj", "proj_dir/share/proj"))]
+
+    best_bundled = max(
+        ((d, v) for d in bundled
+         if (v := _proj_db_layout(d / "proj.db")) is not None),
+        key=lambda t: t[1], default=(None, None))[1]
+
+    for cand in candidates:
+        ver = _proj_db_layout(cand / "proj.db")
+        if ver is None:
+            continue
+        if best_bundled is None or ver >= best_bundled:
+            # Usable: make every library agree on it.
+            os.environ["PROJ_DATA"] = os.environ["PROJ_LIB"] = str(cand)
+            return
+        break   # first existing candidate is stale -> fall through
+
+    # Nothing usable was pointed at: remove the stale pointers so each
+    # library uses its own bundled database.
+    for var in ("PROJ_DATA", "PROJ_LIB"):
+        os.environ.pop(var, None)
+
+
+_sanitize_proj_data()
 
 # ---------------------Check runing environment -----------
 if 'SLURM_MEM_PER_NODE' in os.environ:
@@ -119,7 +181,7 @@ from .downloader import (
 
 from .processor import (
     Hyp3_S1,
-    ISCE_S1,
+    ISCE2_S1,
 )
 
 from .analyzer import (

@@ -24,7 +24,7 @@ _log = logging.getLogger(__name__)
 # ── Trigger auto-registration of all components ──────────────────────────────
 import insarhub.downloader.s1_slc       # noqa: F401
 import insarhub.processor.hyp3_s1    # noqa: F401
-import insarhub.processor.isce_s1    # noqa: F401
+import insarhub.processor.isce2_s1    # noqa: F401
 import insarhub.analyzer.hyp3_sbas      # noqa: F401
 import insarhub.analyzer.mintpy_base    # noqa: F401
 import insarhub.analyzer.isce_sbas      # noqa: F401
@@ -84,7 +84,7 @@ def _build_registry_meta(registry) -> dict[str, Any]:
         groups, fields = _build_ui_meta(cfg_cls)
         import inspect
         # True for processors that take pairs as their own constructor arg
-        # (ISCE_S1, GMTSAR_S1) rather than via a config field (Hyp3_S1) --
+        # (ISCE2_S1, GMTSAR_S1) rather than via a config field (Hyp3_S1) --
         # same check _run_folder_process does inline to decide dispatch;
         # exposed here so the frontend can tell local vs cloud processors
         # apart without hardcoding processor names (JobQueueDrawer.tsx).
@@ -95,6 +95,12 @@ def _build_registry_meta(registry) -> dict[str, Any]:
             "compatible_downloader": getattr(cls, "compatible_downloader", None),
             "compatible_processor":  getattr(cls, "compatible_processor", None),
             "is_local":              is_local,
+            # Whether the orbit-download UI applies. Previously the frontend
+            # hardcoded `downloaderType === 'S1_SLC'` (ScenePanel) and
+            # `cls === 'S1_SLC'` (JobQueueDrawer), which silently hid the button
+            # for every other downloader that supports orbits -- S1_Burst does.
+            # Expose the capability so the UI never needs a downloader name.
+            "supports_orbit":        hasattr(cls, "download_orbit"),
             "groups":                groups,
             "fields":                fields,
         }
@@ -140,7 +146,6 @@ _CREDIT_POOL = Path.home() / ".credit_pool"
 
 _settings: dict[str, Any] = {
     "workdir":              str(Path.cwd()),
-    "max_download_workers": 3,
     "downloader":           _DEFAULT_DOWNLOADER,
     "downloader_config":    _safe_config_values(_DEFAULT_DOWNLOADER, _DOWNLOADERS_META),
     "processor":            _DEFAULT_PROCESSOR,
@@ -164,7 +169,9 @@ _auth_cache:  dict[str, Any] | None     = None  # populated at startup
 
 def _make_progress(job_id: str):
     def callback(message: str, percent: int):
-        _jobs[job_id]["progress"] = percent
+        # JobStatus.progress is an int 0-100; some downloaders report floats
+        # (e.g. 100.0 * i / n), which would fail response validation.
+        _jobs[job_id]["progress"] = int(percent)
         _jobs[job_id]["message"]  = message
     return callback
 
@@ -176,7 +183,7 @@ def _make_download_progress(job_id: str):
     def callback(message: str, percent: int):
         count = message.split(']')[0].lstrip('[') if ']' in message else ''
         _jobs[job_id]["message"]  = f"Downloading {count}" if count else message
-        _jobs[job_id]["progress"] = percent
+        _jobs[job_id]["progress"] = int(percent)
     return callback
 
 

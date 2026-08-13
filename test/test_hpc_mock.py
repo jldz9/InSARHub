@@ -1,5 +1,5 @@
 """
-Mock HPC test for ISCE_Base sbatch submission.
+Mock HPC test for ISCE2_Base sbatch submission.
 
 Does NOT require ISCE2 or SLURM.  Patches:
   - _find_topsstack / _check_isce2   (ISCE2 discovery)
@@ -59,25 +59,25 @@ def _make_fake_run_script(run_files_dir: Path, step: str, n_cmds: int) -> Path:
 
 
 def _make_processor(workdir: Path, sbatch_opts: dict):
-    """Build an ISCE_Base subclass instance with ISCE2 discovery patched out."""
-    from insarhub.processor.isce_base import ISCE_Base, JOBS_FILE
-    from insarhub.config.defaultconfig import ISCE_S1_Config
+    """Build an ISCE2_Base subclass instance with ISCE2 discovery patched out."""
+    from insarhub.processor.isce2_base import ISCE2_Base, JOBS_FILE
+    from insarhub.config.defaultconfig import ISCE2_S1_Config
 
     fake_bin = workdir / "fake_isce" / "topsApp.py"
     fake_bin.parent.mkdir(parents=True, exist_ok=True)
     fake_bin.touch()
 
-    cfg = ISCE_S1_Config(
+    cfg = ISCE2_S1_Config(
         workdir=str(workdir),
         hpc_mode=True,
         sbatch_options_per_step=sbatch_opts,
     )
 
-    with patch("insarhub.processor.isce_base._find_topsstack",
+    with patch("insarhub.processor.isce2_base._find_topsstack",
                return_value=(fake_bin, fake_bin.parent)), \
-         patch("insarhub.processor.isce_base._check_isce2",
+         patch("insarhub.processor.isce2_base._check_isce2",
                return_value=fake_bin):
-        proc = type("FakeProc", (ISCE_Base,), {"submit": lambda self: None})(cfg)
+        proc = type("FakeProc", (ISCE2_Base,), {"submit": lambda self: None})(cfg)
 
     return proc
 
@@ -170,7 +170,7 @@ class TestStepExecutorHPC(unittest.TestCase):
         proc = _make_processor(self.workdir, sbatch_opts)
         run_files = self.workdir / "run_files"
 
-        from insarhub.processor.isce_base import _PENDING, _write_status
+        from insarhub.processor.isce2_base import _PENDING, _write_status
         for step in steps:
             script = _make_fake_run_script(run_files, step, n_cmds)
             log_dir = run_files / f"{step}_logs"
@@ -205,7 +205,7 @@ class TestStepExecutorHPC(unittest.TestCase):
                 r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce_base.subprocess.run", side_effect=fake_sbatch):
+        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_sbatch):
             proc._step_executor_hpc(steps)
 
         # Verify job IDs saved
@@ -243,7 +243,7 @@ class TestStepExecutorHPC(unittest.TestCase):
                 r.returncode = 0; r.stdout = ""; r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce_base.subprocess.run", side_effect=fake_sbatch):
+        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_sbatch):
             proc._step_executor_hpc(steps)
 
         print("\n--- sbatch commands issued ---")
@@ -280,12 +280,12 @@ class TestStepExecutorHPC(unittest.TestCase):
                 r.returncode = 0; r.stdout = ""; r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce_base.subprocess.run", side_effect=fake_sbatch):
+        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_sbatch):
             proc._step_executor_hpc(steps)
 
         # Only 2 sbatch calls (step 3 never submitted)
         self.assertEqual(call_count[0], 2)
-        from insarhub.processor.isce_base import _FAILED
+        from insarhub.processor.isce2_base import _FAILED
         self.assertEqual(proc.jobs["run_02_b"]["status"], _FAILED)
 
 
@@ -300,7 +300,7 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
 
     def _make_loaded_proc(self, step_job_ids: dict[str, str]):
         """Create a processor with pre-loaded jobs (simulates post-submit state)."""
-        from insarhub.processor.isce_base import _PENDING, _write_status
+        from insarhub.processor.isce2_base import _PENDING, _write_status
         sbatch_opts = {"default": {"time": "01:00:00", "partition": "all",
                                     "ntasks": 1, "cpus_per_task": 2, "mem": "4G"}}
         proc = _make_processor(self.workdir, sbatch_opts)
@@ -335,10 +335,10 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
             r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce_base.subprocess.run", side_effect=fake_run):
+        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
             result = proc.refresh()
 
-        from insarhub.processor.isce_base import _RUNNING, _PENDING
+        from insarhub.processor.isce2_base import _RUNNING, _PENDING
         self.assertEqual(result["run_01_a"]["status"], _RUNNING)
         self.assertEqual(result["run_02_b"]["status"], _PENDING)
 
@@ -363,10 +363,10 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
             r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce_base.subprocess.run", side_effect=fake_run):
+        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
             result = proc.refresh()
 
-        from insarhub.processor.isce_base import _FAILED, _PENDING
+        from insarhub.processor.isce2_base import _FAILED, _PENDING
         self.assertEqual(result["run_01_a"]["status"], _FAILED)
         self.assertEqual(result["run_02_b"]["status"], _PENDING)
 
@@ -378,7 +378,7 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
 
     def test_succeeded_step_reads_from_status_file(self):
         """A step that wrote SUCCEEDED to its status file must show SUCCEEDED."""
-        from insarhub.processor.isce_base import _SUCCEEDED, _write_status
+        from insarhub.processor.isce2_base import _SUCCEEDED, _write_status
         proc = self._make_loaded_proc({"run_01_a": "10001"})
         _write_status(self.workdir / "run_files", "run_01_a", _SUCCEEDED)
 
@@ -386,7 +386,7 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
             r = MagicMock(); r.returncode = 0; r.stdout = ""; r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce_base.subprocess.run", side_effect=fake_run):
+        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
             result = proc.refresh()
 
         self.assertEqual(result["run_01_a"]["status"], _SUCCEEDED)

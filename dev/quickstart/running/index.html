@@ -1253,6 +1253,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1828,20 +1856,20 @@ would return: <p></p>
 <div class="tabbed-block">
 <p>Local processing using <a href="https://github.com/isce-framework/isce2">ISCE2</a> <code>stackSentinel</code>. Requires ISCE2 installed (see <a href="../install/">Installation</a>) and <abbr title="Single Look Complex">SLC</abbr> <code>.SAFE</code> files downloaded first (<code>s1.download()</code>).</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE_S1_Config</span>
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE2_S1_Config</span>
 </span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>
 </span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE_S1_Config</span><span class="p">(</span>
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE2_S1_Config</span><span class="p">(</span>
 </span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>        <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span>
 </span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>        <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">37.74</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">],</span>   <span class="c1"># [S, N, W, E]</span>
 </span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>        <span class="n">slc_dir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">/slc'</span><span class="p">,</span>
 </span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>    <span class="p">)</span>
-</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
 </span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>   <span class="c1"># starts processing in the background</span>
 </span></code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Dry run first</p>
-<p>Add <code>dry_run=True</code> to <code>ISCE_S1_Config</code> to preview run scripts without executing.</p>
+<p>Add <code>dry_run=True</code> to <code>ISCE2_S1_Config</code> to preview run scripts without executing.</p>
 </div>
 <p>Monitor progress and wait for completion:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>                      <span class="c1"># prints step table</span>

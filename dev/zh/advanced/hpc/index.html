@@ -1,39 +1,39 @@
-<!DOCTYPE html><html lang="en" class="no-js"><head>
+<!DOCTYPE html><html lang="zh" class="no-js"><head>
     
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
       
       
-        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/advanced/program_structure/">
+        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/zh/advanced/hpc/">
       
       
-        <link rel="prev" href="../frontend/">
+        <link rel="prev" href="../analyzer/">
       
       
-        <link rel="next" href="../../contributing/contributing/">
+        <link rel="next" href="../utilities/">
       
       
         
-          <link rel="alternate" href="./" hreflang="en">
+          <link rel="alternate" href="../../../advanced/hpc/" hreflang="en">
         
-          <link rel="alternate" href="../../zh/advanced/program_structure/" hreflang="zh">
+          <link rel="alternate" href="./" hreflang="zh">
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Program Structure - InSARHub</title>
+        <title>HPC (SLURM) - InSARHub</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -52,11 +52,13 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../stylesheets/extra.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+      <link rel="stylesheet" href="../../../stylesheets/extra.css">
+    
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -64,7 +66,7 @@
     
   
 
-  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -93,8 +95,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#program-structure" class="md-skip">
-          Skip to content
+        <a href="#manager" class="md-skip">
+          跳转至
         </a>
       
     </div>
@@ -113,8 +115,8 @@
   
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
+  <nav class="md-header__inner md-grid" aria-label="页眉">
+    <a href="../../" title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -134,7 +136,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Program Structure
+              HPC (SLURM)
             
           </span>
         </div>
@@ -174,20 +176,20 @@
       <div class="md-header__option">
   <div class="md-select">
     
-    <button class="md-header__button md-icon" aria-label="Select language">
+    <button class="md-header__button md-icon" aria-label="选择当前语言">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
     </button>
     <div class="md-select__inner">
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="./" hreflang="en" class="md-select__link">
+            <a href="../../../advanced/hpc/" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="../../zh/advanced/program_structure/" hreflang="zh" class="md-select__link">
+            <a href="./" hreflang="zh" class="md-select__link">
               中文
             </a>
           </li>
@@ -208,16 +210,16 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
       </label>
-      <nav class="md-search__options" aria-label="Search">
+      <nav class="md-search__options" aria-label="查找">
         
-        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
         </button>
@@ -230,7 +232,7 @@
       <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            Initializing search
+            正在初始化搜索引擎
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -242,7 +244,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+        <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -257,7 +259,7 @@
   
     
       
-<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
       
@@ -267,13 +269,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../.." class="md-tabs__link">
+      <a href="../../" class="md-tabs__link">
         
   
   
     
   
-  Home
+  主页
 
       </a>
     </li>
@@ -292,7 +294,7 @@
           
   
   
-  QuickStart
+  快速开始
 
         </a>
       </li>
@@ -312,7 +314,7 @@
           
   
   
-  Web UI
+  Web 界面
 
         </a>
       </li>
@@ -334,7 +336,7 @@
           
   
   
-  Advanced
+  高级
 
         </a>
       </li>
@@ -354,7 +356,7 @@
           
   
   
-  Contributing
+  贡献指南
 
         </a>
       </li>
@@ -421,9 +423,9 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
+    <a href="../../" title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -433,7 +435,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
+      <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -453,14 +455,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href="../../" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Home
+    主页
   
 
     
@@ -505,7 +507,7 @@
   <span class="md-ellipsis">
     
   
-    QuickStart
+    快速开始
   
 
     
@@ -521,7 +523,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    QuickStart
+    快速开始
   
 
           </label>
@@ -541,7 +543,7 @@
   <span class="md-ellipsis">
     
   
-    Installation
+    安装
   
 
     
@@ -569,7 +571,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    API 配置
   
 
     
@@ -615,7 +617,7 @@
   <span class="md-ellipsis">
     
   
-    Running
+    运行
   
 
     
@@ -631,7 +633,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Running
+    运行
   
 
           </label>
@@ -679,7 +681,7 @@
   <span class="md-ellipsis">
     
   
-    CLI
+    命令行
   
 
     
@@ -740,7 +742,7 @@
   <span class="md-ellipsis">
     
   
-    Web UI
+    Web 界面
   
 
     
@@ -756,7 +758,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Web UI
+    Web 界面
   
 
           </label>
@@ -776,7 +778,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    概览
   
 
     
@@ -804,7 +806,7 @@
   <span class="md-ellipsis">
     
   
-    Search &amp; Download
+    搜索与下载
   
 
     
@@ -832,7 +834,7 @@
   <span class="md-ellipsis">
     
   
-    Processor
+    处理器
   
 
     
@@ -860,7 +862,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzer
+    分析器
   
 
     
@@ -888,7 +890,7 @@
   <span class="md-ellipsis">
     
   
-    Results Viewer
+    结果查看器
   
 
     
@@ -944,7 +946,7 @@
   <span class="md-ellipsis">
     
   
-    Advanced
+    高级
   
 
     
@@ -960,7 +962,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Advanced
+    高级
   
 
           </label>
@@ -980,7 +982,7 @@
   <span class="md-ellipsis">
     
   
-    File Structure
+    文件结构
   
 
     
@@ -1008,7 +1010,7 @@
   <span class="md-ellipsis">
     
   
-    Downloader
+    下载器
   
 
     
@@ -1036,7 +1038,7 @@
   <span class="md-ellipsis">
     
   
-    Processor
+    处理器
   
 
     
@@ -1064,7 +1066,7 @@
   <span class="md-ellipsis">
     
   
-    Analyzer
+    分析器
   
 
     
@@ -1082,10 +1084,35 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../hpc/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1101,6 +1128,118 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#manager" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        管理器（manager）模型
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --worker
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="--worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        队列上限
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbatch_optionsjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sbatch_options.json
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        各处理器的拆分粒度
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        监控
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dry-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        试运行（dry run）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        续跑
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1120,7 +1259,7 @@
   <span class="md-ellipsis">
     
   
-    Utilities
+    工具集
   
 
     
@@ -1148,7 +1287,7 @@
   <span class="md-ellipsis">
     
   
-    Pair Quality Scoring
+    配对质量评分
   
 
     
@@ -1176,7 +1315,7 @@
   <span class="md-ellipsis">
     
   
-    Frontend Reference
+    前端参考
   
 
     
@@ -1194,44 +1333,17 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Program Structure
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../program_structure/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Program Structure
+    程序结构
   
 
     
@@ -1240,37 +1352,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#pipeline-matrix" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Pipeline Matrix
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -1315,7 +1396,7 @@
   <span class="md-ellipsis">
     
   
-    Contributing
+    贡献指南
   
 
     
@@ -1331,7 +1412,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Contributing
+    贡献指南
   
 
           </label>
@@ -1351,7 +1432,7 @@
   <span class="md-ellipsis">
     
   
-    Overview
+    概览
   
 
     
@@ -1379,7 +1460,7 @@
   <span class="md-ellipsis">
     
   
-    Backend
+    后端
   
 
     
@@ -1407,7 +1488,7 @@
   <span class="md-ellipsis">
     
   
-    Frontend
+    前端
   
 
     
@@ -1441,24 +1522,105 @@
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+<nav class="md-nav md-nav--secondary" aria-label="目录">
   
   
-  
-    
   
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      Table of contents
+      目录
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#pipeline-matrix" class="md-nav__link">
+  <a href="#manager" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Pipeline Matrix
+        管理器（manager）模型
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#-worker" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --worker
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="--worker">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        队列上限
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#sbatch_optionsjson" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        sbatch_options.json
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        各处理器的拆分粒度
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        监控
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dry-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        试运行（dry run）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        续跑
       
     </span>
   </a>
@@ -1485,25 +1647,138 @@
   
 
 
-<h1 id="program-structure">Program Structure</h1>
-<p>InSARHub is built around three loosely-coupled layers — <strong>Downloader</strong>, <strong>Processor</strong>, and <strong>Analyzer</strong> — each implemented as a registry of named backends. A shared <code>insarhub_config.json</code> written to the job folder accumulates configuration as the pipeline progresses, so every stage can be run independently or chained together.</p>
-<ul>
-<li><strong>Downloader</strong> — searches ASF for scenes (full SLC or individual SLC-BURST granules), selects interferogram pairs with quality scoring, and fetches SLC data and orbit files.</li>
-<li><strong>Processor</strong> — takes the selected pairs and produces (unwrapped) interferograms: cloud (HyP3), local ISCE2 <code>stackSentinel</code>, local GMTSAR <code>p2p_processing</code>/<code>p2p_S1_TOPS_Frame</code>, or ISCE3/COMPASS burst geocoding.</li>
-<li><strong>Analyzer</strong> — inverts the interferogram stack into a displacement time series: MintPy <code>smallbaselineApp</code>, GMTSAR's own <code>sbas</code> binary, or dolphin's <code>timeseries</code>.</li>
-</ul>
-<p>The Web UI and CLI are thin shells over the same Python API, so any workflow that runs in the browser can be reproduced exactly on the command line or in a script.</p>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/InSARHub_workflow.png" data-desc-position="bottom"><img alt="InSARHub workflow" class="doc-img-wide" src="../fig/InSARHub_workflow.png"></a></p>
-<h2 id="pipeline-matrix">Pipeline Matrix</h2>
-<p>Each downloader feeds a set of compatible processors, and each processor a set of compatible analyzers. The registry wires these via <code>compatible_downloader</code> / <code>compatible_processor</code>; a workdir's saved <code>insarhub_config.json</code> records which pipeline it belongs to.</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Downloader          Processor            Analyzer
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>─────────────────   ──────────────────   ─────────────────────────
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>S1_SLC           →  Hyp3_S1           →  Hyp3_SBAS
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                 →  ISCE2_S1          →  ISCE_SBAS
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                 →  GMTSAR_S1         →  GMTSAR_MINTPY_SBAS
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                                      →  GMTSAR_SBAS
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>S1_Burst         →  ISCE3_Burst       →  Dolphin_SBAS
+  <h1>HPC (SLURM)</h1>
+
+<p>每个本地处理器都可以把工作提交为 SLURM 作业，而不是在调用 <code>submit()</code> 的进程内运行。加上 <code>--hpc-mode</code> 即可，工作流的其余部分完全不变。</p>
+<p>这不仅仅是为了更快。本地运行依附于调用进程的后台线程，进程结束时它也随之结束 — 一次断开的 SSH 会话就能带走几个小时的地理编码结果。在 HPC 模式下，作业归调度器管理。</p>
+<h2 id="manager">管理器（manager）模型</h2>
+<p>提交时并<strong>不会</strong>一次性把所有作业排入队列。每个工作单元生成一个子 <code>sbatch</code> 脚本，由一个轻量的<strong>管理器</strong>作业以滑动窗口方式调度：</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>manager（1 核、1 GB、其分区允许的最长墙钟时间）
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  ├── child 0   ┐
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  ├── child 1   ├── 同时最多 --worker 个在运行
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  ├── child 2   ┘
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>  └── …         有空位就补充
 </span></code></pre></div>
+<p>管理器轮询 <code>squeue</code>，每完成一个就提交下一个。它在结束时写入该阶段的状态标记，因此 <code>refresh</code> 对 HPC 运行和本地运行使用完全相同的一套状态机制。</p>
+<p>对于必须按顺序执行的阶段，每个阶段的管理器<strong>在自己成功后再提交下一个</strong>，而不是一开始就用 <code>--dependency=afterok</code> 把所有管理器排进队列。预先提交会让每个尚未运行的管理器都以独立作业的形式占用账户的"已提交作业数"配额，却什么也不做。</p>
+<h2 id="-worker"><code>--worker</code></h2>
+<p>一个参数，同时控制两个维度：</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>ISCE3_Burst<span class="w"> </span>-w<span class="w"> </span>.<span class="w"> </span>--hpc-mode<span class="w"> </span>submit<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
+</span></code></pre></div>
+<ul>
+<li>可以横向展开的阶段 → <strong>8 个并发 SLURM 作业</strong></li>
+<li>无法展开的阶段 → <strong>单个作业内的 8 个线程</strong></li>
+</ul>
+<p>第二种情况是真实存在的：<code>phase_link</code> 模式下 ISCE3_Burst 的 <code>ifg</code> 是单个进程，因为相位链接估计需要所有日期的完整 N×N 协方差矩阵，不存在可拆分的"逐干涉对"单元。若只设置作业数，该阶段会继续使用配置文件里保存的线程数运行，而 SLURM 却预留了它根本用不到的核心。</p>
+<p>需要区别设置时可以分别覆盖：</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>--worker<span class="w"> </span><span class="m">8</span><span class="w"> </span>--max_workers<span class="w"> </span><span class="m">2</span><span class="w">      </span><span class="c1"># 8 个并发作业，每个 2 线程</span>
+</span></code></pre></div>
+<p>当单作业阶段的 <code>cpus_per_task</code> 与 <code>max_workers</code> 不一致时，<code>submit</code> 会给出提示，并说明有多少核心空闲或被超额占用。</p>
+<h3 id="_1">队列上限</h3>
+<p>集群会限制单个用户<strong>已提交</strong>的作业数，这与允许同时<em>运行</em>的数量是两回事。<code>submit</code> 会从分区的 QOS 读取该上限，并把 <code>--worker</code> 收敛到 <code>上限 - 2</code>，同时打印黄色警告：</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>--worker 40 exceeds what partition 'all' allows: its QOS 'jobmanagement' caps
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>you at 20 SUBMITTED jobs. Reducing to 18 ...
+</span></code></pre></div>
+<p>之所以预留两个名额而不是一个：管理器本身占一个；另外在链式交接的瞬间，正在结束的管理器和它提交的下一个管理器会短暂同时存在。</p>
+<p>该上限统计的是你<strong>全部</strong>已排队的作业，不只是本次运行 — 如果还有其他作业在排队，请进一步调小 <code>--worker</code>。即使仍然触及上限，管理器也会把它当作背压处理，每 30 秒重试一次、最多两小时，而不是直接放弃整个阶段。</p>
+<h2 id="sbatch_optionsjson"><code>sbatch_options.json</code></h2>
+<p>首次提交时写入工作目录，然后<strong>停下来让你检查</strong>。该文件自带说明：<code>_options</code> 段列出每个可设置的键、它的作用和示例；<code>_stages</code>（或 <code>_steps</code>）说明每个单元是什么、会展开成多少个作业。</p>
+<div class="language-json highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="p">{</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">"default"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"time"</span><span class="p">:</span><span class="w"> </span><span class="s2">"02:00:00"</span><span class="p">,</span><span class="w"> </span><span class="nt">"cpus_per_task"</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">"mem"</span><span class="p">:</span><span class="w"> </span><span class="s2">"16G"</span><span class="p">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">               </span><span class="nt">"partition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"all"</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">  </span><span class="nt">"manager"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w"> </span><span class="nt">"partition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"all"</span><span class="w"> </span><span class="p">},</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">"cslc"</span><span class="p">:</span><span class="w">    </span><span class="p">{</span><span class="w"> </span><span class="nt">"time"</span><span class="p">:</span><span class="w"> </span><span class="s2">"04:00:00"</span><span class="p">,</span><span class="w"> </span><span class="nt">"cpus_per_task"</span><span class="p">:</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="nt">"mem"</span><span class="p">:</span><span class="w"> </span><span class="s2">"32G"</span><span class="w"> </span><span class="p">}</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="p">}</span>
+</span></code></pre></div>
+<p><code>default</code> 是<strong>每个阶段都会继承的基础配置</strong>，而不是"阶段缺失时才使用"的兜底。集群级别的设置 — <code>partition</code>、<code>account</code>、<code>qos</code> — 在这里写一次即可；每个阶段只覆盖自己真正需要的 time/cpus/mem。</p>
+<p><code>manager</code> 是特例：只读取 <code>partition</code>。管理器的核心数、内存和墙钟时间都是固定的，因为它只做记账工作，唯一的要求是活得比它监管的所有子作业都久。如果阶段耗时长或作业数多，请给它选择墙钟时间上限最长的分区。</p>
+<p>以 <code>_</code> 开头的键是文档，会被忽略。任何不属于已识别 SLURM 字段的键会被静默丢弃、不会传给 <code>sbatch</code>，因此拼写错误不会报错 — 可接受的键请查阅 <code>_options</code>。</p>
+<h2 id="_2">各处理器的拆分粒度</h2>
+<p>拆分粒度取决于一个单元是否是<strong>独立进程</strong>。在单进程内已经多线程并行的工作，只会得到一个按线程数配置资源的作业。</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="isce3_burst" name="__tabbed_1" type="radio"><input id="gmtsar_s1" name="__tabbed_1" type="radio"><input id="isce2_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="isce3_burst">ISCE3_Burst</label><label for="gmtsar_s1">GMTSAR_S1</label><label for="isce2_s1">ISCE2_S1</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>作业数</th>
+<th>单元</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>dem</code>、<code>tec</code></td>
+<td>各 1 个</td>
+<td>受网络限制，只需几分钟</td>
+</tr>
+<tr>
+<td><code>cslc</code></td>
+<td><strong>每个 burst-日期一个</strong></td>
+<td>各自是独立的 COMPASS 进程 — 耗时主体</td>
+</tr>
+<tr>
+<td><code>static</code></td>
+<td>每个 burst 一个 + 1 个归约</td>
+<td><code>s1_static_layers.py</code>，随后拼接 LOS 图层</td>
+</tr>
+<tr>
+<td><code>crop</code></td>
+<td>每个 burst 一个</td>
+<td></td>
+</tr>
+<tr>
+<td><code>ifg</code></td>
+<td><strong>1</strong></td>
+<td>相位链接需要完整协方差，不存在逐干涉对的单元</td>
+</tr>
+<tr>
+<td><code>stitch</code>、<code>filt</code></td>
+<td><strong>每个干涉对一个</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>unwrap</code></td>
+<td>1 个准备 + <strong>每个干涉对一个</strong></td>
+<td>准备阶段先生成水体掩膜，避免 N 个作业同时读写</td>
+</tr>
+</tbody>
+</table>
+<p>作业清单来自 <code>ifg_manifest.json</code> 的阶段，在 <code>ifg</code> 运行前无法枚举。整条链一起提交没有问题 — 这些阶段会被标记为"推迟"，并给出条件满足后应执行的确切命令。</p>
+</div>
+<div class="tabbed-block">
+<p><strong>p2p 模式</strong>（<code>stack_mode=False</code>，默认）是每个干涉对一个作业。干涉对之间完全独立 — 多子条带模式下各自拥有独立的 case 目录，单子条带模式的输出以 <code>intf/&lt;julian_pair&gt;/</code> 命名隔离 — 因此由单个管理器展开全部干涉对，完全不需要链式提交。</p>
+<p>每个作业运行该干涉对的完整流程：配准 → 干涉图 → 滤波 → 解缠 → 地理编码。</p>
+<p><strong>stack_mode</strong> 则是按顺序执行的阶段：<code>align → topo → intf → mergeprep → merge → cohmask → unwrap</code>，每个阶段一个管理器，依次链式提交。</p>
+</div>
+<div class="tabbed-block">
+<p><code>stackSentinel.py</code> 会生成 <code>run_NN_*</code> 文件，每行一条 shell 命令；每行成为一个子作业。命令条数相同的连续步骤会合并为一个组管理器。</p>
+</div>
+</div>
+</div>
+<h2 id="_3">监控</h2>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-w<span class="w"> </span>.<span class="w"> </span>refresh<span class="w">          </span><span class="c1"># 彩色状态表</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-w<span class="w"> </span>.<span class="w"> </span>refresh<span class="w"> </span>--ls<span class="w">     </span><span class="c1"># 每个单元的明细</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>&lt;name&gt;<span class="w"> </span>-w<span class="w"> </span>.<span class="w"> </span>cancel<span class="w">           </span><span class="c1"># scancel 管理器与全部子作业</span>
+</span></code></pre></div>
+<p><code>refresh</code> 报告的是<strong>整个工作目录</strong>的状态，而不是最近一次提交。进度按磁盘上的产品统计，因此一个跨五次续跑才完成的阶段显示为 <code>192/192</code>，而不是最近一次恰好补齐的 19 个。SLURM 的实时状态优先于状态标记文件：标记只在阶段结束时写入一次，无法表达"进行中"；而一次取消留下的标记，在你重新提交的那一刻就已经过期了。</p>
+<p><code>--ls</code> 列出的是真实标识 — 例如 <code>20221202_t056_118971_iw2</code>，或干涉对的两个日期 — 因此缺失的单元可以直接定位处理。</p>
+<div class="admonition note">
+<p class="admonition-title"><code>--config</code> 与动作名</p>
+<p><code>--config</code> 的取值是可选的，因此不要把动作名紧跟其后：<code>--config cancel</code> 会把 <code>cancel</code> 当成配置文件路径。请写成 <code>-w . cancel</code>，或者像 <code>--config --hpc-mode submit</code> 这样让一个开关跟在后面。</p>
+</div>
+<h2 id="dry-run">试运行（dry run）</h2>
+<p><code>--dry-run</code> 只打印计划，不做任何改动 — 不提交作业、不写脚本、不改配置：</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>[ISCE3_Burst] HPC plan (8 concurrent job(s) max):
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>    cslc                      192 job(s)
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>[ISCE3_Burst] dry run -- nothing submitted, nothing written.
+</span></code></pre></div>
+<p>这个保证很关键。生成的管理器脚本里记录了它接下来要链接到哪个阶段，所以一次只覆盖<em>部分</em>阶段的试运行如果重写了这些脚本，就会悄悄切断正在运行的流水线。同样，会写入配置的试运行，会把你只是想试一试的参数永久留给之后的每一次运行。</p>
+<h2 id="_4">续跑</h2>
+<p>已经 <code>SUCCEEDED</code> 的阶段会被跳过。支持部分续跑的阶段 — <code>cslc</code>，以及其他单元开销较大的阶段 — 会直接从<strong>命令清单</strong>中过滤掉已完成的工作，因此重新提交只会排入缺失的部分：</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>[ISCE3_Burst] cslc: 173 already geocoded, 19 to submit
+</span></code></pre></div>
+<p>每次提交某个阶段时，完成标记都会被清空，因为走到这一步就意味着该阶段确实要运行。这些标记按位置命名（<code>cmd_0007.done</code>），而命令清单每次都会重新推导，所以跨清单保留的标记会指向完全不同的工作 — 这正是一个续跑的阶段可能跳过真实作业却仍然报告成功的原因。</p>
 
 
 
@@ -1529,7 +1804,7 @@
           <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
-  Back to top
+  回到页面顶部
 </button>
         
       </main>
@@ -1584,10 +1859,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   

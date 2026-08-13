@@ -1087,6 +1087,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../utilities/" class="md-nav__link">
         
   
@@ -1786,10 +1814,14 @@
 <p>逐像素衰减模型参数（γ∞、γ0、τ）按季节从 S3 COG 瓦片拟合，并缓存为 <code>decay_maps/</code> 中的 GeoTIFF。对于每个配对，使用实际时间基线评估模型：</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>γ(dt) = γ∞ + (γ0 − γ∞) · exp(−dt / τ)
 </span></code></pre></div>
-<p><strong>相干性惩罚</strong> — 偏移二次函数，γ ≥ 0.60 时零惩罚，γ ≤ 0.10 时满惩罚：</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>clamped     = clamp((0.60 − γ) / 0.50, 0, 1)
+<p><strong>相干性惩罚</strong> — 偏移二次函数，γ ≥ 0.40 时零惩罚，γ ≤ 0.10 时满惩罚：</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>clamped     = clamp((0.40 − γ) / 0.30, 0, 1)
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>coh_penalty = clamped²
 </span></code></pre></div>
+<p>该阈值针对<strong>真实（未滤波）相干性</strong>校准，数据源为全球 S1 季节性相干性数据集
+（Kellndorfer et al. 2022）：其 12 天中位数约为 0.31，6 天中位数约为 0.42，
+因此 0.40 为可用带的高端。（0.60 适用于经 Goldstein 滤波后的相干性，滤波会抬高数值。）</p>
+<p><strong>好 / 一般 / 差</strong> 显示阈值同样基于真实相干性：好 ≥ 0.40，一般 0.25–0.40，差 &lt; 0.25。</p>
 <p><strong>叠加的环境惩罚：</strong></p>
 <table>
 <thead>

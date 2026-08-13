@@ -1087,6 +1087,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../utilities/" class="md-nav__link">
         
   
@@ -1180,6 +1208,24 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    程序结构
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
@@ -1196,6 +1242,36 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="目录">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        流水线矩阵
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -1374,6 +1450,25 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      目录
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        流水线矩阵
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -1395,12 +1490,22 @@
 <h1 id="_1">程序结构</h1>
 <p>InSARHub 由三个松耦合的层次构成——<strong>下载器（Downloader）</strong>、<strong>处理器（Processor）</strong> 和 <strong>分析器（Analyzer）</strong>，每层均以命名后端的注册表形式实现。写入任务文件夹的 <code>insarhub_config.json</code> 会随流程推进逐步累积配置，因此每个阶段既可独立运行，也可串联执行。</p>
 <ul>
-<li><strong>下载器</strong> — 在 ASF 搜索场景、基于质量评分选择干涉图配对，并获取 SLC 数据和轨道文件。</li>
-<li><strong>处理器</strong> — 接收选定的配对，通过云端（HyP3）或本地 / HPC（ISCE2）生成地理编码干涉图。</li>
-<li><strong>分析器</strong> — 将干涉图堆叠导入 MintPy，运行 SBAS 时序分析，输出速度场和形变图。</li>
+<li><strong>下载器</strong> — 在 ASF 搜索场景（完整 SLC 或单个 SLC-BURST 颗粒）、基于质量评分选择干涉图配对，并获取 SLC 数据和轨道文件。</li>
+<li><strong>处理器</strong> — 接收选定的配对，生成（解缠）干涉图：云端（HyP3）、本地 ISCE2 <code>stackSentinel</code>、本地 GMTSAR <code>p2p_processing</code>/<code>p2p_S1_TOPS_Frame</code>，或 ISCE3/COMPASS burst 地理编码。</li>
+<li><strong>分析器</strong> — 将干涉图堆叠反演为形变时序：MintPy <code>smallbaselineApp</code>、GMTSAR 自带的 <code>sbas</code> 二进制程序，或 dolphin 的 <code>timeseries</code>。</li>
 </ul>
 <p>Web UI 和命令行均为同一 Python API 的轻量封装，在浏览器中运行的任何工作流均可在命令行或脚本中精确复现。</p>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../advanced/fig/InSARHub_workflow.png" data-desc-position="bottom"><img alt="InSARHub 工作流程" class="doc-img-wide" src="../../../advanced/fig/InSARHub_workflow.png"></a></p>
+<h2 id="_2">流水线矩阵</h2>
+<p>每个下载器对应一组兼容的处理器，每个处理器又对应一组兼容的分析器。注册表通过 <code>compatible_downloader</code> / <code>compatible_processor</code> 建立这些关系；工作目录中保存的 <code>insarhub_config.json</code> 记录了它属于哪条流水线。</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>Downloader          Processor            Analyzer
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>─────────────────   ──────────────────   ─────────────────────────
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>S1_SLC           →  Hyp3_S1           →  Hyp3_SBAS
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>                 →  ISCE2_S1          →  ISCE_SBAS
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                 →  GMTSAR_S1         →  GMTSAR_MINTPY_SBAS
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                                      →  GMTSAR_SBAS
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>S1_Burst         →  ISCE3_Burst       →  Dolphin_SBAS
+</span></code></pre></div>
 
 
 

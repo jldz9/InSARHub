@@ -1133,10 +1133,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#end-to-end-example-isce_s1-local" class="md-nav__link">
+  <a href="#end-to-end-example-isce2_s1-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        End-to-end example — ISCE_S1 (local)
+        End-to-end example — ISCE2_S1 (local)
       
     </span>
   </a>
@@ -1521,6 +1521,34 @@
     
   
     Analyzer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
   
 
     
@@ -2222,10 +2250,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#end-to-end-example-isce_s1-local" class="md-nav__link">
+  <a href="#end-to-end-example-isce2_s1-local" class="md-nav__link">
     <span class="md-ellipsis">
       
-        End-to-end example — ISCE_S1 (local)
+        End-to-end example — ISCE2_S1 (local)
       
     </span>
   </a>
@@ -2540,7 +2568,7 @@
 </tr>
 </tbody>
 </table>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3_s1" name="__tabbed_1" type="radio"><input id="isce_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3_s1">Hyp3_S1</label><label for="isce_s1">ISCE_S1</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3_s1" name="__tabbed_1" type="radio"><input id="isce2_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3_s1">Hyp3_S1</label><label for="isce2_s1">ISCE2_S1</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Cloud processing via <abbr title="Alaska Satellite Facility">ASF</abbr> <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> — no local ISCE2 needed.</p>
@@ -2790,7 +2818,7 @@
 <p>Local or <abbr title="High Performance Computing">HPC</abbr> processing using ISCE2 <code>stackSentinel</code> — requires ISCE2 installed. <abbr title="Single Look Complex">SLC</abbr> <code>.SAFE</code> files must be downloaded first (use <code>insarhub downloader -d</code>).</p>
 <h4 id="submit_1">submit</h4>
 <p>Generate ISCE2 run scripts and start execution.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span><span class="o">[</span>options<span class="o">]</span>
 </span></code></pre></div>
 <table>
 <thead>
@@ -2804,7 +2832,7 @@
 <tr>
 <td><code>-N</code>, <code>--name</code></td>
 <td>—</td>
-<td>Must be <code>ISCE_S1</code></td>
+<td>Must be <code>ISCE2_S1</code></td>
 </tr>
 <tr>
 <td><code>--list-options</code></td>
@@ -2884,15 +2912,15 @@
 </tbody>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Dry run first (recommended)</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--dry-run
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a>
 </span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># Local execution (runs in background)</span>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0
 </span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>
 </span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="c1"># HPC / SLURM mode</span>
-</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--hpc_mode<span class="w"> </span>True
 </span></code></pre></div>
 <div class="admonition note">
@@ -2900,12 +2928,12 @@
 <p>A normal <code>submit</code> skips any step already <code>SUCCEEDED</code>; <code>retry</code> re-runs from the first <code>FAILED</code> step onward, cascading into every step after it. <code>--step</code> is narrower than both: it forces only the named step(s) back to <code>PENDING</code> and re-runs them, leaving every other step exactly as it is — no cascade. Useful when a specific step silently produced bad output (recorded as <code>SUCCEEDED</code>) and only that one needs to be redone.</p>
 <p>Accepts the full step name, just its number, or a <code>run_NN</code> prefix:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Force step 03 to re-run — equivalent forms</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">03</span>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">3</span>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span>run_03
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">03</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">3</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span>run_03
 </span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>
 </span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="c1"># Force multiple steps</span>
-</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">03</span><span class="w"> </span><span class="m">04</span><span class="w"> </span><span class="m">05</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--step<span class="w"> </span><span class="m">03</span><span class="w"> </span><span class="m">04</span><span class="w"> </span><span class="m">05</span>
 </span></code></pre></div>
 <p>In <abbr title="High Performance Computing">HPC</abbr> mode this also clears stale per-command <code>.done</code>/<code>.fail</code> markers for the forced step(s) — otherwise the manager script would see old markers and report "already done" without submitting anything.</p>
 </div>
@@ -2913,7 +2941,7 @@
 <p class="admonition-title"><abbr title="High Performance Computing">HPC</abbr> mode — sliding-window manager</p>
 <p>When <code>--hpc_mode True</code> is set, each processing step runs as a lightweight SLURM <strong>manager job</strong>. The manager keeps at most <code>--max_concurrent_hpc</code> child jobs active at any time, submitting new ones immediately when a slot opens. Steps are chained via <code>--dependency=afterok</code> so they run sequentially. Consecutive steps with the same number of commands are merged into a single group-manager job automatically.</p>
 <p>Each sbatch script logs <code>START</code>, <code>DONE</code>, and <code>FAIL</code> lines with elapsed seconds per command.</p>
-<p><strong><code>sbatch_options.json</code></strong> — loaded automatically from <code>&lt;workdir&gt;/sbatch_options.json</code> to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.). Steps <code>"01"</code>–<code>"16"</code> are <code>ISCE_S1</code>'s own steps; step <code>"17"</code> ("<abbr title="Small Baseline Subset">SBAS</abbr>") configures the <code>ISCE_SBAS</code>/<code>Hyp3_SBAS</code> analyzer's own <code>--hpc_mode</code> job (see <a href="#hpc-mode">analyzer <abbr title="High Performance Computing">HPC</abbr> mode</a>) — one file, shared by both processor and analyzer, since they typically run against the same workdir.</p>
+<p><strong><code>sbatch_options.json</code></strong> — loaded automatically from <code>&lt;workdir&gt;/sbatch_options.json</code> to configure per-step SLURM resources (CPUs, memory, walltime, partition, etc.). Steps <code>"01"</code>–<code>"16"</code> are <code>ISCE2_S1</code>'s own steps; step <code>"17"</code> ("<abbr title="Small Baseline Subset">SBAS</abbr>") configures the <code>ISCE_SBAS</code>/<code>Hyp3_SBAS</code> analyzer's own <code>--hpc_mode</code> job (see <a href="#hpc-mode">analyzer <abbr title="High Performance Computing">HPC</abbr> mode</a>) — one file, shared by both processor and analyzer, since they typically run against the same workdir.</p>
 <ul>
 <li>If <code>sbatch_options.json</code> is <strong>not found</strong>, a default template covering steps <code>01</code>–<code>17</code> is created and <code>submit</code> prints a reminder to edit it before resubmitting.</li>
 <li>If the file exists but is missing a step you're about to use (e.g. <code>"17"</code> the first time you run the analyzer in <abbr title="High Performance Computing">HPC</abbr> mode), it's added automatically with default resources, the file is rewritten, and a warning is printed — review the added defaults before relying on them.</li>
@@ -2923,12 +2951,12 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Running without a local ISCE2 install</p>
-<p><code>--container &lt;path-or-image&gt;</code> re-invokes the entire <code>insarhub processor ...</code> command inside a container instead of the host — pass a path to an Apptainer/Singularity <code>.sif</code> image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and <code>ISCE_S1</code> never needs to discover a host ISCE2 install at all. The container image just needs <code>insarhub</code> installed alongside ISCE2/topsStack — see <a href="https://github.com/jldz9/InSARHub/blob/main/Dockerfile"><code>Dockerfile</code></a> in the repo root for a ready-to-build example.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w">  </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w">   </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w">   </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
-</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w">  </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+<p><code>--container &lt;path-or-image&gt;</code> re-invokes the entire <code>insarhub processor ...</code> command inside a container instead of the host — pass a path to an Apptainer/Singularity <code>.sif</code> image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and <code>ISCE2_S1</code> never needs to discover a host ISCE2 install at all. The container image just needs <code>insarhub</code> installed alongside ISCE2/topsStack — see <a href="https://github.com/jldz9/InSARHub/blob/main/Dockerfile"><code>Dockerfile</code></a> in the repo root for a ready-to-build example.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w">  </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w">   </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w">   </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w">  </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2:latest
 </span></code></pre></div>
 <p><code>--container</code> is a per-invocation flag, not a saved setting — like <code>--dry-run</code>, it's never written to <code>insarhub_config.json</code>, so pass it again on every <code>submit</code>/<code>refresh</code>/<code>retry</code>/<code>watch</code>/<code>cancel</code> call you want to run inside the container.</p>
 </div>
@@ -2965,7 +2993,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <p>By default only the one-line-per-step summary prints — no <code>cmd_XXXX</code> detail:</p>
 <details class="output">
@@ -2979,8 +3007,8 @@
 </span></code></pre></div>
 </details>
 <p>Pass <code>--ls</code> to also see per-command detail — for every step, or a specific one:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w">        </span><span class="c1"># every step</span>
-</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w"> </span><span class="m">02</span><span class="w">     </span><span class="c1"># just run_02</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w">        </span><span class="c1"># every step</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--ls<span class="w"> </span><span class="m">02</span><span class="w">     </span><span class="c1"># just run_02</span>
 </span></code></pre></div>
 <details class="output">
 <summary>Output</summary>
@@ -3023,7 +3051,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <h4 id="cancel">cancel</h4>
 <p>Terminate running steps. Local mode sends SIGTERM to the background process; <abbr title="High Performance Computing">HPC</abbr> mode runs <code>scancel</code> on all active SLURM job IDs.</p>
@@ -3053,7 +3081,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
 <h4 id="watch_1">watch</h4>
 <p>Poll step statuses until all steps complete.</p>
@@ -3083,7 +3111,7 @@
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -3140,7 +3168,7 @@
 </tr>
 <tr>
 <td><code>ISCE_SBAS</code></td>
-<td><a href="#isce_s1"><code>ISCE_S1</code></a></td>
+<td><a href="#isce2_s1"><code>ISCE2_S1</code></a></td>
 <td>ISCE2 <code>merged/interferograms/</code></td>
 </tr>
 </tbody>
@@ -3180,7 +3208,7 @@
 <tr>
 <td><code>--container</code></td>
 <td>—</td>
-<td>Run inside a container instead of on the host — needs <code>insarhub</code> installed alongside MintPy (and ISCE2, for <code>ISCE_SBAS</code>); see <a href="#running-without-a-local-isce2-install">ISCE_S1's container note</a> for the same mechanism</td>
+<td>Run inside a container instead of on the host — needs <code>insarhub</code> installed alongside MintPy (and ISCE2, for <code>ISCE_SBAS</code>); see <a href="#running-without-a-local-isce2-install">ISCE2_S1's container note</a> for the same mechanism</td>
 </tr>
 </tbody>
 </table>
@@ -3302,7 +3330,7 @@
 </span><span id="__span-32-4"><a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>Hyp3_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
 </span></code></pre></div>
 <p>Script written to <code>&lt;workdir&gt;/mintpy/mintpy_sbas.sbatch</code>, job state to <code>mintpy/mintpy_job.json</code>.</p>
-<p>SLURM resources come from <code>&lt;workdir&gt;/sbatch_options.json</code>, step key <code>"17"</code> — the <strong>same file</strong> used by <code>ISCE_S1 submit --hpc_mode</code> (steps <code>01</code>–<code>16</code>), since processor and analyzer typically share one workdir. Default: <code>time=24:00:00</code>, <code>ntasks=1</code>, <code>cpus_per_task=16</code>, <code>mem=128G</code>, <code>partition=all</code>.</p>
+<p>SLURM resources come from <code>&lt;workdir&gt;/sbatch_options.json</code>, step key <code>"17"</code> — the <strong>same file</strong> used by <code>ISCE2_S1 submit --hpc_mode</code> (steps <code>01</code>–<code>16</code>), since processor and analyzer typically share one workdir. Default: <code>time=24:00:00</code>, <code>ntasks=1</code>, <code>cpus_per_task=16</code>, <code>mem=128G</code>, <code>partition=all</code>.</p>
 <ul>
 <li>If <code>sbatch_options.json</code> doesn't exist yet, it's created (covering steps <code>01</code>–<code>17</code>) and the run stops so you can review it before resubmitting.</li>
 <li>If the file exists but has no <code>"17"</code> entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.</li>
@@ -3362,7 +3390,7 @@
 <tr>
 <td><code>--container</code></td>
 <td>—</td>
-<td>Run inside a container instead of on the host — needs <code>insarhub</code> installed alongside MintPy (and ISCE2, for <code>ISCE_SBAS</code>); see <a href="#running-without-a-local-isce2-install">ISCE_S1's container note</a> for the same mechanism</td>
+<td>Run inside a container instead of on the host — needs <code>insarhub</code> installed alongside MintPy (and ISCE2, for <code>ISCE_SBAS</code>); see <a href="#running-without-a-local-isce2-install">ISCE2_S1's container note</a> for the same mechanism</td>
 </tr>
 </tbody>
 </table>
@@ -3484,7 +3512,7 @@
 </span><span id="__span-37-4"><a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--hpc_mode<span class="w"> </span>True<span class="w"> </span>--step<span class="w"> </span>velocity<span class="w"> </span>geocode
 </span></code></pre></div>
 <p>Script written to <code>&lt;workdir&gt;/mintpy/mintpy_sbas.sbatch</code>, job state to <code>mintpy/mintpy_job.json</code>.</p>
-<p>SLURM resources come from <code>&lt;workdir&gt;/sbatch_options.json</code>, step key <code>"17"</code> — the <strong>same file</strong> used by <code>ISCE_S1 submit --hpc_mode</code> (steps <code>01</code>–<code>16</code>), since processor and analyzer typically share one workdir. Default: <code>time=24:00:00</code>, <code>ntasks=1</code>, <code>cpus_per_task=16</code>, <code>mem=128G</code>, <code>partition=all</code>.</p>
+<p>SLURM resources come from <code>&lt;workdir&gt;/sbatch_options.json</code>, step key <code>"17"</code> — the <strong>same file</strong> used by <code>ISCE2_S1 submit --hpc_mode</code> (steps <code>01</code>–<code>16</code>), since processor and analyzer typically share one workdir. Default: <code>time=24:00:00</code>, <code>ntasks=1</code>, <code>cpus_per_task=16</code>, <code>mem=128G</code>, <code>partition=all</code>.</p>
 <ul>
 <li>If <code>sbatch_options.json</code> doesn't exist yet, it's created (covering steps <code>01</code>–<code>17</code>) and the run stops so you can review it before resubmitting.</li>
 <li>If the file exists but has no <code>"17"</code> entry, it's added automatically with the defaults above, a warning is printed, and the run proceeds.</li>
@@ -3776,7 +3804,7 @@
 </span><span id="__span-47-19"><a id="__codelineno-47-19" name="__codelineno-47-19" href="#__codelineno-47-19"></a>insarhub<span class="w"> </span>utils<span class="w"> </span>h5-to-raster<span class="w"> </span>-i<span class="w"> </span>/data/bryce/p100_f466/velocity.h5
 </span></code></pre></div>
 <hr>
-<h2 id="end-to-end-example-isce_s1-local">End-to-end example — ISCE_S1 (local)</h2>
+<h2 id="end-to-end-example-isce2_s1-local">End-to-end example — ISCE2_S1 (local)</h2>
 <p>The complete pipeline using local ISCE2 processing and ISCE_SBAS time-series analysis:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-48-1"><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="c1"># 1. Search and download SLC scenes (saves to workdir/slc/ by default)</span>
 </span><span id="__span-48-2"><a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>insarhub<span class="w"> </span>downloader<span class="w"> </span>-N<span class="w"> </span>S1_SLC<span class="w"> </span><span class="se">\</span>
@@ -3787,18 +3815,18 @@
 </span><span id="__span-48-7"><a id="__codelineno-48-7" name="__codelineno-48-7" href="#__codelineno-48-7"></a><span class="w">    </span>--select-pairs<span class="w"> </span>--download<span class="w"> </span>-O
 </span><span id="__span-48-8"><a id="__codelineno-48-8" name="__codelineno-48-8" href="#__codelineno-48-8"></a>
 </span><span id="__span-48-9"><a id="__codelineno-48-9" name="__codelineno-48-9" href="#__codelineno-48-9"></a><span class="c1"># 2. Dry run to verify paths and bbox</span>
-</span><span id="__span-48-10"><a id="__codelineno-48-10" name="__codelineno-48-10" href="#__codelineno-48-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-10"><a id="__codelineno-48-10" name="__codelineno-48-10" href="#__codelineno-48-10"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-48-11"><a id="__codelineno-48-11" name="__codelineno-48-11" href="#__codelineno-48-11"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68<span class="w"> </span>--dry-run
 </span><span id="__span-48-12"><a id="__codelineno-48-12" name="__codelineno-48-12" href="#__codelineno-48-12"></a>
 </span><span id="__span-48-13"><a id="__codelineno-48-13" name="__codelineno-48-13" href="#__codelineno-48-13"></a><span class="c1"># 3. Submit local processing (runs in background)</span>
-</span><span id="__span-48-14"><a id="__codelineno-48-14" name="__codelineno-48-14" href="#__codelineno-48-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-48-14"><a id="__codelineno-48-14" name="__codelineno-48-14" href="#__codelineno-48-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-48-15"><a id="__codelineno-48-15" name="__codelineno-48-15" href="#__codelineno-48-15"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">37</span>.74<span class="w"> </span><span class="m">38</span>.00<span class="w"> </span>-113.05<span class="w"> </span>-112.68
 </span><span id="__span-48-16"><a id="__codelineno-48-16" name="__codelineno-48-16" href="#__codelineno-48-16"></a>
 </span><span id="__span-48-17"><a id="__codelineno-48-17" name="__codelineno-48-17" href="#__codelineno-48-17"></a><span class="c1"># 4. Monitor progress</span>
-</span><span id="__span-48-18"><a id="__codelineno-48-18" name="__codelineno-48-18" href="#__codelineno-48-18"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+</span><span id="__span-48-18"><a id="__codelineno-48-18" name="__codelineno-48-18" href="#__codelineno-48-18"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span><span id="__span-48-19"><a id="__codelineno-48-19" name="__codelineno-48-19" href="#__codelineno-48-19"></a>
 </span><span id="__span-48-20"><a id="__codelineno-48-20" name="__codelineno-48-20" href="#__codelineno-48-20"></a><span class="c1"># 5. Watch until all steps complete</span>
-</span><span id="__span-48-21"><a id="__codelineno-48-21" name="__codelineno-48-21" href="#__codelineno-48-21"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
+</span><span id="__span-48-21"><a id="__codelineno-48-21" name="__codelineno-48-21" href="#__codelineno-48-21"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--interval<span class="w"> </span><span class="m">120</span>
 </span><span id="__span-48-22"><a id="__codelineno-48-22" name="__codelineno-48-22" href="#__codelineno-48-22"></a>
 </span><span id="__span-48-23"><a id="__codelineno-48-23" name="__codelineno-48-23" href="#__codelineno-48-23"></a><span class="c1"># 6. Run ISCE_SBAS time-series analysis</span>
 </span><span id="__span-48-24"><a id="__codelineno-48-24" name="__codelineno-48-24" href="#__codelineno-48-24"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run

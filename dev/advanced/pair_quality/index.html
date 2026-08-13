@@ -1085,6 +1085,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../utilities/" class="md-nav__link">
         
   
@@ -1807,11 +1835,17 @@
 <div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>γ(dt) = γ∞ + (γ0 − γ∞) · exp(−dt / τ)
 </span></code></pre></div>
 <p>For cross-season pairs the pair span is split at season boundaries and the segments are chained using duration-weighted effective parameters.</p>
-<p><strong>Coherence penalty</strong> — shifted quadratic, zero penalty above γ = 0.60, full penalty at γ ≤ 0.10:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>clamped     = clamp((0.60 − γ) / 0.50, 0, 1)
+<p><strong>Coherence penalty</strong> — shifted quadratic, zero penalty above γ = 0.40, full penalty at γ ≤ 0.10:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>clamped     = clamp((0.40 − γ) / 0.30, 0, 1)
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>coh_penalty = clamped²
 </span></code></pre></div>
-<p>This avoids penalising workable pairs just for not being perfect — global S1 average at 12 days is 0.30–0.45, which is usable.</p>
+<p>Calibrated for <strong>true (unfiltered)</strong> coherence as published by the global S1
+seasonal coherence dataset (Kellndorfer et al. 2022): its 12-day median is
+~0.31 and 6-day median ~0.42, so 0.40 marks the top of the workable band.
+(0.60 was the value appropriate for Goldstein-filtered coherence, which
+inflates the scale.)</p>
+<p><strong>Good / Risky / Bad</strong> display thresholds are likewise true-coherence based:
+Good ≥ 0.40, Risky 0.25–0.40, Bad &lt; 0.25.</p>
 <p><strong>Environmental penalties</strong> applied on top:</p>
 <table>
 <thead>

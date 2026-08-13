@@ -1200,6 +1200,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1802,10 +1830,10 @@
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_dialog_ISCE_light.png#only-light" data-desc-position="bottom"><img alt="处理器选择" class="doc-img" src="../../../frontend/fig/processor_dialog_ISCE_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../../frontend/fig/processor_dialog_ISCE_dark.png#only-dark" data-desc-position="bottom"><img alt="处理器选择" class="doc-img" src="../../../frontend/fig/processor_dialog_ISCE_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>选择 <code>ISCE_S1</code> 通过 ISCE2 进行本地 / HPC 处理。</p>
+<p>选择 <code>ISCE2_S1</code> 通过 ISCE2 进行本地 / HPC 处理。</p>
 </figcaption>
 </figure>
-<p>选择 <code>ISCE_S1</code> 并配置所需参数 — 边界框（南北西东）、SLC 目录，以及可选的 HPC 模式。点击<strong>提交</strong>在后台本地启动 <code>stackSentinel</code>，或启用 <strong>HPC 模式</strong>将步骤提交至 SLURM。</p>
+<p>选择 <code>ISCE2_S1</code> 并配置所需参数 — 边界框（南北西东）、SLC 目录，以及可选的 HPC 模式。点击<strong>提交</strong>在后台本地启动 <code>stackSentinel</code>，或启用 <strong>HPC 模式</strong>将步骤提交至 SLURM。</p>
 <p>HPC 模式下，每个步骤通过滑动窗口 SLURM 管理器运行，随时保持最多 <strong>Max Concurrent HPC</strong>（默认 12）个子作业同时活跃。步骤之间自动串联。<strong>重试</strong>会从已保存的作业状态中检测 HPC 模式，失败后无需重新配置。</p>
 <div class="admonition tip">
 <p class="admonition-title">先执行试运行</p>

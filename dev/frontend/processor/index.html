@@ -1198,6 +1198,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/hpc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    HPC (SLURM)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1800,10 +1828,10 @@
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_ISCE_light.png#only-light" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_ISCE_light.png#only-light" style="width: 60%"></a>
 <a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_ISCE_dark.png#only-dark" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_ISCE_dark.png#only-dark" style="width: 60%"></a></p>
 <figcaption>
-<p>Select <code>ISCE_S1</code> for local / HPC processing via ISCE2.</p>
+<p>Select <code>ISCE2_S1</code> for local / HPC processing via ISCE2.</p>
 </figcaption>
 </figure>
-<p>Select <code>ISCE_S1</code> and configure the required parameters — bounding box (<code>S N W E</code>), SLC directory, and optionally HPC mode. Click <strong>Submit</strong> to start <code>stackSentinel</code> locally in the background, or submit steps to SLURM with <strong>HPC Mode</strong> enabled.</p>
+<p>Select <code>ISCE2_S1</code> and configure the required parameters — bounding box (<code>S N W E</code>), SLC directory, and optionally HPC mode. Click <strong>Submit</strong> to start <code>stackSentinel</code> locally in the background, or submit steps to SLURM with <strong>HPC Mode</strong> enabled.</p>
 <p>In HPC mode, each step runs through a sliding-window SLURM manager that keeps at most <strong>Max Concurrent HPC</strong> (default 12) child jobs active at once. Steps are chained automatically via <code>--dependency=afterok</code>. <strong>Retry</strong> detects HPC mode from the saved job state — no reconfiguration needed after a failure.</p>
 <div class="admonition tip">
 <p class="admonition-title">Dry run first</p>

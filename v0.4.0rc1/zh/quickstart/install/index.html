@@ -1564,24 +1564,31 @@
 
   <h1>安装</h1>
 
+<div class="admonition warning">
+<p class="admonition-title">预发布版本（0.4.0rc1）</p>
+<p>这是一个<strong>候选发布版</strong>。conda 没有 <code>--pre</code> 选项，因此必须<strong>指定精确版本</strong>才能安装：</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"insarhub=0.4.0rc1"</span>
+</span></code></pre></div>
+<p>直接 <code>conda install insarhub</code> 安装的是最新的<strong>稳定版</strong>，而非此预发布版。要在下面任意命令中获取候选发布版，请在 <code>insarhub</code> 后追加 <code>=0.4.0rc1</code>（例如 <code>conda install -c conda-forge "insarhub=0.4.0rc1" isce2</code>）。</p>
+</div>
 <div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="默认" name="__tabbed_1" type="radio"><input id="isce2-处理器" name="__tabbed_1" type="radio"><input id="isce3--dolphin-处理器" name="__tabbed_1" type="radio"><input id="gmtsar-处理器" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="默认">默认</label><label for="isce2-处理器">ISCE2 处理器</label><label for="isce3--dolphin-处理器">ISCE3 + Dolphin 处理器</label><label for="gmtsar-处理器">GMTSAR 处理器</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <details class="note">
 <summary>创建新环境（推荐）</summary>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>insarhub<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>insarhub<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
 </span></code></pre></div>
 </details>
 <div class="admonition note">
 <p class="admonition-title">Windows：请使用 Python 3.11</p>
 <p>在 Windows 上目前仅支持 Python 3.11 —— 创建上面的环境时请使用 <code>python=3.11</code>。Linux 和 macOS 同时支持 3.11 和 3.12。</p>
 </div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span></code></pre></div>
 <p>或使用 pip（需先通过 conda 安装 GDAL）：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -1591,15 +1598,15 @@
 <p>ISCE2 仅支持 Linux 和 macOS（x86_64）。Windows 与 Apple Silicon 原生不支持 —— 请使用 WSL2 或 Linux HPC 集群。</p>
 </div>
 <p>先安装 InSARHub，再将 ISCE2 添加到同一环境：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>conda<span class="w"> </span>install<span class="w"> </span>isce2<span class="w"> </span>-c<span class="w"> </span>conda-forge
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>conda<span class="w"> </span>install<span class="w"> </span>isce2<span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span></code></pre></div>
 <p>使用 pip：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal<span class="w"> </span>isce2
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal<span class="w"> </span>isce2
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
 </span></code></pre></div>
 <p>验证 ISCE2 是否安装正确：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce; print(isce.__version__)"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce; print(isce.__version__)"</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -1612,12 +1619,12 @@
 <p class="admonition-title">受限的 numpy 版本</p>
 <p>COMPASS 锁定 <code>numpy&lt;2</code>，因此整个工具链可在一次 conda 求解中解析完成（isce3、dolphin、gdal 都保持在 numpy 1.26）。<code>isce3</code> 固定为 CPU 版本，InSARHub 将来会测试 GPU 功能并支持 GPU 处理。</p>
 </div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
 </span></code></pre></div>
 <p>验证工具链可正常导入：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce3, compass, dolphin; print('ok')"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce3, compass, dolphin; print('ok')"</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -1626,22 +1633,22 @@
 <p class="admonition-title">平台支持</p>
 <p><code>--system conda-linux-full</code> <strong>仅支持 Linux x86_64</strong> —— 其他平台请使用 WSL2 或 Linux HPC 集群。</p>
 </div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># 1. 克隆完整的 GMTSAR 仓库并编译（会创建名为 "gmtsar" 的 conda 环境）</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gmtsar/gmtsar.git
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="nb">cd</span><span class="w"> </span>gmtsar
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>python3<span class="w"> </span>gmtsar/python/install.py<span class="w"> </span>--system<span class="w"> </span>conda-linux-full
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c1"># 2. 将 InSARHub + MintPy 添加到同一环境</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>conda<span class="w"> </span>activate<span class="w"> </span>gmtsar
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span>mintpy
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="c1"># 3. 将 GMTSAR 的可执行文件加入 PATH（写入 shell 配置以持久化）</span>
-</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GMTSAR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
-</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$GMTSAR</span>/bin:<span class="nv">$PATH</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># 1. 克隆完整的 GMTSAR 仓库并编译（会创建名为 "gmtsar" 的 conda 环境）</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gmtsar/gmtsar.git
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">cd</span><span class="w"> </span>gmtsar
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>python3<span class="w"> </span>gmtsar/python/install.py<span class="w"> </span>--system<span class="w"> </span>conda-linux-full
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># 2. 将 InSARHub + MintPy 添加到同一环境</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>conda<span class="w"> </span>activate<span class="w"> </span>gmtsar
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span>mintpy
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># 3. 将 GMTSAR 的可执行文件加入 PATH（写入 shell 配置以持久化）</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GMTSAR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$GMTSAR</span>/bin:<span class="nv">$PATH</span>
 </span></code></pre></div>
 <p>验证：</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>which<span class="w"> </span>p2p_processing<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>gmt<span class="w"> </span>--version
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import insarhub, mintpy; print('ok')"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>which<span class="w"> </span>p2p_processing<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>gmt<span class="w"> </span>--version
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import insarhub, mintpy; print('ok')"</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -1655,22 +1662,22 @@
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>默认的 InSARHub 容器，支持通过 HyP3 进行 Sentinel-1 处理，并通过 MintPy 进行时序分析。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>ghcr.io/jldz9/insarhub-base:dev
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ghcr.io/jldz9/insarhub-base:dev
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>涵盖 <code>ISCE2_S1</code> 处理器与 <code>ISCE2_Mintpy_SBAS</code> 分析器。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>涵盖 <code>ISCE3_Burst</code>（Sentinel-1 burst）与 <code>ISCE3_NISAR</code>（NISAR GSLC），以及 <code>ISCE3_Dolphin_PL</code> 分析器。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>ghcr.io/jldz9/insarhub-isce3-dolphin:dev
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ghcr.io/jldz9/insarhub-isce3-dolphin:dev
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>涵盖 <code>GMTSAR_S1</code> 处理器与 GMTSAR 分析器。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
 </span></code></pre></div>
 </div>
 </div>
@@ -1680,11 +1687,11 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="3:4"><input checked="checked" id="默认_1" name="__tabbed_3" type="radio"><input id="isce2-处理器_1" name="__tabbed_3" type="radio"><input id="isce3--dolphin-处理器_1" name="__tabbed_3" type="radio"><input id="gmtsar-处理器_1" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="默认_1">默认</label><label for="isce2-处理器_1">ISCE2 处理器</label><label for="isce3--dolphin-处理器_1">ISCE3 + Dolphin 处理器</label><label for="gmtsar-处理器_1">GMTSAR 处理器</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
-</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Windows：请使用 Python 3.11</p>
@@ -1692,36 +1699,36 @@
 </div>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
-</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"numpy&lt;2.0"</span><span class="w"> </span>isce2
-</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-</span></code></pre></div>
-</div>
-<div class="tabbed-block">
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
-</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"numpy&lt;2.0"</span><span class="w"> </span>isce2
 </span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># 从源码编译 GMTSAR 到名为 "gmtsar" 的 conda 环境</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gmtsar/gmtsar.git
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="nb">cd</span><span class="w"> </span>gmtsar
-</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>python3<span class="w"> </span>gmtsar/python/install.py<span class="w"> </span>--system<span class="w"> </span>conda-linux-full
-</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GMTSAR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$GMTSAR</span>/bin:<span class="nv">$PATH</span>
-</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>
-</span><span id="__span-17-7"><a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a><span class="c1"># 将 MintPy + InSARHub（可编辑）添加到该环境</span>
-</span><span id="__span-17-8"><a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a>conda<span class="w"> </span>activate<span class="w"> </span>gmtsar
-</span><span id="__span-17-9"><a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>mintpy
-</span><span id="__span-17-10"><a id="__codelineno-17-10" name="__codelineno-17-10" href="#__codelineno-17-10"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
-</span><span id="__span-17-11"><a id="__codelineno-17-11" name="__codelineno-17-11" href="#__codelineno-17-11"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-17-12"><a id="__codelineno-17-12" name="__codelineno-17-12" href="#__codelineno-17-12"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># 从源码编译 GMTSAR 到名为 "gmtsar" 的 conda 环境</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gmtsar/gmtsar.git
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="nb">cd</span><span class="w"> </span>gmtsar
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>python3<span class="w"> </span>gmtsar/python/install.py<span class="w"> </span>--system<span class="w"> </span>conda-linux-full
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GMTSAR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$GMTSAR</span>/bin:<span class="nv">$PATH</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># 将 MintPy + InSARHub（可编辑）添加到该环境</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>conda<span class="w"> </span>activate<span class="w"> </span>gmtsar
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>mintpy
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
 </div>
 </div>

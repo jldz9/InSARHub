@@ -4,7 +4,8 @@ Once the Processor has finished processing all interferograms, the Analyzer pane
 
 ## Initializing the Analyzer
 
-Once all submitted jobs have finished and show `SUCCEEDED` in the Processor panel, open the **Run Analyzer** tab within the same job folder. Select an analyzer type (e.g. `Hyp3_SBAS`) from the drop-down and click **Init** to initialize the analyzer workspace. This prepares the configuration and directory structure needed to run time-series analysis on the downloaded interferograms.
+Once all submitted jobs have finished and show `SUCCEEDED` in the Processor panel, open the **Run Analyzer** tab within the same job folder. Select an analyzer type (e.g. `Hyp3_Mintpy_SBAS`) from the drop-down and click **Init** to initialize the analyzer workspace. This prepares the configuration and directory structure needed to run time-series analysis on the downloaded interferograms. Different analyzer might have different steps. 
+
 <!-- screenshot: analyzer panel overview -->
 ![Analyzer Panel](fig/analyzer_light.png#only-light){: .doc-img}
 ![Analyzer Panel](fig/analyzer_dark.png#only-dark){: .doc-img}
@@ -12,7 +13,7 @@ Once all submitted jobs have finished and show `SUCCEEDED` in the Processor pane
 The Run Analyzer tab — select an analyzer type and click Init to get started.
 ///
 
-Once initialization is complete, an **Analyzer** tag labeled with the analyzer you chose (e.g. `Hyp3_SBAS`) will appear on the job folder. Click that tag to open the Analyzer panel and proceed with configuration and processing.
+Once initialization is complete, an **Analyzer** tag labeled with the analyzer you chose (e.g. `Hyp3_Mintpy_SBAS`) will appear on the job folder. Click that tag to open the Analyzer panel and proceed with configuration and processing.
 
 <!-- screenshot: analyzer tag on job folder -->
 ![Analyzer Tag](fig/analyzer_tag_light.png#only-light){: .doc-img style="width: 60%"}
@@ -27,7 +28,7 @@ The Analyzer tag appears on the job folder after initialization. Click it to ope
 
 ## Configuration
 
-Once you enter the Analyzer panel, you can select the steps you want to run for time-series analysis. To adjust analysis parameters, click **Change Config** to switch to the configuration tab, where each analyzer type (e.g. `Hyp3_SBAS`) has its own independent settings that are saved separately.
+Once you enter the Analyzer panel, you can select the steps you want to run for time-series analysis. To adjust analysis parameters, click **Change Config** to switch to the configuration tab, where each analyzer type (e.g. `Hyp3_Mintpy_SBAS`) has its own independent settings that are saved separately.
 
 For a full description of all analyzer parameters and options, see the [Analyzer Reference](../advanced/analyzer.md).
 
@@ -50,49 +51,6 @@ Select the steps to run and click **Run**. Steps run sequentially and progress i
 /// caption
 Analyzer running all steps.
 ///
-
-
-## Edit Network
-
-After initializing the analyzer and running at least the `load_data` step, an **Edit Network** button appears in the Analyzer panel. Click it to open the network editor showing the interferogram network currently loaded into MintPy, with coherence values overlaid on each edge.
-
-![Edit Network Button](fig/analyzer_edit_network_button_light.png#only-light){: .doc-img style="width: 60%"}
-![Edit Network Button](fig/analyzer_edit_network_button_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-The Edit Network button appears in the Analyzer panel after load_data completes.
-///
-
-Unlike the pair selection stage, you cannot drag to create new pairs here — the interferograms have already been processed, so only the downloaded pairs are available. What you can do:
-
-- **Click an active edge** to remove that pair from the network
-- **Click a removed edge** to re-add it
-- **⚙ Parameters** — configure MintPy `modify_network` constraints and click **Run modify_network** to let MintPy automatically filter the network
-
-![Edit Network Graph](fig/analyzer_edit_network_graph_light.png#only-light){: .doc-img}
-![Edit Network Graph](fig/analyzer_edit_network_graph_dark.png#only-dark){: .doc-img}
-/// caption
-The network editor showing coherence values on each edge. Click an edge to remove or re-add it.
-///
-
-| Parameter | Description |
-|-----------|-------------|
-| **Max temporal baseline** | Remove pairs exceeding this temporal separation (days) |
-| **Max ⊥ baseline** | Remove pairs exceeding this perpendicular baseline (m) |
-| **Start date** | Exclude acquisitions before this date (YYYYMMDD) |
-| **End date** | Exclude acquisitions after this date (YYYYMMDD) |
-| **Exclude dates** | Space-separated list of individual dates to drop (YYYYMMDD) |
-| **Coherence-based** | Enable coherence-based network modification (`yes` / `no` / `auto`) |
-| **Min coherence** | Minimum average coherence threshold for keeping a pair |
-| **Keep min span tree** | Preserve the minimum spanning tree when removing low-coherence pairs |
-
-![modify_network Parameters](fig/analyzer_edit_network_parameter_light.png#only-light){: .doc-img style="width: 60%"}
-![modify_network Parameters](fig/analyzer_edit_network_parameter_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-The ⚙ Parameters dialog for modify_network configuration.
-///
-
-After running, the graph refreshes to reflect the updated network. You can then continue running subsequent analyzer steps on the modified network.
-
 ---
 
 ## Overview

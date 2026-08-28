@@ -1,4 +1,4 @@
-This section provides an overview of the complete InSAR time-series processing workflow using Python API, guiding you through each stage of the analysis pipeline.
+This section provides an overview of the complete InSAR time-series processing workflow using the Python API, guiding you through each stage of the analysis pipeline.
 
  [![Try Live Demo](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/jldz9/InSARHub/blob/tutorial/insarhub_tutorial_v0.3.0.ipynb)
 
@@ -33,7 +33,7 @@ graph
 
 ### Set AOI
 
-InSARHub allows to define the AOI using **bounding box**, **shapefiles**, or **WKT**:
+InSARHub allows you to define the AOI using a **bounding box**, **shapefiles**, or **WKT**:
 
 #### Bounding box
 ```python
@@ -74,7 +74,7 @@ Your AOI probably spans multiple scenes. To view the search result footprints, y
 ```python 
 s1.footprint()
 ```
-This will display a footprint map of the available Sentinel-1 scenes that covers the AOI. The stack indicates the number of SAR scenes in that footprint. Because we have multiple stacks the graph will be a bit messy:
+This will display a footprint map of the available Sentinel-1 scenes that cover the AOI. The stack indicates the number of SAR scenes in that footprint. Because we have multiple stacks the graph will be a bit messy:
 
 ![footprint](fig/footprint.png){: style="width:500px; display: block; margin: auto;" }
 
@@ -108,7 +108,7 @@ This will output the summary of available Sentinel-1 scenes that cover the AOI.
     relativeOrbit 100 frame 469 | Count: 119 | 2015-11-24 --> 2026-02-23
     ```
 
-The program identified 18 potential stacks (14 ascending, 4 descending). We can narrowed the dataset to the descending track Path 100, Frame 466 in year 2020 by:
+The program identified 18 potential stacks (14 ascending, 4 descending). We can narrow the dataset to the descending track Path 100, Frame 466 in year 2020 by:
 
 ```python
 filter_results = s1.filter(path_frame=(100,466), start='2020-01-01', end='2020-12-31')
@@ -139,27 +139,27 @@ s1.reset()
 
 ### Interferogram
 
-After locating SAR scene stack(s), generate unwrapped interferograms for time-series analysis. InSARHub supports two processing backends — select one below:
+#### Select pairs 
 
-=== "Sentinel-1 HyP3"
+After locating SAR scene stack(s), pair selection is required to generate unwrapped interferograms for time-series analysis. 
+```python
+pair_stacks, B, scene_bperp, prefetch, quality_scores, quality_factors = s1.select_pairs(max_degree=5)
+
+```
+
+If the network looks healthy, continue to process interferogram:
+
+![networks](fig/ifgs_network.png){: style="display: block; margin: auto;" }
+
+#### Process Interferogram
+InSARHub supports various processing methods:
+
+=== "Process Remotely Via Hyp3"
 
     Cloud-based processing via [ASF HyP3](https://hyp3-docs.asf.alaska.edu/) — no local ISCE2 required.
 
-    Select interferogram pairs and submit to HyP3:
 
-    ```python
-    from insarhub import Processor
-    from insarhub.utils import plot_pair_network
-
-    pair_stacks, B, scene_bperp, _ = s1.select_pairs(max_degree=5)
-    fig = plot_pair_network(pair_stacks, B, scene_bperp)
-    fig.show()
-    ```
-
-    If the network looks healthy, submit the pairs:
-
-    ![networks](fig/ifgs_network.png){:  margin: auto;" }
-
+    
     ```python
     for (path, frame), pairs in pair_stacks.items():
         processor = Processor.create('Hyp3_S1', pairs=pairs, workdir=f'your/directory/p{path}_f{frame}')
@@ -173,7 +173,7 @@ After locating SAR scene stack(s), generate unwrapped interferograms for time-se
 
     ```python
     processor_reload = Processor.create('Hyp3_S1', saved_job_path='your/directory/p100_f466/hyp3_jobs.json')
-    processor_reload.refresh()
+    batch=processor_reload.refresh()
     processor_reload.download()
     ```
 
@@ -187,7 +187,7 @@ After locating SAR scene stack(s), generate unwrapped interferograms for time-se
         ...
         ```
 
-=== "Sentinel-1 ISCE2"
+=== "Process Locally Via ISCE2"
 
     Local processing using [ISCE2](https://github.com/isce-framework/isce2) `stackSentinel`. Requires ISCE2 installed (see [Installation](install.md)) and SLC `.SAFE` files downloaded first (`s1.download()`).
 
@@ -208,11 +208,10 @@ After locating SAR scene stack(s), generate unwrapped interferograms for time-se
     !!! tip "Dry run first"
         Add `dry_run=True` to `ISCE2_S1_Config` to preview run scripts without executing.
 
-    Monitor progress and wait for completion:
+    Refresh the processing status:
 
     ```python
     processor.refresh()                      # prints step table
-    processor.watch(refresh_interval=120)    # blocks until all steps finish
     ```
 
     ??? Output
@@ -230,31 +229,111 @@ After locating SAR scene stack(s), generate unwrapped interferograms for time-se
 
     Once all steps show `SUCCEEDED`, interferograms are in `workdir/isce/merged/interferograms/`.
 
+=== "Process on HPC Via ISCE2"
+
+    Submits each step to a SLURM scheduler (`sbatch`) instead of running on the local machine.
+
+    ```python
+    from insarhub import Processor
+    from insarhub.config import ISCE2_S1_Config
+    from insarhub.processor.isce2_base import load_or_init_sbatch_options
+
+    for (path, frame), pairs in pair_stacks.items():
+        cfg = ISCE2_S1_Config(
+            workdir=f'your/directory/p{path}_f{frame}',
+            bbox=[37.74, 38.00, -113.05, -112.68],   # [S, N, W, E]
+            slc_dir=f'your/directory/p{path}_f{frame}/slc',
+            hpc_mode=True, 
+            max_concurrent_hpc=7,
+            sbatch_options_per_step=load_or_init_sbatch_options(workdir)
+        )
+        processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
+        processor.submit()   # starts processing in the background
+    ```
+
+    Refresh the processing status:
+
+    ```python
+    processor.refresh()                      # prints step table
+    ```
+
+=== "Process in Container Via ISCE2"
+
+    Runs the processing pipeline inside a prebuilt image via Docker — no local ISCE2 install needed.
+
+    ```python
+    from insarhub import Processor
+    from insarhub.config import ISCE2_S1_Config
+
+    for (path, frame), pairs in pair_stacks.items():
+        cfg = ISCE2_S1_Config(
+            workdir=f'your/directory/p{path}_f{frame}',
+            bbox=[37.74, 38.00, -113.05, -112.68],   # [S, N, W, E]
+            slc_dir=f'your/directory/p{path}_f{frame}/slc',
+            container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+        )
+        processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
+        processor.submit()   # runs inside the container
+    ```
+
+    Status is written to the bind-mounted workdir, so `refresh()` works from the host as usual:
+
+    ```python
+    processor.refresh()                      # prints step table
+    ```
+
 ### Time-series Analysis
 
 After generating interferograms, run MintPy SBAS time-series analysis using the matching analyzer:
 
-=== "Sentinel-1 HyP3"
+=== "HyP3 Analyzer"
 
     ```python
     from insarhub import Analyzer
 
     workdir = 'your/directory/p100_f466'
-    analyzer = Analyzer.create('Hyp3_SBAS', workdir=workdir)
+    analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', workdir=workdir)
     analyzer.prep_data()
     analyzer.run()
     ```
 
-=== "Sentinel-1 ISCE2"
+=== "ISCE2 Analyzer"
 
     ```python
     from insarhub import Analyzer
 
     workdir = 'your/directory/p100_f466'
-    analyzer = Analyzer.create('ISCE_SBAS', workdir=workdir)
-    analyzer.prep_data()   # auto-discovers ISCE2 outputs, writes mintpy/.mintpy.cfg
-    analyzer.run()         # all MintPy outputs written to workdir/mintpy/
+    analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir)
+    analyzer.prep_data()  
+    analyzer.run()         
     ```
+
+The analyzer runs on the local host by default. It accepts the same **container** and **HPC** options as the processors — from either the Python API or the CLI (any `*_Mintpy_SBAS` analyzer):
+
+=== "Run in a Container"
+
+    Runs MintPy inside a prebuilt image — no local MintPy install needed (see [Installation](install.md) for the images).
+
+    ```python
+    # Python API — set container on create(); run() re-invokes inside it.
+    analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir,
+                               container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev')
+    analyzer.run()
+    ```
+
+
+=== "Run on HPC (SLURM)"
+
+    Submits the whole analysis (prep_data → SBAS → plot) as a single sbatch job.
+
+    ```python
+    # Python API
+    analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir, hpc_mode=True)
+    job_id = analyzer.run()   # hpc_mode routes run() to SLURM. The first call
+                              # writes sbatch_options.json for you to review;
+                              # call run() again to submit.
+    ```
+
 
 *[AOI]: Area of interest
 *[ASF]: Alaska Satellite Facility

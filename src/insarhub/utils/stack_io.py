@@ -71,3 +71,61 @@ def merge_db_scores_into_stack(
     except Exception as exc:
         logger.warning("Could not merge DB scores into stack %s: %s", stack_path.name, exc)
         return None, None
+
+
+def finalize_stack(
+    subdir: Path,
+    stack_path: Path,
+    pairs: list,
+    scene_bperp: dict,
+    stack_scenes: list,
+    prefetch: dict,
+    *,
+    key: tuple,
+    baselines: dict,
+    title: str,
+    save_path: Path | str | None,
+    quality_check: bool = True,
+    plot_network: bool = True,
+) -> tuple[dict | None, dict | None]:
+    """Write the stack file, seed the weather/snow cache, then (optionally)
+    score all possible pairs and plot the network.
+
+    The shared "finalize" sequence (stack file -> prefetch -> PairQualityDB ->
+    merge -> plot) used by the downloader's ``select_pairs()``, the CLI, and
+    the GUI folder route, so the ordering never drifts between entry points.
+
+    Returns ``(quality_scores, quality_factors)`` — both ``None`` when
+    ``quality_check`` is False, or when scoring fails.
+    """
+    from insarhub.utils.pair_quality._cache import seed_prefetch
+    from insarhub.utils.pair_quality._db import PairQualityDB
+    from insarhub.utils.tool import plot_pair_network
+
+    stack_data = write_stack_file(stack_path, pairs, scene_bperp, stack_scenes)
+    seed_prefetch(subdir, prefetch)
+
+    quality_scores = quality_factors = None
+    if quality_check:
+        try:
+            PairQualityDB(subdir).build(
+                {key: stack_scenes},
+                {key: {k: float(v) for k, v in scene_bperp.items()}},
+            )
+            quality_scores, quality_factors = merge_db_scores_into_stack(
+                stack_path, stack_data, subdir, pairs
+            )
+        except Exception as exc:
+            logger.warning("Pair quality scoring failed for %s: %s — plotting without scores", stack_path.name, exc)
+
+    if plot_network:
+        plot_pair_network(
+            pairs, baselines,
+            scene_baselines=scene_bperp,
+            title=title,
+            save_path=save_path,
+            quality_scores=quality_scores,
+            quality_factors=quality_factors,
+        )
+
+    return quality_scores, quality_factors

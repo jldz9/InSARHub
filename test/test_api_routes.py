@@ -126,13 +126,13 @@ class TestAuthStatus:
 
 class TestAnalyzerSteps:
     def test_hyp3_sbas_steps(self, client):
-        r = client.get("/api/analyzer-steps", params={"analyzer_type": "Hyp3_SBAS"})
+        r = client.get("/api/analyzer-steps", params={"analyzer_type": "Hyp3_Mintpy_SBAS"})
         assert r.status_code == 200
         data = r.json()
         assert "steps" in data
 
-    def test_isce_sbas_steps(self, client):
-        r = client.get("/api/analyzer-steps", params={"analyzer_type": "ISCE_SBAS"})
+    def test_isce2_sbas_steps(self, client):
+        r = client.get("/api/analyzer-steps", params={"analyzer_type": "ISCE2_Mintpy_SBAS"})
         assert r.status_code in (200, 404, 422)
 
     def test_unknown_analyzer_type(self, client):

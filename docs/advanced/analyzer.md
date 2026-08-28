@@ -57,6 +57,17 @@ Analyzer.available()
                 members: false
                 heading_level: 0
 
+        !!! note "Adaptive coherence thresholds"
+            Three coherence parameters default to the literal `"adaptive"` instead of a fixed number. During `prep_data`, InSARHub inspects the stack's actual coherence distribution and resolves each into `.mintpy.cfg`:
+
+            | Parameter | Resolved from | Cap |
+            |-----------|---------------|-----|
+            | `network_minCoherence` | strictest threshold that keeps the network connected + redundant | ≤ 0.6 |
+            | `networkInversion_maskThreshold` | percentile that keeps the reliable fraction of pixels | ≤ 0.6 |
+            | `reference_minCoherence` | 98th percentile (min 0.30) for a stable reference point | ≤ 0.85 |
+
+            Adaptation only kicks in when the data is *below* the cap; a clean, high-coherence stack simply gets the cap value. Set any of these to an explicit number to override the adaptive logic entirely.
+
     - **Run**
 
         Run the Mintpy time-series analysis based on provided configuration
@@ -73,7 +84,7 @@ Analyzer.available()
 
     - **Submit (HPC / SLURM mode)**
 
-        Generate a single `sbatch` script covering all selected steps and submit it to SLURM. Inherited by `Hyp3_SBAS` and `ISCE_SBAS`.
+        Generate a single `sbatch` script covering all selected steps and submit it to SLURM. Inherited by `Hyp3_Mintpy_SBAS` and `ISCE2_Mintpy_SBAS`.
 
         ```python
         # Submit full pipeline as one SLURM job
@@ -93,7 +104,7 @@ Analyzer.available()
             load_processor="hyp3",
             hpc_mode=True,
         )
-        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         job_id = analyzer.submit_hpc()
         if job_id is None:
             print("sbatch_options.json was just created/updated — review it, then resubmit.")
@@ -123,15 +134,15 @@ Analyzer.available()
 
     - **Running without a local MintPy (or ISCE2) install**
 
-        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `run()`/`prep_data()`/`submit_hpc()` all re-invoke the same `insarhub analyzer ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it. The container image just needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE_SBAS`) — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) in the repo root for a ready-to-build example.
+        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `run()`/`prep_data()`/`submit_hpc()` all re-invoke the same `insarhub analyzer ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it. The container image just needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE2_Mintpy_SBAS`) — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile) in the repo root for a ready-to-build example.
 
         ```python
         cfg = Mintpy_SBAS_Base_Config(
             workdir="/your/work/dir",
             load_processor="hyp3",
-            container="ghcr.io/jldz9/insarhub-isce2:latest",
+            container="ghcr.io/jldz9/insarhub-isce2-mintpy:dev",
         )
-        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         analyzer.run()
         ```
 
@@ -151,11 +162,11 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
-=== "Hyp3_SBAS"
+=== "Hyp3_Mintpy_SBAS"
 
-    The `Hyp3_SBAS` is a specialized analyzer that extends `Mintpy_SBAS_Base_Analyzer`, preconfigured specifically for processing time-series data from HyP3 InSAR products.
+    The `Hyp3_Mintpy_SBAS` is a specialized analyzer that extends `Mintpy_SBAS_Base_Analyzer`, preconfigured specifically for processing time-series data from HyP3 InSAR products.
 
-    ::: insarhub.analyzer.Hyp3_SBAS
+    ::: insarhub.analyzer.Hyp3_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -167,19 +178,19 @@ Analyzer.available()
         Initialize an analyzer instance
 
         ```python
-        analyzer = Analyzer.create('Hyp3_SBAS',
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS',
                                     workdir="/your/work/dir")
         ```
         OR
         ```python
         params = {"workdir": "/your/work/dir"}
-        analyzer = Analyzer.create('Hyp3_SBAS', **params)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', **params)
         ```
         OR
         ```python
         from insarhub.config import Mintpy_SBAS_Base_Config
         cfg = Mintpy_SBAS_Base_Config(workdir="/your/work/dir")
-        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         ```
 
     - **Prepare data**
@@ -190,7 +201,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.Hyp3_SBAS.prep_data
+        ::: insarhub.analyzer.Hyp3_Mintpy_SBAS.prep_data
             options:
                 members: false
                 heading_level: 5
@@ -203,7 +214,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.Hyp3_SBAS.run
+        ::: insarhub.analyzer.Hyp3_Mintpy_SBAS.run
             options:
                 members: false
                 heading_level: 5
@@ -230,11 +241,11 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
-=== "ISCE_SBAS"
+=== "ISCE2_Mintpy_SBAS"
 
-    The `ISCE_SBAS` analyzer extends `Mintpy_SBAS_Base_Analyzer` and is preconfigured for ISCE2 `stackSentinel` outputs. `prep_data()` auto-discovers interferograms and geometry from the `isce/` directory and writes the MintPy config to `mintpy/.mintpy.cfg`. All MintPy outputs are written to `workdir/mintpy/`.
+    The `ISCE2_Mintpy_SBAS` analyzer extends `Mintpy_SBAS_Base_Analyzer` and is preconfigured for ISCE2 `stackSentinel` outputs. `prep_data()` auto-discovers interferograms and geometry from the `isce/` directory and writes the MintPy config to `mintpy/.mintpy.cfg`. All MintPy outputs are written to `workdir/mintpy/`.
 
-    ::: insarhub.analyzer.isce_sbas.ISCE_SBAS
+    ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -246,19 +257,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('ISCE_SBAS', workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir='/your/work/dir')
         ```
 
         OR with explicit config:
 
         ```python
-        from insarhub.config.defaultconfig import ISCE_SBAS_Config
+        from insarhub.config.defaultconfig import ISCE2_Mintpy_SBAS_Config
 
-        cfg = ISCE_SBAS_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('ISCE_SBAS', config=cfg)
+        cfg = ISCE2_Mintpy_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.ISCE_SBAS_Config
+        ::: insarhub.config.defaultconfig.ISCE2_Mintpy_SBAS_Config
             options:
                 members: false
                 show_source: false
@@ -272,7 +283,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.prep_data
+        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -286,7 +297,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.run
+        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -309,17 +320,17 @@ Analyzer.available()
         analyzer.cleanup()
         ```
 
-        ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.cleanup
+        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.cleanup
             options:
                 members: false
                 show_source: false
                 heading_level: 5
 
-=== "GMTSAR_MINTPY_SBAS"
+=== "GMTSAR_Mintpy_SBAS"
 
-    The `GMTSAR_MINTPY_SBAS` analyzer runs MintPy SBAS time-series on the coherent stack produced by the `GMTSAR_S1` processor. It hands GMTSAR's geocoded `*_ll.grd` products and `baseline_table.dat` to MintPy's own `prep_gmtsar.py` loader (via the `mintpy.load.*` keys), so it works without any common alignment reference — every pair already shares a geographic grid. It is the MintPy analogue of `ISCE_SBAS`, differing only in how it wires the `load_*` paths. Output is written to `workdir/gmtsar_mintpy/` (a dedicated directory, so it never collides with a Hyp3/ISCE MintPy run in the same workdir).
+    The `GMTSAR_Mintpy_SBAS` analyzer runs MintPy SBAS time-series on the coherent stack produced by the `GMTSAR_S1` processor. It hands GMTSAR's geocoded `*_ll.grd` products and `baseline_table.dat` to MintPy's own `prep_gmtsar.py` loader (via the `mintpy.load.*` keys), so it works without any common alignment reference — every pair already shares a geographic grid. It is the MintPy analogue of `ISCE2_Mintpy_SBAS`, differing only in how it wires the `load_*` paths. Output is written to `workdir/gmtsar_mintpy/` (a dedicated directory, so it never collides with a Hyp3/ISCE MintPy run in the same workdir).
 
-    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS
+    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -331,19 +342,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', workdir='/your/work/dir')
+        analyzer = Analyzer.create('GMTSAR_Mintpy_SBAS', workdir='/your/work/dir')
         ```
 
         OR with explicit config:
 
         ```python
-        from insarhub.config.defaultconfig import GMTSAR_MINTPY_SBAS_Config
+        from insarhub.config.defaultconfig import GMTSAR_Mintpy_SBAS_Config
 
-        cfg = GMTSAR_MINTPY_SBAS_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', config=cfg)
+        cfg = GMTSAR_Mintpy_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('GMTSAR_Mintpy_SBAS', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.GMTSAR_MINTPY_SBAS_Config
+        ::: insarhub.config.defaultconfig.GMTSAR_Mintpy_SBAS_Config
             options:
                 members: false
                 show_source: false
@@ -357,7 +368,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.prep_data
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -371,7 +382,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.run
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -467,11 +478,13 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
-=== "Dolphin_SBAS"
+=== "ISCE3_Dolphin_PL"
 
-    The `Dolphin_SBAS` analyzer runs dolphin's `timeseries.run` on the unwrapped interferogram stack produced by `ISCE3_Burst`. One analyzer serves **both** of the processor's wrapped-phase estimators (`ifg_mode="network"` and `ifg_mode="phase_link"`) — the linear inversion is identical for both; only the quality raster used to pick the reference point and mask low-quality pixels differs (temporal coherence for `phase_link`, a temporal average of pairwise correlations for `network`). The estimator choice is read from the stack's `ifg_manifest.json`, never re-specified here. Output is written under `workdir/timeseries/`.
+    The `ISCE3_Dolphin_PL` analyzer runs dolphin's `timeseries.run` on the unwrapped interferogram stack produced by **either** ISCE3 processor — `ISCE3_Burst` (Sentinel-1 bursts) or `ISCE3_NISAR` (NISAR GSLC). Both write the same `unwrapped/` + `interferograms/` layout, so one analyzer serves both; it appears in the GUI's analyzer dropdown for a workdir from either processor (its `compatible_processor` lists both). One analyzer also serves **both** of the processor's wrapped-phase estimators (`ifg_mode="network"` and `ifg_mode="phase_link"`) — the linear inversion is identical for both; only the quality raster used to pick the reference point and mask low-quality pixels differs (temporal coherence for `phase_link`, a temporal average of pairwise correlations for `network`). The estimator choice is read from the stack's `ifg_manifest.json`, never re-specified here. Output is written under `workdir/timeseries/`.
 
-    ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS
+    Water is masked out of the inversion by default (`apply_water_mask=True`), using the processor's `dem/water_mask.tif` exactly the way dolphin's own `displacement.run` does. With this on, the analyzer's velocity/displacement outputs are byte-identical to a native `dolphin run`; turn it off to invert every pixel (leaving open water in the outputs).
+
+    ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL
         options:
             members: false
             heading_level: 0
@@ -483,19 +496,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('Dolphin_SBAS', workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_PL', workdir='/your/work/dir')
         ```
 
         OR with explicit config:
 
         ```python
-        from insarhub.config.defaultconfig import Dolphin_SBAS_Config
+        from insarhub.config.defaultconfig import ISCE3_Dolphin_PL_Config
 
-        cfg = Dolphin_SBAS_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('Dolphin_SBAS', config=cfg)
+        cfg = ISCE3_Dolphin_PL_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_PL', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.Dolphin_SBAS_Config
+        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_PL_Config
             options:
                 members: false
                 show_source: false
@@ -509,7 +522,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS.run
+        ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL.run
             options:
                 members: false
                 show_source: false

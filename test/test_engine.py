@@ -113,7 +113,7 @@ class TestInSAREngineBuild:
                 workdir=tmp_path,
                 downloader="S1_SLC",
                 processor="Hyp3_S1",
-                analyzer="Hyp3_SBAS",
+                analyzer="Hyp3_Mintpy_SBAS",
             )
         assert isinstance(engine, InSAREngine)
 

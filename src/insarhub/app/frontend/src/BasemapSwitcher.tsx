@@ -4,7 +4,6 @@ import type { Basemap } from './MapToolbar'
 import type { Theme } from './theme'
 
 const OPTIONS: { id: Basemap; labelKey: string }[] = [
-  { id: 'osm',       labelKey: 'basemapSwitcher.street' },
   { id: 'satellite', labelKey: 'basemapSwitcher.satellite' },
   { id: 'topo',      labelKey: 'basemapSwitcher.topo' },
 ]

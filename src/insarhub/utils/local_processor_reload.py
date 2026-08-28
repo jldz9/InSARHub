@@ -45,10 +45,13 @@ _ROLE_CONFIG_STRIP_FIELDS = {"workdir", "name", "saved_job_path"}
 # cli/main.py's _SUBMIT_SKIP_FIELDS | {"hpc_mode", "dry_run"} | _RUNTIME_ONLY_FIELDS
 # without importing from cli/main.py (this module is imported by the CLI, not
 # the other way around).
+# ``container`` is NOT stripped: it must survive reload so a GUI retry re-runs
+# inside the same image (the GUI has no flag to re-pass it). An explicit
+# ``container`` argument to _load_local_processor overrides the saved value.
 _SAVED_CFG_SKIP = {
     "name", "workdir", "pairs", "saved_job_path",
     "earthdata_credentials_pool", "name_prefix", "sbatch_options_per_step",
-    "hpc_mode", "dry_run", "container",
+    "hpc_mode", "dry_run",
 }
 
 
@@ -142,7 +145,10 @@ def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
         overrides["saved_job_path"] = str(jobs_path)
         overrides["hpc_mode"] = hpc_mode or bool(saved_cfg.get("hpc_mode", False))
         overrides["dry_run"] = dry_run
-        overrides["container"] = container
+        # Explicit container wins over the saved one; a None means "keep the
+        # persisted value" so a GUI retry re-runs inside the same image.
+        if container is not None:
+            overrides["container"] = container
         valid = {f.name for f in dataclasses.fields(cfg_cls)}
         cfg = cfg_cls(**{k: v for k, v in overrides.items() if k in valid})
     else:
@@ -184,7 +190,18 @@ def _load_local_processor(processor_name: str, workdir: Path, jobs_path: Path,
         # assuming ISCE's step-based shape (found via a real gap: this used
         # to always rebuild (j["step"], j["step"]), which is meaningless for
         # GMTSAR_S1's 4-tuple pairs and would crash its pairs-arity validation).
-        pairs = [tuple(j["pair"]) if "pair" in j else (j["step"], j["step"]) for j in jobs]
+        # Prefer a real "pair" tuple (GMTSAR pair mode); ISCE stores step names
+        # under "step". Skip entries with neither -- GMTSAR pair mode also stores
+        # coarse-step rows (step:unzip/dem/p2p, {"stage","status"}) that are NOT
+        # pairs and would otherwise KeyError on "step".
+        pairs = []
+        for j in jobs:
+            if not isinstance(j, dict):
+                continue
+            if "pair" in j:
+                pairs.append(tuple(j["pair"]))
+            elif "step" in j:
+                pairs.append((j["step"], j["step"]))
     return processor_cls(pairs=pairs or [("_", "_")], config=cfg)
 
 

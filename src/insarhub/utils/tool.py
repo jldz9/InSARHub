@@ -73,7 +73,7 @@ def write_workflow_marker(workdir: Path, **roles: str) -> None:
     Each keyword argument is a role→class-name pair, e.g.::
 
         write_workflow_marker(self.output_dir, processor="Hyp3_S1")
-        write_workflow_marker(self.workdir,    analyzer="Hyp3_SBAS")
+        write_workflow_marker(self.workdir,    analyzer="Hyp3_Mintpy_SBAS")
 
     Existing entries are preserved so the file accumulates as the pipeline runs.
     """
@@ -87,7 +87,8 @@ def write_workflow_marker(workdir: Path, **roles: str) -> None:
         section["type"] = cls_name
     existing["updated_at"] = datetime.utcnow().isoformat(timespec="seconds") + "Z"
     try:
-        path.write_text(json.dumps(existing, indent=2, default=str))
+        from insarhub.utils.config_io import _atomic_write_json
+        _atomic_write_json(path, existing)
     except Exception as exc:
         logger.warning("Could not write %s: %s", path, exc)
 
@@ -2631,3 +2632,78 @@ def parse_scene_names_from_csv(csv_path: str) -> list[str]:
     """
     return parse_scene_names_from_file(csv_path)
 
+
+
+def download_worldcover_water_mask(bbox, out_path, res: float = 0.0008) -> bool:
+    """Water mask for ``bbox`` (W, S, E, N degrees) from ESA WorldCover.
+
+    Replaces the dead sardem ``NASA_WATER`` path: the SRTM Water Body Data it
+    fetched from ``e4ftl01.cr.usgs.gov`` was migrated off that host and now 404s
+    for every tile (verified), so it silently produced an all-land mask. ESA
+    WorldCover 10 m (2021 v200) is on open AWS -- **no Earthdata/account** -- and
+    class 80 is permanent water bodies.
+
+    Writes a uint8 GeoTIFF to ``out_path`` in dolphin's mask convention:
+    ``1 = valid (land)``, ``0 = water``. dolphin (``mask_file`` / ``unwrap.run``)
+    and the legacy per-stage unwrap both warp it onto the interferogram grid, so
+    a coarse ~90 m mask (``res`` deg) is enough. Returns True on success.
+    """
+    import math
+
+    import numpy as np
+    import rasterio
+    from osgeo import gdal
+    from rasterio.transform import from_origin
+
+    gdal.UseExceptions()
+    gdal.PushErrorHandler("CPLQuietErrorHandler")
+    try:
+        w, s, e, n = (float(v) for v in bbox)
+        base = ("/vsicurl/https://esa-worldcover.s3.eu-central-1.amazonaws.com/"
+                "v200/2021/map/ESA_WorldCover_10m_2021_v200_{t}_Map.tif")
+
+        def _tiles():                       # WorldCover ships 3-degree tiles
+            out = []
+            for la in range(int(math.floor(s / 3) * 3),
+                            int(math.floor((n - 1e-9) / 3) * 3) + 3, 3):
+                for lo in range(int(math.floor(w / 3) * 3),
+                                int(math.floor((e - 1e-9) / 3) * 3) + 3, 3):
+                    out.append(f"{'N' if la >= 0 else 'S'}{abs(la):02d}"
+                               f"{'E' if lo >= 0 else 'W'}{abs(lo):03d}")
+            return out
+
+        # WorldCover only ships land tiles, so skip any that do not open
+        srcs = [base.format(t=t) for t in _tiles()
+                if gdal.Open(base.format(t=t)) is not None]
+        if not srcs:
+            logging.warning("download_worldcover_water_mask: no WorldCover tiles "
+                            "cover %s", bbox)
+            return False
+
+        warped = gdal.Warp("", gdal.BuildVRT("", srcs), format="MEM",
+                           outputBounds=(w, s, e, n), xRes=res, yRes=res,
+                           resampleAlg="near")
+        lc = warped.ReadAsArray()
+        if getattr(lc, "ndim", 2) == 3:
+            lc = lc[0]
+        lc = np.array(lc)                   # detach from the MEM buffer
+        mask = (lc != 80).astype("uint8")   # 1 = land (valid), 0 = water
+        gt = warped.GetGeoTransform()
+        out_path = Path(out_path)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        with rasterio.open(
+            out_path, "w", driver="GTiff", height=mask.shape[0],
+            width=mask.shape[1], count=1, dtype="uint8",
+            crs=warped.GetProjection(),
+            transform=from_origin(gt[0], gt[3], gt[1], -gt[5]),
+            nodata=255, compress="deflate",
+        ) as dst:
+            dst.write(mask, 1)
+        logging.info("download_worldcover_water_mask: %.3f%% water -> %s",
+                     100 * float((lc == 80).mean()), out_path)
+        return out_path.exists()
+    except Exception as exc:                                      # noqa: BLE001
+        logging.warning("download_worldcover_water_mask failed: %s", exc)
+        return False
+    finally:
+        gdal.PopErrorHandler()

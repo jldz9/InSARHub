@@ -1,0 +1,77 @@
+# InSARHub + ISCE3 + COMPASS + Dolphin processing container -- LOCAL SOURCE variant.
+#
+# ISCE3_Burst runs the OPERA COMPASS CSLC workflow end to end, which needs more
+# than isce3 + dolphin:
+#   isce3      geocoding / core
+#   compass    OPERA CSLC -- provides s1_cslc.py / s1_geocode_stack.py /
+#              s1_static_layers.py, the binaries the cslc/static stages call
+#   sardem     Copernicus DEM staging (the `dem` stage)
+#   dolphin    phase linking + time series (ifg_mode = phase_link)
+#   snaphu     unwrapping (also a dolphin dependency)
+#   burst2safe S1_Burst -> .SAFE assembly (downloader side)
+#
+# COMPASS's s1reader pins numpy<2, so the whole stack -- isce3, dolphin, gdal,
+# rasterio AND mintpy -- resolves on numpy 1.26. That is actually the simple
+# case: InSARHub's normal dependency set (which also pins numpy<2 + mintpy)
+# installs with no version juggling, unlike a hypothetical isce3-only image.
+#
+# isce3 is pinned to its *cpu* build: the cuda build pulls ~GB of CUDA runtime
+# for no benefit in a CPU container.
+#
+# Build (from repo root):
+#   docker build -f docker/Dockerfile.isce3-dolphin -t insarhub-isce3-dolphin:local .
+#
+# Use:
+#   insarhub processor -N ISCE3_Burst -w /path/to/workdir submit --container insarhub-isce3-dolphin:local
+#   insarhub analyzer  -N Dolphin_SBAS -w /path/to/workdir run   --container insarhub-isce3-dolphin:local
+#
+# Publish to GHCR:
+#   docker tag insarhub-isce3-dolphin:local ghcr.io/jldz9/insarhub-isce3-dolphin:dev
+#   docker push ghcr.io/jldz9/insarhub-isce3-dolphin:dev
+
+FROM condaforge/miniforge3:24.9.2-0
+
+# Links this image to the jldz9/InSARHub repo on GHCR even when pushed
+# manually from the command line -- see Dockerfile for details.
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+# Full ISCE3_Burst toolchain from conda-forge in one solve. gdal + rasterio +
+# mintpy come from conda so their compiled extensions stay on the same
+# libgdal/proj/numpy stack (a pip gdal/rasterio wheel bundles its own libproj
+# against conda's proj.db and breaks CRS calls at runtime).
+RUN mamba create -n isce3_dolphin -c conda-forge -y \
+        python=3.12 "isce3=*=*cpu*" compass sardem dolphin snaphu burst2safe \
+        gdal rasterio mintpy \
+    && mamba clean -afy
+
+# Local source instead of PyPI: copy just what the build needs so unrelated
+# repo changes don't bust the Docker layer cache.
+COPY pyproject.toml README.md /opt/insarhub-src/
+COPY src /opt/insarhub-src/src
+
+# numpy is already 1.26 (s1reader pin) and mintpy/gdal/rasterio/h5py are already
+# present from conda, so InSARHub's own dependency set installs cleanly -- pip
+# only adds the pip-only deps (asf_search, hyp3_sdk, dem_stitcher, ...).
+RUN /opt/conda/envs/isce3_dolphin/bin/pip install --no-cache-dir /opt/insarhub-src
+
+ENV PATH=/opt/conda/envs/isce3_dolphin/bin:$PATH
+# Put the conda env's libstdc++ on the loader path so pandas (pulled in by
+# MintPy / dem_stitcher) finds GLIBCXX_3.4.29 -- the SYSTEM libstdc++ is too old
+# and, with LD_LIBRARY_PATH empty, would be picked instead ("GLIBCXX_3.4.29 not
+# found"). See docker/Dockerfile.gmtsar-mintpy for the full rationale.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/isce3_dolphin/lib
+
+# Fail the build if the Python stack or any ISCE3_Burst CLI tool is missing, so
+# a broken image never reaches the first job.
+# snaphu is a Python module (snaphu-py), driven by dolphin's unwrap stage --
+# imported, not a PATH binary. The COMPASS/sardem tools ARE PATH binaries.
+RUN python -c "import numpy, isce3, dolphin, compass, mintpy, insarhub, snaphu; \
+from burst2safe.burst2safe import burst2safe; \
+from insarhub import Processor, Analyzer; \
+import shutil; \
+missing = [t for t in ('sardem','s1_cslc.py','s1_geocode_stack.py','s1_static_layers.py') if not shutil.which(t)]; \
+assert not missing, 'missing CLI tools: %s' % missing; \
+print('numpy', numpy.__version__, 'isce3', isce3.__version__, 'mintpy', mintpy.__version__, \
+'procs', Processor.available(), 'analyzers', Analyzer.available())"
+
+# No custom ENTRYPOINT/CMD -- see Dockerfile for why.

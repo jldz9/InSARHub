@@ -95,8 +95,12 @@ async def folder_init_analyzer(req: InitAnalyzerRequest):
         raise HTTPException(status_code=400, detail=f"Unknown analyzer: {req.analyzer_type}")
     az_defaults = state._default_config_values(req.analyzer_type, state._ANALYZERS_META)
 
-    # Populate network_aoiLALO from the folder's downloader AOI if still default
-    if az_defaults.get("network_aoiLALO", "auto") in ("auto", "", None):
+    # Populate network_aoiLALO from the folder's downloader AOI if still default.
+    # Only MintPy-based analyzers carry this field; adding it to a standalone
+    # config (ISCE3_Dolphin_PL, GMTSAR_SBAS) would write a key their __init__ later
+    # rejects on load.
+    if "network_aoiLALO" in az_defaults and \
+            az_defaults.get("network_aoiLALO", "auto") in ("auto", "", None):
         try:
             from insarhub.utils.pair_quality._geom import _wkt_bbox
             insarhub_cfg = read_insarhub_config(folder)
@@ -113,14 +117,21 @@ async def folder_init_analyzer(req: InitAnalyzerRequest):
 
 @router.get("/api/analyzer-steps")
 async def get_analyzer_steps(analyzer_type: str):
-    """Return the list of steps for a MintPy-based analyzer."""
+    """Return the list of steps for the analyzer.
+
+    MintPy-family analyzers expose their per-step workflow (prep_data + named
+    MintPy steps + plot). Self-contained analyzers (GMTSAR_SBAS,
+    ISCE3_Dolphin_PL) invert in one shot via run(), so they expose a single
+    'sbas' step.
+    """
     cls = Analyzer._registry.get(analyzer_type)
     if cls is None:
         raise HTTPException(status_code=400, detail=f"Unknown analyzer: {analyzer_type}")
-    import inspect
-    src = inspect.getsource(cls.run) if hasattr(cls, 'run') else ''
-    if 'TimeSeriesAnalysis' in src or 'mintpy' in src.lower():
+    from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
+    if issubclass(cls, Mintpy_SBAS_Base_Analyzer):
         steps = (['prep_data'] if hasattr(cls, 'prep_data') else []) + _MINTPY_STEPS
+    elif hasattr(cls, 'run'):
+        steps = ['sbas']
     else:
         steps = []
     return {"steps": steps}
@@ -159,9 +170,21 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
             valid_keys = {f.name for f in dataclasses.fields(config_cls)}
             init_kwargs: dict = {k: v for k, v in merged.items() if k in valid_keys}
             init_kwargs["workdir"] = folder
+            # container is a runtime-only flag: it is deliberately excluded from
+            # the saved analyzer config (below), so it never comes back through
+            # `merged` -- it has to be taken from the run request each time,
+            # mirroring how the processor submit passes it and the CLI's
+            # --container behaves ("not remembered between runs").
+            if getattr(req, "container", None) and "container" in valid_keys:
+                init_kwargs["container"] = req.container
 
-            # Auto-bind AOI from insarhub_config.json downloader section → network_aoiLALO
-            if init_kwargs.get("network_aoiLALO", "auto") in ("auto", "", None):
+            # Auto-bind AOI from insarhub_config.json downloader section →
+            # network_aoiLALO. Only for MintPy-based analyzers: network_aoiLALO
+            # lives on Mintpy_SBAS_Base_Config, so standalone configs
+            # (ISCE3_Dolphin_PL, GMTSAR_SBAS) don't have the field and passing it
+            # to their __init__ would raise.
+            if "network_aoiLALO" in valid_keys and \
+                    init_kwargs.get("network_aoiLALO", "auto") in ("auto", "", None):
                 try:
                     from insarhub.utils.pair_quality._geom import _wkt_bbox
                     wkt = insarhub_cfg.get("downloader", {}).get("config", {}).get("intersectsWith")
@@ -178,11 +201,32 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
             cfg_dict = state._cfg_dict(cfg, exclude=('workdir', 'container'))
             write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": cfg_dict}})
 
-            # Use the analyzer's own cfg_path (e.g. ISCE_SBAS writes to mintpy/.mintpy.cfg)
+            # Use the analyzer's own cfg_path (e.g. ISCE2_Mintpy_SBAS writes to mintpy/.mintpy.cfg)
+            # In container mode the .mintpy.cfg is written INSIDE the container
+            # (prep_data runs there and resolves mintpy.load.*); the host config
+            # object here still has the unresolved `auto` paths, so writing it
+            # from the host would clobber the container's resolved file. Skip it.
             cfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
-            if hasattr(cfg, "write_mintpy_config"):
+            if not getattr(cfg, "container", None) and hasattr(cfg, "write_mintpy_config"):
                 cfg_path.parent.mkdir(parents=True, exist_ok=True)
                 cfg.write_mintpy_config(cfg_path)
+
+            # Self-contained analyzers (GMTSAR_SBAS, ISCE3_Dolphin_PL): run() is
+            # the whole pipeline -- it handles prep + --container re-invocation
+            # internally. No per-step loop, no .mintpy.cfg, no plot().
+            from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
+            if not issubclass(cls, Mintpy_SBAS_Base_Analyzer):
+                update("Running analysis…", 0)
+                try:
+                    analyzer.run()
+                except Exception as e:
+                    update(f"ERROR: {e}", 0)
+                    state._jobs[job_id]["status"] = "error"
+                    return
+                update("Finished", 100)
+                state._jobs[job_id]["status"] = "done"
+                state._jobs[job_id]["progress"] = 100
+                return
 
             # HPC mode: submit everything as a single sbatch job instead of running locally
             if getattr(cfg, "hpc_mode", False) and hasattr(analyzer, "submit_hpc"):
@@ -229,7 +273,10 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                         _post_cfg = state._cfg_dict(analyzer.config, exclude=('workdir', 'container'))
                         write_insarhub_config(folder, {"analyzer": {"type": req.analyzer_type, "config": _post_cfg}})
                         _acfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
-                        if hasattr(analyzer.config, "write_mintpy_config"):
+                        # Container mode wrote the resolved .mintpy.cfg inside the
+                        # container; the host config still holds `auto`, so don't
+                        # overwrite it here (see the pre-loop write above).
+                        if not getattr(analyzer.config, "container", None) and hasattr(analyzer.config, "write_mintpy_config"):
                             _acfg_path.parent.mkdir(parents=True, exist_ok=True)
                             analyzer.config.write_mintpy_config(_acfg_path)
                     elif step == 'modify_network':
@@ -237,7 +284,10 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                         # because MintPy can't do the projection itself.
                         _resolve_aoi_yx(analyzer.config, folder)
                         _acfg_path = getattr(analyzer, "cfg_path", None) or (folder / ".mintpy.cfg")
-                        if hasattr(analyzer.config, "write_mintpy_config"):
+                        # Container mode wrote the resolved .mintpy.cfg inside the
+                        # container; the host config still holds `auto`, so don't
+                        # overwrite it here (see the pre-loop write above).
+                        if not getattr(analyzer.config, "container", None) and hasattr(analyzer.config, "write_mintpy_config"):
                             _acfg_path.parent.mkdir(parents=True, exist_ok=True)
                             analyzer.config.write_mintpy_config(_acfg_path)
                         analyzer.run(steps=[step])

@@ -373,7 +373,7 @@ class Hyp3Base(CloudProcessor):
             job_ids_to_save = {user: [job.job_id for job in batch] for user, batch in self.batchs.items()}
             
             if save_path is None:
-                path = self.config.workdir / 'hyp3_jobs.json'
+                path = self._paths.jobs_file
             else:
                 path = Path(save_path).expanduser().resolve()
             

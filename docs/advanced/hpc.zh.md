@@ -89,6 +89,19 @@ you at 20 SUBMITTED jobs. Reducing to 18 ...
 
     作业清单来自 `ifg_manifest.json` 的阶段，在 `ifg` 运行前无法枚举。整条链一起提交没有问题 — 这些阶段会被标记为"推迟"，并给出条件满足后应执行的确切命令。
 
+=== "ISCE3_NISAR"
+
+    NISAR GSLC 已经完成地理编码，因此 COMPASS 阶段（`dem`、`tec`、`cslc`、`static`）被跳过——只运行三个阶段：
+
+    | 阶段 | 作业数 | 单元 |
+    |---|---|---|
+    | `crop` | **每个 GSLC 日期一个** | 将每帧裁剪到 AOI（一次廉价的 VRT `gdal_translate`） |
+    | `ifg` | **1** | 相位链接需要整个协方差，没有逐对单元（对整个堆叠的单次 `wrapped_phase.run`） |
+    | `stitch` | **每个干涉对一个** | |
+    | `unwrap` | 1 个准备 + **每个干涉对一个** | 准备阶段先生成水体掩膜，避免 N 个作业同时读写 |
+
+    与 `ISCE3_Burst` 相同的推迟规则：逐对阶段的清单来自 `ifg_manifest.json`，在 `ifg` 运行前会被标记为推迟。
+
 === "GMTSAR_S1"
 
     **p2p 模式**（`stack_mode=False`，默认）是每个干涉对一个作业。干涉对之间完全独立 — 多子条带模式下各自拥有独立的 case 目录，单子条带模式的输出以 `intf/<julian_pair>/` 命名隔离 — 因此由单个管理器展开全部干涉对，完全不需要链式提交。

@@ -4,7 +4,7 @@
 (which serves ISCE2's stackSentinel processors) and ``Hyp3Base`` (the cloud
 side): it carries the machinery every ISCE3/COMPASS processor needs -- the
 isce3 conda env discovery, the per-stage status-marker convention, the
-synchronous stage runner, and job persistence -- so a concrete processor like
+detached-background stage runner, and job persistence -- so a concrete processor like
 :class:`~insarhub.processor.ISCE3_Burst` (and later an ISCE3_NISAR variant)
 only implements its own stages.
 
@@ -33,6 +33,7 @@ from pathlib import Path
 
 from colorama import Fore, Style
 
+from insarhub.config.paths import ISCE3Paths
 from insarhub.core.base import LocalProcessor
 
 logger = logging.getLogger(__name__)
@@ -74,6 +75,19 @@ class ISCE3_Base(LocalProcessor):
     refresh/retry/save -- lives here.
     """
 
+    #: This processor derives its own interferogram network from the assembled
+    #: input products in slc/ (dolphin forms it from the phase-linked SLCs), so
+    #: it does NOT require a select_pairs step / stack_p*_f*.json in the workdir
+    #: -- the input is the downloaded stack itself. The GUI submit route keys on
+    #: this to look for slc/<input_glob> instead of a stack file.
+    builds_own_network: bool = True
+
+    #: glob identifying the downloaded input products in slc/. ISCE3_Burst
+    #: consumes S1_Burst's assembled ``*.SAFE``; ISCE3_NISAR consumes NISAR
+    #: ``*GSLC*.h5`` granules. The GUI submit route uses this instead of
+    #: hardcoding one downloader's file type.
+    input_glob: str = "*.SAFE"
+
     #: stage order. Anything in STAGES but absent from _IMPLEMENTED is
     #: skipped with a note by submit(). Subclasses override.
     STAGES: tuple[str, ...] = ()
@@ -103,6 +117,7 @@ class ISCE3_Base(LocalProcessor):
         self.jobs: dict = {}
         wd = getattr(self.config, "workdir", None) or Path.cwd()
         self.workdir = Path(wd).expanduser().resolve()
+        self._paths = ISCE3Paths(self.workdir)
 
     # ------------------------------------------------------------------
     # paths
@@ -121,17 +136,21 @@ class ISCE3_Base(LocalProcessor):
     # ------------------------------------------------------------------
 
     def _status_dir(self, stage: str) -> Path:
-        return self.workdir / ".stage_status" / stage
+        return self._paths.stage_status_dir(stage)
 
     def _set_status(self, stage: str, status: str) -> None:
         d = self._status_dir(stage)
         d.mkdir(parents=True, exist_ok=True)
-        for n in (".succeeded", ".failed"):
+        for n in (".succeeded", ".failed", ".running"):
             (d / n).unlink(missing_ok=True)
         if status == _SUCCEEDED:
             (d / ".succeeded").touch()
         elif status == _FAILED:
             (d / ".failed").touch()
+        elif status == _RUNNING:
+            # Only written here (local background executor) so refresh() can
+            # report a stage as RUNNING while the detached child is mid-stage.
+            (d / ".running").touch()
 
     def _get_status(self, stage: str) -> str:
         d = self._status_dir(stage)
@@ -139,6 +158,8 @@ class ISCE3_Base(LocalProcessor):
             return _SUCCEEDED
         if (d / ".failed").exists():
             return _FAILED
+        if (d / ".running").exists():
+            return _RUNNING
         return _PENDING
 
     # ------------------------------------------------------------------
@@ -215,8 +236,9 @@ class ISCE3_Base(LocalProcessor):
         manager only skips work marked ``.done``. So resubmitting a stage whose
         previous run is still executing quietly starts the SAME work a second
         time. For a single-job stage like ISCE3_Burst's `ifg` that means two
-        processes writing one output directory -- phase_linked/ and ifgrams/ --
-        with no error from either, and neither result trustworthy.
+        processes writing one output directory -- <burst>/linked_phase/ and
+        <burst>/interferograms/ -- with no error from either, and neither result
+        trustworthy.
 
         This happened: an `ifg` resubmitted 26 minutes into a live run queued a
         duplicate child, and cancelling the duplicate then killed the new
@@ -267,7 +289,7 @@ class ISCE3_Base(LocalProcessor):
         return []
 
     def _hpc_dir(self) -> Path:
-        return self.workdir / "hpc"
+        return self._paths.hpc_dir
 
     def _manager_paths(self, key: str) -> tuple[Path, Path]:
         """Where a phase's manager script WILL be written, and its id file.
@@ -587,7 +609,14 @@ class ISCE3_Base(LocalProcessor):
         return lines
 
     def cancel(self) -> None:
-        """scancel every manager/child job this workdir has on record."""
+        """Stop this workdir's jobs: SLURM via scancel, local via SIGTERM.
+
+        Local (non-HPC) runs are detached background processes tracked by
+        ``executor.pid`` (written by _start_local_background /
+        _reinvoke_via_container); HPC runs are manager/child SLURM jobs whose
+        names all start with ``b_``.
+        """
+        import signal
         import subprocess
 
         ids = set()
@@ -603,14 +632,42 @@ class ISCE3_Base(LocalProcessor):
         for jid, name in self._live_job_names().items():
             if name.startswith("b_"):
                 ids.add(str(jid))
-        if not ids:
-            print(f"[{type(self).name}] no SLURM jobs on record to cancel.")
+        if ids:
+            subprocess.run(["scancel", *sorted(ids)], text=True)
+            print(f"[{type(self).name}] cancelled {len(ids)} job(s): {' '.join(sorted(ids))}")
             return
-        subprocess.run(["scancel", *sorted(ids)], text=True)
-        print(f"[{type(self).name}] cancelled {len(ids)} job(s): {' '.join(sorted(ids))}")
+
+        # No SLURM jobs on record: fall back to a local background executor.
+        pid_file = self._paths.executor_pid
+        if not pid_file.exists():
+            print(f"[{type(self).name}] no SLURM jobs or local executor to cancel.")
+            return
+        try:
+            pid = int(pid_file.read_text().strip())
+        except ValueError:
+            pid_file.unlink(missing_ok=True)
+            print(f"[{type(self).name}] stale executor.pid removed.")
+            return
+        try:
+            os.killpg(os.getpgid(pid), signal.SIGTERM)
+            print(f"[{type(self).name}] sent SIGTERM to local executor (PID {pid}).")
+        except (ProcessLookupError, PermissionError):
+            print(f"[{type(self).name}] local executor already finished.")
+        pid_file.unlink(missing_ok=True)
+        for s in self.STAGES:
+            if self._get_status(s) == _RUNNING:
+                self._set_status(s, _FAILED)
 
     def submit(self, steps: list[str] | None = None, force: bool = False) -> dict:
-        """Run the requested stages in order. Defaults to every implemented one."""
+        """Run the requested stages in order. Defaults to every implemented one.
+
+        Local (non-HPC, non-container) mode forks a detached background process
+        and returns immediately -- stage verdicts are written to the per-stage
+        marker files (``.stage_status/<stage>/``) and read back by refresh()/
+        retry(). Running the dem..los pipeline synchronously here would block
+        the caller (notably the web GUI's submit request) for the entire run,
+        leaving the UI stuck on "Submitting…".
+        """
         tag = type(self).name
         want = list(steps) if steps else list(self._IMPLEMENTED)
         unknown = [s for s in want if s not in self.STAGES]
@@ -621,13 +678,48 @@ class ISCE3_Base(LocalProcessor):
         if skipped := [s for s in want if s not in self._IMPLEMENTED]:
             print(f"[{tag}] not yet implemented, skipping: {skipped}")
 
-        if getattr(self.config, "container", None):
+        # `not INSARHUB_CONTAINER_CHILD`: when this same submit runs *inside* the
+        # container (re-invoked by _reinvoke_via_container, which sets that env
+        # var), config.container is still set, so without this guard it would
+        # call `docker run` AGAIN inside the image -- which ships no docker CLI,
+        # giving "/bin/sh: docker: not found". The child must run the stages
+        # locally instead. ISCE2 (_reinvoke_via_container caller) and GMTSAR both
+        # guard the same way; ISCE3 was missing it, which surfaced only from the
+        # GUI: the app route re-persists `container` into insarhub_config.json
+        # after submit(), so the container-side re-reads it as set (the CLI writes
+        # that config before submit, so the container-stripped reinvoke write wins).
+        if getattr(self.config, "container", None) and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
+            self._record_stages(todo)
             self._reinvoke_via_container(steps=todo or None)
             return self.jobs
 
         if bool(getattr(self.config, "hpc_mode", False)):
             return self._submit_hpc(todo, force=force)
 
+        self._record_stages(todo)
+        self._start_local_background(todo, force=force)
+        return self.jobs
+
+    def _record_stages(self, todo: list[str]) -> None:
+        """Record every requested stage as RUNNING and persist the job file.
+
+        Done up front (before forking / re-invoking the container) so refresh()/
+        retry(), which reload from the saved job file, see a full stage set and
+        submit() returns a meaningful dict immediately. The detached child (or
+        container-side process) overwrites these with real SUCCEEDED/FAILED
+        verdicts via _run_stages()/save().
+        """
+        for stage in todo:
+            self.jobs[stage] = {"stage": stage, "status": _RUNNING}
+        self.save()
+
+    def _run_stages(self, todo: list[str], force: bool = False) -> None:
+        """Run ``todo`` stages in order, updating markers and self.jobs.
+
+        Executed in the detached child (local mode) or the container-side
+        process -- never in the process that called submit().
+        """
+        tag = type(self).name
         for stage in todo:
             runner = getattr(self, f"run_{stage}", None)
             if runner is None:
@@ -646,11 +738,60 @@ class ISCE3_Base(LocalProcessor):
                 print(f"[{tag}] stage {stage} FAILED -- stopping")
                 break
         self.save()
-        return self.jobs
+
+    def _start_local_background(self, stages: list[str], force: bool = False) -> None:
+        """Fork a detached process to run stages; parent returns immediately.
+
+        Skipped when re-invoked inside a container by _reinvoke_via_container:
+        that host-side call already forks and blocks on `docker run`/apptainer,
+        which is what provides the "return control to the user, keep running"
+        behavior. Forking again here would let the container's foreground
+        process (this one) exit right after the fork, and the container runtime
+        would tear the whole container down -- including this freshly-forked,
+        barely-started child -- as soon as its main process exits. Running
+        _run_stages directly keeps the container alive until the stages finish.
+        """
+        pid_file = self._paths.executor_pid
+        log_file = self._paths.executor_log
+        if os.environ.get("INSARHUB_CONTAINER_CHILD"):
+            self._run_stages(stages, force=force)
+            return
+        if os.name == "posix":
+            pid = os.fork()
+            if pid == 0:  # child — detach and run
+                try:
+                    os.setsid()
+                    # Redirect stdout/stderr FIRST, before any work, so a
+                    # failure lands in executor.log (os._exit below never
+                    # flushes Python's buffered stderr).
+                    with open(log_file, "w") as _lf:
+                        os.dup2(_lf.fileno(), sys.stdout.fileno())
+                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    self._run_stages(stages, force=force)
+                except BaseException as exc:
+                    import traceback
+                    try:
+                        with open(log_file, "a") as _lf:
+                            _lf.write(f"\n[executor] local run failed: {exc}\n")
+                            traceback.print_exc(file=_lf)
+                            _lf.flush()
+                    except Exception:
+                        pass
+                finally:
+                    os._exit(0)
+            # parent
+            pid_file.write_text(str(pid))
+            print(f"{Fore.GREEN}Local executor running in background (PID {pid}).{Style.RESET_ALL}")
+            print(f"  log : {log_file}")
+            print(f"  Use 'refresh' to check status, 'cancel' to stop.")
+        else:
+            # Windows: no fork — run blocking
+            self._run_stages(stages, force=force)
 
     def _reinvoke_via_container(self, steps: list[str] | None = None) -> None:
         """Re-run this same `insarhub processor ... submit` CLI call inside
-        self.config.container instead of on the host.
+        self.config.container instead of on the host, in a detached background
+        process so the calling submit() returns immediately.
 
         The container image is expected to have `insarhub` (plus ISCE3/COMPASS)
         installed — the container-side process runs the identical InSARHub code,
@@ -673,16 +814,95 @@ class ISCE3_Base(LocalProcessor):
         })
 
         step_args = f" --step {' '.join(steps)}" if steps else ""
-        cli_cmd = (f"insarhub processor -N {type(self).name} "
-                   f"-w {self.workdir} submit{step_args}")
-        wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
 
+        def _build_cli_cmd(host_pid: int | None = None) -> str:
+            # INSARHUB_CONTAINER_CHILD tells _start_local_background() (running
+            # inside the container) not to fork+detach again: this call already
+            # forks and blocks on `docker run`/apptainer below, so backgrounding
+            # is already handled at the host level -- see that method's docstring.
+            # INSARHUB_HOST_PID (only known once we're the forked child) is this
+            # host-side process's own PID, a real host-checkable liveness marker.
+            env_prefix = "INSARHUB_CONTAINER_CHILD=1"
+            if host_pid is not None:
+                env_prefix += f" INSARHUB_HOST_PID={host_pid}"
+            return (f"{env_prefix} insarhub processor "
+                    f"-N {type(self).name} -w {self.workdir} submit{step_args}")
+
+        log_file = self._paths.executor_log
+        pid_file = self._paths.executor_pid
         print(f"{Fore.CYAN}Re-invoking {type(self).name} inside container "
               f"{self.config.container}...{Fore.RESET}")
-        result = subprocess.run(wrapped, shell=True)
-        if result.returncode != 0:
-            raise RuntimeError(
-                f"Container run failed (exit {result.returncode}): {wrapped}")
+        if os.name == "posix":
+            pid = os.fork()
+            if pid == 0:  # child — detach and run
+                try:
+                    os.setsid()
+                    own_pid = os.getpid()
+                    # Redirect stdout/stderr FIRST, before any work, so even a
+                    # failure in command construction lands in executor.log.
+                    # os._exit() below never flushes Python's buffered stderr,
+                    # so an uncaught exception here used to be silently lost,
+                    # leaving an empty executor.log and a "success" submit.
+                    with open(log_file, "w") as _lf:
+                        os.dup2(_lf.fileno(), sys.stdout.fileno())
+                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    cli_cmd = _build_cli_cmd(host_pid=own_pid)
+                    wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+                    result = subprocess.run(wrapped, shell=True)
+                    if result.returncode != 0:
+                        # `docker run` itself failed, so the container-side
+                        # insarhub never ran and never wrote any stage status.
+                        # Mark the target steps FAILED here so refresh() surfaces
+                        # the error instead of leaving them stuck PENDING forever.
+                        # Exit 127 is "command not found" (docker/apptainer not on
+                        # PATH), NOT a bad image -- a missing image is docker's
+                        # exit 125.
+                        if result.returncode == 127:
+                            detail = ("docker (or apptainer) not found on PATH "
+                                      "-- is the container runtime installed?")
+                        elif result.returncode == 125:
+                            detail = (f"image '{self.config.container}' missing "
+                                      "or misnamed -- check the name/tag")
+                        else:
+                            detail = f"exit {result.returncode}"
+                        print(f"\n[executor] container run failed: {detail}")
+                        target = steps or list(self._IMPLEMENTED)
+                        for st in target:
+                            if self._get_status(st) != _SUCCEEDED:
+                                self._set_status(st, _FAILED)
+                except BaseException as exc:
+                    import traceback
+                    try:
+                        with open(log_file, "a") as _lf:
+                            _lf.write(f"\n[executor] container run failed: {exc}\n")
+                            traceback.print_exc(file=_lf)
+                            _lf.flush()
+                    except Exception:
+                        pass
+                    # Same as above: don't leave the stages stuck PENDING when
+                    # the container never got off the ground.
+                    try:
+                        for st in (steps or list(self._IMPLEMENTED)):
+                            if self._get_status(st) != _SUCCEEDED:
+                                self._set_status(st, _FAILED)
+                    except Exception:
+                        pass
+                finally:
+                    os._exit(0)
+            # parent
+            pid_file.write_text(str(pid))
+            print(f"{Fore.GREEN}Container executor running in background (PID {pid}).{Style.RESET_ALL}")
+            print(f"  log : {log_file}")
+            print(f"  Use 'refresh' to check status, 'cancel' to stop.")
+        else:
+            # Windows: no fork — run blocking. No separate host PID to hand off
+            # either: this call itself is already the thing the user is waiting on.
+            cli_cmd = _build_cli_cmd()
+            wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+            result = subprocess.run(wrapped, shell=True)
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Container run failed (exit {result.returncode}): {wrapped}")
 
     def refresh(self, ls: str | bool | None = None) -> dict:
         """Coloured per-stage status table, matching ISCE2_S1's refresh.
@@ -850,7 +1070,8 @@ class ISCE3_Base(LocalProcessor):
         return self.submit(steps=targets)
 
     def watch(self, interval: int = 30) -> dict:
-        """Stages run synchronously in submit(), so this only reports state."""
+        """Stages run in a detached background process, so this only reports
+        state; call it repeatedly to poll."""
         return self.refresh()
 
     def save(self) -> Path:

@@ -25,7 +25,7 @@ def _crs_from_attrs(attrs):
     A = {k.upper(): attrs[k] for k in attrs.keys()}
     if "EPSG" in A:
         try: return CRS.from_epsg(int(A["EPSG"]))
-        except: pass
+        except (ValueError, TypeError, KeyError): pass  # bad EPSG attr -> try other CRS hints
     if "UTM_ZONE" in A:
         if bool(re.fullmatch(r'\d+[A-Za-z]', A["UTM_ZONE"])): # e.g., '33N'
             zone_str = A["UTM_ZONE"][-1]
@@ -41,7 +41,7 @@ def _crs_from_attrs(attrs):
             for k in ("REF_LAT","LAT_REF1","LAT_REF2","LAT_REF3","LAT_REF4"):
                 if k in A:
                     try: lat = float(A[k]); break
-                    except: pass
+                    except (ValueError, TypeError): pass  # non-numeric lat attr -> try next
             north = (lat is None) or (lat >= 0.0)
             epsg = 32600 + zone if north else 32700 + zone
             return CRS.from_epsg(epsg)

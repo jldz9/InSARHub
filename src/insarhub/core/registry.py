@@ -5,9 +5,17 @@ from copy import deepcopy
 class Registry:
     def __init__(self):
         self._registry = {}
+        self._aliases = {}          # legacy name -> canonical name
 
     def register(self, cls):
         self._registry[cls.name] = cls
+        # Legacy names (e.g. an analyzer renamed *_SBAS -> *_TS) stay resolvable
+        # so old saved insarhub_config.json files and CLI commands keep working,
+        # but are hidden from available() so the UI/CLI list only canonical
+        # names. `aliases` is an optional tuple class attribute.
+        for alias in getattr(cls, "aliases", ()) or ():
+            self._registry[alias] = cls
+            self._aliases[alias] = cls.name
         return cls
 
     def create(self, name, config=None, **overrides):
@@ -53,7 +61,7 @@ class Registry:
         return cls(config=final_config, **ctor_kwargs)
 
     def available(self):
-        return list(self._registry.keys())
+        return [n for n in self._registry if n not in self._aliases]
 
 Downloader = Registry()
 Processor = Registry()

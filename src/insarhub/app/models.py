@@ -150,6 +150,7 @@ class RunAnalyzerRequest(BaseModel):
     folder_path:   str
     analyzer_type: str
     steps:         list[str]
+    container:     str | None = None  # runtime-only: re-run inside this image (not persisted)
 
 
 class Hyp3ActionRequest(BaseModel):

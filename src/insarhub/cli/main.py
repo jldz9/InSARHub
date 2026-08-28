@@ -18,15 +18,15 @@ insarhub processor -N Hyp3_S1 -w /data/bryce retry [-r]
 insarhub processor -N Hyp3_S1 -w /data/bryce watch --interval 300 [-r]
 insarhub processor -N Hyp3_S1 -w /data/bryce credits
 insarhub processor -N ISCE2      -w /data/bryce run    (local — not yet implemented)
-insarhub analyzer   -N Hyp3_SBAS -w /data/bryce run
-insarhub analyzer   -N Hyp3_SBAS -w /data/bryce cleanup
+insarhub analyzer   -N Hyp3_Mintpy_SBAS -w /data/bryce run
+insarhub analyzer   -N Hyp3_Mintpy_SBAS -w /data/bryce cleanup
 
 Utilities
 ---------
 insarhub utils clip           --workdir /data/bryce --aoi -113.05 37.74 -112.68 38.00
 insarhub utils h5-to-raster   --input velocity.h5
 insarhub utils save-footprint --input velocity.h5
-insarhub utils slurm          --job-name insar_run --cpus 8 --mem 32G --command "insarhub analyzer -N Hyp3_SBAS -w /data/bryce run"
+insarhub utils slurm          --job-name insar_run --cpus 8 --mem 32G --command "insarhub analyzer -N Hyp3_Mintpy_SBAS -w /data/bryce run"
 insarhub utils era5-download  -w /data/bryce -o /data/era5
 """
 
@@ -263,6 +263,12 @@ def create_parser() -> argparse.ArgumentParser:
                             "steps. Omit to run normally (every step not already SUCCEEDED).")
     g_sub.add_argument("--dry-run", action="store_true",
                        help="Print what would be submitted without sending any jobs to HyP3")
+    g_sub.add_argument("--container", metavar="PATH", nargs="?", const=_CONTAINER_DEFAULT_SENTINEL,
+                       default=None,
+                       help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
+                            "Docker image reference with insarhub installed — re-runs the "
+                            "pipeline inside the container instead of on the host. Bare "
+                            "--container uses the processor's default image.")
     g_sub_pairs = p_proc_submit.add_argument_group(
         "pairs input",
         "Provide pairs explicitly, or omit to auto-load pairs.json from workdir",
@@ -288,11 +294,12 @@ def create_parser() -> argparse.ArgumentParser:
              "'run_03') shows it for just that one step. Omit for step-level "
              "summary only (default).")
     p_proc_refresh.add_argument(
-        "--container", metavar="PATH", default=None,
+        "--container", metavar="PATH", nargs="?", const=_CONTAINER_DEFAULT_SENTINEL, default=None,
         help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
              "Docker image reference with insarhub installed — needed on a host "
              "with no local ISCE2 install, since the processor is constructed "
-             "(and ISCE2 discovery attempted) before refresh's own logic runs.")
+             "(and ISCE2 discovery attempted) before refresh's own logic runs. "
+             "Bare --container uses the processor's default image.")
 
     # --- download  (HyP3) --------------------------------------------- #
     p_proc_dl = proc_sub.add_parser("download", help="Download completed HyP3 job outputs")
@@ -308,10 +315,11 @@ def create_parser() -> argparse.ArgumentParser:
     p_proc_retry.add_argument("-r", "--recursive", action="store_true",
                               help="Recursively search workdir for hyp3*.json job files")
     p_proc_retry.add_argument(
-        "--container", metavar="PATH", default=None,
+        "--container", metavar="PATH", nargs="?", const=_CONTAINER_DEFAULT_SENTINEL, default=None,
         help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
              "Docker image reference with insarhub installed — retries inside "
-             "the container instead of on the host.")
+             "the container instead of on the host. Bare --container uses the "
+             "processor's default image.")
 
     # --- watch  (HyP3) ------------------------------------------------- #
     p_proc_watch = proc_sub.add_parser(
@@ -324,11 +332,12 @@ def create_parser() -> argparse.ArgumentParser:
     p_proc_watch.add_argument("-r", "--recursive", action="store_true",
                               help="Recursively search workdir for hyp3*.json job files")
     p_proc_watch.add_argument(
-        "--container", metavar="PATH", default=None,
+        "--container", metavar="PATH", nargs="?", const=_CONTAINER_DEFAULT_SENTINEL, default=None,
         help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
              "Docker image reference with insarhub installed — needed on a host "
              "with no local ISCE2 install, since the processor is constructed "
-             "(and ISCE2 discovery attempted) before watch's own logic runs.")
+             "(and ISCE2 discovery attempted) before watch's own logic runs. "
+             "Bare --container uses the processor's default image.")
 
     # --- credits  (HyP3) ----------------------------------------------- #
     p_proc_credits = proc_sub.add_parser("credits", help="Show remaining HyP3 processing credits")
@@ -340,11 +349,12 @@ def create_parser() -> argparse.ArgumentParser:
         help="Cancel all running/pending jobs (local: SIGTERM; HPC: scancel)"
     )
     p_proc_cancel.add_argument(
-        "--container", metavar="PATH", default=None,
+        "--container", metavar="PATH", nargs="?", const=_CONTAINER_DEFAULT_SENTINEL, default=None,
         help="Local/ISCE processors only: path to a .sif/Apptainer image or a "
              "Docker image reference with insarhub installed — needed on a host "
              "with no local ISCE2 install, since the processor is constructed "
-             "(and ISCE2 discovery attempted) before cancel's own logic runs.")
+             "(and ISCE2 discovery attempted) before cancel's own logic runs. "
+             "Bare --container uses the processor's default image.")
 
     # --- run-stage-unit  (internal: one HPC child job's unit of work) --- #
     p_proc_run_stage_unit = proc_sub.add_parser(
@@ -397,10 +407,10 @@ def create_parser() -> argparse.ArgumentParser:
         + "".join(f"  {s}\n" for s in _MINTPY_ALL_STEPS)
         + "\n"
         "Examples:\n"
-        "  insarhub analyzer -N Hyp3_SBAS run\n"
-        "  insarhub analyzer -N Hyp3_SBAS --compute-maxMemory 30 run --step velocity\n"
-        "  insarhub analyzer -N Hyp3_SBAS --list-options\n"
-        "  insarhub analyzer -N Hyp3_SBAS cleanup\n"
+        "  insarhub analyzer -N Hyp3_Mintpy_SBAS run\n"
+        "  insarhub analyzer -N Hyp3_Mintpy_SBAS --compute-maxMemory 30 run --step velocity\n"
+        "  insarhub analyzer -N Hyp3_Mintpy_SBAS --list-options\n"
+        "  insarhub analyzer -N Hyp3_Mintpy_SBAS cleanup\n"
     )
     p_analyzer = sub.add_parser(
         "analyzer",
@@ -419,8 +429,8 @@ def create_parser() -> argparse.ArgumentParser:
     )
     p_analyzer.add_argument("--verbose", action="count", default=0, help=_VERBOSE_HELP)
     p_analyzer.add_argument(
-        "-N", "--name", metavar="STR", default="Hyp3_SBAS", dest="analyzer_name",
-        help="Analyzer name (default: Hyp3_SBAS; see --list-analyzers)",
+        "-N", "--name", metavar="STR", default="Hyp3_Mintpy_SBAS", dest="analyzer_name",
+        help="Analyzer name (default: Hyp3_Mintpy_SBAS; see --list-analyzers)",
     )
     p_analyzer.add_argument("-w", "--workdir", metavar="PATH", default=None,
                             help="Working directory containing HyP3 results (default: current directory)")
@@ -436,15 +446,23 @@ def create_parser() -> argparse.ArgumentParser:
     # and won't treat their argument as the ACTION subcommand.
     # Use SUPPRESS default so only explicitly set fields appear in args namespace.
     try:
-        from insarhub.config.defaultconfig import Hyp3_SBAS_Config
+        from insarhub.config.defaultconfig import Hyp3_Mintpy_SBAS_Config
         import dataclasses as _dc, typing as _typing
-        _hints = _typing.get_type_hints(Hyp3_SBAS_Config)
-        for _f in _dc.fields(Hyp3_SBAS_Config):
+        _hints = _typing.get_type_hints(Hyp3_Mintpy_SBAS_Config)
+        for _f in _dc.fields(Hyp3_Mintpy_SBAS_Config):
             if _f.name in _ANALYZER_SKIP_FIELDS:
                 continue
-            _kwargs = _field_argparse_kwargs(_hints.get(_f.name, str), None)
-            _kwargs["default"] = argparse.SUPPRESS
-            _kwargs["help"] = argparse.SUPPRESS
+            if _f.name == "container":
+                # --container is registered on the `run` subparser instead
+                # (canonical position: AFTER the action, matching the processor
+                # and every doc example). Registering it on the parent too let
+                # its nargs="?" greedily swallow the action -- `--container run
+                # --step X` parsed `run` as --container's value. Skip it here.
+                continue
+            else:
+                _kwargs = _field_argparse_kwargs(_hints.get(_f.name, str), None)
+                _kwargs["default"] = argparse.SUPPRESS
+                _kwargs["help"] = argparse.SUPPRESS
             try:
                 _flag_h = "--" + _f.name.replace("_", "-")
                 _flag_u = "--" + _f.name
@@ -469,6 +487,18 @@ def create_parser() -> argparse.ArgumentParser:
         "--step", metavar="STEP", nargs="+",
         help="Step(s) to run — see parent 'analyzer --help' for the full table",
     )
+    # --container is also pre-registered on the parent (from the config fields),
+    # which only matches when placed BEFORE the action (`analyzer --container run`).
+    # Register it on the run subparser too so it also works in the natural
+    # position AFTER the action (`analyzer ... run --container`), mirroring the
+    # processor subcommands. nargs="?" + const keeps a bare `--container`
+    # resolving to the analyzer's default image; default=SUPPRESS so it doesn't
+    # clobber a value given before the action.
+    p_az_run.add_argument(
+        "--container", metavar="PATH", nargs="?", const=_CONTAINER_DEFAULT_SENTINEL,
+        default=argparse.SUPPRESS,
+        help="Run inside a .sif/Docker image with insarhub+MintPy installed. "
+             "Bare --container uses the analyzer's default image.")
     p_az_run.add_argument("--debug", action="store_true",
                           help="Enable MintPy debug mode")
 
@@ -820,7 +850,32 @@ _SUBMIT_SKIP_FIELDS = {
 # Runtime-only fields: still valid as CLI flags (unlike _SUBMIT_SKIP_FIELDS,
 # which also controls flag generation), but never persisted to or reloaded
 # from insarhub_config.json — pass again each invocation, like --dry-run.
-_RUNTIME_ONLY_FIELDS = {"container"}
+#
+# ``container`` is deliberately NOT here: it must be persisted so a GUI retry
+# (which has no --container flag to re-pass) re-runs inside the same image
+# instead of silently falling back to the host. A later submit/retry with an
+# explicit --container still overrides the persisted value.
+_RUNTIME_ONLY_FIELDS: set[str] = set()
+# Sentinel for a bare `--container` (no value): resolve to the processor/
+# analyzer's own `container_default` config value.
+_CONTAINER_DEFAULT_SENTINEL = "__default__"
+
+
+def _resolve_container_arg(name: str, container_arg: str | None) -> str | None:
+    """Resolve a `--container` flag value against a processor/analyzer name.
+
+    ``None``       → no container / keep the persisted value (host fallback).
+    ``__default__``→ the processor/analyzer's ``container_default`` image.
+    anything else  → that explicit image.
+    """
+    if container_arg is None or container_arg != _CONTAINER_DEFAULT_SENTINEL:
+        return container_arg
+    from insarhub import Analyzer, Processor
+    for registry in (Processor._registry, Analyzer._registry):
+        cfg_cls = getattr(registry.get(name), "default_config", None)
+        if cfg_cls is not None:
+            return getattr(cfg_cls, "container_default", None)
+    return None
 # _SAVED_CFG_SKIP / _ROLE_CONFIG_STRIP_FIELDS / _read_config_json now live in
 # utils/local_processor_reload.py (shared with app/routes/processor.py) --
 # imported below.
@@ -1183,9 +1238,10 @@ def cmd_downloader(args, extra_args: list[str]):
             proc_prefix = '└─' if last_proc else '├─'
             proc_indent = '   ' if last_proc else '│  '
             lines.append(f"{proc_prefix} {pname}")
+            from insarhub.core.base import _compatible_processor
             anals = [
                 n for n, c in Analyzer._registry.items()
-                if getattr(c, 'compatible_processor', None) in (None, 'all', pname)
+                if _compatible_processor(getattr(c, 'compatible_processor', None), pname)
             ]
             for ai, aname in enumerate(anals):
                 anal_prefix = '└─' if ai == len(anals) - 1 else '├─'
@@ -1315,14 +1371,8 @@ def cmd_downloader(args, extra_args: list[str]):
         FootprintCommand(downloader, save_path=args.footprint).run()
 
     if args.select_pairs:
-        import json
-        from dataclasses import asdict
-        from insarhub.utils.tool import write_workflow_marker
-        from insarhub.utils import plot_pair_network as _plot_pair_network
-        from insarhub.utils.config_io import write_insarhub_config
-
         merge_flag = getattr(args, "merge", False)
-        pairs, baselines, scene_bperp, prefetch_cache = downloader.select_pairs(
+        pairs, _baselines, _scene_bperp, _prefetch_cache, quality_scores, _quality_factors = downloader.select_pairs(
             dt_targets=tuple(args.dt_targets),
             dt_tol=args.dt_tol,
             dt_max=args.dt_max,
@@ -1337,90 +1387,22 @@ def cmd_downloader(args, extra_args: list[str]):
             merge=merge_flag,
         )
 
-        from insarhub.utils.pair_quality._db import PairQualityDB
-        from insarhub.utils.pair_quality._cache import seed_prefetch
-        from insarhub.utils.stack_io import write_stack_file, merge_db_scores_into_stack
-        from insarhub.utils.tool import group_scenes_by_stack
-
+        # Summary only — select_pairs() already wrote stack files, scored the
+        # pairs, and saved the network plot(s).
         dl_workdir = downloader.config.workdir
-
-        # Build scenes_by_stack for DB precompute — keys line up with `pairs`
-        # (path, frame) normally, or (path, "merged_f89_f90...") per distinct
-        # frame group when merged (see StackPaths.merge_tag — encodes every
-        # constituent frame so two merge groups on the same path never collide).
-        scenes_by_stack = group_scenes_by_stack(downloader.active_results, merge=merge_flag)
-        bperp_by_stack:  dict[tuple, dict[str, float]] = {}
-
         _sp = StackPaths(dl_workdir)
         _dl_is_stack = (dl_workdir / "insarhub_config.json").exists()
         if isinstance(pairs, dict):
             for (path, frame), group_pairs in pairs.items():
-                is_merged = StackPaths.is_merge_key(frame)
-                label = f"P{path} ({frame})" if is_merged else f"P{path}/F{frame}"
-                tag = _sp.dir_for(path, frame).name  # conventional name, independent of _dl_is_stack
+                tag = _sp.dir_for(path, frame).name
                 subdir = dl_workdir if _dl_is_stack else dl_workdir / tag
-                subdir.mkdir(parents=True, exist_ok=True)
-                write_workflow_marker(subdir, downloader=type(downloader).name)
-                cfg = {k: v for k, v in asdict(downloader.config).items() if k != 'workdir'}
-                cfg['relativeOrbit'] = path
-                if not is_merged:
-                    cfg['frame'] = frame
-                write_insarhub_config(subdir, {"downloader": {"type": type(downloader).name, "config": cfg}})
-                sp = scene_bperp.get((path, frame)) or {}
-                stack_scenes = scenes_by_stack.get((path, frame), [])
-                bperp_by_stack[(path, frame)] = {k: float(v) for k, v in sp.items()}
                 stack_path = subdir / _sp.stack_file_for(path, frame).name
-                stack_data = write_stack_file(stack_path, group_pairs, sp, stack_scenes)
-                seed_prefetch(subdir, prefetch_cache.get((path, frame), {}))
-                print(f"[quality] Scoring all possible pairs — {label}…")
-                quality_scores = quality_factors = None
-                try:
-                    PairQualityDB(subdir).build(
-                        {(path, frame): stack_scenes},
-                        {(path, frame): bperp_by_stack.get((path, frame), {})},
-                    )
-                    quality_scores, quality_factors = merge_db_scores_into_stack(
-                        stack_path, stack_data, subdir, group_pairs
-                    )
-                    print(f"[quality] {len(quality_scores or {})} selected pairs scored")
-                except Exception as exc:
-                    print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
-                _plot_pair_network(
-                    group_pairs, baselines[(path, frame)],
-                    scene_baselines=scene_bperp.get((path, frame)),
-                    title=f"Interferogram Network — {label}",
-                    save_path=subdir / f"network_{tag}.png",
-                    quality_scores=quality_scores,
-                    quality_factors=quality_factors,
-                )
+                n_scored = len((quality_scores or {}).get((path, frame), {}))
+                print(f"[quality] {n_scored} selected pairs scored")
                 print(f"[pairs] {tag}: {len(group_pairs)} pairs → {stack_path}")
         else:
-            dl_workdir.mkdir(parents=True, exist_ok=True)
-            write_workflow_marker(dl_workdir, downloader=type(downloader).name)
-            cfg = {k: v for k, v in asdict(downloader.config).items() if k != 'workdir'}
-            write_insarhub_config(dl_workdir, {"downloader": {"type": type(downloader).name, "config": cfg}})
-            sp = scene_bperp if isinstance(scene_bperp, dict) else {}
-            stack_scenes = scenes_by_stack.get((0, 0), [])
             stack_path = dl_workdir / _sp.stack_file(0, 0).name
-            stack_data = write_stack_file(stack_path, pairs, sp, stack_scenes)
-            seed_prefetch(dl_workdir, prefetch_cache)
-            print("[quality] Scoring all possible pairs…")
-            quality_scores = quality_factors = None
-            try:
-                PairQualityDB(dl_workdir).build(
-                    {(0, 0): stack_scenes},
-                    {(0, 0): {k: float(v) for k, v in sp.items()}},
-                )
-                quality_scores, quality_factors = merge_db_scores_into_stack(
-                    stack_path, stack_data, dl_workdir, pairs
-                )
-                print(f"[quality] {len(quality_scores or {})} selected pairs scored")
-            except Exception as exc:
-                print(f"[quality] Warning: scoring failed ({exc}), plotting without scores")
-            _plot_pair_network(pairs, baselines, scene_baselines=scene_bperp,
-                               save_path=dl_workdir / "network.png",
-                               quality_scores=quality_scores,
-                               quality_factors=quality_factors)
+            print(f"[quality] {len(quality_scores or {})} selected pairs scored")
             print(f"[pairs] Saved {len(pairs)} pairs → {stack_path}")
 
     if args.download:
@@ -1914,6 +1896,12 @@ def _proc_local_submit(args, extra_args: list[str]):
     _apply_config_overrides(overrides, config_cls, extra_args,
                             skip_fields=_SUBMIT_SKIP_FIELDS, label=processor_name)
 
+    # Dedicated --container flag (nargs="?") wins over any --container VALUE
+    # that rode in via extra_args. Bare --container resolves to the processor's
+    # default image; absent leaves the saved value untouched.
+    if getattr(args, "container", None) is not None:
+        overrides["container"] = _resolve_container_arg(processor_name, args.container)
+
     overrides["workdir"] = str(workdir)
 
     # --worker is the single parallelism knob and sets BOTH axes, because which
@@ -1958,26 +1946,39 @@ def _proc_local_submit(args, extra_args: list[str]):
         overrides["dry_run"] = True
 
     # ── Load pairs (same helpers as Hyp3) ──────────────────────────────────
-    pairs_data = _load_pairs(args, workdir)
-    raw_pairs  = pairs_data if isinstance(pairs_data, list) else next(iter(pairs_data.values()), [])
-    # Preserve full arity -- ISCE2_S1/Hyp3_S1 use 2-tuples (ref, sec), but
-    # GMTSAR_S1 requires 4-tuples (ref_safe, ref_eof, sec_safe, sec_eof).
-    # Used to hardcode (p[0], p[1]), silently truncating GMTSAR_S1 pairs.
-    pairs      = [tuple(str(x) for x in p) for p in raw_pairs]
-    if processor_name == "GMTSAR_S1" and pairs and len(pairs[0]) == 2:
-        # Downloader output (--select-pairs) is bare ASF scene name
-        # 2-tuples -- no .SAFE suffix, no .EOF orbit filename. Expand into
-        # GMTSAR_S1's required 4-tuples instead of letting __init__ reject
-        # them outright (it requires exactly 4-tuples).
-        from insarhub.processor.gmtsar_s1 import pairs_from_downloader
-        slc_dir_val   = overrides.get("slc_dir") or str(workdir)
-        orbit_dir_val = overrides.get("orbit_dir") or slc_dir_val
-        pairs = pairs_from_downloader(pairs, slc_dir=slc_dir_val, orbit_dir=orbit_dir_val)
-    if not pairs:
-        print("[ERROR] No pairs found. Use --pairs-file or place stack_*.json in workdir.",
-              file=sys.stderr)
-        sys.exit(1)
-    print(f"  Loaded {len(pairs)} pair(s)")
+    # Stack-download workflows (builds_own_network, e.g. ISCE3_Burst /
+    # ISCE3_NISAR) derive their own interferogram network from the downloaded
+    # products in slc/ and take no pairs. Mirrors the GUI route's
+    # _needs_stack_file so CLI and processor agree.
+    _builds_own = getattr(processor_cls, "builds_own_network", False)
+    _needs_pairs = not _builds_own
+
+    pairs: list[tuple] = []
+    if _needs_pairs:
+        pairs_data = _load_pairs(args, workdir)
+        raw_pairs  = pairs_data if isinstance(pairs_data, list) else next(iter(pairs_data.values()), [])
+        # Preserve full arity -- ISCE2_S1/Hyp3_S1 use 2-tuples (ref, sec), but
+        # GMTSAR_S1 requires 4-tuples (ref_safe, ref_eof, sec_safe, sec_eof).
+        # Used to hardcode (p[0], p[1]), silently truncating GMTSAR_S1 pairs.
+        pairs      = [tuple(str(x) for x in p) for p in raw_pairs]
+        if processor_name == "GMTSAR_S1" and pairs and len(pairs[0]) == 2:
+            # Downloader output (--select-pairs) is bare ASF scene name
+            # 2-tuples -- no .SAFE suffix, no .EOF orbit filename. Expand into
+            # GMTSAR_S1's required 4-tuples instead of letting __init__ reject
+            # them outright (it requires exactly 4-tuples).
+            from insarhub.processor.gmtsar_s1 import pairs_from_downloader
+            slc_dir_val   = overrides.get("slc_dir") or str(workdir)
+            orbit_dir_val = overrides.get("orbit_dir") or slc_dir_val
+            pairs = pairs_from_downloader(pairs, slc_dir=slc_dir_val, orbit_dir=orbit_dir_val)
+        if not pairs:
+            print("[ERROR] No pairs found. Use --pairs-file or place stack_*.json in workdir.",
+                  file=sys.stderr)
+            sys.exit(1)
+        print(f"  Loaded {len(pairs)} pair(s)")
+    else:
+        _glob = getattr(processor_cls, "input_glob", "*.SAFE")
+        print(f"[INFO] {processor_name}: interferogram network derived from "
+              f"slc/{_glob}; no pairs file needed")
 
     # ── Auto-load sbatch_options.json if hpc_mode ─────────────────────────────
     if overrides.get("hpc_mode"):
@@ -2010,7 +2011,8 @@ def _proc_local_submit(args, extra_args: list[str]):
 
     # ── Persist resolved config to insarhub_config.json (mirrors Hyp3) ────
     # sbatch_options_per_step is excluded: sbatch_options.json is the source of truth
-    # container is excluded: runtime-only flag, see _RUNTIME_ONLY_FIELDS
+    # container IS persisted now (not in _RUNTIME_ONLY_FIELDS) so retry/refresh
+    # re-run inside the same image.
     #
     # NOT under --dry-run. This write happens before submit(), so a dry run was
     # permanently rewriting the folder's saved config even though it submitted
@@ -2044,7 +2046,7 @@ def _proc_local_refresh(args):
         print(f"[ERROR] No {jobs_pattern} found in {workdir}. Run submit first.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
-    container = getattr(args, "container", None)
+    container = _resolve_container_arg(processor_name, getattr(args, "container", None))
     processor = _load_local_processor(processor_name, workdir, jobs_path,
                                       hpc_mode=hpc_mode, container=container)
     _call_if_supported(processor.refresh, ls=getattr(args, "ls", None))
@@ -2060,7 +2062,7 @@ def _proc_local_retry(args):
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
     dry_run  = getattr(args, "dry_run", False)
-    container = getattr(args, "container", None)
+    container = _resolve_container_arg(processor_name, getattr(args, "container", None))
     _load_local_processor(processor_name, workdir, jobs_path,
                           hpc_mode=hpc_mode, dry_run=dry_run,
                           container=container).retry()
@@ -2075,7 +2077,7 @@ def _proc_local_cancel(args):
         print(f"[ERROR] No {jobs_pattern} found in {workdir}. Nothing to cancel.", file=sys.stderr)
         sys.exit(1)
     hpc_mode = getattr(args, "hpc_mode", False)
-    container = getattr(args, "container", None)
+    container = _resolve_container_arg(processor_name, getattr(args, "container", None))
     processor = _load_local_processor(processor_name, workdir, jobs_path,
                                       hpc_mode=hpc_mode, container=container)
     if not hasattr(processor, "cancel"):
@@ -2170,7 +2172,7 @@ def _proc_local_watch(args):
         sys.exit(1)
 
     hpc_mode = getattr(args, "hpc_mode", False)
-    container = getattr(args, "container", None)
+    container = _resolve_container_arg(processor_name, getattr(args, "container", None))
     processor = _load_local_processor(processor_name, workdir, jobs_path,
                                       hpc_mode=hpc_mode, container=container)
     # refresh_interval (ISCE2_Base) vs poll_interval (GMTSAR_S1) -- pass both
@@ -2189,7 +2191,7 @@ def cmd_analyzer(args, extra_args: list[str]):
             print(f"  {name}")
         return
 
-    analyzer_name = getattr(args, "analyzer_name", "Hyp3_SBAS")
+    analyzer_name = getattr(args, "analyzer_name", "Hyp3_Mintpy_SBAS")
 
     if analyzer_name not in Analyzer._registry:
         print(f"[ERROR] Unknown analyzer '{analyzer_name}'. Use --list-analyzers.",
@@ -2235,6 +2237,32 @@ def _az_run(args, extra_args: list[str]):
             val = getattr(args, f.name, None)  # only present if user explicitly set it (SUPPRESS default)
             if val is not None:
                 overrides[f.name] = val
+        # Bare --container resolves to the analyzer's default image.
+        if getattr(args, "container", None) is not None:
+            overrides["container"] = _resolve_container_arg(args.analyzer_name, args.container)
+
+    # Self-contained analyzers (GMTSAR_SBAS, ISCE3_Dolphin_PL) run their whole
+    # pipeline inside analyzer.run(), which itself re-invokes into --container
+    # when set. They have no .mintpy.cfg and no prep_data/--step/plot
+    # orchestration, so route them straight to run() instead of the MintPy step
+    # machinery below. The MintPy-family check is POSITIVE: a subclass of
+    # Mintpy_SBAS_Base_Analyzer is the only kind that takes the orchestrated
+    # path; everything else is self-contained.
+    from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
+    if not issubclass(analyzer_cls, Mintpy_SBAS_Base_Analyzer) and not args.list_options:
+        if getattr(args, "az_action", None) is None:
+            print(f"[ERROR] '{args.analyzer_name}' has no .mintpy.cfg -- use the "
+                  f"'run' action (e.g. 'insarhub analyzer -N {args.analyzer_name} "
+                  f"-w <workdir> run [--container <image>]').", file=sys.stderr)
+            sys.exit(1)
+        overrides["debug"] = getattr(args, "debug", False)
+        workdir = _resolve_workdir(args.workdir)
+        for analysis_dir in _iter_analysis_dirs(workdir):
+            tag = f"[{analysis_dir.name}] " if analysis_dir != workdir else ""
+            analyzer = Analyzer.create(args.analyzer_name, workdir=analysis_dir, **overrides)
+            result = AnalyzeCommand(analyzer).run()
+            _fail(result, f"{args.analyzer_name} {tag}".strip())
+        return
 
     run_prep = False
     run_plot_explicit = False

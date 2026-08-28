@@ -20,6 +20,9 @@ class S1_SLC(ASF_Base_Downloader):
         {"name": "platform", "label": "Platform", "kind": "select",
          "group": "Additional Filters",
          "choices": ["Sentinel-1A", "Sentinel-1B", "Sentinel-1C", "Sentinel-1D"]},
+        {"name": "polarization", "label": "Polarization", "kind": "select",
+         "group": "Additional Filters",
+         "choices": ["VV", "VV+VH", "HH", "HH+HV"]},
         {"name": "relativeOrbit", "label": "Path", "kind": "range", "group": "Path and Frame Filters"},
         {"name": "asfFrame", "label": "Frame", "kind": "range", "group": "Path and Frame Filters"},
     ]
@@ -102,7 +105,11 @@ class S1_SLC(ASF_Base_Downloader):
                     break
                 _base = Path(base_dir)
                 _is_stack = (_base / "insarhub_config.json").exists()
-                if merge:
+                # Single stack is never a merge -- gate on 2+ frames, mirroring
+                # download()/select_pairs() so a single-frame --merge -O keeps
+                # orbits with their per-frame SLCs instead of a stray merged/.
+                _do_merge = merge and isinstance(self.results, dict) and len(self.results) > 1
+                if _do_merge:
                     download_path = _base / 'merged' / 'slc'
                 elif save_dir:
                     download_path = Path(save_dir) / 'slc'

@@ -1,0 +1,81 @@
+# InSARHub + GMTSAR + MintPy container.
+#
+# GMTSAR is BUILT FROM SOURCE: the full gmtsar repo is cloned and built with
+# GMTSAR's own installer (`gmtsar/python/install.py --system conda-linux-full`),
+# which provisions the gfortran/gxx/make/autoconf toolchain + GMT from
+# conda-forge into a dedicated conda env named "gmtsar", then runs
+# ./configure && make && make install (binaries land in /opt/gmtsar/bin).
+# InSARHub + MintPy are then installed into that same env. Serves the
+# GMTSAR_S1 processor and the GMTSAR_Mintpy_SBAS analyzer.
+#
+# conda-linux-full is LINUX x86_64 ONLY (GMTSAR's installer refuses otherwise).
+#
+# Build (from repo root):
+#   docker build -f docker/Dockerfile.gmtsar-mintpy -t insarhub-gmtsar-mintpy:local .
+#
+# Use:
+#   insarhub processor -N GMTSAR_S1        -w /path/to/workdir submit --container insarhub-gmtsar-mintpy:local
+#   insarhub analyzer  -N GMTSAR_Mintpy_SBAS -w /path/to/workdir run    --container insarhub-gmtsar-mintpy:local
+#
+# Publish to GHCR:
+#   docker tag insarhub-gmtsar-mintpy:local ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
+#   docker push ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
+
+FROM condaforge/miniforge3:24.9.2-0
+
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+# git clones GMTSAR; the compilers come from conda-linux-full. autoconf/automake
+# are on the SYSTEM path because GMTSAR's install.py invokes `autoconf` with the
+# default environment (not its conda build_env -- a quirk in install.py's
+# do_build), so the conda-provided autoconf isn't visible for that one step;
+# a system autoconf satisfies it, while ./configure && make still use the conda
+# toolchain via build_env.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git ca-certificates autoconf automake libtool m4 make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Clone the FULL GMTSAR repo (install.py builds from this checkout) and build it
+# into a conda env named "gmtsar".
+ARG GMTSAR_REF=master
+RUN git clone --branch ${GMTSAR_REF} https://github.com/gmtsar/gmtsar.git /opt/gmtsar
+WORKDIR /opt/gmtsar
+RUN python3 gmtsar/python/install.py --system conda-linux-full --conda-env gmtsar
+
+# Add MintPy + InSARHub's binary deps into the gmtsar env from conda-forge so
+# gdal/rasterio/h5py stay on the same libgdal/hdf5 stack GMT uses, then pip-add
+# InSARHub itself (its pip-only deps: asf_search, hyp3_sdk, dem_stitcher, ...).
+# numpy is held <2 (InSARHub's pin).
+RUN conda install -n gmtsar -c conda-forge -y "numpy<2" gdal rasterio h5py mintpy \
+    && conda clean -afy
+
+COPY pyproject.toml README.md /opt/insarhub-src/
+COPY src /opt/insarhub-src/src
+RUN /opt/conda/envs/gmtsar/bin/pip install --no-cache-dir /opt/insarhub-src
+
+# GMTSAR binaries on PATH; the gmtsar env's python is the default interpreter.
+ENV GMTSAR=/opt/gmtsar
+ENV PATH=/opt/gmtsar/bin:/opt/conda/envs/gmtsar/bin:$PATH
+# Put the conda env's libstdc++ on the loader path. Without this, LD_LIBRARY_PATH
+# is empty and the loader picks the SYSTEM /lib/x86_64-linux-gnu/libstdc++.so.6
+# (6.0.28), which lacks GLIBCXX_3.4.29 -- so importing pandas (pulled in by
+# dem_stitcher for the DEM download, and by MintPy) dies with
+# "GLIBCXX_3.4.29 not found", stalling the `dem` stage. The conda libstdc++ has
+# that symbol; GMT and the GMTSAR C binaries (built with the same conda
+# toolchain) work fine against it too.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/gmtsar/lib
+
+# GMTSAR's .csh scripts hardcode `#!/bin/csh -f`, but conda-linux-full only
+# provides csh/tcsh inside the env's bin -- there is no /bin/csh, so every csh
+# script (align_tops.csh, ...) fails rc=127 "command not found". Symlink tcsh
+# to /bin/csh so the shebang resolves. (Placed here, after the conda solve, so
+# it doesn't invalidate that expensive layer's cache.)
+RUN ln -sf /opt/conda/envs/gmtsar/bin/tcsh /bin/csh
+
+# Fail the build if GMTSAR, MintPy, or InSARHub is broken, so a bad image never
+# reaches the first job.
+RUN which p2p_processing && gmt --version \
+    && python -c "import insarhub, mintpy; from insarhub import Processor, Analyzer; \
+print('procs', Processor.available(), 'analyzers', Analyzer.available())"
+
+# No custom ENTRYPOINT/CMD -- see Dockerfile for why.

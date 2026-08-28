@@ -10,6 +10,7 @@ description = "A modular Python framework for automated InSAR and time-series pr
 readme = 'README.md'
 dependencies = [
 "asf_search",
+"burst2safe",
 "cdsapi",
 "colorama",
 "contextily",
@@ -28,6 +29,12 @@ dependencies = [
 "pyaps3",
 "dask",
 "h5py",
+# pyaps3 (MintPy's correct_troposphere backend) still imports pkg_resources at
+# runtime, which setuptools removed in v81 -- without this pin a fresh env gets
+# setuptools>=81 and correct_troposphere dies with "No module named
+# 'pkg_resources'". Pinning <81 keeps pkg_resources shipped. Drop once pyaps3
+# stops importing it.
+"setuptools<81",
 ]
 requires-python = ">=3.11,<3.13"
 classifiers = [

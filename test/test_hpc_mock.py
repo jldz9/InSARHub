@@ -108,7 +108,7 @@ class TestSbatchScriptGeneration(unittest.TestCase):
         log_dir.mkdir(parents=True, exist_ok=True)
 
         step_cfg = proc._sbatch_opts_for_step(step)
-        sbatch_file = proc._build_step_sbatch_script(step, script, log_dir, step_cfg)
+        sbatch_file = proc._build_cmd_sbatch_script(step, script, 0, log_dir, step_cfg)
 
         content = sbatch_file.read_text()
         print("\n--- Generated .sbatch script ---")
@@ -116,19 +116,16 @@ class TestSbatchScriptGeneration(unittest.TestCase):
 
         self.assertTrue(sbatch_file.exists())
         self.assertIn("#!/bin/bash", content)
-        self.assertIn(f"#SBATCH --job-name=isce_{step}", content)
+        # One sbatch script per command now: job-name is i<step-num>_<cmd-idx>.
+        self.assertIn("#SBATCH --job-name=i01_0000", content)
         self.assertIn("#SBATCH --time=02:00:00", content)
         self.assertIn("#SBATCH --partition=test_q", content)
         self.assertIn("#SBATCH --cpus-per-task=2", content)   # step override
         self.assertIn("#SBATCH --mem=4G", content)             # step override
         self.assertIn("#SBATCH --ntasks=1", content)           # from default
-        # Each command must appear with done/fail logic
-        for i in range(3):
-            self.assertIn(f"cmd_{i:04d}.done", content)
-            self.assertIn(f"cmd_{i:04d}.fail", content)
-        # Status file write at end
-        self.assertIn("SUCCEEDED", content)
-        self.assertIn("FAILED", content)
+        # This single-command script carries the done/fail markers for its cmd.
+        self.assertIn("cmd_0000.done", content)
+        self.assertIn("cmd_0000.fail", content)
 
     def test_default_fallback_when_step_not_listed(self):
         """Step not in sbatch_options_per_step uses 'default' values."""
@@ -144,7 +141,7 @@ class TestSbatchScriptGeneration(unittest.TestCase):
         log_dir.mkdir(parents=True, exist_ok=True)
 
         step_cfg = proc._sbatch_opts_for_step(step)
-        sbatch_file = proc._build_step_sbatch_script(step, script, log_dir, step_cfg)
+        sbatch_file = proc._build_cmd_sbatch_script(step, script, 0, log_dir, step_cfg)
 
         content = sbatch_file.read_text()
         self.assertIn("#SBATCH --time=06:00:00", content)
@@ -185,10 +182,13 @@ class TestStepExecutorHPC(unittest.TestCase):
             }
         return proc
 
-    def test_dependency_chain(self):
-        """Each step must depend on the previous step's SLURM job ID."""
+    def test_group_manager_shares_one_job_id(self):
+        """Consecutive equal-command-count steps form one group submitted as a
+        single group-manager job; every step in the group records that one job id
+        under slurm_job_ids (the per-step slurm_job_id of the old dependency-chain
+        model is gone -- chaining now happens inside the manager scripts)."""
         steps = ["run_01_unpack", "run_02_secondary", "run_03_baseline"]
-        proc = self._make_proc_with_jobs(steps)
+        proc = self._make_proc_with_jobs(steps)  # all n_cmds=2 -> one group
 
         job_counter = iter(range(10001, 10010))
 
@@ -208,25 +208,28 @@ class TestStepExecutorHPC(unittest.TestCase):
         with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_sbatch):
             proc._step_executor_hpc(steps)
 
-        # Verify job IDs saved
-        self.assertEqual(proc.jobs["run_01_unpack"]["slurm_job_id"], "10001")
-        self.assertEqual(proc.jobs["run_02_secondary"]["slurm_job_id"], "10002")
-        self.assertEqual(proc.jobs["run_03_baseline"]["slurm_job_id"], "10003")
+        # Only the first (and here only) group's manager is submitted -> job 10001,
+        # shared by every step in the group.
+        for step in steps:
+            self.assertEqual(proc.jobs[step]["slurm_job_ids"], ["10001"])
+            self.assertNotIn("slurm_job_id", proc.jobs[step])
 
-        # Verify isce_jobs.json written with job IDs
-        jobs_file = self.workdir / "isce_jobs.json"
+        # Verify isce_jobs.json written with job IDs (lives under workdir/isce)
+        jobs_file = proc.isce_dir / "isce_jobs.json"
         self.assertTrue(jobs_file.exists())
         saved = json.loads(jobs_file.read_text())
-        self.assertEqual(saved["jobs"]["run_01_unpack"]["slurm_job_id"], "10001")
-        self.assertEqual(saved["jobs"]["run_02_secondary"]["slurm_job_id"], "10002")
+        self.assertEqual(saved["jobs"]["run_01_unpack"]["slurm_job_ids"], ["10001"])
+        self.assertEqual(saved["jobs"]["run_02_secondary"]["slurm_job_ids"], ["10001"])
 
         print("\n--- isce_jobs.json ---")
         print(json.dumps(saved, indent=2))
 
-    def test_dependency_flags_passed_correctly(self):
-        """sbatch calls must carry correct --dependency=afterok:<prev_id> flags."""
+    def test_only_first_manager_submitted_no_dependency(self):
+        """Only the first group's manager is submitted from Python; the rest
+        chain-submit themselves from inside the manager scripts. No
+        --dependency=afterok flags are issued here anymore."""
         steps = ["run_01_a", "run_02_b", "run_03_c"]
-        proc = self._make_proc_with_jobs(steps)
+        proc = self._make_proc_with_jobs(steps)  # all equal count -> one group
 
         submitted_cmds = []
         job_counter = iter(range(20001, 20010))
@@ -250,32 +253,21 @@ class TestStepExecutorHPC(unittest.TestCase):
         for c in submitted_cmds:
             print(" ", c)
 
-        # Step 1: no dependency
+        # Exactly one sbatch (the single group's manager) and no dependency flag.
+        self.assertEqual(len(submitted_cmds), 1)
         self.assertNotIn("dependency", submitted_cmds[0])
-        # Step 2: depends on job 20001
-        self.assertIn("afterok:20001", submitted_cmds[1])
-        # Step 3: depends on job 20002
-        self.assertIn("afterok:20002", submitted_cmds[2])
 
-    def test_stops_on_sbatch_failure(self):
-        """If sbatch fails for step N, remaining steps must not be submitted."""
+    def test_manager_submission_failure_marks_group_failed(self):
+        """If the manager sbatch fails, every step in that group is marked FAILED."""
         steps = ["run_01_a", "run_02_b", "run_03_c"]
         proc = self._make_proc_with_jobs(steps)
-
-        call_count = [0]
 
         def fake_sbatch(cmd, **kwargs):
             r = MagicMock()
             if "sbatch" in cmd:
-                call_count[0] += 1
-                if call_count[0] == 2:           # fail on step 2
-                    r.returncode = 1
-                    r.stdout = ""
-                    r.stderr = "sbatch: error: fake failure"
-                else:
-                    r.returncode = 0
-                    r.stdout = f"Submitted batch job 3000{call_count[0]}\n"
-                    r.stderr = ""
+                r.returncode = 1
+                r.stdout = ""
+                r.stderr = "sbatch: error: fake failure"
             else:
                 r.returncode = 0; r.stdout = ""; r.stderr = ""
             return r
@@ -283,10 +275,9 @@ class TestStepExecutorHPC(unittest.TestCase):
         with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_sbatch):
             proc._step_executor_hpc(steps)
 
-        # Only 2 sbatch calls (step 3 never submitted)
-        self.assertEqual(call_count[0], 2)
         from insarhub.processor.isce2_base import _FAILED
-        self.assertEqual(proc.jobs["run_02_b"]["status"], _FAILED)
+        for step in steps:
+            self.assertEqual(proc.jobs[step]["status"], _FAILED)
 
 
 class TestRefreshWithMockedSLURM(unittest.TestCase):
@@ -304,7 +295,10 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
         sbatch_opts = {"default": {"time": "01:00:00", "partition": "all",
                                     "ntasks": 1, "cpus_per_task": 2, "mem": "4G"}}
         proc = _make_processor(self.workdir, sbatch_opts)
-        run_files = self.workdir / "run_files"
+        # run_files now lives under workdir/isce/run_files (see GMTSARPaths /
+        # ISCE2's _paths.run_files_dir) -- use the processor's own resolved dir
+        # so _read_status/_write_status inside refresh see the same files.
+        run_files = proc._run_files_dir
         run_files.mkdir(parents=True, exist_ok=True)
 
         for step, jid in step_job_ids.items():
@@ -314,12 +308,13 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
             proc.jobs[step] = {
                 "step": step, "script": str(run_files / step),
                 "log_dir": str(log_dir), "status": _PENDING,
-                "slurm_job_id": jid, "submitted_at": "2025-01-01T00:00:00+00:00",
+                # New format stores a list; refresh still accepts either.
+                "slurm_job_ids": [jid], "submitted_at": "2025-01-01T00:00:00+00:00",
             }
         return proc
 
     def test_pending_promoted_to_running_via_squeue(self):
-        """Steps whose job ID appears in squeue must show as RUNNING."""
+        """Steps whose job ID appears in squeue (state R) must show as RUNNING."""
         proc = self._make_loaded_proc({
             "run_01_a": "10001",
             "run_02_b": "10002",
@@ -328,14 +323,18 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
         def fake_run(cmd, **kwargs):
             r = MagicMock()
             r.returncode = 0
-            if "squeue" in (cmd[0] if isinstance(cmd, list) else cmd):
-                r.stdout = "10001\n"   # only job 10001 is active
+            cmd_str = cmd[0] if isinstance(cmd, list) else cmd
+            if "squeue" in cmd_str:
+                # squeue --format='%i %T' -> "<jobid> <state>"; only 10001 active.
+                r.stdout = "10001 RUNNING\n"
             else:
                 r.stdout = ""
             r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
+        # squeue/sacct now run from utils.slurm_manager, so patch there.
+        with patch("insarhub.utils.slurm_manager.subprocess.run", side_effect=fake_run), \
+             patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
             result = proc.refresh()
 
         from insarhub.processor.isce2_base import _RUNNING, _PENDING
@@ -363,7 +362,8 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
             r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
+        with patch("insarhub.utils.slurm_manager.subprocess.run", side_effect=fake_run), \
+             patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
             result = proc.refresh()
 
         from insarhub.processor.isce2_base import _FAILED, _PENDING
@@ -371,7 +371,7 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
         self.assertEqual(result["run_02_b"]["status"], _PENDING)
 
         # Status file must have been written
-        sf = self.workdir / "run_files" / "run_01_a.status"
+        sf = proc._run_files_dir / "run_01_a.status"
         self.assertTrue(sf.exists())
         self.assertIn("FAILED", sf.read_text())
         print(f"\n--- Status file after sacct fallback: {sf.read_text()!r} ---")
@@ -380,13 +380,14 @@ class TestRefreshWithMockedSLURM(unittest.TestCase):
         """A step that wrote SUCCEEDED to its status file must show SUCCEEDED."""
         from insarhub.processor.isce2_base import _SUCCEEDED, _write_status
         proc = self._make_loaded_proc({"run_01_a": "10001"})
-        _write_status(self.workdir / "run_files", "run_01_a", _SUCCEEDED)
+        _write_status(proc._run_files_dir, "run_01_a", _SUCCEEDED)
 
         def fake_run(cmd, **kwargs):
             r = MagicMock(); r.returncode = 0; r.stdout = ""; r.stderr = ""
             return r
 
-        with patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
+        with patch("insarhub.utils.slurm_manager.subprocess.run", side_effect=fake_run), \
+             patch("insarhub.processor.isce2_base.subprocess.run", side_effect=fake_run):
             result = proc.refresh()
 
         self.assertEqual(result["run_01_a"]["status"], _SUCCEEDED)

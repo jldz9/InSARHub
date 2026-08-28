@@ -38,177 +38,24 @@ from insarhub.utils.slurm_manager import (
 
 logger = logging.getLogger(__name__)
 
-_PENDING   = "PENDING"
-_RUNNING   = "RUNNING"
-_SUCCEEDED = "SUCCEEDED"
-_FAILED    = "FAILED"
+# Status model moved to insarhub.utils.status (backend-neutral); imported here so
+# ISCE2 code and the other backends that import these from isce2_base keep
+# working. New code should import from insarhub.utils.status directly.
+from insarhub.utils.status import (  # noqa: F401  (re-exported)
+    _PENDING, _RUNNING, _SUCCEEDED, _FAILED, _STEP_NUM_RE,
+    _resolve_step_names, _clear_step_markers, _status_file,
+    _read_status, _write_status,
+)
 
 JOBS_FILE = "isce_jobs.json"
 
-_SBATCH_DEFAULT_TEMPLATE: dict = {
-    # Shared self-documenting header: every supported key, what it does and an
-    # example, written into the file itself so editing resources never requires
-    # looking anything up. Identical across ISCE2_S1, GMTSAR_S1 and ISCE3_Burst.
-    **sbatch_template_header(),
-    "_steps": {
-        "01": "unpack_topo_reference",
-        "02": "unpack_secondary_slc",
-        "03": "average_baseline",
-        "04": "extract_burst_overlaps",
-        "05": "overlap_geo2rdr",
-        "06": "overlap_resample",
-        "07": "pairs_misreg",
-        "08": "timeseries_misreg",
-        "09": "fullBurst_geo2rdr",
-        "10": "fullBurst_resample",
-        "11": "extract_stack_valid_region",
-        "12": "merge_reference_secondary_slc",
-        "13": "generate_burst_igram",
-        "14": "merge_burst_igram",
-        "15": "filter_coherence",
-        "16": "unwrap",
-        "17": "SBAS",
-        "manager": "job managers -- only 'partition' is used; cores/memory/walltime are fixed (1 idle core, partition max walltime)",
-    },
-    # Job managers are idle single-core babysitters that must outlive every
-    # child they supervise, so they suit a long-walltime queue even when the
-    # real work belongs elsewhere. Only "partition" is read here.
-    "manager": {"partition": "all"},
-    "default": {
-        "time":          "02:00:00",
-        "partition":     "all",
-        "nodes":         1,
-        "ntasks":        1,
-        "cpus_per_task": 2,
-        "mem":           "8G",
-    },
-    # 01/09/10 (topo + full-frame geo2rdr/resample) are full-frame,
-    # multi-swath geometric work -- the single heaviest per-command cost in
-    # the pipeline -- given more cores to match num_proc4topo/num_proc
-    # (ISCE2_S1_Config), since neither side helps alone (found via a real
-    # p100_f466 run: run_01 took 1h17m+ single-threaded on 3 swaths).
-    "01": {"cpus_per_task": 6, "mem": "16G", "time": "03:00:00"},
-    "02": {"cpus_per_task": 1, "mem": "4G"},
-    "03": {"cpus_per_task": 1, "mem": "4G"},
-    "04": {"cpus_per_task": 1, "mem": "4G"},
-    "05": {"cpus_per_task": 2, "mem": "8G"},
-    "06": {"cpus_per_task": 2, "mem": "8G"},
-    "07": {"cpus_per_task": 2, "mem": "8G"},
-    "08": {"cpus_per_task": 1, "mem": "4G"},
-    "09": {"cpus_per_task": 4, "mem": "16G"},
-    "10": {"cpus_per_task": 4, "mem": "16G"},
-    "11": {"cpus_per_task": 1, "mem": "4G"},
-    "12": {"cpus_per_task": 4, "mem": "16G"},
-    "13": {"cpus_per_task": 4, "mem": "16G"},
-    "14": {"cpus_per_task": 4, "mem": "16G"},
-    "15": {"cpus_per_task": 4, "mem": "16G"},
-    "16": {"time": "04:00:00", "cpus_per_task": 4, "mem": "32G"},
-    "17": {"time": "24:00:00", "ntasks": 1, "cpus_per_task": 16, "mem": "128G"},
-}
-
-
-def _manager_partition(per_step: dict) -> str | None:
-    """Partition for job-manager jobs, from sbatch_options.json's "manager".
-
-    A manager's cores/memory are always fixed by slurm_manager (one idle
-    core, 1G) since every manager does the identical bookkeeping job
-    regardless of which step's children it supervises. Only ``partition``
-    and ``time`` are honoured -- see _manager_time().
-    """
-    mgr = per_step.get("manager")
-    if isinstance(mgr, dict):
-        part = mgr.get("partition")
-        if part:
-            return str(part)
-    return None
-
-
-def _manager_time(per_step: dict) -> str | None:
-    """Explicit walltime for job-manager jobs, from sbatch_options.json's
-    "manager".time. None (the default) means "use the most the partition
-    allows" -- see slurm_manager.manager_walltime().
-
-    Worth setting explicitly on partitions with very generous limits: a
-    manager only has to outlive the children it supervises, so inheriting a
-    30-day cap just makes it look like a 30-day reservation to the scheduler
-    and to anyone reading squeue, which can hurt its own queue priority.
-    """
-    mgr = per_step.get("manager")
-    if isinstance(mgr, dict):
-        t = mgr.get("time")
-        if t:
-            return str(t)
-    return None
-
-
-def _merge_sbatch_opts(per_step: dict, key: str) -> dict:
-    """Merge the 'default' dict with the entry at ``key`` (key overrides default)."""
-    default_cfg = per_step.get("default", {})
-    if not isinstance(default_cfg, dict):
-        default_cfg = {}
-    step_cfg = per_step.get(key, {})
-    if not isinstance(step_cfg, dict):
-        step_cfg = {}
-    return {**default_cfg, **step_cfg}
-
-
-def load_or_init_sbatch_options(
-    workdir: Path, step_key: str | None = None, step_label: str | None = None,
-    default_template: dict = _SBATCH_DEFAULT_TEMPLATE,
-) -> dict | None:
-    """Load workdir/sbatch_options.json, creating or upgrading it as needed.
-
-    One shared file for the whole workdir, but the content written for a
-    *fresh* file is processor-specific: ISCE2_S1 callers use this function's
-    default (ISCE's own "01".."17" template); GMTSAR_S1 passes its own
-    ``default_template`` (see gmtsar_s1.py's ``_GMTSAR_SBATCH_DEFAULT_TEMPLATE``)
-    so a workdir that only ever runs GMTSAR gets a GMTSAR-only file instead
-    of ISCE's irrelevant numbered steps. If a workdir genuinely uses both
-    processors (uncommon), whichever runs *second* just grows the existing
-    file with its own missing keys via the per-key fallback below --
-    nothing is ever removed or overwritten wholesale.
-
-    Migrates the legacy ``srun_options.json`` filename if found.
-
-    - Missing file: writes the full default_template and returns None —
-      caller should stop and let the user review/edit before submitting.
-    - ``step_key`` given, file exists but missing that key: adds the default
-      entry for it (from ``default_template`` if present there, else empty),
-      rewrites the file, prints a warning, and returns the loaded dict.
-    - Otherwise: returns the loaded dict as-is.
-    """
-    sbatch_path = workdir / "sbatch_options.json"
-    old_srun_path = workdir / "srun_options.json"
-    if not sbatch_path.exists() and old_srun_path.exists():
-        old_srun_path.rename(sbatch_path)
-        print(f"[INFO] Migrated srun_options.json → sbatch_options.json")
-
-    if not sbatch_path.exists():
-        sbatch_path.write_text(json.dumps(default_template, indent=2))
-        target = f'step "{step_key}" ({step_label})' if step_key else "every step"
-        print(
-            f"\n[INFO] No sbatch_options.json found — initialized default at:\n"
-            f"       {sbatch_path}\n\n"
-            f"  Edit the sbatch options for {target}, then rerun.\n"
-        )
-        return None
-
-    try:
-        per_step: dict = json.loads(sbatch_path.read_text())
-    except Exception as e:
-        print(f"[WARN] Could not read {sbatch_path}: {e}", file=sys.stderr)
-        per_step = {}
-
-    if step_key and step_key not in per_step:
-        per_step[step_key] = dict(default_template.get(step_key, {}))
-        per_step.setdefault("_steps", {})[step_key] = step_label
-        sbatch_path.write_text(json.dumps(per_step, indent=2))
-        print(
-            f"[WARN] {sbatch_path} had no \"{step_key}\" ({step_label}) entry — "
-            f"added default resource settings. Review before relying on them."
-        )
-
-    return per_step
+# HPC/sbatch resource helpers moved to insarhub.utils.hpc (backend-neutral);
+# re-exported so ISCE2 code and other backends importing them from isce2_base
+# keep working. New code should import from insarhub.utils.hpc directly.
+from insarhub.utils.hpc import (  # noqa: F401  (re-exported)
+    _SBATCH_DEFAULT_TEMPLATE, _manager_partition, _manager_time,
+    _merge_sbatch_opts, load_or_init_sbatch_options,
+)
 
 
 # ── ISCE2 discovery ───────────────────────────────────────────────────────────
@@ -295,110 +142,6 @@ def _find_topsstack(isce_home: Path | None) -> tuple[Path, Path]:
     return s, s.parent.parent
 
 
-# ── Step name resolution ───────────────────────────────────────────────────────
-
-_STEP_NUM_RE = re.compile(r"^run_(\d+)_")
-
-
-def _resolve_step_names(
-    requested: list[str], valid_names: list[str],
-) -> tuple[set[str], list[str]]:
-    """Resolve short step references to full run-script/job names.
-
-    Accepts the full name ("run_03_average_baseline"), just the number
-    ("03" or "3"), or a "run_03" prefix. Returns (resolved_names, unknown_inputs).
-    """
-    num_to_name: dict[str, str] = {}
-    for name in valid_names:
-        m = _STEP_NUM_RE.match(name)
-        if m:
-            digits = m.group(1)
-            num_to_name[digits] = name                     # zero-padded, e.g. "03"
-            num_to_name[digits.lstrip("0") or "0"] = name   # unpadded, e.g. "3"
-
-    resolved: set[str] = set()
-    unknown: list[str] = []
-    for raw in requested:
-        token = raw.strip()
-        if token in valid_names:
-            resolved.add(token)
-            continue
-        digits = token
-        if digits.lower().startswith("run_"):
-            digits = digits[4:]
-        elif digits.lower().startswith("run"):
-            digits = digits[3:]
-        digits = digits.split("_")[0]
-        key = digits.lstrip("0") or "0"
-        if digits in num_to_name:
-            resolved.add(num_to_name[digits])
-        elif key in num_to_name:
-            resolved.add(num_to_name[key])
-        else:
-            unknown.append(raw)
-    return resolved, unknown
-
-
-def _clear_step_markers(run_files_dir: Path, step: str) -> int:
-    """Remove stale per-command cmd_*/task_* .done/.fail markers for a step
-    being force-rerun via --step.
-
-    Resetting a step's own .status file isn't enough to make it actually
-    resubmit: the manager sbatch scripts' sliding-window logic checks these
-    per-command marker files directly (independent of the step-level status)
-    to decide which commands are "already done" and skip. Covers all three
-    layouts a step's commands can live in:
-      {step}_logs/   single-step-manager (LOG_DIR in the sbatch script)
-      {step}_sbatch/ merged single-command-per-step group
-      {step}_group/  merged multi-command group (only present when this step
-                     is first in its group — see _group_steps())
-    Returns the number of marker files removed.
-    """
-    removed = 0
-    for suffix in ("_logs", "_sbatch", "_group"):
-        d = run_files_dir / f"{step}{suffix}"
-        if not d.exists():
-            continue
-        for pattern in ("cmd_*.done", "cmd_*.fail", "task_*.done", "task_*.fail"):
-            for f in d.glob(pattern):
-                f.unlink()
-                removed += 1
-    return removed
-
-
-# ── Step status helpers ───────────────────────────────────────────────────────
-
-def _status_file(run_files_dir: Path, step_name: str) -> Path:
-    return run_files_dir / f"{step_name}.status"
-
-
-def _read_status(run_files_dir: Path, step_name: str) -> tuple[str, str]:
-    sf = _status_file(run_files_dir, step_name)
-    if not sf.exists():
-        return _PENDING, ""
-    raw = sf.read_text().strip()
-    if raw.startswith(_RUNNING):
-        parts = raw.split(":", 1)
-        if len(parts) == 2:
-            try:
-                os.kill(int(parts[1]), 0)
-                return _RUNNING, parts[1]
-            except (OSError, ValueError):
-                return _FAILED, "process died unexpectedly"
-        return _RUNNING, ""
-    if raw.startswith(_FAILED):
-        return _FAILED, raw[len(_FAILED):].lstrip(":").strip()
-    if raw == _SUCCEEDED:
-        return _SUCCEEDED, ""
-    return _PENDING, ""
-
-
-def _write_status(run_files_dir: Path, step_name: str, status: str, detail: str = "") -> None:
-    run_files_dir.mkdir(parents=True, exist_ok=True)
-    sf = _status_file(run_files_dir, step_name)
-    sf.write_text(f"{status}:{detail}" if detail else status)
-
-
 # ── Base class ────────────────────────────────────────────────────────────────
 
 class ISCE2_Base(LocalProcessor):
@@ -413,10 +156,14 @@ class ISCE2_Base(LocalProcessor):
 
     def __init__(self, config):
         super().__init__(config)
-        if self.config.container:
-            # Container mode re-invokes the whole pipeline inside the
-            # container, which brings its own ISCE2/topsStack install — no
-            # need (and no way, if the host has none) to discover one here.
+        if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
+            # HOST side of a container run: submit() just re-invokes the whole
+            # pipeline inside the container, so there is no need (and no way, if
+            # the host has no ISCE2) to discover topsStack/ISCE2 here. But the
+            # CONTAINER side (INSARHUB_CONTAINER_CHILD set) is where the stages
+            # actually run -- it MUST discover the image's own install, or
+            # _fix_cmd/_step_executor dereference these None paths
+            # ("'NoneType' has no attribute 'parent'") and no run command resolves.
             self._stack_bin = self._pythonpath_add = self._isce_app_bin = None
         else:
             _isce_home = Path(self.config.isce_home) if self.config.isce_home else None
@@ -857,6 +604,16 @@ class ISCE2_Base(LocalProcessor):
             self.save(silent=True)
             return
 
+        # Persist the jobs file up front, BEFORE the (possibly hours-long) loop.
+        # In container mode this executor runs synchronously inside submit(), so
+        # without this the jobs file was only written at line ~648 (after every
+        # step) -- meanwhile `refresh` found no isce_jobs.json and reported
+        # "Run submit first" for the whole run. The per-step .status markers
+        # already update live; refresh just needs the jobs file to exist so it
+        # knows the step list. (In forked local mode the parent also saves, so
+        # this is redundant-but-harmless there.)
+        self.save(silent=True)
+
         for step in pending_steps:
             status, _ = _read_status(self._run_files_dir, step)
             if status == _SUCCEEDED and self.config.skip_existing:
@@ -901,8 +658,24 @@ class ISCE2_Base(LocalProcessor):
         self.save(silent=True)
 
     def _fix_cmd(self, cmd: str) -> str:
-        """Resolve bare .py script names to absolute paths and prefix with sys.executable."""
+        """Resolve bare .py script names to absolute paths and prefix with sys.executable.
+
+        Also strips a trailing shell ``&``: stackSentinel's run files background
+        each command (``cmd &`` … ``wait``) for shell-level parallelism, but we
+        run every line ourselves under a ThreadPoolExecutor (see _run_step). A
+        backgrounded command run via ``subprocess.run("... &", shell=True)``
+        returns INSTANTLY with rc=0, orphaning the real work and masking every
+        failure as success -- e.g. the secondary SLC unpacks were killed before
+        they finished, leaving empty ``secondarys/*/`` dirs but a SUCCEEDED
+        step, which then cascaded into a confusing failure many steps later.
+        Removing the ``&`` makes each command run synchronously in its thread
+        and report its real exit code. (A bare ``wait`` line, left as-is, is a
+        harmless no-op run this way.)
+        """
         import sys
+        cmd = cmd.strip()
+        if cmd.endswith("&"):
+            cmd = cmd[:-1].rstrip()
         parts = cmd.split(None, 1)
         if not parts or not parts[0].endswith(".py"):
             return cmd
@@ -1392,8 +1165,26 @@ class ISCE2_Base(LocalProcessor):
         for every step (the old always-verbose behavior), or ls="01" (also
         accepts "1", "run_01", etc.) to show it for just that one step.
         """
+        # When submit() ran in the background or inside a container, staging (and
+        # the job list) happens in the worker, not on this host object -- so
+        # self.jobs is still empty here even though the run is live. The worker
+        # writes the authoritative job list to <isce_dir>/isce_jobs.json (see
+        # save()); fall back to it so refresh() reflects the running job. Only
+        # when self.jobs is empty: the CLI/GUI already load a (possibly custom)
+        # saved_job_path before calling refresh(), and must not have it silently
+        # replaced by the default file.
         if not self.jobs:
-            raise ValueError("No jobs loaded. Call submit() or load a saved job file.")
+            default_jobs = self.isce_dir / JOBS_FILE
+            if default_jobs.exists():
+                try:
+                    self._load(default_jobs)
+                except (json.JSONDecodeError, OSError):
+                    pass  # mid-write / unreadable -- fall back to whatever we have
+        if not self.jobs:
+            raise ValueError(
+                "No jobs loaded. Call submit() first, or (if submit ran in a "
+                f"container/background) wait for {self.isce_dir / JOBS_FILE} to be written."
+            )
 
         ls_step: str | None = None
         if isinstance(ls, str):
@@ -1607,7 +1398,9 @@ class ISCE2_Base(LocalProcessor):
 
     def retry(self) -> dict:
         """Re-run the first failed step and all subsequent steps."""
-        if getattr(self.config, "container", None):
+        # not INSARHUB_CONTAINER_CHILD: the container-side retry must run locally,
+        # never `docker run` again inside the docker-less image (see submit()).
+        if getattr(self.config, "container", None) and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             self._reinvoke_via_container("retry")
             return self.jobs
 
@@ -1686,20 +1479,35 @@ class ISCE2_Base(LocalProcessor):
                     f"-N {type(self).name} -w {self.workdir} {action}{step_args}")
 
         self._run_files_dir.mkdir(parents=True, exist_ok=True)
-        log_file = self._run_files_dir / "executor.log"
-        pid_file = self._run_files_dir / "executor.pid"
+        self.isce_dir.mkdir(parents=True, exist_ok=True)
+        log_file = self._paths.executor_log
+        pid_file = self._paths.executor_pid
         if os.name == "posix":
             pid = os.fork()
             if pid == 0:  # child — detach and run
                 try:
                     os.setsid()
                     own_pid = os.getpid()
-                    cli_cmd = _build_cli_cmd(host_pid=own_pid)
-                    wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+                    # Redirect stdout/stderr FIRST, before any work, so even a
+                    # failure in command construction lands in executor.log.
+                    # os._exit() below never flushes Python's buffered stderr,
+                    # so an uncaught exception here used to be silently lost,
+                    # leaving an empty executor.log and a "success" submit.
                     with open(log_file, "w") as _lf:
                         os.dup2(_lf.fileno(), sys.stdout.fileno())
                         os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    cli_cmd = _build_cli_cmd(host_pid=own_pid)
+                    wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
                     subprocess.run(wrapped, shell=True)
+                except BaseException as exc:
+                    import traceback
+                    try:
+                        with open(log_file, "a") as _lf:
+                            _lf.write(f"\n[executor] container run failed: {exc}\n")
+                            traceback.print_exc(file=_lf)
+                            _lf.flush()
+                    except Exception:
+                        pass
                 finally:
                     os._exit(0)
             # parent
@@ -1730,8 +1538,9 @@ class ISCE2_Base(LocalProcessor):
         child -- as soon as its main process exits. Running _step_executor
         directly instead keeps the container alive until the steps finish.
         """
-        pid_file = self._run_files_dir / "executor.pid"
-        log_file = self._run_files_dir / "executor.log"
+        self.isce_dir.mkdir(parents=True, exist_ok=True)
+        pid_file = self._paths.executor_pid
+        log_file = self._paths.executor_log
         if os.environ.get("INSARHUB_CONTAINER_CHILD"):
             self._step_executor(pending_steps)
             return
@@ -1740,10 +1549,22 @@ class ISCE2_Base(LocalProcessor):
             if pid == 0:  # child — detach and run
                 try:
                     os.setsid()
+                    # Redirect stdout/stderr FIRST, before any work, so a
+                    # failure lands in executor.log (os._exit below never
+                    # flushes Python's buffered stderr).
                     with open(log_file, "w") as _lf:
                         os.dup2(_lf.fileno(), sys.stdout.fileno())
                         os.dup2(_lf.fileno(), sys.stderr.fileno())
                     self._step_executor(pending_steps)
+                except BaseException as exc:
+                    import traceback
+                    try:
+                        with open(log_file, "a") as _lf:
+                            _lf.write(f"\n[executor] local run failed: {exc}\n")
+                            traceback.print_exc(file=_lf)
+                            _lf.flush()
+                    except Exception:
+                        pass
                 finally:
                     os._exit(0)
             # parent
@@ -1802,7 +1623,7 @@ class ISCE2_Base(LocalProcessor):
                     _write_status(self._run_files_dir, step, _FAILED, "cancelled by user")
             self.save(silent=True)
         else:
-            pid_file = self._run_files_dir / "executor.pid"
+            pid_file = self._paths.executor_pid
             if not pid_file.exists():
                 print(f"{Fore.YELLOW}No local executor running (no PID file).{Style.RESET_ALL}")
                 return

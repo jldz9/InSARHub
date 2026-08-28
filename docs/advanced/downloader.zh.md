@@ -364,7 +364,7 @@ Downloader.available()
 
 === "S1_Burst"
 
-    `S1_Burst` 是一个专用下载器，扩展自 `ASF_Base_Downloader`，用于 ASF 的 **SLC-BURST** 数据集。一个 burst 大约是完整 IW 切片（slice）的 1/9，因此面向 AOI 的 burst 堆叠比等效的 `S1_SLC` 搜索拉取的数据少得多——这正是 burst 处理的意义所在，也使 `ISCE3_Burst` / COMPASS 工作流在小目标区域上切实可行。请与 `ISCE3_Burst` 处理器和 `Dolphin_SBAS` 分析器配合使用。
+    `S1_Burst` 是一个专用下载器，扩展自 `ASF_Base_Downloader`，用于 ASF 的 **SLC-BURST** 数据集。一个 burst 大约是完整 IW 切片（slice）的 1/9，因此面向 AOI 的 burst 堆叠比等效的 `S1_SLC` 搜索拉取的数据少得多——这正是 burst 处理的意义所在，也使 `ISCE3_Burst` / COMPASS 工作流在小目标区域上切实可行。请与 `ISCE3_Burst` 处理器和 `ISCE3_Dolphin_PL` 分析器配合使用。
 
     搜索、过滤、摘要、足迹和配对选择与 `S1_SLC` 完全一致（它们复用 `ASF_Base_Downloader`）；只有 `download()` 不同——它将选中的 burst 颗粒交给 `burst2safe`，由后者合并注释/定标/噪声 XML 并写入清单，从而组装成合法的 `.SAFE` 目录。
 
@@ -448,3 +448,54 @@ Downloader.available()
             options:
                 show_source: false
                 heading_level: 5
+
+=== "NISAR_GSLC"
+
+    `NISAR_GSLC` 通过 ASF 搜索并下载 NISAR **L2 GSLC**（已地理编码的 SLC）产品。GSLC 是每个日期一帧的已地理编码复数 SLC，因此可直接送入 `ISCE3_NISAR` 处理器（无需配准、无需地理编码），再进入 `ISCE3_Dolphin_PL` 分析器。搜索、筛选、足迹与配对选择均复用 `ASF_Base_Downloader`；**不下载轨道** —— NISAR 产品自带状态矢量。
+
+    !!! note "NISAR 的检索维度不同于 Sentinel-1"
+        NISAR 的极化按**频段**记录，而非单一的 `polarization` 字段（ASF 将其留空）：请按 `mainBandPolarization`（频段 A，即用于 InSAR 的宽高分辨率主带）筛选，必要时用 `sideBandPolarization`（频段 B，5 MHz 电离层带）。`rangeBandwidth`（如 `40+5`）是采集模式 —— 在一个栈内应保持不变，以保证每个日期分辨率一致。`frameCoverage`（`FULL`/`PARTIAL`）、`relativeOrbit`（path）与 `frame` 组成其余维度。NISAR 产品还不返回 `beamMode`/`centerLat`/`centerLon`/`granuleType`/`md5sum`，其 `bytes` 是按文件的映射而非单个数字。
+
+    - **使用参数创建下载器**
+
+        ```python
+        gslc = Downloader.create('NISAR_GSLC',
+                                 intersectsWith=[-113.08, 37.68, -112.58, 38.07],
+                                 mainBandPolarization='HH+HV',
+                                 rangeBandwidth='40+5',
+                                 start='2025-11-01',
+                                 end='2026-09-01',
+                                 workdir='path/to/dir')
+        ```
+
+        ::: insarhub.config.defaultconfig.NISAR_GSLC_Config
+            options:
+                heading_level: 0
+                members: false
+
+    - **搜索 / 下载**
+
+        与 `S1_SLC` 相同 —— 均复用 `ASF_Base_Downloader`。下载得到的 `*GSLC*.h5` 帧落在 `workdir/slc/`，`ISCE3_NISAR` 从这里读取。
+
+        ```python
+        gslc.search()
+        gslc.download()
+        ```
+
+=== "NISAR_RSLC"
+
+    `NISAR_RSLC` 下载 NISAR **L1 RSLC**（雷达坐标 SLC）产品 —— 最原始的 InSAR 输入（频段 A 与 B），尚未地理编码。它面向 GMTSAR 的 NISAR 路径（`pre_proc_nsr` / `p2p_processing_nsr`，`SAT=NSR_A`）。检索维度与 `NISAR_GSLC` 相同（主/副带极化、range 带宽、frame 覆盖、path/frame），同样不下载轨道。
+
+    ::: insarhub.config.defaultconfig.NISAR_RSLC_Config
+        options:
+            heading_level: 0
+            members: false
+
+=== "NISAR_GUNW"
+
+    `NISAR_GUNW` 下载 NISAR **L2 GUNW**（已地理编码的解缠干涉图）—— 一种现成的、已地理编码、已解缠的干涉对产品，是 Sentinel-1 HyP3 GUNW 的 NISAR 对应物。它是单频段（仅在主带上生成），因此没有副带极化维度；`mainBandPolarization` 是单一取值（`HH`/`HV`/`VH`/`VV`）。设计上通过 MintPy 的 `prep_nisar` 加载器进入 MintPy（无需处理器）。
+
+    ::: insarhub.config.defaultconfig.NISAR_GUNW_Config
+        options:
+            heading_level: 0
+            members: false

@@ -25,7 +25,7 @@ The `-w` / `--workdir` flag pre-sets the working directory so you do not need to
 
 ## Running on HPC
 
-InSARHub backend is hosted by FastAPI which means you may run backend on HPC and use port forwarding to open the frontend on you local machine
+InSARHub backend is hosted by FastAPI which allows running backend on HPC and use port forwarding to open the frontend on you local machine. 
 
 **Steps:**
 

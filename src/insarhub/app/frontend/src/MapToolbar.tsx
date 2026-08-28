@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import type { Theme } from './theme'
 
 export type DrawMode = 'box' | 'polygon' | 'pin' | null
-export type Basemap  = 'osm' | 'satellite' | 'topo'
+export type Basemap  = 'satellite' | 'topo'
 
 interface Props {
   drawMode:         DrawMode

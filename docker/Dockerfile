@@ -1,6 +1,6 @@
 # InSARHub + ISCE2 processing container.
 #
-# Lets ISCE_S1 (and the MintPy-family analyzers) run via `--container
+# Lets ISCE2_S1 (and the MintPy-family analyzers) run via `--container
 # /path/to/image` instead of requiring ISCE2/MintPy installed on the host —
 # see src/insarhub/utils/container.py (wrap_container_cmd) for how InSARHub
 # re-invokes itself inside this image, bind-mounting the workdir at the same
@@ -10,8 +10,8 @@
 #   docker build -t insarhub-isce2:latest .
 #
 # Use:
-#   insarhub processor -N ISCE_S1 -w /path/to/workdir submit --container insarhub-isce2:latest
-#   insarhub analyzer  -N ISCE_SBAS -w /path/to/workdir run  --container insarhub-isce2:latest
+#   insarhub processor -N ISCE2_S1 -w /path/to/workdir submit --container insarhub-isce2:latest
+#   insarhub analyzer  -N ISCE2_Mintpy_SBAS -w /path/to/workdir run  --container insarhub-isce2:latest
 #
 # Publish to GHCR:
 #   docker tag insarhub-isce2:latest ghcr.io/jldz9/insarhub-isce2:latest
@@ -49,7 +49,7 @@ RUN mamba install -n insarhub -c conda-forge "numpy<2.0" insarhub \
 RUN mamba install -n insarhub -c conda-forge "numpy<2.0" isce2 \
     && mamba clean -afy
 
-# insarhub's ISCE_S1 processor discovers ISCE2 via two functions that expect
+# insarhub's ISCE2_S1 processor discovers ISCE2 via two functions that expect
 # different bases for the same conda env: _check_isce2() wants ISCE_HOME to
 # be the isce *package* dir (.../site-packages/isce, ISCE2's own documented
 # convention -- it looks for $ISCE_HOME/applications/topsApp.py), while

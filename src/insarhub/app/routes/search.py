@@ -13,6 +13,7 @@ from pathlib import Path
 
 import geopandas as gpd
 from shapely import wkt as shapely_wkt
+from shapely.geometry import shape as _shape
 from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 
 import insarhub.app.state as state
@@ -179,12 +180,96 @@ def _burst_job_dir(workdir: Path, path: int, stacks: list,
             getattr(s, "burst_id", None) if getattr(s, "burst_id", None) is not None else single_burst_id)
     return workdir / S1_Burst.folder_name(path)
 
+def _nisar_add_attr(umm: dict, name: str):
+    for a in (umm or {}).get("AdditionalAttributes", []) or []:
+        if isinstance(a, dict) and a.get("Name") == name:
+            vals = a.get("Values") or []
+            return vals[0] if vals else None
+    return None
+
+
+def _enrich_nisar_props(scene, props: dict) -> None:
+    """Fill scene-detail fields ASF leaves empty on NISAR products.
+
+    ASF's NISAR mapping keeps ``bytes`` as a per-file dict (not an int), drops
+    the MD5 (it lives in ``ArchiveAndDistributionInformation``), and has no
+    CENTER_LAT/LON, GRANULE_TYPE or BEAM_MODE attributes. Surface the main
+    product's size/MD5, the footprint centroid, the product-type description,
+    and the range bandwidth (NISAR's resolution/mode discriminator) so the
+    scene-detail panel shows real values instead of "—" / NaN.
+    """
+    fname = props.get("fileName")
+    raw_bytes = props.get("bytes")
+    umm = getattr(scene, "umm", None) or {}
+
+    # Main product size + MD5 from the CMR archive entries.
+    checksums = {}
+    archive = (umm.get("DataGranule", {}).get("ArchiveAndDistributionInformation") or [])
+    for entry in archive:
+        if not isinstance(entry, dict):
+            continue
+        cs = entry.get("Checksum") or {}
+        if isinstance(cs, dict) and cs.get("Algorithm") == "MD5":
+            checksums[entry.get("Name")] = cs.get("Value")
+
+    if isinstance(raw_bytes, dict):
+        entry = raw_bytes.get(fname) if fname else None
+        if isinstance(entry, dict) and isinstance(entry.get("bytes"), (int, float)):
+            props["bytes"] = int(entry["bytes"])
+        else:
+            props["bytes"] = sum(
+                v.get("bytes", 0) for v in raw_bytes.values()
+                if isinstance(v, dict) and isinstance(v.get("bytes"), (int, float))) or None
+        if fname:
+            props["md5sum"] = checksums.get(fname)
+
+    # Footprint centroid → center lat/lon (NISAR has no CENTER_* attributes).
+    if props.get("centerLat") is None or props.get("centerLon") is None:
+        try:
+            centroid = _shape(scene.geometry).centroid
+            if props.get("centerLat") is None:
+                props["centerLat"] = centroid.y
+            if props.get("centerLon") is None:
+                props["centerLon"] = centroid.x
+        except Exception:
+            pass
+
+    # Granule type: NISAR carries PRODUCT_TYPE_DESC ("Geocoded Single Look Complex").
+    if not props.get("granuleType"):
+        props["granuleType"] = _nisar_add_attr(umm, "PRODUCT_TYPE_DESC") or props.get("processingLevel")
+
+    # Beam mode: NISAR has no beam-mode concept; surface the range bandwidth
+    # (e.g. "40+5") as the closest "acquisition mode" discriminator.
+    if not props.get("beamModeType"):
+        rb = props.get("rangeBandwidth")
+        if isinstance(rb, (list, tuple)):
+            props["beamModeType"] = "+".join(str(x) for x in rb) or None
+        elif rb:
+            props["beamModeType"] = str(rb)
+
+    # s3Urls: show only the main product's direct-access URI, not every
+    # browse/private/QA side file ASF lists.
+    if isinstance(props.get("s3Urls"), list) and fname:
+        props["s3Urls"] = [u for u in props["s3Urls"] if isinstance(u, str) and u.endswith(fname)]
+
+
 def _to_geojson(results: dict) -> dict:
     features = []
     for stack_key, scenes in results.items():
         for scene in scenes:
             try:
                 props = dict(scene.properties)
+                # NISAR: ASF leaves `polarization` empty (it's carried in the
+                # granule name, e.g. ..._4005_DHDH_A_...) and has no beamMode
+                # concept -- so the scene detail showed "--". Fill polarization
+                # from the name (field 10) and surface frameCoverage so the
+                # detail panel has real values.
+                _name = props.get("sceneName") or props.get("fileID") or ""
+                if _name.startswith("NISAR"):
+                    _parts = _name.split("_")
+                    if not props.get("polarization") and len(_parts) > 9:
+                        props["polarization"] = _parts[9]   # DHDH / SHSH / DVDV …
+                    _enrich_nisar_props(scene, props)
                 # ASF nests burst identity under properties['burst']; flatten
                 # it so the frontend can render a burst stack (path, subswath,
                 # burst index) without parsing the "_stack" tuple string.
@@ -300,6 +385,17 @@ async def _run_search(job_id: str, session_id: str, req: SearchRequest):
                     "session_id": session_id,
                     "geojson":    _to_geojson(result.data),
                     "summary":    result.message,
+                })
+            elif "does not return any result" in (result.message or "").lower() \
+                    or "no result" in (result.message or "").lower():
+                # A valid search that simply matched nothing is NOT an error --
+                # return an empty result (0 stacks) so the panel refreshes to
+                # empty instead of leaving the previous search's footprints up.
+                state._sessions[session_id] = downloader
+                _finish_job(job_id, status="done", message="0 stacks found", data={
+                    "session_id": session_id,
+                    "geojson":    {"type": "FeatureCollection", "features": []},
+                    "summary":    "0 stacks found",
                 })
             else:
                 _finish_job(job_id, status="error", progress=0, message=result.message)
@@ -496,10 +592,17 @@ async def add_merged_job(req: AddMergedJobRequest):
     path    = next(iter(paths))
     frames  = [s.frame for s in req.stacks]
     workdir = Path(req.workdir).expanduser().resolve()
+    # A single selected frame is NOT a merge: name it p<path>_f<frame> exactly
+    # like add_job, so the folder (and its later download) never gets the
+    # p<path>_merged_f... layout. merge_dir / merge=True naming is only
+    # meaningful for 2+ frames sharing one path.
+    single_frame = (not _is_burst(req.downloaderType)) and len(req.stacks) == 1
     if _is_burst(req.downloaderType):
         # One burst -> per-burst folder; several -> one per-track folder
         # (SAFEs assemble per date+path, the unit ISCE3_Burst consumes).
         subdir = _burst_job_dir(workdir, path, req.stacks)
+    elif single_frame:
+        subdir = StackPaths(workdir).stack_dir(path, frames[0])
     else:
         subdir = StackPaths(workdir).merge_dir(path, frames)
     subdir.mkdir(parents=True, exist_ok=True)
@@ -522,6 +625,11 @@ async def add_merged_job(req: AddMergedJobRequest):
         # selected stack's platform would silently restrict every future
         # re-search on this folder to one satellite and starve the network.
     }
+    if single_frame:
+        # One frame -> a normal single-stack config: pin the frame so re-search
+        # and download stay per-frame (merge=False) and match the p<path>_f<frame>
+        # folder created above.
+        merged_cfg["frame"] = frames[0]
     if _is_burst(req.downloaderType):
         # Persist the exact burst positions the user selected so the folder's
         # re-search (select_pairs / download) stays limited to them instead of

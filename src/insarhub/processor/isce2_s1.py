@@ -323,7 +323,15 @@ class ISCE2_S1(ISCE2_Base):
             retry() does. Default (None): normal behavior, run every step
             not already SUCCEEDED.
         """
-        if self.config.container:
+        # `not INSARHUB_CONTAINER_CHILD`: when this submit runs *inside* the
+        # container (re-invoked by _reinvoke_via_container, which sets that env
+        # var), config.container is still set, so without this guard it would
+        # run `docker run` AGAIN inside the image -- which has no docker CLI --
+        # giving "docker: not found". The child must run the stages locally.
+        # GMTSAR guards the same way; ISCE2/ISCE3 were missing it, which broke
+        # GUI container submits (the app persists `container` into the config the
+        # container-side re-reads). See ISCE3_Base.submit for the full trace.
+        if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             self._reinvoke_via_container("submit", steps)
             return self.jobs
 

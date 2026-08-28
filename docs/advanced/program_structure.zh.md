@@ -17,9 +17,12 @@ Web UI 和命令行均为同一 Python API 的轻量封装，在浏览器中运�
 ```
 Downloader          Processor            Analyzer
 ─────────────────   ──────────────────   ─────────────────────────
-S1_SLC           →  Hyp3_S1           →  Hyp3_SBAS
-                 →  ISCE2_S1          →  ISCE_SBAS
-                 →  GMTSAR_S1         →  GMTSAR_MINTPY_SBAS
+S1_SLC           →  Hyp3_S1           →  Hyp3_Mintpy_SBAS
+                 →  ISCE2_S1          →  ISCE2_Mintpy_SBAS
+                 →  GMTSAR_S1         →  GMTSAR_Mintpy_SBAS
                                       →  GMTSAR_SBAS
-S1_Burst         →  ISCE3_Burst       →  Dolphin_SBAS
+S1_Burst         →  ISCE3_Burst       →  ISCE3_Dolphin_PL
+NISAR_GSLC       →  ISCE3_NISAR       →  ISCE3_Dolphin_PL
 ```
+
+任何本地后端都可以在容器内运行，而非在主机上——`--container` 的工作原理参见[容器运行](container.md)。

@@ -127,6 +127,21 @@ thread-parallel inside one process gets one job sized to match.
     until `ifg` has run. Submitting the whole chain is fine — those stages are
     reported as deferred, with the exact command to run once their inputs exist.
 
+=== "ISCE3_NISAR"
+
+    NISAR GSLC is already geocoded, so the COMPASS stages (`dem`, `tec`, `cslc`,
+    `static`) are dropped — only three stages run:
+
+    | stage | jobs | unit |
+    |---|---|---|
+    | `crop` | **one per GSLC date** | cut each frame to the AOI (a cheap VRT `gdal_translate`) |
+    | `ifg` | **1** | phase linking needs the whole covariance; no per-pair unit (a single `wrapped_phase.run` over the stack) |
+    | `stitch` | **one per pair** | |
+    | `unwrap` | 1 prep + **one per pair** | the prep builds the water mask once, before N readers race on it |
+
+    Same deferral rule as `ISCE3_Burst`: per-pair stages are enumerated from
+    `ifg_manifest.json` and reported as deferred until `ifg` has run.
+
 === "GMTSAR_S1"
 
     **p2p mode** (`stack_mode=False`, the default) is one job per pair. Pairs

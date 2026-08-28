@@ -90,7 +90,7 @@ Each MintPy processing step is shown with a checkbox. Select the steps you want 
 
 ### Config (per-analyzer)
 
-Each analyzer type stores its own configuration independently. Changes to `Hyp3_SBAS` config never affect `Mintpy_SBAS_Base` config and vice versa. Open via the **Config** button or Settings → Analyzer tab.
+Each analyzer type stores its own configuration independently. Changes to `Hyp3_Mintpy_SBAS` config never affect `Mintpy_SBAS_Base` config and vice versa. Open via the **Config** button or Settings → Analyzer tab.
 
 ---
 
@@ -134,6 +134,27 @@ Click any point on the velocity overlay to extract and plot the displacement tim
 - Displacement is shown in **mm**, relative to the first acquisition date (first date = 0)
 - Dates are shown on the X axis
 - The chart follows the app's dark/light theme
+
+---
+
+## Raw Data & Result Viewers
+
+Two panel buttons overlay georeferenced rasters on the map, in addition to the MintPy viewer above.
+
+### Downloader → View Data
+
+Previews the **raw downloaded** scenes under `slc/`, using each product's built-in georeferenced quicklook — fast, no full-resolution decode:
+
+| Source | Preview |
+|--------|---------|
+| Sentinel-1 SLC / burst | `preview/quick-look.png` placed at the 4 ground corners from `map-overlay.kml` (a rotated overlay following the swath) |
+| NISAR GSLC | a downsampled amplitude of the geocoded grid, computed once and cached under `slc/.preview_cache/` (first open takes a few seconds) |
+
+### Processor → View Result
+
+Overlays the **processed interferograms**. Works for any geocoded output: HyP3 (zipped GeoTIFFs), ISCE3 (`unwrapped/`, `interferograms/` GeoTIFFs), and GMTSAR (`*_ll.grd`). ISCE2 stays in radar geometry and is not shown here — geocode it with the Analyzer first.
+
+> The map overlay supports both axis-aligned bounds and an explicit 4-corner quad (`RasterOverlay.corners`), so tilted previews like a Sentinel-1 swath are placed correctly.
 
 ---
 

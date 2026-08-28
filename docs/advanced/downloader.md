@@ -364,7 +364,7 @@ Downloader.available()
 
 === "S1_Burst"
 
-    `S1_Burst` is a specialized downloader that extends `ASF_Base_Downloader` for ASF's **SLC-BURST** dataset. A burst is roughly 1/9th of a full IW slice, so an AOI-limited burst stack pulls far less data than an equivalent `S1_SLC` search — the whole point of burst-based processing, and what makes the `ISCE3_Burst` / COMPASS workflow practical over a small target. Pair it with the `ISCE3_Burst` processor and the `Dolphin_SBAS` analyzer.
+    `S1_Burst` is a specialized downloader that extends `ASF_Base_Downloader` for ASF's **SLC-BURST** dataset. A burst is roughly 1/9th of a full IW slice, so an AOI-limited burst stack pulls far less data than an equivalent `S1_SLC` search — the whole point of burst-based processing, and what makes the `ISCE3_Burst` / COMPASS workflow practical over a small target. Pair it with the `ISCE3_Burst` processor and the `ISCE3_Dolphin_PL` analyzer.
 
     Search, filter, summary, footprint and pair selection behave exactly as for `S1_SLC` (they reuse `ASF_Base_Downloader`); only `download()` differs — it hands the selected burst granules to `burst2safe`, which assembles them into valid `.SAFE` directories by merging the annotation/calibration/noise XML and writing a manifest.
 
@@ -448,3 +448,54 @@ Downloader.available()
             options:
                 show_source: false
                 heading_level: 5
+
+=== "NISAR_GSLC"
+
+    `NISAR_GSLC` searches and downloads NISAR **L2 GSLC** (geocoded SLC) products via ASF. A GSLC is one already-geocoded complex SLC frame per date, so it feeds the `ISCE3_NISAR` processor directly (no coregistration, no geocoding) and on to the `ISCE3_Dolphin_PL` analyzer. Search, filter, footprint and pair selection reuse `ASF_Base_Downloader`; there is **no orbit download** — NISAR products carry their own state vectors.
+
+    !!! note "NISAR facets differ from Sentinel-1"
+        NISAR carries polarization **per frequency band**, not in a single `polarization` field (which ASF leaves null): filter on `mainBandPolarization` (frequency A, the wide high-resolution band used for InSAR) and, where needed, `sideBandPolarization` (frequency B, the 5 MHz band for ionosphere). `rangeBandwidth` (e.g. `40+5`) is the acquisition mode — keep it constant across a stack so every date has the same resolution. `frameCoverage` (`FULL`/`PARTIAL`), `relativeOrbit` (path) and `frame` complete the facets. NISAR products also report no `beamMode`/`centerLat`/`centerLon`/`granuleType`/`md5sum`, and their `bytes` is a per-file map rather than a single number.
+
+    - **Create downloader with parameters**
+
+        ```python
+        gslc = Downloader.create('NISAR_GSLC',
+                                 intersectsWith=[-113.08, 37.68, -112.58, 38.07],
+                                 mainBandPolarization='HH+HV',
+                                 rangeBandwidth='40+5',
+                                 start='2025-11-01',
+                                 end='2026-09-01',
+                                 workdir='path/to/dir')
+        ```
+
+        ::: insarhub.config.defaultconfig.NISAR_GSLC_Config
+            options:
+                heading_level: 0
+                members: false
+
+    - **Search / Download**
+
+        Identical to `S1_SLC` — these reuse `ASF_Base_Downloader`. The downloaded `*GSLC*.h5` frames land in `workdir/slc/`, where `ISCE3_NISAR` reads them.
+
+        ```python
+        gslc.search()
+        gslc.download()
+        ```
+
+=== "NISAR_RSLC"
+
+    `NISAR_RSLC` downloads NISAR **L1 RSLC** (radar-coordinate SLC) products — the rawest InSAR input (frequency A and B), not yet geocoded. It targets GMTSAR's NISAR path (`pre_proc_nsr` / `p2p_processing_nsr`, `SAT=NSR_A`). Same ASF facets as `NISAR_GSLC` (main/side-band polarization, range bandwidth, frame coverage, path/frame), no orbit download.
+
+    ::: insarhub.config.defaultconfig.NISAR_RSLC_Config
+        options:
+            heading_level: 0
+            members: false
+
+=== "NISAR_GUNW"
+
+    `NISAR_GUNW` downloads NISAR **L2 GUNW** (geocoded unwrapped interferograms) — a ready-made geocoded, unwrapped interferogram pair product, the NISAR analog of a HyP3 Sentinel-1 GUNW. It is single-band (formed on the main band only), so there is no side-band-polarization facet; `mainBandPolarization` is a single value (`HH`/`HV`/`VH`/`VV`). Intended to feed MintPy through its `prep_nisar` loader (no processor needed).
+
+    ::: insarhub.config.defaultconfig.NISAR_GUNW_Config
+        options:
+            heading_level: 0
+            members: false

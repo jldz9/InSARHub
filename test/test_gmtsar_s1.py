@@ -21,7 +21,7 @@ Covers:
     command lines (checked directly against
     gmtsar/python/tests/recipes/README_S1_Ridgecrest_EQ.txt during real
     end-to-end validation, see docs/gmtsar_s1_notes/OPEN_ISSUES.md)
-  - _status_dir()/_read_status(): SUCCEEDED/FAILED/RUNNING/PENDING via
+  - _status_dir()/_read_marker_status(): SUCCEEDED/FAILED/RUNNING/PENDING via
     marker files
   - _subprocess_env(): prepends gmtsar_env_bin + gmtsar_root/bin to PATH
   - submit()/refresh() with subprocess.run mocked to a no-op success
@@ -37,8 +37,15 @@ import pytest
 
 
 def _wait_submit(proc, timeout=5.0):
+    # With INSARHUB_CONTAINER_CHILD set (see the autouse fixture on TestSubmit),
+    # submit runs synchronously via _run_local_or_sync and there is no background
+    # thread to join — this is then a no-op. The getattr keeps it working for any
+    # legacy async path that still forks a self._thread.
+    thread = getattr(proc, "_thread", None)
+    if not thread:
+        return
     deadline = time.monotonic() + timeout
-    while proc._thread and proc._thread.is_alive() and time.monotonic() < deadline:
+    while thread.is_alive() and time.monotonic() < deadline:
         time.sleep(0.05)
 
 
@@ -88,15 +95,16 @@ def _make_gmtsar_s1(tmp_path: Path, frame_mode: bool = False, **cfg_kwargs):
     dem = tmp_path / "dem.grd"
     dem.write_bytes(b"fake-dem")
 
-    # the fake scene only has IW2 measurement/annotation, and the default
-    # subswath is now "1 2 3" (full frame) -- pin to 2 unless a test overrides
-    cfg_kwargs.setdefault("subswath", 2)
+    # `frame_mode` was replaced by the subswath COUNT: multi-subswath (full
+    # frame) is subswath "1 2 3"; single is one IW number. Translate the legacy
+    # flag so these tests keep expressing intent. The fake scene only has IW2,
+    # so single-subswath tests pin to 2 unless a test overrides.
+    cfg_kwargs.setdefault("subswath", "1 2 3" if frame_mode else 2)
     cfg = GMTSAR_S1_Config(
         workdir=str(tmp_path / "work"),
         slc_dir=str(raw),
         orbit_dir=str(raw),
         dem_path=str(dem),
-        frame_mode=frame_mode,
         gmtsar_root="/opt/gmtsar",
         gmtsar_env_bin="/opt/conda/envs/gmtsar/bin",
         **cfg_kwargs,
@@ -222,26 +230,34 @@ class TestBuildCmd:
 
 class TestStatusMarkers:
     def test_read_status_pending_when_dir_absent(self, tmp_path):
-        from insarhub.processor.gmtsar_s1 import _read_status, _PENDING
-        assert _read_status(tmp_path / "does_not_exist") == _PENDING
+        from insarhub.processor.gmtsar_s1 import _read_marker_status, _PENDING
+        assert _read_marker_status(tmp_path / "does_not_exist") == _PENDING
 
-    def test_read_status_running_when_dir_exists_no_marker(self, tmp_path):
-        from insarhub.processor.gmtsar_s1 import _read_status, _RUNNING
+    def test_read_status_pending_when_dir_exists_no_marker(self, tmp_path):
+        # A bare status dir (created at submit for a PENDING pair) is NOT
+        # running -- RUNNING needs an explicit .running marker.
+        from insarhub.processor.gmtsar_s1 import _read_marker_status, _PENDING
         d = tmp_path / "run"
         d.mkdir()
-        assert _read_status(d) == _RUNNING
+        assert _read_marker_status(d) == _PENDING
+
+    def test_read_status_running_with_marker(self, tmp_path):
+        from insarhub.processor.gmtsar_s1 import _write_marker_status, _read_marker_status, _RUNNING
+        d = tmp_path / "run"
+        _write_marker_status(d, _RUNNING)
+        assert _read_marker_status(d) == _RUNNING
 
     def test_write_then_read_succeeded(self, tmp_path):
-        from insarhub.processor.gmtsar_s1 import _write_status, _read_status, _SUCCEEDED
+        from insarhub.processor.gmtsar_s1 import _write_marker_status, _read_marker_status, _SUCCEEDED
         d = tmp_path / "run"
-        _write_status(d, _SUCCEEDED)
-        assert _read_status(d) == _SUCCEEDED
+        _write_marker_status(d, _SUCCEEDED)
+        assert _read_marker_status(d) == _SUCCEEDED
 
     def test_write_then_read_failed(self, tmp_path):
-        from insarhub.processor.gmtsar_s1 import _write_status, _read_status, _FAILED
+        from insarhub.processor.gmtsar_s1 import _write_marker_status, _read_marker_status, _FAILED
         d = tmp_path / "run"
-        _write_status(d, _FAILED)
-        assert _read_status(d) == _FAILED
+        _write_marker_status(d, _FAILED)
+        assert _read_marker_status(d) == _FAILED
 
     def test_status_dir_frame_mode_is_merge(self, tmp_path):
         proc = _make_gmtsar_s1(tmp_path, frame_mode=True)
@@ -279,7 +295,16 @@ class TestStatusMarkers:
 
 class TestSubprocessEnv:
     def test_prepends_env_bin_and_gmtsar_root_bin(self, tmp_path):
-        proc = _make_gmtsar_s1(tmp_path, frame_mode=False)
+        # __init__ self-heals gmtsar_root/gmtsar_env_bin: a configured path that
+        # isn't a real built install (no bin/cut_slc / no `gmt`) is discarded and
+        # a real one is auto-detected. Pin the resolvers so this test exercises
+        # only the PATH-prepend logic with the configured values, not discovery.
+        from pathlib import Path as _P
+        with patch("insarhub.processor.gmtsar_s1._find_gmtsar_root",
+                   return_value=_P("/opt/gmtsar")), \
+             patch("insarhub.processor.gmtsar_s1._find_gmtsar_env_bin",
+                   return_value=_P("/opt/conda/envs/gmtsar/bin")):
+            proc = _make_gmtsar_s1(tmp_path, frame_mode=False)
         env = proc._subprocess_env()
         assert env["GMTSAR"] == "/opt/gmtsar"
         path_entries = env["PATH"].split(":")
@@ -292,6 +317,15 @@ class TestSubprocessEnv:
 # ===========================================================================
 
 class TestSubmit:
+    @pytest.fixture(autouse=True)
+    def _sync_submit(self, monkeypatch):
+        # submit() now forks a detached process for local runs (executor.pid)
+        # and only runs synchronously in-process when INSARHUB_CONTAINER_CHILD
+        # is set (see _run_local_or_sync). Force the synchronous path so the
+        # mocked subprocess.run and the post-run assertions observe the work in
+        # this process instead of a child that can't share the mock or state.
+        monkeypatch.setenv("INSARHUB_CONTAINER_CHILD", "1")
+
     def test_submit_single_subswath_extracts_and_runs(self, tmp_path):
         proc = _make_gmtsar_s1(tmp_path, frame_mode=False, subswath=2, polarization="vv")
 

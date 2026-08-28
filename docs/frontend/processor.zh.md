@@ -99,18 +99,15 @@
 
 ---
 
-## 查看数据
+## 查看结果
 
-干涉图下载完成后，点击处理器面板中的**查看数据**打开数据浏览器。这列出了从下载的 `.zip` 压缩包中提取的所有 HyP3 产品文件，并可直接在地图上叠加显示。
+干涉图生成后，点击处理器面板中的 **View Result** 打开数据浏览器。它列出已处理的产品文件，并可直接在地图上叠加显示。
 
-!!! warning "不支持 ISCE2"
-    **查看数据**仅适用于 HyP3 输出。ISCE2 干涉图存储在雷达（距离/方位角）坐标系中，在 MintPy 完成地理编码之前不具备地理坐标系统，无法直接叠加显示。请使用**分析器**面板对 ISCE2 结果进行地理编码和查看。
+!!! note "仅限地理编码结果"
+    **View Result** 叠加地理编码后的产品：HyP3 干涉图、ISCE3（`unwrapped/`、`interferograms/`）以及 GMTSAR（`*_ll.grd`）。**ISCE2** 干涉图存储在雷达（距离/方位角）坐标系中，在 MintPy 完成地理编码之前不具备地理坐标系统——请使用**分析器**面板对其进行地理编码后查看。
 
-![查看数据按钮](fig/view_data_button_light.png#only-light){: .doc-img style="width: 60%"}
-![查看数据按钮](fig/view_data_button_dark.png#only-dark){: .doc-img style="width: 60%"}
-/// caption
-处理器面板中的查看数据按钮。
-///
+!!! tip "原始数据预览"
+    若要预览**下载的原始**场景，请改用**下载器**面板上的 **View Data**——它会将每个场景的地理配准快视图（Sentinel-1 SLC/burst）或幅度图（NISAR GSLC）叠加到地图上。
 
 每个干涉图配对列出其可用的产品文件：
 
@@ -187,6 +184,40 @@
 
     提交成功后，任务文件夹抽屉中会出现**处理器**标签。
 
+=== "GMTSAR"
+
+    ![处理器选择](fig/processor_dialog_GMTSAR_light.png#only-light){: .doc-img style="width: 60%"}
+    ![处理器选择](fig/processor_dialog_GMTSAR_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    选择 `GMTSAR_S1` 通过 GMTSAR 进行本地 / HPC 处理。
+    ///
+
+    选择 `GMTSAR_S1` 通过 [GMTSAR](https://github.com/gmtsar/gmtsar) 进行本地 / HPC 处理。与 ISCE2 类似，它在下载的 SLC `.SAFE` 文件上运行，并支持 **HPC 模式**（SLURM）和容器镜像。
+
+    可选择 **P2P**（逐对干涉图，每对一个作业——默认）或**堆叠模式**（共享的配准堆叠，采用 ISCE2 风格的 `run_NN_<stage>` 命令文件）。配置 AOI、子条带和解缠阈值，然后点击**提交**。启用**试运行**可预览而不实际执行。
+
+    !!! note "需要 SLC 文件"
+        GMTSAR 在本地处理 SLC `.SAFE` 文件——提交前请确保场景已下载到 SLC 目录。
+
+    提交成功后，任务文件夹抽屉中会出现**处理器**标签。
+
+=== "ISCE3"
+
+    ![处理器选择](fig/processor_dialog_ISCE3_light.png#only-light){: .doc-img style="width: 60%"}
+    ![处理器选择](fig/processor_dialog_ISCE3_dark.png#only-dark){: .doc-img style="width: 60%"}
+    /// caption
+    选择某个 ISCE3 处理器（`ISCE3_Burst` 或 `ISCE3_NISAR`）通过 dolphin 进行相位链接处理。
+    ///
+
+    选择某个 ISCE3 处理器，通过 [dolphin](https://github.com/isce-framework/dolphin) 进行相位链接处理。具体出现哪一个取决于源数据：
+
+    - `ISCE3_Burst` — 来自 `S1_Burst` 下载（Sentinel-1 burst）。
+    - `ISCE3_NISAR` — 来自 `NISAR_GSLC` 下载（已地理编码的 NISAR GSLC）。
+
+    ISCE3 会从组装好的堆叠自行构建干涉图网络（无需配对选择），在本地运行 crop → 相位链接 → 干涉图 → 解缠各阶段，并可选 **HPC 模式**与容器。配置 AOI 和相位链接选项后点击**提交**。
+
+    提交成功后，任务文件夹抽屉中会出现**处理器**标签。
+
 有关所有参数的完整说明，请参阅[处理器参考](../advanced/processor.md)。
 
 ---
@@ -228,6 +259,32 @@
 
     如有步骤显示 `FAILED`，点击**重试**重新运行。点击**取消**可停止本地进程或取消 SLURM 任务。
 
+=== "GMTSAR"
+
+    点击**刷新**从磁盘读取阶段/作业状态。阶段为 `unzip`、`dem`、`p2p`（P2P 模式）或 `align`、`topo`、`intf`、`merge`、`unwrap`（堆叠模式）。
+
+    | 状态 | 含义 |
+    |--------|---------|
+    | `RUNNING` | 阶段正在执行 |
+    | `SUCCEEDED` | 阶段成功完成 |
+    | `FAILED` | 阶段失败 — 点击**重试**重新运行 |
+    | `PENDING` | 阶段等待前序阶段完成 |
+
+    展开阶段可查看其逐作业状态。如有阶段显示 `FAILED`，点击**重试**重新运行。点击**取消**可停止本地进程或取消 SLURM 任务。
+
+=== "ISCE3"
+
+    点击**刷新**从磁盘读取各阶段状态（`crop`、`ifg`、`stitch`、`unwrap`）。
+
+    | 状态 | 含义 |
+    |--------|---------|
+    | `RUNNING` | 阶段正在执行 |
+    | `SUCCEEDED` | 阶段成功完成 |
+    | `FAILED` | 阶段失败 — 点击**重试**重新运行 |
+    | `PENDING` | 阶段等待前序阶段完成 |
+
+    如有阶段显示 `FAILED`，点击**重试**重新运行。点击**取消**可停止运行。
+
 ---
 
 ## 其他操作
@@ -250,6 +307,24 @@
     | **重试** | 重新运行所有失败步骤 |
     | **取消** | 停止本地进程或取消 SLURM 任务 |
     | **监控** | 持续轮询步骤状态直到所有步骤完成 |
+
+=== "GMTSAR"
+
+    | 按钮 | 说明 |
+    |--------|-------------|
+    | **刷新** | 从磁盘读取阶段/作业状态 |
+    | **重试** | 重新运行所有失败阶段 |
+    | **取消** | 停止本地进程或取消 SLURM 任务 |
+    | **监控** | 持续轮询阶段状态直到所有阶段完成 |
+
+=== "ISCE3"
+
+    | 按钮 | 说明 |
+    |--------|-------------|
+    | **刷新** | 从磁盘读取各阶段状态 |
+    | **重试** | 重新运行所有失败阶段 |
+    | **取消** | 停止本地进程或取消 SLURM 任务 |
+    | **监控** | 持续轮询阶段状态直到所有阶段完成 |
 
 ---
 

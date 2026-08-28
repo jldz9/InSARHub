@@ -85,7 +85,7 @@ Single-stack layout — when only one track/frame is found, all files are writte
 
     | analyzer | output dir | contents |
     |---|---|---|
-    | `GMTSAR_MINTPY_SBAS` | `gmtsar_mintpy/` | MintPy `smallbaselineApp` outputs (`timeseries*.h5`, `velocity.h5`, …) |
+    | `GMTSAR_Mintpy_SBAS` | `gmtsar_mintpy/` | MintPy `smallbaselineApp` outputs (`timeseries*.h5`, `velocity.h5`, …) |
     | `GMTSAR_SBAS` | `gmtsar_sbas/` | `disp_*.grd` per date, `vel.grd` linear velocity |
 
 === "ISCE3_Burst"
@@ -101,8 +101,26 @@ Single-stack layout — when only one track/frame is found, all files are writte
     ├── cslc/                           # geocoded CSLC per burst-date (COMPASS)
     ├── ifgrams/                        # interferograms (dolphin)
     ├── stitched/                       # per-pair merged bursts
-    ├── timeseries/                     # dolphin timeseries output (Dolphin_SBAS)
+    ├── timeseries/                     # dolphin timeseries output (ISCE3_Dolphin_PL)
     ├── isce3_burst_jobs.json           # saved job state (per stage)
+    └── .stage_status/                  # per-stage .succeeded/.failed markers
+    ```
+
+=== "ISCE3_NISAR"
+
+    ```
+    workdir/
+    ├── insarhub_config.json
+    ├── slc/                            # NISAR L2 GSLC granules (*.h5), one per date
+    ├── cropped_gslc/                   # AOI-cropped GSLC VRTs (the `crop` stage)
+    ├── slc_stack.vrt                   # dolphin input stack over the cropped GSLCs
+    ├── bounds_mask.tif, combined_mask.tif
+    ├── linked_phase/                   # phase-linking + temporal coherence (dolphin)
+    ├── PS/                             # persistent-scatterer amplitude dispersion
+    ├── interferograms/                 # geocoded interferograms + correlation (dolphin)
+    ├── unwrapped/                      # geocoded unwrapped phase + connected components
+    ├── timeseries/                     # dolphin timeseries output (ISCE3_Dolphin_PL)
+    ├── isce3_nisar_jobs.json           # saved job state (per stage)
     └── .stage_status/                  # per-stage .succeeded/.failed markers
     ```
 
@@ -121,7 +139,7 @@ workdir/
 │   └── ...                       # same structure as single-stack
 ```
 
-**Merged run** — pass `--merge` to combine every frame sharing one relative orbit (path) into a single stack instead of one subfolder per frame (see [Merging multiple frames](../quickstart/cli.md#merging-multiple-frames)). The folder name encodes every constituent frame number so two independent merge groups on the same path never collide:
+**Merged run** — pass `--merge` to combine every frame sharing one relative orbit (path) into a single stack instead of one subfolder per frame (see [Merging multiple frames](cli_reference.md#merging-multiple-frames)). The folder name encodes every constituent frame number so two independent merge groups on the same path never collide:
 
 ```
 workdir/
@@ -244,7 +262,7 @@ Central pipeline config that accumulates as each stage runs. All keys are option
       "looks": "20x4"
     }
   },
-  "analyzer": "Hyp3_SBAS"
+  "analyzer": "Hyp3_Mintpy_SBAS"
 }
 ```
 

@@ -107,7 +107,7 @@ conda install -c conda-forge "numpy<2.0" isce2
 
 > The explicit `numpy<2.0` keeps conda's solver from re-resolving numpy upward when adding isce2 to an already-created environment. See the [ISCE2 installation guide](https://github.com/isce-framework/isce2) for details.
 >
-> Alternatively, skip installing ISCE2 locally entirely and run ISCE2_S1 processing inside a container via `--container` — see `Dockerfile` for a ready-to-build image with ISCE2 + insarhub included.
+> Alternatively, skip installing ISCE2 locally entirely and run ISCE2_S1 processing inside a container via `--container` — see `docker/Dockerfile` for a ready-to-build image with ISCE2 + insarhub included.
 
 ## Requirements
 - Python >=3.11,<3.13
@@ -230,7 +230,7 @@ Two analyzers are available, matched to the processor that generated the interfe
 #### HyP3 outputs
 
 ```python
-analyzer = Analyzer.create('Hyp3_SBAS', workdir="/your/work/dir")
+analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', workdir="/your/work/dir")
 analyzer.prep_data()   # unzip and clip HyP3 products
 analyzer.run()         # full MintPy SBAS pipeline
 ```
@@ -238,7 +238,7 @@ analyzer.run()         # full MintPy SBAS pipeline
 #### ISCE2 outputs
 
 ```python
-analyzer = Analyzer.create('ISCE_SBAS', workdir="/your/work/dir")
+analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir="/your/work/dir")
 analyzer.prep_data()   # auto-discover ISCE2 interferograms and geometry
 analyzer.run()         # full MintPy SBAS pipeline
 ```
@@ -269,7 +269,7 @@ insarhub processor -N Hyp3_S1 -w /data/bryce submit
 insarhub processor -w /data/bryce watch
 
 # Run MintPy time-series analysis
-insarhub analyzer -N Hyp3_SBAS -w /data/bryce run
+insarhub analyzer -N Hyp3_Mintpy_SBAS -w /data/bryce run
 ```
 
 ### End-to-end example — ISCE2 (local / HPC)
@@ -295,7 +295,7 @@ insarhub processor -N ISCE2_S1 -w /data/p100_f466 \
 insarhub processor -N ISCE2_S1 -w /data/p100_f466 refresh
 
 # Run MintPy time-series analysis on ISCE2 outputs
-insarhub analyzer -N ISCE_SBAS -w /data/p100_f466 run
+insarhub analyzer -N ISCE2_Mintpy_SBAS -w /data/p100_f466 run
 ```
 
 ### Commands

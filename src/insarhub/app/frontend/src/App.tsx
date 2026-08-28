@@ -204,6 +204,10 @@ export default function App() {
 
   // Map UI state
   const [drawMode,        setDrawMode]        = useState<DrawMode>(null)
+  // satellite reads well on the dark theme (imagery), topo on the light theme
+  // (its pale relief would wash out in dark mode). The app starts dark, so
+  // 'satellite' is the initial value; the theme-toggle handler re-defaults it
+  // to each theme's basemap.
   const [basemap,         setBasemap]         = useState<Basemap>('satellite')
   const [mouseCoords,     setMouseCoords]     = useState<{ lat: number; lng: number } | null>(null)
   const [selectedFeature, setSelectedFeature] = useState<GeoJSON.Feature | null>(null)
@@ -214,7 +218,7 @@ export default function App() {
   const [detailScene,     setDetailScene]     = useState<GeoJSON.Feature | null>(null)
   const [workdir,         setWorkdir]         = useState('.')
   const [settingsOpen,    setSettingsOpen]    = useState(false)
-  const [settingsInitialTab,          setSettingsInitialTab]          = useState<'general' | 'auth' | 'downloader' | 'processor' | 'analyzer'>('general')
+  const [settingsInitialTab,          setSettingsInitialTab]          = useState<'general' | 'auth' | 'downloader'>('general')
   const [settingsInitialAnalyzerType, setSettingsInitialAnalyzerType] = useState<string | undefined>(undefined)
   const [jobsOpen,        setJobsOpen]        = useState(false)
   const [jobsWasOpened,   setJobsWasOpened]   = useState(false)
@@ -318,12 +322,14 @@ export default function App() {
     setStackOpen(false)
     setDetailScene(null)
 
-    if (rasterOverlay?.source?.kind !== 'mintpy') return
+    if (rasterOverlay?.source?.kind !== 'mintpy' && rasterOverlay?.source?.kind !== 'dolphin') return
     try {
-      const tsParam = rasterOverlay.source.tsFile
-        ? `&ts_file=${encodeURIComponent(rasterOverlay.source.tsFile)}`
-        : ''
-      const r = await fetch(`${API}/api/timeseries-pixel?path=${encodeURIComponent(rasterOverlay.source.folderPath)}&lat=${lat}&lon=${lng}${tsParam}`)
+      const src = rasterOverlay.source
+      const url = src.kind === 'dolphin'
+        ? `${API}/api/dolphin-ts-pixel?path=${encodeURIComponent(src.folderPath)}&lat=${lat}&lon=${lng}`
+        : `${API}/api/timeseries-pixel?path=${encodeURIComponent(src.folderPath)}&lat=${lat}&lon=${lng}` +
+          (src.tsFile ? `&ts_file=${encodeURIComponent(src.tsFile)}` : '')
+      const r = await fetch(url)
       if (!r.ok) return
       const d = await r.json()
       if (Array.isArray(d.dates) && d.dates.length > 0) {
@@ -344,6 +350,11 @@ export default function App() {
     setSearching(true)
     setDrawMode(null)
     setResultCount(tr('topBar.searching'))
+    // Clear the previous search's results up front so a new search always
+    // refreshes the map/panel -- otherwise a search that returns nothing left
+    // the last search's footprints on screen.
+    setFootprints(null)
+    setSelectedFeature(null)
 
     const wkt = aoiWkt ?? bboxToWkt(aoi)
 
@@ -388,6 +399,13 @@ export default function App() {
     setFootprints(null)
     setResultCount('')
     setSelectedFeature(null)
+    // Also remove any result plot drawn on the map (velocity / displacement /
+    // coherence overlay) and its time-series pixel marker + drawer -- otherwise
+    // Clear AOI leaves the figures behind. (The rasterOverlay effect revokes a
+    // blob: url when it flips to null.)
+    setRasterOverlay(null)
+    setTsClickPoint(null)
+    setTsData(null)
   }
 
   // ── Shapefile upload ──────────────────────────────────────────────────────
@@ -445,7 +463,7 @@ export default function App() {
         onThemeToggle={() => {
           setIsDark(d => {
             const next = !d
-            setBasemap(next ? 'satellite' : 'osm')
+            setBasemap(next ? 'satellite' : 'topo')
             return next
           })
         }}
@@ -561,7 +579,7 @@ export default function App() {
           {footprints && !stackDrawerOpen && (
             <EdgeHandle label={tr('app.stacks')} title={tr('app.openStacks')} theme={theme} onClick={() => setStackDrawerOpen(true)} />
           )}
-          {!jobsOpen && (
+          {jobsWasOpened && !jobsOpen && (
             <EdgeHandle label={tr('app.jobs')} title={tr('app.openJobs')} theme={theme} onClick={() => setJobsOpen(true)} />
           )}
         </div>
@@ -574,7 +592,8 @@ export default function App() {
           workdir={workdir}
           mapClickSignal={mapClickSignal}
           aoiWkt={aoiWkt}
-          onClose={() => setJobsOpen(false)}
+          onClose={() => { setJobsOpen(false); setJobsWasOpened(false) }}
+          onMinimize={() => setJobsOpen(false)}
           onRasterSelect={setRasterOverlay}
         />
       )}

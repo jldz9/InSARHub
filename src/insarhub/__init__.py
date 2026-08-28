@@ -186,9 +186,9 @@ from .processor import (
 
 from .analyzer import (
     Mintpy_SBAS_Base_Analyzer,
-    Hyp3_SBAS,
-    Hyp3_SBAS_Config,
-    ISCE_SBAS,
+    Hyp3_Mintpy_SBAS,
+    Hyp3_Mintpy_SBAS_Config,
+    ISCE2_Mintpy_SBAS,
 )
 
 from .downloader.s1_slc import S1_SLC_Config
@@ -214,8 +214,8 @@ __all__ = [
     "Hyp3_S1", 
     "Mintpy_SBAS_Base_Config",
     "Mintpy_SBAS_Base_Analyzer",
-    "Hyp3_SBAS",
-    "Hyp3_SBAS_Config",
+    "Hyp3_Mintpy_SBAS",
+    "Hyp3_Mintpy_SBAS_Config",
 
 ]
 

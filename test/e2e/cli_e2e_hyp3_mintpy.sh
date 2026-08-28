@@ -7,7 +7,7 @@
 #   - submits real InSAR_GAMMA jobs to HyP3 (consumes real processing
 #     credits on your Earthdata account)
 #   - polls HyP3 for real job status and downloads the real result ZIPs
-#   - runs Hyp3_SBAS.prep_data() for real (real rasterio clip/overlap)
+#   - runs Hyp3_Mintpy_SBAS.prep_data() for real (real rasterio clip/overlap)
 #   - runs the real MintPy time-series workflow
 #
 # By default this operates on p100_f466/ (repo root). If a stack_*.json is
@@ -85,8 +85,8 @@ echo "== Stage 3/4: Watch real jobs to completion + download real results ======
 # ZIPs are skipped and remaining jobs are refreshed from where they left off.
 insarhub processor -N Hyp3_S1 -w "$WORKDIR" watch
 
-echo "== Stage 4/4: Hyp3_SBAS prep_data + real MintPy run =========================="
-insarhub analyzer -N Hyp3_SBAS -w "$WORKDIR" run --step prep_data
-insarhub analyzer -N Hyp3_SBAS -w "$WORKDIR" run
+echo "== Stage 4/4: Hyp3_Mintpy_SBAS prep_data + real MintPy run =========================="
+insarhub analyzer -N Hyp3_Mintpy_SBAS -w "$WORKDIR" run --step prep_data
+insarhub analyzer -N Hyp3_Mintpy_SBAS -w "$WORKDIR" run
 
 echo "Done. MintPy outputs are under $WORKDIR/mintpy/"

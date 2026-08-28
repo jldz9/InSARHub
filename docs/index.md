@@ -19,6 +19,8 @@ InSARHub web UI — search, download, process, and visualize InSAR data in one p
 | Satellite | Mode | Download | IFG Generation | Timeseries Analysis |
 |-----------|------|----------|----------------|---------------------|
 | Sentinel-1 SLC | Mixed / Local / HPC | ✅ | ✅ | ✅ |
+| Sentinel-1 Burst | Local / HPC | ✅ | ✅ | ✅ |
+| NISAR GSLC | Local / HPC | ✅ | ✅ | ✅ |
 
 *[Mixed]:process pipeline that mixed with cloud processing and local processing
 
@@ -28,19 +30,17 @@ This document will assume you have fundamental understanding of:
 - [Linux](https://www.geeksforgeeks.org/linux-commands-cheat-sheet/)
 - [Conda](https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49671267e40c689e0bc00ca/conda-cheatsheet.pdf)
 
-
-
-
 ## System Requirement
 
-InSARHub is designed to run on Unix-based systems. Internet connection is required.
-Windows users can run InSARHub via WSL2 (Windows Subsystem for Linux 2), though compatibility is still under testing and may not function reliably in all cases.
+InSARHub is recommend to run on Unix-based systems. Windows users may use [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install). 
 
-The package has been tested under Ubuntu 22.04.4 LTS.
+Compatibility of native Windows environment is not garunteed.
+
+
 
 *[WSL2]: Windows Subsystem for Linux 2
 
-Test environment:
+InSARHub developement environment:
 
 | Category| Model               |
 | ------  | -----------------   |

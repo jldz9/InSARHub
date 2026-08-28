@@ -18,6 +18,17 @@ from insarhub.utils.local_processor_reload import _jobs_glob, _find_jobs_file, _
 router = APIRouter()
 
 
+def _needs_stack_file(proc_cls, processor_config: dict | None) -> bool:
+    """Whether this submission reads its pairs from a stack_p*_f*.json.
+
+    Pair-selected workflows (ISCE2_S1/GMTSAR_S1/Hyp3_S1) always do. Burst /
+    stack-download workflows (builds_own_network, e.g. ISCE3_Burst /
+    ISCE3_NISAR) derive the network from the downloaded input products in slc/
+    instead.
+    """
+    return proc_cls is None or not getattr(proc_cls, "builds_own_network", False)
+
+
 def _sbatch_default_template_for(processor_type: str) -> dict:
     """Which sbatch_options.json default template a fresh file should get,
     by processor -- mirrors cli/main.py's _proc_local_submit branching (the
@@ -35,11 +46,29 @@ def _sbatch_default_template_for(processor_type: str) -> dict:
 
 @router.post("/api/folder-process")
 async def folder_process(req: ProcessRequest, background_tasks: BackgroundTasks):
-    """Read pairs from folder, submit to processor, save job IDs."""
+    """Read pairs from folder, submit to processor, save job IDs.
+
+    Two input shapes: pair-selected workflows (ISCE2_S1/GMTSAR_S1/Hyp3_S1) read
+    their pairs from a stack_p*_f*.json written by select_pairs; stack-download
+    workflows (ISCE3_Burst/ISCE3_NISAR, builds_own_network) derive the network
+    from the downloaded products in slc/, so they need that folder rather than
+    a stack file.
+    """
     folder = Path(req.folder_path).expanduser().resolve()
-    stack_files = sorted(folder.glob("stack_p*_f*.json"))
-    if not stack_files:
-        raise HTTPException(status_code=404, detail="No stack file found in folder")
+    proc_cls = Processor._registry.get(req.processor_type)
+    if _needs_stack_file(proc_cls, req.processor_config):
+        if not sorted(folder.glob("stack_p*_f*.json")):
+            raise HTTPException(status_code=404, detail="No stack file found in folder")
+    elif getattr(proc_cls, "builds_own_network", False):
+        # Stack-download workflow deriving its own network: needs the downloaded
+        # input products in slc/ rather than a stack file. The product type is
+        # processor-specific (S1_Burst → .SAFE, NISAR_GSLC → .h5).
+        slc = folder / "slc"
+        input_glob = getattr(proc_cls, "input_glob", "*.SAFE")
+        if not slc.is_dir() or not any(slc.glob(input_glob)):
+            raise HTTPException(status_code=404,
+                detail=f"No {input_glob} products found in slc/ — run the "
+                       f"{getattr(proc_cls, 'compatible_downloader', 'download')} downloader first")
     return state.launch_job(background_tasks, _run_folder_process, req)
 
 
@@ -47,23 +76,27 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
     def run():
         try:
             folder = Path(req.folder_path).expanduser().resolve()
-            stack_files = sorted(folder.glob("stack_p*_f*.json"))
-            if not stack_files:
-                state._jobs[job_id] = {"status": "error", "progress": 0, "message": "No stack file found", "data": None}
-                return
-
-            # Combine pairs from every stack file in the folder — a merged
-            # download/select-pairs writes one file per path, and a folder
-            # can otherwise legitimately hold more than one flat stack file.
-            pairs: list[tuple[str, str]] = []
-            for sf in stack_files:
-                data = json.loads(sf.read_text())
-                pairs.extend(tuple(p) for p in data.get("pairs", []))
-
             proc_cls = Processor._registry.get(req.processor_type)
             if proc_cls is None:
                 _finish_job(job_id, status="error", progress=0, message=f"Unknown processor: {req.processor_type}")
                 return
+
+            # Burst workflows (builds_own_network) form their network from the
+            # slc/*.SAFE dates at submit time -- no stack file, no pairs passed
+            # in (see _needs_stack_file). Pair-selected workflows read pairs
+            # from every stack_p*_f*.json in the folder (a merged
+            # download/select-pairs writes one per path, and a folder can
+            # legitimately hold more than one flat stack file).
+            needs_stack = _needs_stack_file(proc_cls, req.processor_config)
+            pairs: list[tuple[str, str]] = []
+            if needs_stack:
+                stack_files = sorted(folder.glob("stack_p*_f*.json"))
+                if not stack_files:
+                    state._jobs[job_id] = {"status": "error", "progress": 0, "message": "No stack file found", "data": None}
+                    return
+                for sf in stack_files:
+                    data = json.loads(sf.read_text())
+                    pairs.extend(tuple(p) for p in data.get("pairs", []))
             cfg_cls = getattr(proc_cls, "default_config", None)
             if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
                 _finish_job(job_id, status="error", progress=0, message="Processor has no config")
@@ -84,18 +117,27 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
 
             cfg.pairs = pairs
 
-            proc_cfg = state._cfg_dict(cfg, exclude=("workdir", "pairs", "container"))
+            proc_cfg = state._cfg_dict(cfg, exclude=("workdir", "pairs"))
 
             import inspect as _inspect
             _sig = _inspect.signature(proc_cls.__init__).parameters
             is_local = "pairs" in _sig
 
             if req.dry_run:
-                n = len(pairs)
+                if not needs_stack:
+                    _glob = getattr(proc_cls, "input_glob", "*.SAFE")
+                    n_prod = len(sorted((folder / "slc").glob(_glob)))
+                    dry_msg = (f"[Dry run] Would submit {req.processor_type} over "
+                               f"{n_prod} slc/{_glob} product{'s' if n_prod != 1 else ''} "
+                               f"from {folder.name} — network derived at submit time")
+                else:
+                    n = len(pairs)
+                    dry_msg = (f"[Dry run] Would submit {n} pair{'s' if n != 1 else ''} "
+                               f"via {req.processor_type} from {folder.name}")
                 write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
                 state._jobs[job_id] = {
                     "status": "done", "progress": 100,
-                    "message": f"[Dry run] Would submit {n} pair{'s' if n != 1 else ''} via {req.processor_type} from {folder.name}",
+                    "message": dry_msg,
                     "data": None,
                 }
                 return
@@ -123,6 +165,13 @@ async def _run_folder_process(job_id: str, req: ProcessRequest):
                 submit_kwargs = {"steps": req.steps} if req.steps else {}
                 jobs = processor.submit(**submit_kwargs)
                 n_steps = len(jobs) if isinstance(jobs, dict) else len(pairs)
+                # Persist the run config with the resolved `container` (the image
+                # the user submitted, or null for a host run). Written AFTER
+                # submit so this -- not the container-stripped config that
+                # _reinvoke_via_container writes for the container side -- is the
+                # value that survives in insarhub_config.json (so a GUI retry
+                # re-runs in the same image). container_default is a UI-only
+                # constant and is dropped centrally in write_insarhub_config.
                 write_insarhub_config(folder, {"processor": {"type": req.processor_type, "config": proc_cfg}})
                 step_msg = f" (steps: {', '.join(req.steps)})" if req.steps else ""
                 _finish_job(job_id, status="done", progress=100,
@@ -416,7 +465,9 @@ async def get_processor_steps(processor: str):
     steps = [
         f"run_{num}_{name}"
         for num, name in _SBATCH_DEFAULT_TEMPLATE["_steps"].items()
-        if num != "17"  # SBAS is an analyzer step, not an ISCE2_S1 processor step
+        # "17" is the SBAS analyzer step and "manager" is a manager-config key
+        # (documentation text), neither of which is a forceable ISCE2_S1 processor step.
+        if num not in ("17", "manager")
     ]
     return {"steps": steps}
 

@@ -1,6 +1,22 @@
 from abc import ABC, abstractmethod
 from typing import List, Union, Optional, Any, Type
 
+
+def _compatible_processor(cp, pname: str) -> bool:
+    """Whether an analyzer whose ``compatible_processor`` is ``cp`` can read the
+    output of processor ``pname``.
+
+    ``cp`` may be ``None`` / ``'all'`` (catch-all), a single processor name, or
+    a tuple/list of names (an analyzer that serves several upstreams, e.g.
+    ISCE3_Dolphin_PL -> ("ISCE3_Burst", "ISCE3_NISAR")).
+    """
+    if cp in (None, 'all', pname):
+        return True
+    if isinstance(cp, (list, tuple, set)):
+        return pname in cp or 'all' in cp
+    return False
+
+
 class BaseDownloader(ABC):
     """Abstract base class for all content downloaders.
 
@@ -102,7 +118,7 @@ class BaseDownloader(ABC):
             a.pipeline()
             # S1_SLC
             # └─ Hyp3_S1
-            #    ├─ Hyp3_SBAS
+            #    ├─ Hyp3_Mintpy_SBAS
             #    └─ Mintpy_SBAS_Base_Analyzer
         """
         from .registry import Processor, Analyzer
@@ -122,7 +138,7 @@ class BaseDownloader(ABC):
 
             anals = [
                 n for n, c in Analyzer._registry.items()
-                if getattr(c, 'compatible_processor', None) in (None, 'all', pname)
+                if _compatible_processor(getattr(c, 'compatible_processor', None), pname)
             ]
             for ai, aname in enumerate(anals):
                 last_anal = ai == len(anals) - 1
@@ -259,6 +275,7 @@ class CloudProcessor(ABC):
 class BaseAnalyzer(ABC):
     name: str
     default_config: Optional[Type] = None
+
     def __init__(self, config=None):
         if config is None and self.default_config:
             self.config = self.default_config()
@@ -273,5 +290,12 @@ class BaseAnalyzer(ABC):
             Analyzer.register(cls)
 
     @abstractmethod
-    def run(self) -> Any:
+    def run(self, steps: list[str] | None = None) -> Any:
+        """Execute the analysis.
+
+        ``steps`` carries named MintPy steps for the MintPy-family analyzers
+        (``Mintpy_SBAS_Base_Analyzer`` subclasses). Self-contained analyzers
+        (GMTSAR_SBAS, ISCE3_Dolphin_PL) ignore it and run their whole pipeline
+        in one call.
+        """
         pass

@@ -1,0 +1,27 @@
+# Processing workdirs / large data — never part of any image build context
+p56/
+p56_native/
+*_native/
+p*_f*/
+
+# VCS
+.git/
+.github/
+
+# Frontend build deps (the built `dist/` is kept; node_modules is not needed
+# to install or run the Python package)
+**/node_modules/
+
+# Python caches / build artifacts
+**/__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+build/
+dist/*.whl
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store

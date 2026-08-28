@@ -16,6 +16,8 @@ InSARHub Web UI — 在同一平台上搜索、下载、处理和可视化 InSAR
 | 卫星 | 模式 | 下载 | 干涉图生成 | 时序分析 |
 |------|------|------|-----------|---------|
 | Sentinel-1 SLC | 混合 / 本地 / HPC | ✅ | ✅ | ✅ |
+| Sentinel-1 Burst | 本地 / HPC | ✅ | ✅ | ✅ |
+| NISAR GSLC | 本地 / HPC | ✅ | ✅ | ✅ |
 
 *[混合]:结合云端处理与本地处理的流程
 
@@ -28,13 +30,13 @@ InSARHub Web UI — 在同一平台上搜索、下载、处理和可视化 InSAR
 
 ## 系统要求
 
-InSARHub 设计运行于基于 Unix 的系统上，需要网络连接。Windows 用户可通过 WSL2（Windows Subsystem for Linux 2）运行 InSARHub，但兼容性仍在测试中，可能并非在所有情况下均能正常运行。
+InSARHub 推荐在基于 Unix 的系统上运行。Windows 用户可使用 [WSL2](https://learn.microsoft.com/en-us/windows/wsl/install)。
 
-本软件包已在 Ubuntu 22.04.4 LTS 下测试。
+不保证原生 Windows 环境的兼容性。
 
 *[WSL2]: Windows Subsystem for Linux 2
 
-测试环境：
+InSARHub 开发环境：
 
 | 类别 | 配置 |
 |------|------|

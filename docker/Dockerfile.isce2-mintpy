@@ -7,11 +7,16 @@
 # MintPy changes (e.g. numpy>=2 support) work before they're released.
 #
 # Build (from repo root):
-#   docker build -f Dockerfile.mintpy-dev -t insarhub-mintpy:dev .
+#   docker build -f docker/Dockerfile.isce2-mintpy -t insarhub-isce2-mintpy:dev .
 #
 # Use:
-#   insarhub processor -N ISCE_S1 -w /path/to/workdir submit --container insarhub-mintpy:dev
-#   insarhub analyzer  -N ISCE_SBAS -w /path/to/workdir run  --container insarhub-mintpy:dev
+#   insarhub processor -N ISCE2_S1 -w /path/to/workdir submit --container insarhub-isce2-mintpy:dev
+#   insarhub analyzer  -N ISCE2_Mintpy_SBAS -w /path/to/workdir run  --container insarhub-isce2-mintpy:dev
+#
+# Publish to GHCR (this is the :dev ISCE2 image the config container_defaults point at;
+# the published-release :latest comes from ./Dockerfile instead):
+#   docker tag insarhub-isce2-mintpy:dev ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+#   docker push ghcr.io/jldz9/insarhub-isce2-mintpy:dev
 
 FROM condaforge/miniforge3:24.9.2-0
 
@@ -57,5 +62,19 @@ RUN ln -s /opt/conda/envs/insarhub/lib/python3.12/site-packages/isce/application
           /opt/conda/envs/insarhub/applications
 
 ENV PATH=/opt/conda/envs/insarhub/bin:$PATH
+# topsStack (ISCE2's Sentinel-1 stack processor) ships under
+# share/isce2/topsStack; ISCE2_S1._generate_run_files does
+# `from topsStack.stackSentinel import ...`, so its PARENT dir must be importable.
+# On the host this is auto-discovered (_find_topsstack) and added to sys.path,
+# but container mode skips that discovery (_pythonpath_add is None), relying on
+# the image to expose it -- so put it on PYTHONPATH here. Without this, a
+# container ISCE2_S1 submit dies with "ModuleNotFoundError: No module named
+# 'topsStack'".
+ENV PYTHONPATH=/opt/conda/envs/insarhub/share/isce2
+# Put the conda env's libstdc++ on the loader path so pandas (pulled in by
+# MintPy / dem_stitcher) finds GLIBCXX_3.4.29 -- the SYSTEM libstdc++ is too old
+# and, with LD_LIBRARY_PATH empty, would be picked instead ("GLIBCXX_3.4.29 not
+# found"). See docker/Dockerfile.gmtsar-mintpy for the full rationale.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/insarhub/lib
 
 # No custom ENTRYPOINT/CMD -- see Dockerfile for why.

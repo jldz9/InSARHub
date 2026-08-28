@@ -3,6 +3,7 @@ import dataclasses
 import getpass
 import json
 import logging
+import os
 import requests
 import shutil
 import subprocess
@@ -17,6 +18,51 @@ from insarhub.core.base import BaseAnalyzer
 from insarhub.utils.tool import write_workflow_marker
 
 logger = logging.getLogger(__name__)
+
+
+_MINTPY_PLOT_PATCHED = False
+
+
+def _patch_mintpy_plot_bugs() -> None:
+    """Work around a MintPy crash that fires on a *clean* stack.
+
+    ``quick_overview`` runs ``unwrap_error_phase_closure --action calculate``,
+    which after writing ``numTriNonzeroIntAmbiguity.h5`` calls
+    ``plot.plot_num_triplet_with_nonzero_integer_ambiguity``. That plotter does
+    ``vmax = int(np.nanmax(data)); ax.hist(..., bins=vmax)`` -- so when every
+    pixel has ZERO non-zero-ambiguity triplets (i.e. the unwrapping was perfect,
+    common for a small high-quality GMTSAR stack), ``vmax == 0`` and numpy
+    raises ``bins must be positive, when an integer``. The H5 is already written
+    at that point; only the histogram is broken. We wrap the plotter so a
+    non-positive vmax is a quiet no-op instead of aborting the whole run.
+
+    Idempotent and process-local: patches the attribute on ``mintpy.utils.plot``
+    that ``unwrap_error_phase_closure`` looks up at call time.
+    """
+    global _MINTPY_PLOT_PATCHED
+    if _MINTPY_PLOT_PATCHED:
+        return
+    try:
+        import numpy as _np
+        from mintpy.utils import plot as _pp, readfile as _rf
+        _orig = _pp.plot_num_triplet_with_nonzero_integer_ambiguity
+
+        def _safe(fname, *args, **kwargs):
+            try:
+                data = _rf.read(fname)[0]
+                if not _np.isfinite(_np.nanmax(data)) or int(_np.nanmax(data)) <= 0:
+                    logger.info("quick_overview: no non-zero-ambiguity triplets "
+                                "(clean unwrap) — skipping MintPy's bins=0 histogram.")
+                    return None
+            except Exception:
+                pass
+            return _orig(fname, *args, **kwargs)
+
+        _pp.plot_num_triplet_with_nonzero_integer_ambiguity = _safe
+        _MINTPY_PLOT_PATCHED = True
+    except Exception as e:  # pragma: no cover - mintpy shape changed; don't block the run
+        logger.debug("could not patch MintPy plot bug: %s", e)
+
 
 
 class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
@@ -50,7 +96,14 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
 
     def prep_data(self):
         """Write the MintPy config file to workdir."""
-        if self.config.container:
+        # not INSARHUB_CONTAINER_CHILD: when this already runs INSIDE the
+        # container (re-invoked by _run_via_container), config.container is still
+        # set, so without this guard it would `docker run` AGAIN inside the
+        # MintPy image (which has no docker CLI) -- the nested call fails
+        # silently, prep_data never resolves mintpy.load.*, and load_data then
+        # dies with a missing ifgramStack.h5. The container side must run
+        # prep_data locally. Mirrors the processor submit/retry guards.
+        if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             return self._run_via_container(["prep_data"])
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
         self._resolve_adaptive_coherence()
@@ -63,6 +116,15 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
     #: Distinct from "auto", which is MintPy's own token and resolves to its
     #: fixed defaults (0.7 network / 0.4 inversion) regardless of the data.
     ADAPTIVE = "adaptive"
+
+    #: Ceilings on the adaptive coherence thresholds. The adaptive calc only
+    #: needs to kick in for low-coherence stacks -- if the stack could support a
+    #: threshold at or above the cap, that's already good and there's no reason
+    #: to cut tighter, so it's clamped to the cap. In effect: only a value below
+    #: the cap comes from the adaptive calculation; anything above uses the cap.
+    ADAPTIVE_NETWORK_COH_CAP = 0.6     # network_minCoherence
+    ADAPTIVE_MASK_COH_CAP = 0.6        # networkInversion_maskThreshold
+    ADAPTIVE_REFERENCE_COH_CAP = 0.85  # reference_minCoherence
 
     def _pair_mean_coherence(self) -> dict[str, float]:
         """{pair_dir_name: mean coherence} read from the configured corFile
@@ -145,46 +207,221 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             kept = [pairs[n] for n, c in coh.items() if c >= t and n in pairs]
             if len(kept) >= need and self._network_is_connected(kept, dates):
                 best = t
-        return best
+        if best is None:
+            return None
+        # Cap at ADAPTIVE_NETWORK_COH_CAP: the adaptive sweep only matters for
+        # low-coherence stacks. If it found the network survives a threshold at
+        # or above the cap, that's already a good network -- clamp to the cap
+        # rather than cut tighter. Lowering the threshold only keeps MORE pairs,
+        # so the clamped network is still connected + redundant.
+        return min(best, self.ADAPTIVE_NETWORK_COH_CAP)
+
+    def _pixel_mean_coherence(self):
+        """Per-pixel mean spatial coherence across the stack (2-D array), read
+        from the configured corFile glob -- MintPy's avgSpatialCoherence before
+        it exists. Returns None if the grids are missing or not co-registered."""
+        import glob as _glob
+        import numpy as np
+
+        pattern = str(getattr(self.config, "load_corFile", "") or "")
+        if not pattern or pattern == "auto":
+            return None
+        stack = []
+        for f in sorted(_glob.glob(pattern)):
+            try:
+                from osgeo import gdal
+                gdal.UseExceptions()
+                a = gdal.Open(f).ReadAsArray().astype("float32")
+            except Exception:                                    # noqa: BLE001
+                continue
+            a[~np.isfinite(a)] = np.nan
+            a[a <= 0] = np.nan
+            stack.append(a)
+        if not stack or len({s.shape for s in stack}) != 1:
+            return None
+        return np.nanmean(np.stack(stack), axis=0)
+
+    def _adaptive_mask_threshold(self, keep_frac: float = 0.85) -> float | None:
+        """A networkInversion.maskThreshold that keeps ~keep_frac of the stack's
+        coherence OBSERVATIONS in the inversion.
+
+        maskThreshold masks each pixel out of each interferogram whose spatial
+        coherence is below it. MintPy's fixed 0.4 (and any value at or above the
+        stack's own coherence) drops nearly every observation on a low-coherence
+        GMTSAR stack -> numInvIfgram 0 -> an all-zero time series and velocity.
+        Set it at the (1-keep_frac) percentile of the POOLED per-pair coherence
+        so most observations survive; None if no corFile grids are readable."""
+        import glob as _glob
+        import numpy as np
+
+        pattern = str(getattr(self.config, "load_corFile", "") or "")
+        if not pattern or pattern == "auto":
+            return None
+        vals = []
+        for f in sorted(_glob.glob(pattern)):
+            try:
+                from osgeo import gdal
+                gdal.UseExceptions()
+                a = gdal.Open(f).ReadAsArray().astype("float32")
+            except Exception:                                    # noqa: BLE001
+                continue
+            a = a[np.isfinite(a) & (a > 0)]
+            if a.size:
+                vals.append(a)
+        if not vals:
+            return None
+        pooled = np.concatenate(vals)
+        thr = float(np.percentile(pooled, (1.0 - keep_frac) * 100.0))
+        # Cap like network_minCoherence: only a value below the cap comes from
+        # the adaptive percentile; at/above it, use the cap.
+        return round(min(self.ADAPTIVE_MASK_COH_CAP, max(0.0, thr)), 3)
+
+    def _adaptive_reference_min_coherence(self) -> float | None:
+        """A reference.minCoherence floor derived from THIS stack.
+
+        The reference point is chosen among pixels whose average spatial
+        coherence exceeds this floor; MintPy's fixed 0.85 finds no pixel at all
+        on a low-coherence stack and errors. Instead pick the level that keeps
+        the most-coherent ~2% of pixels as reference candidates, clamped so it
+        never demands more than MintPy's 0.85 nor drops below 0.30 (a reference
+        pixel should still be genuinely reliable)."""
+        import numpy as np
+        m = self._pixel_mean_coherence()
+        if m is None:
+            return None
+        v = m[np.isfinite(m)]
+        if v.size < 100:
+            return None
+        thr = float(np.nanpercentile(v, 98))
+        # below the cap use the adaptive percentile; at/above it use the cap.
+        return round(min(self.ADAPTIVE_REFERENCE_COH_CAP, max(0.30, thr)), 2)
 
     def _resolve_adaptive_coherence(self) -> None:
         """Replace ADAPTIVE sentinels with values derived from the stack."""
-        fields = ("network_minCoherence", "networkInversion_maskThreshold")
-        wanted = [f for f in fields
-                  if str(getattr(self.config, f, "")).lower() == self.ADAPTIVE]
-        if not wanted:
+        pair_fields = [f for f in ("network_minCoherence",
+                                   "networkInversion_maskThreshold")
+                       if str(getattr(self.config, f, "")).lower() == self.ADAPTIVE]
+        ref_adaptive = (str(getattr(self.config, "reference_minCoherence", "")).lower()
+                        == self.ADAPTIVE)
+        if not pair_fields and not ref_adaptive:
             return
-        coh = self._pair_mean_coherence()
-        if not coh:
-            logger.warning("adaptive coherence: no per-pair coherence found via "
-                           "mintpy.load.corFile; leaving thresholds unchanged")
-            for f in wanted:
-                setattr(self.config, f, "auto")
-            return
+
         import numpy as np
-        vals = np.array(list(coh.values()))
-        thr = self._adaptive_min_coherence(coh)
-        print(f"{Fore.CYAN}Adaptive coherence: {len(coh)} pairs, "
-              f"coherence {vals.min():.2f}–{vals.max():.2f} (median {np.median(vals):.2f})"
-              f"{Fore.RESET}")
-        if thr is None:
-            logger.warning("adaptive coherence: no threshold keeps the network "
-                           "connected with redundancy; falling back to MintPy auto")
-            for f in wanted:
-                setattr(self.config, f, "auto")
-            return
-        for f in wanted:
-            if f == "network_minCoherence":
-                setattr(self.config, f, round(float(thr), 2))
-                kept = int((vals >= thr).sum())
-                print(f"  network.minCoherence -> {thr:.2f}  "
-                      f"(keeps {kept}/{len(coh)} interferograms)")
+        # Per-pair thresholds: network selection + inversion pixel mask.
+        if pair_fields:
+            coh = self._pair_mean_coherence()
+            if not coh:
+                logger.warning("adaptive coherence: no per-pair coherence found via "
+                               "mintpy.load.corFile; leaving thresholds unchanged")
+                for f in pair_fields:
+                    setattr(self.config, f, "auto")
             else:
-                # Pixel mask: the network threshold is a per-pair AVERAGE, so
-                # reusing it would mask ~half of every kept pair. Sit below it.
-                px = round(max(0.1, float(thr) * 0.6), 2)
-                setattr(self.config, f, px)
-                print(f"  networkInversion.maskThreshold -> {px:.2f}")
+                vals = np.array(list(coh.values()))
+                thr = self._adaptive_min_coherence(coh)
+                print(f"{Fore.CYAN}Adaptive coherence: {len(coh)} pairs, "
+                      f"coherence {vals.min():.2f}–{vals.max():.2f} "
+                      f"(median {np.median(vals):.2f}){Fore.RESET}")
+                if thr is None:
+                    logger.warning("adaptive coherence: no threshold keeps the network "
+                                   "connected with redundancy; falling back to MintPy auto")
+                    for f in pair_fields:
+                        setattr(self.config, f, "auto")
+                else:
+                    for f in pair_fields:
+                        if f == "network_minCoherence":
+                            setattr(self.config, f, round(float(thr), 2))
+                            kept = int((vals >= thr).sum())
+                            print(f"  network.minCoherence -> {thr:.2f}  "
+                                  f"(keeps {kept}/{len(coh)} interferograms)")
+                        else:
+                            # Pixel mask threshold: this masks per-pixel-per-
+                            # ifgram OBSERVATIONS out of the inversion, so it
+                            # must sit BELOW the stack's own coherence -- a fixed
+                            # 0.4/0.5 (or even a 0.1 floor) on a low-coherence
+                            # GMTSAR stack drops nearly every observation, leaving
+                            # numInvIfgram=0 and an all-zero time series. Derive
+                            # it from the observation distribution so ~85% survive.
+                            px = self._adaptive_mask_threshold()
+                            if px is None:                       # no corr grids
+                                px = round(max(0.0, float(thr) * 0.5), 3)
+                            setattr(self.config, f, px)
+                            print(f"  networkInversion.maskThreshold -> {px:.3f} "
+                                  f"(keeps ~85% of coherence observations)")
+
+        # Reference-point floor: per-PIXEL average coherence, not per-pair.
+        if ref_adaptive:
+            rthr = self._adaptive_reference_min_coherence()
+            if rthr is None:
+                logger.warning("adaptive reference.minCoherence: could not derive "
+                               "from per-pixel coherence; falling back to MintPy auto")
+                setattr(self.config, "reference_minCoherence", "auto")
+            else:
+                setattr(self.config, "reference_minCoherence", rthr)
+                print(f"  reference.minCoherence -> {rthr:.2f}")
+
+    def _cfg_load_paths_resolved(self) -> bool:
+        """True once prep_data has written a real ``mintpy.load.unwFile`` into
+        the cfg (i.e. not still ``auto``). Used to decide whether load_data can
+        run on its own or needs prep_data first."""
+        if not self.cfg_path.exists():
+            return False
+        for ln in self.cfg_path.read_text().splitlines():
+            if ln.strip().startswith("mintpy.load.unwFile"):
+                v = ln.partition("=")[2].strip()
+                return v not in ("auto", "", "None")
+        return False
+
+    def _sync_runtime_cfg(self) -> None:
+        """Rewrite ``.mintpy.cfg`` from the current (possibly overridden) config,
+        preserving whatever ``prep_data`` computed only into the file.
+
+        ``prep_data`` writes the geocoded load paths (``mintpy.load.unwFile`` …),
+        the resolved ``metaFile``/``demFile``/``baselineDir`` and an appended
+        ``HEADING`` straight into the cfg. A per-step process (e.g. a container
+        ``--step invert_network``) has all of those back at ``"auto"`` on
+        ``self.config``, so a blind ``write_mintpy_config`` would clobber them.
+        Instead: emit a fresh cfg from config, but for any ``mintpy.load.*`` key
+        the config leaves unset keep the file's value, and carry over any key the
+        config never emits at all (``HEADING``). Everything else — the network /
+        inversion / correction knobs a user overrode — is taken from config.
+        """
+        self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        tmp = self.mintpy_dir / ".mintpy.cfg.tmp"
+        self.config.write_mintpy_config(tmp)
+        new_lines = tmp.read_text().splitlines()
+        tmp.unlink()
+
+        def _parse(text: str) -> dict[str, str]:
+            d: dict[str, str] = {}
+            for ln in text.splitlines():
+                if "=" in ln and not ln.strip().startswith("#"):
+                    k, _, v = ln.partition("=")
+                    d[k.strip()] = v.strip()
+            return d
+
+        existing = _parse(self.cfg_path.read_text()) if self.cfg_path.exists() else {}
+
+        out, seen = [], set()
+        for ln in new_lines:
+            if "=" in ln and not ln.strip().startswith("#"):
+                k = ln.partition("=")[0].strip()
+                v = ln.partition("=")[2].strip()
+                seen.add(k)
+                # Keep the value prep_data resolved into the file when this
+                # per-step process only has a placeholder on self.config: the
+                # geocoded load paths (still "auto" here) and any coherence
+                # threshold prep_data derived from the stack (still "adaptive").
+                if k in existing and (
+                        (k.startswith("mintpy.load.") and v in ("auto", "", "None"))
+                        or v.lower() == self.ADAPTIVE):
+                    out.append(f"{k:<40} = {existing[k]}")
+                    continue
+            out.append(ln)
+        # keep cfg-only keys the config never emits (e.g. HEADING)
+        for k, v in existing.items():
+            if k not in seen:
+                out.append(f"{k:<40} = {v}")
+        self.cfg_path.write_text("\n".join(out) + "\n")
 
     def _validate_cds_token(self, key: str) -> bool:
         """Validate a CDS API token via a lightweight HTTP request (no download)."""
@@ -352,7 +589,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         mintpy_dir = self._paths.mintpy_dir
         mintpy_dir.mkdir(parents=True, exist_ok=True)
 
-        # This method is shared by ISCE_SBAS/Hyp3_SBAS/GMTSAR_MINTPY_SBAS, but
+        # This method is shared by ISCE2_Mintpy_SBAS/Hyp3_Mintpy_SBAS/GMTSAR_Mintpy_SBAS, but
         # both the sbatch_options.json step key and a *fresh* file's initial
         # content follow whichever processor the workdir actually uses (each
         # subclass's compatible_processor says which). ISCE's own step keys
@@ -473,7 +710,21 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             - Processing is executed inside `self.workdir`.
             - This method wraps MintPy TimeSeriesAnalysis for SBAS workflows.
         """
-        if self.config.container:
+        # HPC: hand the whole analysis to SLURM instead of running MintPy in this
+        # process -- mirrors processor.submit()'s hpc dispatch so the API is
+        # symmetric (set hpc_mode, call run()). Returns submit_hpc()'s job id, or
+        # None if it just wrote sbatch_options.json for review (call run() again
+        # after tuning it). The sbatch body re-invokes `insarhub analyzer ... run`
+        # WITHOUT --hpc-mode (hpc_mode is skipped by _serialize_config_overrides),
+        # so the compute-node run() sees hpc_mode=False and runs locally -- no
+        # resubmission loop. Guarded off inside a container child for the same
+        # reason (hpc_mode isn't carried in there either).
+        if getattr(self.config, "hpc_mode", False) and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
+            return self.submit_hpc(steps=steps)
+
+        # not INSARHUB_CONTAINER_CHILD: run the steps locally when already inside
+        # the container (see prep_data's guard for the full rationale).
+        if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             return self._run_via_container(steps)
 
         run_steps = steps or [
@@ -484,16 +735,35 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
             'velocity', 'geocode', 'google_earth', 'hdfeos5'
         ]
 
+        # prep_data is what fills mintpy.load.* with the real geocoded file
+        # paths (plus the resolved adaptive thresholds and HEADING). The GUI
+        # lets users deselect it, and load_data can be run on its own, so
+        # self-heal: if it isn't in this run and the cfg still has no resolved
+        # load paths, run prep_data first. Otherwise MintPy finds no files,
+        # writes no ifgramStack.h5, and load_data fails. prep_data is cheap to
+        # repeat (cached DEM / baselines).
+        if 'prep_data' not in run_steps and not self._cfg_load_paths_resolved():
+            print(f"{Fore.YELLOW}mintpy.load.* not resolved yet — running prep_data "
+                  f"first to set the file locations.{Fore.RESET}")
+            self.prep_data()
+
         if not self.cfg_path.exists():
             print(f"{Fore.YELLOW}Warning: .mintpy.cfg not found — writing config now. "
-                  f"If this is a Hyp3_SBAS run, make sure 'prep_data' (or '--step prep') "
+                  f"If this is a Hyp3_Mintpy_SBAS run, make sure 'prep_data' (or '--step prep') "
                   f"was completed first so load parameters are correct.{Fore.RESET}")
-            self.config.write_mintpy_config(self.cfg_path)
+        # Re-apply the (possibly CLI-/GUI-overridden) config to .mintpy.cfg on
+        # every run, not just the first: prep_data creates the file, so without
+        # this any parameter passed to a later step (e.g. --networkInversion_
+        # minTempCoh on invert_network) was silently dropped because the stale
+        # file already existed. Preserves the load paths / HEADING prep_data
+        # computed into the file (they are not on self.config here).
+        self._sync_runtime_cfg()
 
         if self.config.troposphericDelay_method == 'pyaps' and 'correct_troposphere' in run_steps:
             self._cds_authorize()
         print(f'{Style.BRIGHT}{Fore.MAGENTA}Running MintPy Analysis...{Fore.RESET}')
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        _patch_mintpy_plot_bugs()
         from mintpy.smallbaselineApp import TimeSeriesAnalysis
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
         try:
@@ -524,7 +794,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
         alternative both call once after their step sequence completes
         (or on-demand, e.g. the GUI's "plot" checkbox / CLI's `--step plot`).
         """
-        if self.config.container:
+        if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             return self._run_via_container(['plot'])
         if not self.cfg_path.exists():
             raise FileNotFoundError(
@@ -532,6 +802,7 @@ class Mintpy_SBAS_Base_Analyzer(BaseAnalyzer):
                 f"load_data/invert_network/velocity before plotting."
             )
         self.mintpy_dir.mkdir(parents=True, exist_ok=True)
+        _patch_mintpy_plot_bugs()
         from mintpy.smallbaselineApp import TimeSeriesAnalysis
         app = TimeSeriesAnalysis(self.cfg_path.as_posix(), self.mintpy_dir.as_posix())
         try:

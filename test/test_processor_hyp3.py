@@ -60,6 +60,7 @@ def _make_hyp3_s1(tmp_path: Path, pairs=None):
          patch("insarhub.processor.hyp3_base.HyP3", return_value=fake_client), \
          patch("insarhub.processor.hyp3_base.Hyp3Base._hyp3_authorize"):
         from insarhub.processor.hyp3_s1 import Hyp3_S1
+        from insarhub.config.paths import Hyp3Paths
         proc = Hyp3_S1.__new__(Hyp3_S1)
         proc.config = cfg
         proc.client = fake_client
@@ -69,6 +70,7 @@ def _make_hyp3_s1(tmp_path: Path, pairs=None):
         proc.cost = 1
         proc.output_dir = tmp_path
         proc._current_client_user = None
+        proc._paths = Hyp3Paths(Path(cfg.workdir))
         return proc
 
 

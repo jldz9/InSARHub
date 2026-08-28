@@ -66,33 +66,23 @@ class ASF_Base_Config:
     max_workers: int = 3
 
     # ── UI metadata consumed by the API / settings panel ─────────────────────
+    # The downloader CONFIG panel is deliberately minimal: only the operational
+    # knobs (download concurrency + result cap). Every actual SEARCH parameter
+    # (dataset/level are fixed per downloader; flightDirection / path / frame /
+    # polarization / dates / AOI) lives in the Search Filters panel instead
+    # (per-downloader `search_filter_schema` + the TopBar), so the two don't
+    # duplicate ~30 asf_search fields. The remaining `_ui_fields` entries below
+    # stay defined (harmless) in case a downloader re-groups them.
     _ui_groups: ClassVar[list] = [
-        {"label": "Dataset",
-         "fields": ["dataset", "platform", "instrument"]},
-        {"label": "SAR Parameters",
-         "fields": ["beamMode", "beamSwath", "processingLevel",
-                    "polarization", "mainBandPolarization", "sideBandPolarization",
-                    "lookDirection", "flightDirection", "flightLine"]},
-        {"label": "Orbit & Frame",
-         "fields": ["relativeOrbit", "absoluteOrbit", "frame", "asfFrame", "frameCoverage"]},
-        {"label": "Burst IDs",
-         "fields": ["absoluteBurstID", "relativeBurstID", "fullBurstID", "operaBurstID"]},
-        {"label": "Temporal & Location",
-         "fields": ["start", "end", "processingDate", "season",
-                    "intersectsWith", "stack_from_id", "maxResults"]},
-        {"label": "By Granule Name",
-         "fields": ["granule_names"]},
-        {"label": "Advanced",
-         "fields": ["campaign", "groupID",
-                    "maxDoppler", "minDoppler", "maxFaradayRotation", "minFaradayRotation",
-                    "offNadirAngle", "jointObservation",
-                    "productionConfiguration", "rangeBandwidth"]},
         {"label": "Download",
-         "fields": ["max_workers"]},
+         "fields": ["max_workers", "maxResults", "ssl_verify"]},
     ]
     _ui_fields: ClassVar[dict] = {
         "max_workers":     {"type": "number", "min": 1, "max": 16, "step": 1,
                             "hint": "Concurrent download threads."},
+        "ssl_verify":      {"type": "bool",
+                            "hint": "Verify ASF's SSL certificate. Turn OFF only if downloads "
+                                    "fail with an expired-certificate error."},
         # Dataset
         "dataset":         {"type": "text",
                             "hint": "Dataset to search (e.g. SENTINEL-1, ALOS, NISAR)"},
@@ -278,6 +268,62 @@ class S1_Burst_Config(ASF_Base_Config):
     }
 
 
+@dataclass
+class NISAR_GSLC_Config(ASF_Base_Config):
+    """Search/download config for NISAR L2 GSLC (geocoded SLC) via ASF.
+
+    GSLC is already geocoded (unlike Sentinel-1 SLC), so it feeds dolphin's
+    phase-linking directly through the ISCE3_NISAR processor -- no coregistration
+    or COMPASS geocoding stage. L-band (frequencyA) HH is the default single-pol
+    for InSAR; override ``polarization`` for HV / dual / quad products.
+    """
+    name: str = "NISAR_GSLC_Config"
+    dataset: str | list[str] | None = constants.DATASET.NISAR
+    processingLevel: str | None = constants.PRODUCT_TYPE.GSLC
+    # No polarization default: NISAR encodes it as DHDH/SHSH/etc. (not S1's
+    # HH/VV), so a fixed default would silently filter out valid products.
+    # Filter via the GUI search schema / --polarization when needed.
+    #
+    # Default to FULL-coverage frames only: NISAR images in segments, so a frame
+    # at a segment edge comes back "Partial" (a smaller, clipped footprint). A
+    # stack that mixes Full and Partial frames of the same (path, frame) has
+    # inconsistent footprint sizes and coverage gaps across dates -- filtering to
+    # Full keeps every date on the same frame extent. Set to "" for both.
+    frameCoverage: str | None = "FULL"
+
+
+@dataclass
+class NISAR_RSLC_Config(ASF_Base_Config):
+    """Search/download config for NISAR L1 RSLC (radar-coordinate SLC) via ASF.
+
+    RSLC is the L1 radar SLC (both frequency A and B) -- the rawest InSAR input,
+    processed into interferograms by GMTSAR's NISAR path (pre_proc_nsr /
+    p2p_processing_nsr, SAT=NSR_A). Same fixed frame grid + FULL-coverage default
+    as the other NISAR downloaders.
+    """
+    name: str = "NISAR_RSLC_Config"
+    dataset: str | list[str] | None = constants.DATASET.NISAR
+    processingLevel: str | None = constants.PRODUCT_TYPE.RSLC
+    frameCoverage: str | None = "FULL"
+
+
+@dataclass
+class NISAR_GUNW_Config(ASF_Base_Config):
+    """Search/download config for NISAR L2 GUNW (geocoded unwrapped
+    interferograms) via ASF.
+
+    GUNW is a ready-made geocoded, unwrapped interferogram PAIR product (the
+    NISAR analog of a HyP3 Sentinel-1 GUNW) -- fed straight into MintPy via its
+    ``prep_nisar`` loader, no processor needed. GUNW is single-band (the main
+    band only), so unlike GSLC/RSLC there is no side band. FULL coverage by
+    default for a consistent stack.
+    """
+    name: str = "NISAR_GUNW_Config"
+    dataset: str | list[str] | None = constants.DATASET.NISAR
+    processingLevel: str | None = constants.PRODUCT_TYPE.GUNW
+    frameCoverage: str | None = "FULL"
+
+
 # ---------------------------------------------------------------------------
 # Processor configurations
 # ---------------------------------------------------------------------------
@@ -444,6 +490,8 @@ class ISCE2_S1_Config:
     dry_run: bool                         = False
     sbatch_options_per_step: dict           = field(default_factory=dict)
     container: str | None                 = None
+    # Default container image used when `--container` is passed with no value.
+    container_default: str                = "ghcr.io/jldz9/insarhub-isce2-mintpy:dev"
 
     def __post_init__(self):
         _AUTO = {"auto", ""}
@@ -706,7 +754,7 @@ class GMTSAR_Base_Config:
         "use_python_framework": {"type": "bool", "hint": "Call GMTSAR's Python framework (bin/<name>) instead of the classic csh (bin/<name>.csh). Same workflow and arguments -- only which implementation runs. snaphu.csh has no Python port and always uses csh."},
         "gmtsar_env_bin":  {"type": "text", "hint": "bin/ dir of the conda env GMTSAR needs (provides the real `gmt` binary + numba/scipy) -- InSARHub's own env has no `gmt` (real end-to-end test, 2026-07-21). Blank = auto-detect (`gmt` on $PATH, then a sibling conda env with `gmt` in its bin/)"},
         "proc_stage":      {"type": "number", "step": 1, "hint": "Start stage (1 preprocess ... 6 geocode)"},
-        "skip_stage":      {"type": "text", "hint": "Comma-list of stages to skip, or -999 for none"},
+        "skip_stage":      {"type": "text", "hint": "Comma-list of stages to skip; 'auto' = none"},
         "skip_master":     {"type": "number", "step": 1, "hint": "Skip master preprocessing (0/1)"},
         "skip_1":          {"type": "number", "step": 1, "hint": "Skip stage 1"},
         "skip_2":          {"type": "number", "step": 1, "hint": "Skip stage 2"},
@@ -715,20 +763,20 @@ class GMTSAR_Base_Config:
         "skip_5":          {"type": "number", "step": 1, "hint": "Skip stage 5"},
         "skip_6":          {"type": "number", "step": 1, "hint": "Skip stage 6"},
         "coregistration":  {"type": "select", "options": ["esd", "geometry"],
-                             "hint": "Stack alignment (stack_mode). esd = enhanced spectral diversity (preproc_batch_tops_esd, matches ISCE2_S1 NESD -- the default); geometry = orbit/DEM only (preproc_batch_tops)."},
-        "esd_mode":        {"type": "select", "options": [0, 1, 2],
+                             "hint": "Stack alignment (stack_mode). geometry = orbit/DEM only (preproc_batch_tops, the default); esd = enhanced spectral diversity (preproc_batch_tops_esd, matches ISCE2_S1 NESD)."},
+        "esd_mode":        {"type": "select", "options": [0, 1, 2], "show_if": {"coregistration": "esd"},
                              "hint": "ESD averaging when coregistration=esd: 0 average, 1 median, 2 interpolation. Ignored for geometry."},
-        "esd_network":     {"type": "bool",
+        "esd_network":     {"type": "bool", "show_if": {"coregistration": "esd"},
                              "hint": "Refine alignment with a short-baseline ESD network inverted for per-date corrections (ISCE topsStack topology), instead of measuring each scene directly against a possibly distant super-master. Recommended for stacks spanning more than ~2 months."},
-        "esd_network_max_days": {"type": "number", "step": 12,
+        "esd_network_max_days": {"type": "number", "step": 12, "show_if": {"coregistration": "esd"},
                              "hint": "Longest temporal baseline measured directly by the ESD network (days). Larger = denser network but less reliable measurements."},
-        "esd_network_max_conn": {"type": "number", "step": 1,
+        "esd_network_max_conn": {"type": "number", "step": 1, "show_if": {"coregistration": "esd"},
                              "hint": "Forward links per date in the ESD network. Must keep the network connected or the inversion is rank deficient."},
-        "num_patches":     {"type": "number", "step": 1, "hint": "Number of patches (-999 = auto)"},
-        "earth_radius":    {"type": "number", "hint": "Earth radius, m (-999 = auto from orbit)"},
-        "near_range":      {"type": "number", "hint": "Near range, m (-999 = auto)"},
-        "fd1":             {"type": "number", "hint": "Doppler centroid fd1 (-999 = auto)"},
-        "region_cut":      {"type": "text", "hint": "Radar-coord crop 'x0/xN/y0/yN' (-999 = full frame)"},
+        "num_patches":     {"type": "text", "hint": "Number of patches; 'auto' derives from data"},
+        "earth_radius":    {"type": "text", "hint": "Earth radius, m; 'auto' derives from orbit"},
+        "near_range":      {"type": "text", "hint": "Near range, m; 'auto' derives from data"},
+        "fd1":             {"type": "text", "hint": "Doppler centroid fd1; 'auto' derives from data"},
+        "region_cut":      {"type": "text", "hint": "Radar-coord crop 'x0/xN/y0/yN'; 'auto' = full frame"},
         "topo_phase":      {"type": "number", "step": 1, "hint": "Subtract topographic phase (0/1)"},
         "topo_interp_mode":{"type": "number", "step": 1, "hint": "Topo interpolation mode (0/1)"},
         "shift_topo":      {"type": "number", "step": 1, "hint": "Shift topo to align w/ amplitude (0/1)"},
@@ -756,22 +804,22 @@ class GMTSAR_Base_Config:
 
     name: str                         = "GMTSAR_Base_Config"
     workdir: Path | str               = field(default_factory=lambda: Path.cwd())
-    dem_path: Path | str | None       = None   # None = auto-download (see dem_source)
+    dem_path: Path | str | None       = "auto"  # "auto"/None = auto-download (see dem_source)
     # glo30 (Copernicus GLO-30 via dem_stitcher) matches the DEM HyP3 and
     # ISCE2_S1 use, so backend comparisons aren't confounded by DEM source.
     # srtm falls back to GMTSAR's own make_dem.
     dem_source: str                   = "glo30"
     dem_mode: int                     = 1      # make_dem SRTM only: 1=1-arcsec, 2=3-arcsec
     sat: str                          = "S1_TOPS"
-    config_template: Path | str | None = None
+    config_template: Path | str | None = "auto"
     max_workers: int                  = 4
     skip_existing: bool               = True
     dry_run: bool                     = False
     # GMTSAR's own runtime -- deliberately independent of whatever conda env
     # the InSARHub process itself runs under. See gmtsar_s1.py's
     # _subprocess_env() docstring for the real failure this fixes.
-    gmtsar_root: Path | str | None    = None
-    gmtsar_env_bin: Path | str | None = None
+    gmtsar_root: Path | str | None    = "auto"
+    gmtsar_env_bin: Path | str | None = "auto"
     # Drive GMTSAR through its Python framework (gmtsar/python/utils/*) rather
     # than the classic csh scripts. The fork installs both side by side in
     # bin/: the unsuffixed name is the Python port, <name>.csh the original,
@@ -785,15 +833,17 @@ class GMTSAR_Base_Config:
     # submits, same as ISCE2_S1_Config.container) -- see GMTSAR_S1's
     # _reinvoke_via_container() docstring.
     container: str | None             = None
+    # Default container image used when `--container` is passed with no value.
+    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev"
 
     # ── GMTSAR processing params (common to every SAT; pop_config defaults) ──
     # stack alignment: "esd" (enhanced spectral diversity, preproc_batch_tops_esd
     # -- the structural analogue of ISCE2_S1's NESD coregistration, the default)
     # or "geometry" (orbit/DEM only, preproc_batch_tops).
-    coregistration: str          = "esd"
+    coregistration: str          = "geometry"
     esd_mode: int                = 1     # 0 average, 1 median, 2 interpolation
     proc_stage: int              = 1
-    skip_stage: int | str        = -999
+    skip_stage: int | str        = "auto"
     skip_1: int                  = 0
     skip_2: int                  = 0
     skip_3: int                  = 0
@@ -801,11 +851,11 @@ class GMTSAR_Base_Config:
     skip_5: int                  = 0
     skip_6: int                  = 0
     skip_master: int             = 0
-    num_patches: int             = -999
-    earth_radius: float          = -999
-    near_range: float            = -999
-    fd1: float                   = -999
-    region_cut: int | str        = -999
+    num_patches: int | str       = "auto"
+    earth_radius: float | str    = "auto"
+    near_range: float | str      = "auto"
+    fd1: float | str             = "auto"
+    region_cut: int | str        = "auto"
     topo_phase: int              = 1
     topo_interp_mode: int        = 0
     shift_topo: int              = 0
@@ -1009,7 +1059,7 @@ class GMTSAR_S1_Config(GMTSAR_Base_Config):
         {"label": "Paths",
          "fields": ["slc_dir", "orbit_dir", "dem_path"]},
         {"label": "Area of interest",
-         "fields": ["AOI"]},
+         "fields": ["AOI", "process_full_extent"]},
         {"label": "Sentinel-1",
          "fields": ["subswath", "parallel", "polarization"]},
         {"label": "Sentinel-1 TOPS processing",
@@ -1026,11 +1076,12 @@ class GMTSAR_S1_Config(GMTSAR_Base_Config):
         "slc_dir":         {"type": "text", "hint": "Directory with Sentinel-1 SLC .SAFE files"},
         "orbit_dir":       {"type": "text", "hint": "Directory with .EOF orbit files"},
         "AOI":             {"type": "text", "hint": "Geographic area of interest: same formats the downloader --aoi accepts (a bbox [min_lon, min_lat, max_lon, max_lat], a spatial file path, or a WKT string). Auto-converted to GMTSAR region_cut (radar coords) via SAT_llt2rat, cropping processing to this area, and used as the DEM-download extent fallback. Blank = read from the workdir's insarhub_config.json (downloader intersectsWith); still blank = full frame + SLC-footprint DEM."},
+        "process_full_extent": {"type": "bool", "hint": "Process the full SLC frame — ignore the AOI (and the downloader's intersectsWith): no region_cut/reframe, DEM from the SLC footprint. Overrides AOI when checked."},
         "subswath":        {"type": "text",
                              "hint": "IW subswath(s), ISCE-style space-separated (e.g. \"1 2 3\" = full frame merged via p2p_S1_TOPS_Frame, \"2\" = single-subswath via p2p_processing). Same field also controls stack_mode's multi-swath handling: more than one subswath runs a separate F<N> pipeline per swath and then merges them (merge_batch); a single subswath keeps the flat layout."},
         "parallel":        {"type": "bool", "hint": "p2p_S1_TOPS_Frame internal subswath parallelism (multi-subswath mode only)"},
         "polarization":    {"type": "select", "options": ["vv", "vh"], "hint": "Polarization channel"},
-        "stack_mode":      {"type": "bool", "hint": "Time-series stack: align whole stack to one super-master + batch interferograms + baseline_table.dat (for GMTSAR_SBAS / GMTSAR_MINTPY_SBAS). Off = independent per-pair."},
+        "stack_mode":      {"type": "bool", "hint": "Time-series stack: align whole stack to one super-master + batch interferograms + baseline_table.dat (for GMTSAR_SBAS / GMTSAR_Mintpy_SBAS). Off = independent per-pair."},
         "reference":       {"type": "text", "hint": "Super-master scene for stack_mode (blank = earliest scene)"},
         "spec_div":        {"type": "number", "step": 1, "hint": "S1_TOPS spectral diversity ESD (0/1)"},
         "spec_mode":       {"type": "number", "step": 1, "hint": "S1_TOPS spectral-diversity mode"},
@@ -1062,6 +1113,10 @@ class GMTSAR_S1_Config(GMTSAR_Base_Config):
     # string. None = read from workdir insarhub_config.json (downloader
     # intersectsWith); if still None, full frame + SLC-footprint DEM.
     AOI: str | list[float] | None = None
+    # Process the full SLC frame, ignoring any AOI (config.AOI AND the
+    # downloader's intersectsWith). When True, _resolve_aoi() returns None, so
+    # there is no region_cut / reframe and the DEM comes from the SLC footprint.
+    process_full_extent: bool     = False
     # NOTE: AOI additionally drives the reframing step that runs before
     # alignment (GMTSAR S1 TOPS tutorial 3c/4b: pins.ll + the
     # create_frame_tops.csh core of organize_files_tops.csh). Every scene is
@@ -1085,13 +1140,13 @@ class GMTSAR_S1_Config(GMTSAR_Base_Config):
     # (per-pair p2p_processing/p2p_S1_TOPS_Frame), align the WHOLE stack to
     # one shared super-master and batch-generate interferograms, producing a
     # single baseline_table.dat spanning every date -- the coherent stack a
-    # GMTSAR_SBAS / GMTSAR_MINTPY_SBAS analyzer needs. See gmtsar_s1.py's
+    # GMTSAR_SBAS / GMTSAR_Mintpy_SBAS analyzer needs. See gmtsar_s1.py's
     # _run_stack() for the pipeline (shells out to GMTSAR's own
     # preproc_batch_tops / intf_tops_parallel / merge_batch).
     stack_mode: bool              = False
     # Super-master scene for stack_mode (first line of data.in, every date
     # aligned to it). None = use the earliest scene across all pairs.
-    reference: str | None         = None
+    reference: str | None         = "auto"
     # ── S1_TOPS-only GMTSAR processing params (pop_config S1_TOPS extras) ──
     spec_div: int                 = 0
     spec_mode: int                = 1
@@ -1205,26 +1260,23 @@ class ISCE3_Burst_Config:
         tec_sol_code: IONEX analysis centre ('jpl', 'cod', 'igs', ...).
         x_posting/y_posting: CSLC output pixel spacing in metres. COMPASS
             defaults are 5/10; the notebooks use 10/20 to cut runtime.
-        rglks/azlks: Multilooking applied to the stitched interferogram.
-        filt_strength: Goldstein filter alpha.
+        rglks/azlks: Strides (decimation) applied by dolphin's phase linking;
+            maps onto output_options.strides {y: azlks, x: rglks}.
         n_connections: Sequential pairing -- connect each date to its next N.
             Maps onto dolphin's Network(max_bandwidth=N).
         max_temporal_baseline: Pair by days instead of neighbour count. When
             set it replaces n_connections (dolphin honours one or the other).
-        crop_buffer_deg: Padding around AOI when cropping CSLC bursts, so
-            filtering and unwrapping do not begin at a nodata edge.
-        coh_window: Window in pixels for coherence estimation. Estimated after
-            Goldstein filtering, following the COMPASS notebook -- so it is a
-            filtered-phase quality measure, comparable to ISCE's filt_fine.cor,
-            not a raw normalised cross-correlation.
-        unwrap_nlooks: Effective look count handed to snaphu; controls how
-            strongly it trusts the coherence.
-        unwrap_tiles: snaphu tiles per side (2 = 2x2).
+        unwrap_nlooks: Effective look count handed to snaphu. None derives it
+            exactly as dolphin does: phase_link uses (2*hw_y+1)*(2*hw_x+1),
+            network uses azlks*rglks.
+        unwrap_tiles: snaphu tiles per side. 1 = single tile, matching
+            dolphin's SnaphuOptions.ntiles=(1, 1).
         unwrap_cost/unwrap_init_method: snaphu cost mode and initialisation.
         max_workers: Concurrent s1_cslc.py / interferogram jobs.
     """
     name: str                     = "ISCE3_Burst_Config"
     workdir: str | None           = None
+    burst_path: str | None        = None   # assembled .SAFE burst stack (input); defaults to workdir/slc
     slc_dir: str | None           = None
     orbit_dir: str | None         = None
     dem_path: str | None          = None
@@ -1263,20 +1315,17 @@ class ISCE3_Burst_Config:
     # ── interferogram ──────────────────────────────────────────────────────
     rglks: int                    = 4
     azlks: int                    = 2
-    filt_strength: float          = 0.5
     n_connections: int            = 3
     max_temporal_baseline: float | None = None
-    crop_buffer_deg: float        = 0.05
-    coh_window: int               = 11
 
     # ── wrapped-phase estimator ────────────────────────────────────────────
-    # phase_link, not network. Every pair contributes to the estimate rather
-    # than a chosen subset, which on the Hawaii test stack gave one connected
-    # component at 83% coverage against three at 55%, and cut closure error
-    # from 0.157 to 0.067 rad. It costs more compute (full covariance per
-    # ministack) but the pairwise network remains one field away.
-    ifg_mode: str                 = "phase_link"
-    pl_ifg_network: str           = "single_reference"
+    # dolphin's phase linking (the engine delegates to dolphin's wrapped_phase).
+    # 'bandwidth' matches dolphin's own default and, unlike 'single_reference',
+    # makes timeseries.run perform the redundant-network least-squares inversion
+    # -- the step that averages out per-interferogram ministack/unwrap glitches
+    # (single_reference skips inversion, so those glitches print as rectangular
+    # blocks in the velocity). single_reference is still selectable for speed.
+    pl_ifg_network: str           = "bandwidth"
     pl_half_window_y: int         = 7
     pl_half_window_x: int         = 14
     pl_ministack_size: int        = 15
@@ -1287,8 +1336,15 @@ class ISCE3_Burst_Config:
     pl_baseline_lag: int | None   = None
 
     # ── unwrapping ─────────────────────────────────────────────────────────
-    unwrap_nlooks: float          = 8.0
-    unwrap_tiles: int             = 2
+    # None = derive from the estimator, exactly as dolphin's displacement
+    # workflow does: phase_link uses (2*hw_y+1)*(2*hw_x+1) (the SHP window IS
+    # the adaptive multilook), network uses azlks*rglks. Set a value to override.
+    unwrap_nlooks: float | None   = None
+    # 1 = single-tile snaphu, matching dolphin's default (SnaphuOptions.ntiles
+    # is (1,1)). Tiling (>=2) resolves per-tile 2pi ambiguities independently
+    # and, merged inconsistently across interferograms, produced a spurious
+    # constant velocity offset on the p56 stack.
+    unwrap_tiles: int             = 1
     unwrap_cost: str              = "smooth"
     unwrap_init_method: str       = "mcf"
 
@@ -1301,6 +1357,8 @@ class ISCE3_Burst_Config:
     # the whole pipeline inside, instead of running on the host. The image is
     # expected to have `insarhub` plus ISCE3/COMPASS installed.
     container: str | None         = None
+    # Default container image used when `--container` is passed with no value.
+    container_default: str        = "ghcr.io/jldz9/insarhub-isce3-dolphin:dev"
     # Set by the CLI's --dry-run. Must exist as a real field: the CLI puts
     # dry_run into its overrides dict, but only keys that are actual dataclass
     # fields survive the filter into the config -- so without this, --dry-run
@@ -1328,12 +1386,27 @@ class ISCE3_Burst_Config:
         answer, and having it visible means it can be edited rather than
         guessed at. Set ``process_full_extent`` to process the whole downloaded
         extent regardless.
+
+        ``unwrap_nlooks`` is filled with dolphin's effective look count when
+        left None, exactly as dolphin's displacement workflow derives it:
+        ``(2*hw_y+1)*(2*hw_x+1)`` (the SHP window *is* the adaptive multilook).
         """
         from pathlib import Path as _P
+
+        if self.unwrap_nlooks is None:
+            self.unwrap_nlooks = float(
+                (2 * self.pl_half_window_y + 1)
+                * (2 * self.pl_half_window_x + 1))
 
         if not self.workdir:
             return
         wd = _P(self.workdir).expanduser().resolve()
+
+        if not self.burst_path:
+            # The assembled .SAFE burst stack the S1_Burst downloader writes.
+            # Shown resolved (not an empty box) so the panel makes the input
+            # location explicit and editable.
+            self.burst_path = str(wd / "slc")
 
         if not self.burst_db_path:
             self.burst_db_path = str(
@@ -1344,7 +1417,7 @@ class ISCE3_Burst_Config:
 
     _ui_groups: ClassVar[list] = [
         {"label": "Paths",
-         "fields": ["workdir", "slc_dir", "orbit_dir", "dem_path", "tec_dir",
+         "fields": ["workdir", "burst_path", "orbit_dir", "dem_path", "tec_dir",
                     "cslc_dir", "burst_db_path"]},
         {"label": "DEM & water mask",
          "fields": ["AOI", "process_full_extent", "dem_buffer_deg", "dem_source", "water_mask"]},
@@ -1353,10 +1426,9 @@ class ISCE3_Burst_Config:
         {"label": "CSLC geocoding",
          "fields": ["x_posting", "y_posting", "common_bursts_only"]},
         {"label": "Interferogram",
-         "fields": ["ifg_mode", "rglks", "azlks", "filt_strength",
-                    "n_connections", "max_temporal_baseline",
-                    "crop_buffer_deg", "coh_window"]},
-        {"label": "Phase linking (ifg_mode = phase_link)",
+         "fields": ["rglks", "azlks",
+                    "n_connections", "max_temporal_baseline"]},
+        {"label": "Phase linking",
          "fields": ["pl_ifg_network", "pl_half_window_y", "pl_half_window_x", "pl_ministack_size",
                     "pl_shp_method", "pl_shp_alpha", "pl_use_evd", "pl_beta",
                     "pl_baseline_lag"]},
@@ -1367,6 +1439,8 @@ class ISCE3_Burst_Config:
          "fields": ["max_workers"]},
         {"label": "HPC (SLURM)",
          "fields": ["hpc_mode", "max_concurrent_hpc"]},
+        {"label": "Container",
+         "fields": ["container"]},
     ]
     _ui_fields: ClassVar[dict] = {
         "AOI":            {"type": "bbox", "hint": "W S E N in degrees. Drives the DEM footprint and CSLC bbox. Pre-filled from this folder's downloader intersectsWith; edit freely, or tick Process full extent to ignore it."},
@@ -1381,15 +1455,12 @@ class ISCE3_Burst_Config:
         "y_posting":      {"type": "number", "step": 1, "hint": "CSLC northing pixel spacing, m (COMPASS default 10)."},
         "common_bursts_only": {"type": "bool",
                            "hint": "Keep only bursts present on EVERY date. Guarantees a rectangular stack; silently narrows coverage if a date is missing a burst."},
-        "rglks":          {"type": "number", "step": 1, "hint": "Range looks on the stitched interferogram."},
-        "azlks":          {"type": "number", "step": 1, "hint": "Azimuth looks on the stitched interferogram."},
-        "filt_strength":  {"type": "number", "step": 0.1, "hint": "Goldstein filter alpha (0 = off)."},
-        "n_connections":  {"type": "number", "step": 1, "hint": "Sequential pairing: connect each date to its next N. Ignored under user_defined. In phase_link mode this shapes the network formed AFTER estimation, which no longer decides what data is combined."},
+        "rglks":          {"type": "number", "step": 1, "hint": "Range strides (decimation) applied by dolphin's phase linking."},
+        "azlks":          {"type": "number", "step": 1, "hint": "Azimuth strides (decimation) applied by dolphin's phase linking."},
+        "n_connections":  {"type": "number", "step": 1, "hint": "Sequential pairing: connect each date to its next N. Shapes the interferogram network formed AFTER dolphin's phase linking, which no longer decides what data is combined."},
         "process_full_extent": {"type": "bool", "hint": "Process the entire downloaded burst extent, ignoring AOI. Leave off to use the AOI above, which is pre-filled from the downloader's intersectsWith for this folder. Only applies once bursts are geocoded -- the dem and cslc stages run before that and always use AOI."},
-        "ifg_mode":       {"type": "select", "options": ["network", "phase_link", "user_defined"],
-                           "hint": "network = pairwise interferograms on a rule-based graph (n_connections / max_temporal_baseline). user_defined = form exactly the pairs in this folder's stack_*.json, as chosen by select_pairs or the network editor. phase_link = estimate the phase history from the full covariance (every pair contributes), then form interferograms from the result."},
-        "pl_ifg_network": {"type": "select", "options": ["single_reference", "bandwidth"],
-                           "hint": "Network formed AFTER phase linking. single_reference (N-1 ifgs) is what OPERA ships -- the estimator already used every pair, so extra pairs add no wrapped-phase information. 'bandwidth' uses n_connections instead, costing more unwrapping in exchange for redundancy that can catch unwrapping errors."},
+        "pl_ifg_network": {"type": "select", "options": ["bandwidth", "single_reference"],
+                           "hint": "Network formed AFTER phase linking. 'bandwidth' (default, matches dolphin) uses n_connections and, unlike single_reference, makes the time-series step run a redundant-network least-squares inversion that averages out per-interferogram ministack/unwrap glitches (single_reference feeds each ifg straight to the velocity, so those glitches show as rectangular blocks). single_reference (N-1 ifgs) is cheaper -- fewer unwraps, no inversion -- and is what OPERA ships, but has no redundancy."},
         "pl_half_window_y": {"type": "number", "step": 1,
                            "hint": "Half-height of the phase-linking neighbourhood; the window is 2*y+1 rows. This is the real multilook, and it is adaptive."},
         "pl_half_window_x": {"type": "number", "step": 1,
@@ -1407,19 +1478,115 @@ class ISCE3_Burst_Config:
                            "hint": "StBAS: use only the nearest-N off-diagonals of the covariance. Empty = use every pair. This is the phase-linking analogue of n_connections."},
         "max_temporal_baseline": {"type": "number", "step": 6,
                            "hint": "Pair by days instead of neighbour count. Overrides n_connections when set."},
-        "crop_buffer_deg": {"type": "number", "step": 0.01,
-                           "hint": "Padding around AOI when cropping CSLC bursts, so filtering and unwrapping do not start at a nodata edge."},
-        "coh_window":     {"type": "number", "step": 2,
-                           "hint": "Window (px) for coherence estimation. Estimated AFTER filtering, so it measures filtered-phase quality, not raw correlation."},
         "unwrap_nlooks":  {"type": "number", "step": 1,
-                           "hint": "Effective looks reported to snaphu; sets how much it trusts the coherence."},
+                           "hint": "Effective looks reported to snaphu. Empty = derive from the estimator (phase_link: (2*hw_y+1)*(2*hw_x+1); network: azlks*rglks), matching dolphin."},
         "unwrap_tiles":   {"type": "number", "step": 1,
-                           "hint": "snaphu tiling per side (2 = 2x2). Raise for large scenes, at the cost of tile-seam risk."},
+                           "hint": "snaphu tiling per side (1 = single tile, matches dolphin). Raise only for scenes too large for one tile -- tiling risks per-tile 2pi ambiguity seams."},
         "unwrap_cost":    {"type": "select", "options": ["smooth", "defo", "topo", "p-norm"],
                            "hint": "snaphu cost mode. 'smooth' suits deformation stacks."},
         "unwrap_init_method": {"type": "select", "options": ["mcf", "mst"],
                            "hint": "snaphu initialisation. MCF is slower but usually unwraps better."},
+        "burst_path":     {"type": "text", "hint": "Directory of assembled .SAFE burst scenes (the S1_Burst downloader's output). Defaults to workdir/slc; the interferogram network is derived from these dates."},
         "burst_db_path":  {"type": "text", "hint": "OPERA burst-ID sqlite3 DB for s1_geocode_stack.py. Downloaded on demand when empty."},
+        "container":      {"type": "text",
+                           "hint": "Path to a .sif/Apptainer image or a Docker image reference with insarhub installed — re-runs this processor inside the container instead of on the host. Persisted to the config so retry re-runs inside the same image; a new submit/retry with a different value overrides it."},
+    }
+
+
+@dataclass
+class ISCE3_NISAR_Config(ISCE3_Burst_Config):
+    """Config for the ISCE3_NISAR processor (NISAR L2 GSLC -> dolphin).
+
+    NISAR GSLC is ALREADY geocoded, so the S1/COMPASS geocoding stages
+    (dem/tec/cslc/static) are skipped -- this feeds dolphin phase-linking
+    directly. Inherits every dolphin knob (strides, phase-linking, network,
+    unwrap, container) from ISCE3_Burst_Config; adds only which NISAR GSLC
+    grid to read.
+
+    gslc_dir: where the NISAR_GSLC downloader put the ``*.h5`` products.
+        Defaults to workdir/slc (same as ISCE3_Burst's slc_dir convention).
+    nisar_frequency: GSLC frequency band group -- 'A' (L-band, default) or 'B'.
+    nisar_polarization: polarization co-pol to phase-link -- 'HH' (default,
+        L-band InSAR) / 'HV' / 'VV' / 'VH'. Combined into dolphin's subdataset
+        ``/science/LSAR/GSLC/grids/frequency<A|B>/<pol>``.
+
+    Overrides the S1-only ``_ui_groups``/``_ui_fields`` (burst_path,
+    burst_db_path, dem/tec/cslc, ionosphere, CSLC geocoding) with a NISAR
+    schema -- those stages never run for GSLC, so surfacing them only invites
+    confusion (e.g. a required-looking ``burst_db_path`` that nothing reads).
+    """
+    name: str                     = "ISCE3_NISAR_Config"
+    gslc_dir: str | None          = None
+    nisar_frequency: str          = "A"
+    nisar_polarization: str       = "HH"
+
+    def __post_init__(self):
+        """Same derived-value fill as ISCE3_Burst_Config, minus the S1 paths.
+
+        ``unwrap_nlooks`` and ``AOI`` are still derived (dolphin's effective
+        look count; the downloader's intersectsWith bbox for output clipping),
+        but the S1-only ``burst_path``/``burst_db_path`` are replaced by the
+        NISAR ``gslc_dir`` default.
+        """
+        from pathlib import Path as _P
+
+        if self.unwrap_nlooks is None:
+            self.unwrap_nlooks = float(
+                (2 * self.pl_half_window_y + 1)
+                * (2 * self.pl_half_window_x + 1))
+
+        if not self.workdir:
+            return
+        wd = _P(self.workdir).expanduser().resolve()
+
+        if not self.gslc_dir:
+            self.gslc_dir = str(wd / "slc")
+
+        if not self.AOI:
+            self.AOI = _aoi_bbox_from_folder(wd)
+
+    _ui_groups: ClassVar[list] = [
+        {"label": "Paths",
+         "fields": ["gslc_dir"]},
+        {"label": "NISAR grid",
+         "fields": ["nisar_frequency", "nisar_polarization"]},
+        {"label": "Extent",
+         "fields": ["AOI", "process_full_extent"]},
+        {"label": "Interferogram",
+         "fields": ["rglks", "azlks",
+                    "n_connections", "max_temporal_baseline"]},
+        {"label": "Phase linking",
+         "fields": ["pl_ifg_network", "pl_half_window_y", "pl_half_window_x", "pl_ministack_size",
+                    "pl_shp_method", "pl_shp_alpha", "pl_use_evd", "pl_beta",
+                    "pl_baseline_lag"]},
+        {"label": "Unwrapping",
+         "fields": ["unwrap_nlooks", "unwrap_tiles", "unwrap_cost",
+                    "unwrap_init_method"]},
+        {"label": "Execution",
+         "fields": ["max_workers"]},
+        {"label": "HPC (SLURM)",
+         "fields": ["hpc_mode", "max_concurrent_hpc"]},
+        {"label": "Container",
+         "fields": ["container"]},
+    ]
+    # Reuse the S1 dolphin knobs (they are identical for NISAR), dropping the
+    # geocoding-stage fields, and add the NISAR-specific grid selection.
+    _ui_fields: ClassVar[dict] = {
+        **{k: v for k, v in ISCE3_Burst_Config._ui_fields.items()
+           if k in (
+               "AOI", "process_full_extent", "rglks", "azlks", "n_connections",
+               "max_temporal_baseline", "pl_ifg_network", "pl_half_window_y",
+               "pl_half_window_x", "pl_ministack_size", "pl_shp_method",
+               "pl_shp_alpha", "pl_use_evd", "pl_beta", "pl_baseline_lag",
+               "unwrap_nlooks", "unwrap_tiles", "unwrap_cost",
+               "unwrap_init_method", "container",
+           )},
+        "gslc_dir": {"type": "text",
+                     "hint": "Directory of NISAR L2 GSLC *.h5 granules (the NISAR_GSLC downloader's output). Defaults to workdir/slc."},
+        "nisar_frequency": {"type": "select", "options": ["A", "B"],
+                            "hint": "GSLC frequency band group read by dolphin. A = L-band (default); B = the 5 MHz side band."},
+        "nisar_polarization": {"type": "select", "options": ["HH", "HV", "VV", "VH"],
+                               "hint": "Polarization co-pol to phase-link. HH is the L-band InSAR default."},
     }
 
 
@@ -1508,8 +1675,8 @@ class Mintpy_SBAS_Base_Config:
     _ui_fields: ClassVar[dict] = {
         # Compute Resources
         "compute_maxMemory":   {"type": "number", "min": 1, "max": 512, "step": 1,
-                                "default": _env['memory'],
-                                "hint": "Maximum memory size in GB for each dask worker"},
+                                "default": max(1, _env['memory'] - 1),
+                                "hint": "Max memory in GB to allocate (default: system memory minus 1 GB reserve)"},
         "compute_cluster":     {"type": "select",
                                 "options": ["local", "slurm", "pbs", "lsf", "oar", "sge", "none"],
                                 "hint": "Cluster type for parallel processing (local = dask LocalCluster)"},
@@ -1581,8 +1748,9 @@ class Mintpy_SBAS_Base_Config:
                                     "hint": "Reference network file (pairs in date12_list.txt format)"},
         "network_coherenceBased":  {"type": "select", "options": ["auto", "yes", "no"],
                                     "hint": "Enable coherence-based network modification"},
-        "network_minCoherence":    {"type": "number", "min": 0, "max": 1, "step": 0.05,
-                                    "hint": "Minimum coherence threshold for coherence-based modification"},
+        "network_minCoherence":    {"type": "adaptive_number", "min": 0, "max": 1, "step": 0.05,
+                                    "hint": "Minimum coherence for coherence-based modification. "
+                                            "'adaptive' = derive from this stack; 'auto' = MintPy 0.7"},
         "network_areaRatioBased":  {"type": "select", "options": ["auto", "yes", "no"],
                                     "hint": "Enable area-ratio-based network modification (ECR method)"},
         "network_minAreaRatio":    {"type": "auto_number",
@@ -1600,8 +1768,9 @@ class Mintpy_SBAS_Base_Config:
         "reference_lalo":          {"type": "text", "hint": "Reference point in lat/lon, e.g. 37.65 -118.45"},
         "reference_maskFile":      {"type": "text", "hint": "Mask file for reference point selection"},
         "reference_coherenceFile": {"type": "text", "hint": "Coherence file for reference point selection"},
-        "reference_minCoherence":  {"type": "auto_number",
-                                    "hint": "Minimum coherence for reference point selection"},
+        "reference_minCoherence":  {"type": "adaptive_number", "min": 0, "max": 1, "step": 0.05,
+                                    "hint": "Minimum coherence for reference point selection. "
+                                            "'adaptive' = derive from this stack; 'auto' = MintPy 0.85"},
         # Unwrap Error
         "unwrapError_method":          {"type": "select",
                                         "options": ["auto", "bridging", "phase_closure",
@@ -1624,8 +1793,9 @@ class Mintpy_SBAS_Base_Config:
                                              "hint": "Minimize L2-norm of velocity (vs. timeseries) in SBAS inversion"},
         "networkInversion_maskDataset":     {"type": "text",
                                              "hint": "Dataset for masking, e.g. coherence or connectComponent"},
-        "networkInversion_maskThreshold":   {"type": "number", "min": 0, "max": 1, "step": 0.05,
-                                             "hint": "Threshold for maskDataset to mask unwrapped phase"},
+        "networkInversion_maskThreshold":   {"type": "adaptive_number", "min": 0, "max": 1, "step": 0.05,
+                                             "hint": "Threshold for maskDataset to mask unwrapped phase. "
+                                                     "'adaptive' = derive from this stack; 'auto' = MintPy 0.4"},
         "networkInversion_minRedundancy":   {"type": "auto_number",
                                              "hint": "Minimum redundancy of interferograms per pixel"},
         "networkInversion_minTempCoh":      {"type": "auto_number",
@@ -1750,9 +1920,15 @@ class Mintpy_SBAS_Base_Config:
     debug: bool = False
     hpc_mode: bool = False
     container: str | None = None
+    # Default container image used when `--container` is passed with no value.
+    # MintPy analyzers need MintPy + (for ISCE2) ISCE2 -- the isce2 image has both.
+    container_default: str = "ghcr.io/jldz9/insarhub-isce2-mintpy:dev"
 
     ## computing resource configuration
-    compute_maxMemory : float | int = _env['memory']
+    # System memory minus a 1 GB reserve for the OS/scheduler: giving dask the
+    # FULL machine RAM over-subscribes every worker and OOM-kills them
+    # ("Lost all workers"). 31 G -> 30 G on a 32 G box.
+    compute_maxMemory : float | int = max(1, _env['memory'] - 1)
     compute_cluster : str = 'local' # Mintpy's slurm parallel processing is buggy, so we will handle parallel processing with dask instead. Switch to none to turn off parallel processing to save memory.
     compute_numWorker : int = _env['cpu']
     compute_config: str = 'none'
@@ -1967,29 +2143,37 @@ class Mintpy_SBAS_Base_Config:
 
 
 @dataclass
-class Hyp3_SBAS_Config(Mintpy_SBAS_Base_Config):
-    name: str = "Hyp3_SBAS_Config"
+class Hyp3_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
+    name: str = "Hyp3_Mintpy_SBAS_Config"
     load_processor: str = "hyp3"
+    # HyP3 generates interferograms in the cloud, so the only local step is
+    # MintPy -- the lightweight insarhub-base image (InSARHub + MintPy, no
+    # ISCE2/GMTSAR) is enough. See docker/Dockerfile.base.
+    container_default: str = "ghcr.io/jldz9/insarhub-base:dev"
     deramp: str = 'linear'
     troposphericDelay_method: str = 'pyaps'
+    # "adaptive": InSARHub derives each threshold from THIS stack at prep_data
+    # (see Mintpy_SBAS_Base_Analyzer._resolve_adaptive_coherence). Set a number
+    # to pin it, or "auto" for MintPy's fixed defaults (0.7 / 0.4 / 0.85).
     networkInversion_maskDataset: str = 'coherence'
-    networkInversion_maskThreshold: str | float = 0.5
+    networkInversion_maskThreshold: str | float = 'adaptive'
     network_coherenceBased : str = 'yes'
-    network_minCoherence : str| float = 0.7
+    network_minCoherence : str| float = 'adaptive'
+    reference_minCoherence : str | float = 'adaptive'
     plot : str = 'yes'
     save_kmz: str = 'no'
 
 @dataclass
-class ISCE_SBAS_Config(Mintpy_SBAS_Base_Config):
+class ISCE2_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
     """MintPy SBAS config pre-wired for ISCE2 stackSentinel outputs.
 
-    File paths are set automatically by ``ISCE_SBAS.prep_data()`` from
+    File paths are set automatically by ``ISCE2_Mintpy_SBAS.prep_data()`` from
     ``workdir/isce/``.  You can override any field if your layout differs.
     MintPy output is always written to ``workdir/mintpy/``.
     """
-    name: str                         = "ISCE_SBAS_Config"
+    name: str                         = "ISCE2_Mintpy_SBAS_Config"
     load_processor: str               = "isce"
-    # These are populated by ISCE_SBAS.prep_data() — left empty here so
+    # These are populated by ISCE2_Mintpy_SBAS.prep_data() — left empty here so
     # write_mintpy_config() skips them when they are still unset.
     load_metaFile: str                = "auto"
     load_baselineDir: str             = "auto"
@@ -2004,10 +2188,14 @@ class ISCE_SBAS_Config(Mintpy_SBAS_Base_Config):
     load_waterMaskFile: str           = "auto"
     deramp: str                       = "linear"
     troposphericDelay_method: str     = "pyaps"
+    # "adaptive": InSARHub derives each threshold from THIS stack at prep_data
+    # (see Mintpy_SBAS_Base_Analyzer._resolve_adaptive_coherence). Set a number
+    # to pin it, or "auto" for MintPy's fixed defaults (0.7 / 0.4 / 0.85).
     networkInversion_maskDataset: str = "coherence"
-    networkInversion_maskThreshold: str | float = 0.5
+    networkInversion_maskThreshold: str | float = "adaptive"
     network_coherenceBased: str       = "yes"
-    network_minCoherence: str | float = 0.7
+    network_minCoherence: str | float = "adaptive"
+    reference_minCoherence: str | float = "adaptive"
     plot: str                         = "yes"
     save_kmz: str                     = "no"
 
@@ -2030,8 +2218,8 @@ class GMTSAR_SBAS_Config:
          "fields": ["phase_grd", "corr_grd"]},
         {"label": "Network pruning",
          "fields": ["auto_prune", "max_nan_fraction"]},
-        {"label": "GMTSAR",
-         "fields": ["gmtsar_root", "gmtsar_env_bin"]},
+        {"label": "Container",
+         "fields": ["container"]},
     ]
     _ui_fields: ClassVar[dict] = {
         "smooth":      {"type": "number", "step": 0.1, "default": 0, "hint": "sbas -smooth smoothing factor"},
@@ -2046,12 +2234,13 @@ class GMTSAR_SBAS_Config:
                              "hint": "auto_prune threshold: drop a pair whose unwrapped phase is more than this fraction NaN"},
         "phase_grd":   {"type": "text", "hint": "Per-pair unwrapped phase grid name inside intf/<pair>/ (radar coords)"},
         "corr_grd":    {"type": "text", "hint": "Per-pair coherence grid name inside intf/<pair>/"},
-        "gmtsar_root":    {"type": "text", "hint": "GMTSAR repo root ($GMTSAR) -- its bin/ is prepended to subprocess PATH"},
-        "gmtsar_env_bin": {"type": "text", "hint": "bin/ of the conda env providing `gmt` + the sbas binary"},
+        "container":   {"type": "text",
+                        "hint": "Path to a .sif/Apptainer image or a Docker image reference with GMTSAR + insarhub installed — re-runs this command inside the container instead of on the host."},
     }
 
     name: str                          = "GMTSAR_SBAS_Config"
     workdir: Path | str                = field(default_factory=lambda: Path.cwd())
+    debug: bool                        = False
     # Defaults follow GMTSAR's own Sentinel-1 time-series recipe (§12b):
     #   sbas intf.tab scene.tab N S xdim ydim -range … -incidence 40 \
     #        -wavelength 0.0554658 -smooth 5.0 -rms -dem
@@ -2079,21 +2268,30 @@ class GMTSAR_SBAS_Config:
     max_nan_fraction: float            = 0.5
     phase_grd: str                     = "unwrap.grd"
     corr_grd: str                      = "corr.grd"
-    gmtsar_root: Path | str | None     = None
-    gmtsar_env_bin: Path | str | None  = None
+    # Auto-detected at run time (GMTSAR_SBAS._subprocess_env → _find_gmtsar_root /
+    # _find_gmtsar_env_bin): $GMTSAR, a GMTSAR script on PATH, or the container's
+    # own install. Not a user input -- left "auto" so it resolves per host/image.
+    gmtsar_root: Path | str | None     = "auto"
+    gmtsar_env_bin: Path | str | None  = "auto"
+    # Run inside a container image that ships GMTSAR + insarhub (the sbas binary
+    # and `gmt` live there, not in InSARHub's own env).
+    container: str | None              = None
+    container_default: str             = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev"
 
 
 @dataclass
-class GMTSAR_MINTPY_SBAS_Config(Mintpy_SBAS_Base_Config):
+class GMTSAR_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
     """MintPy SBAS config pre-wired for GMTSAR stack_mode output.
 
-    File paths are set automatically by GMTSAR_MINTPY_SBAS.prep_data() from
+    File paths are set automatically by GMTSAR_Mintpy_SBAS.prep_data() from
     workdir/gmtsar/ (the stack GMTSAR_S1 stack_mode produces), then handed to
     MintPy's prep_gmtsar.py + smallbaselineApp. MintPy output → workdir/mintpy/.
     """
-    name: str                         = "GMTSAR_MINTPY_SBAS_Config"
+    name: str                         = "GMTSAR_Mintpy_SBAS_Config"
     load_processor: str               = "gmtsar"
-    # Populated by GMTSAR_MINTPY_SBAS.prep_data() — left "auto" so
+    # GMTSAR-based: needs GMTSAR + MintPy, so the gmtsar image, not isce2.
+    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev"
+    # Populated by GMTSAR_Mintpy_SBAS.prep_data() — left "auto" so
     # write_mintpy_config() skips them while unset.
     load_metaFile: str                = "auto"
     load_baselineDir: str             = "auto"
@@ -2105,32 +2303,42 @@ class GMTSAR_MINTPY_SBAS_Config(Mintpy_SBAS_Base_Config):
     load_incAngleFile: str            = "auto"
     deramp: str                       = "linear"
     troposphericDelay_method: str     = "pyaps"
+    # GMTSAR coherence values are scaled far lower than HyP3/ISCE2, so MintPy's
+    # fixed defaults (network 0.7, mask 0.4, reference 0.85) discard almost
+    # everything on a real stack. Default these three to "adaptive": InSARHub
+    # derives each threshold from THIS stack at prep_data time (see
+    # Mintpy_SBAS_Base_Analyzer._resolve_adaptive_coherence). Set a number to
+    # pin it, or "auto" for MintPy's fixed defaults.
     networkInversion_maskDataset: str = "coherence"
-    networkInversion_maskThreshold: str | float = 0.5
+    networkInversion_maskThreshold: str | float = "adaptive"
+    # GMTSAR temporal coherence is typically far lower than HyP3/ISCE2 (a
+    # winter/snow stack can leave <100 pixels above MintPy's default 0.7),
+    # which aborts invert_network with "Not enough reliable pixels". Default to
+    # 0.0 = do NOT mask the time series by temporal coherence, so the inversion
+    # always produces output; raise it (e.g. 0.7) to re-enable masking.
+    networkInversion_minTempCoh: str | float = 0.0
     network_coherenceBased: str       = "yes"
-    network_minCoherence: str | float = 0.7
+    network_minCoherence: str | float = "adaptive"
+    reference_minCoherence: str | float = "adaptive"
     plot: str                         = "yes"
     save_kmz: str                     = "no"
     # GMTSAR runtime for the prep_gmtsar shell-out
-    gmtsar_root: Path | str | None    = None
-    gmtsar_env_bin: Path | str | None = None
+    gmtsar_root: Path | str | None    = "auto"
+    gmtsar_env_bin: Path | str | None = "auto"
 
 
 @dataclass
-class Dolphin_SBAS_Config:
-    """Config for the dolphin time-series inversion (Dolphin_SBAS).
+class ISCE3_Dolphin_PL_Config:
+    """Config for the dolphin time-series inversion (ISCE3_Dolphin_PL).
 
     Consumes an ISCE3_Burst stack: unwrapped interferograms plus their
-    connected-component labels. Deliberately has **no** "SBAS vs phase linking"
-    switch -- that choice was made by the processor's ``ifg_mode``, and the
-    inversion is identical either way. The analyzer reads the mode from the
-    stack's ``ifg_manifest.json`` so the two can never disagree; a config field
-    here would just be a second, silently-divergent source of truth.
+    connected-component labels. The wrapped-phase estimator is always dolphin's
+    phase linking (the processor delegates to dolphin's ``displacement.run``),
+    so there is no "SBAS vs phase linking" switch here -- a config field would
+    just be a second, silently-divergent source of truth.
 
-    What the mode actually changes is the quality raster used to pick the
-    reference point: phase linking leaves stitched temporal coherence on disk,
-    while a pairwise network has only per-pair correlations, so those are
-    reduced to a temporal average.
+    The quality raster used to pick the reference point is dolphin's stitched
+    temporal coherence (``interferograms/temporal_coherence_*.tif``).
 
     Attributes:
         workdir: ISCE3_Burst processing root.
@@ -2138,11 +2346,17 @@ class Dolphin_SBAS_Config:
         method: L1 is robust to unwrapping errors and is the default; L2 is
             plain least squares and is faster but trusts every pair equally.
         wavelength: Radar wavelength in metres; converts radians to displacement.
-            Sentinel-1 C-band = 0.055465763.
+            Sentinel-1 C-band = 0.055465764662349676 (matches dolphin's
+            OPERA/DISP-S1 value exactly).
         run_velocity: Also fit a linear velocity over the stack.
         correlation_threshold: Drop pixels below this quality before inverting.
         reference_point: (row, col) to hold fixed. Auto-selected from the
             quality raster when unset.
+        apply_water_mask: Mask water out of the inversion using the processor's
+            ``dem/water_mask.tif``, exactly as dolphin's ``displacement.run``
+            does (``apply_mask_to_timeseries=True``). On by default; without it
+            the velocity/displacement outputs also cover open water. Keeping it
+            on makes the sbas stage byte-identical to a native ``dolphin run``.
         los_projection: 'none' keeps line-of-sight. 'vertical' divides by the
             LOS up-component -- which assumes the horizontal motion is zero,
             so it is a modelling choice, not a coordinate change. Needs the
@@ -2153,7 +2367,8 @@ class Dolphin_SBAS_Config:
     _ui_groups: ClassVar[list] = [
         {"label": "Inversion",
          "fields": ["method", "wavelength", "run_velocity",
-                    "correlation_threshold", "reference_point"]},
+                    "correlation_threshold", "reference_point",
+                    "apply_water_mask"]},
         {"label": "Geometry",
          "fields": ["los_projection"]},
         {"label": "Stack input",
@@ -2162,31 +2377,38 @@ class Dolphin_SBAS_Config:
          "fields": ["num_threads"]},
         {"label": "HPC (SLURM)",
          "fields": ["hpc_mode"]},
+        {"label": "Container",
+         "fields": ["container"]},
     ]
     _ui_fields: ClassVar[dict] = {
         "method": {"type": "select", "options": ["L1", "L2"],
                    "hint": "L1 is robust to unwrapping errors (recommended). L2 is plain least squares."},
         "wavelength": {"type": "number", "step": 0.001,
-                       "hint": "Radar wavelength in m. Sentinel-1 C-band = 0.055465763."},
+                       "hint": "Radar wavelength in m. Sentinel-1 C-band = 0.055465764662349676."},
         "run_velocity": {"type": "bool", "hint": "Also fit a linear velocity map over the stack."},
         "correlation_threshold": {"type": "number", "step": 0.05,
                        "hint": "Mask pixels whose quality is below this before inverting."},
         "reference_point": {"type": "text",
                        "hint": "'row,col' to hold fixed. Auto-selected from the quality raster when empty."},
+        "apply_water_mask": {"type": "bool",
+                       "hint": "Mask water out of the inversion using the processor's dem/water_mask.tif "
+                               "(matches dolphin's displacement.run). Off inverts every pixel."},
         "los_projection": {"type": "select", "options": ["none", "vertical"],
                        "hint": "'vertical' divides LOS by the up-component of the LOS unit vector, which ASSUMES zero horizontal motion. Requires the processor's 'static' stage."},
         "unwrap_dir": {"type": "text", "hint": "Override; normally discovered from the stack."},
         "quality_file": {"type": "text", "hint": "Override; normally temporal coherence (phase_link) or a temporal average of correlation (network)."},
-        "output_dir": {"type": "text", "hint": "Where the time series is written. Defaults to workdir/timeseries; set it per ifg_mode to keep two runs apart."},
+        "output_dir": {"type": "text", "hint": "Where the time series is written. Defaults to workdir/timeseries."},
         "num_threads": {"type": "number", "step": 1, "hint": "Threads for the block-wise inversion."},
         "hpc_mode": {"type": "bool",
-                     "hint": "Submit the Dolphin_SBAS run as a single sbatch job. "
+                     "hint": "Submit the ISCE3_Dolphin_PL run as a single sbatch job. "
                              "SLURM resources come from sbatch_options.json (step \"sbas\") "
                              "in the workdir, generated automatically on first use. "
                              "num_threads is auto-derived from cpus_per_task."},
+        "container": {"type": "text",
+                      "hint": "Path to a .sif/Apptainer image or a Docker image reference with insarhub + dolphin installed — re-runs this analyzer inside the container instead of on the host. Not remembered between runs; set again for subsequent runs."},
     }
 
-    name: str                         = "Dolphin_SBAS_Config"
+    name: str                         = "ISCE3_Dolphin_PL_Config"
     workdir: str | None               = None
     debug: bool                       = False
     unwrap_dir: str | None            = None
@@ -2194,10 +2416,22 @@ class Dolphin_SBAS_Config:
     output_dir: str | None            = None
 
     method: str                       = "L1"
-    wavelength: float                 = 0.055465763
+    wavelength: float                 = 0.055465764662349676
     run_velocity: bool                = True
-    correlation_threshold: float      = 0.0
+    correlation_threshold: float      = 0.2
     reference_point: str | None       = None
+
+    # On by default: mask water out of the inversion, exactly as dolphin's
+    # displacement.run does (apply_mask_to_timeseries=True -> mask_path=water
+    # mask). Uses the processor's dem/water_mask.tif. Off = invert every pixel,
+    # leaving water in the velocity/displacement outputs.
+    apply_water_mask: bool            = True
+
+    # Off by default: masking the outputs to a coherence footprint is
+    # insarhub-specific cleanup, not part of dolphin. When False the velocity /
+    # displacement fill the whole grid, exactly as dolphin's timeseries.run
+    # writes them. Enable to trim outputs to the interferogram footprint.
+    apply_footprint: bool             = False
 
     los_projection: str               = "none"
 
@@ -2205,3 +2439,5 @@ class Dolphin_SBAS_Config:
     block_shape: tuple                = (256, 256)
     hpc_mode: bool                    = False
     container: str | None             = None
+    # Default container image used when `--container` is passed with no value.
+    container_default: str            = "ghcr.io/jldz9/insarhub-isce3-dolphin:dev"

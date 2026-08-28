@@ -118,6 +118,7 @@ subprocess for process-group isolation.
 from __future__ import annotations
 
 import dataclasses
+from typing import ClassVar
 import json
 import logging
 import math
@@ -176,7 +177,7 @@ _GMTSAR_SBATCH_DEFAULT_TEMPLATE: dict = {
         "merge": "merge (one manager, all remaining pairs concurrent)",
         "cohmask": "stacked-coherence mask (mask_def.grd), once, before unwrap",
         "unwrap": "snaphu unwrap + geocode (one manager, all pairs concurrent)",
-        "sbas": "SBAS (MintPy smallbaselineApp, via GMTSAR_MINTPY_SBAS)",
+        "sbas": "SBAS (MintPy smallbaselineApp, via GMTSAR_Mintpy_SBAS)",
         "manager": "job managers -- only 'partition' is used; cores/memory/walltime are fixed (1 idle core, partition max walltime)",
     },
     # Job managers are idle single-core babysitters that must outlive every
@@ -210,8 +211,8 @@ _GMTSAR_SBATCH_DEFAULT_TEMPLATE: dict = {
     # exceeded 4 h on the merged frame), so it gets the generous walltime
     "cohmask":   {"cpus_per_task": 2, "mem": "16G", "time": "02:00:00"},
     "unwrap":    {"cpus_per_task": 4, "mem": "16G", "time": "24:00:00"},
-    # GMTSAR_MINTPY_SBAS's HPC submission (Mintpy_SBAS_Base_Analyzer.submit_hpc,
-    # shared code with ISCE_SBAS/Hyp3_SBAS). Same resource needs as ISCE's own
+    # GMTSAR_Mintpy_SBAS's HPC submission (Mintpy_SBAS_Base_Analyzer.submit_hpc,
+    # shared code with ISCE2_Mintpy_SBAS/Hyp3_Mintpy_SBAS). Same resource needs as ISCE's own
     # SBAS entry -- it's the identical MintPy smallbaselineApp workflow either
     # way -- but keyed "sbas", not "17": ISCE's numbers are stackSentinel run-file
     # indices (SBAS being its 17th and last step), and GMTSAR has no such
@@ -274,19 +275,28 @@ def _gmtsar_aligned_stem(raw_stem: str) -> str:
     return f"S1_{raw_stem[15:23]}_ALL_F{raw_stem[6]}"
 
 
-def _read_status(status_dir: Path) -> str:
+def _read_marker_status(status_dir: Path) -> str:
+    """p2p / LOCAL_STEPS status via .succeeded/.failed/.running MARKER files in a
+    directory. Distinct from the STACK's status model (run_files/<stage>.status
+    text files, in insarhub.utils.status, reached via _stage_status/_set_stage):
+    the p2p marker dir is DELIBERATELY the pair's own product dir (see
+    _status_dir) so a marker doubles as "this pair's output exists here". Kept
+    separate for that reason -- do not confuse the two (they took the same name
+    once, which was a real source of confusion)."""
     if (status_dir / ".succeeded").exists():
         return _SUCCEEDED
     if (status_dir / ".failed").exists():
         return _FAILED
-    if status_dir.exists():
+    # RUNNING needs an explicit .running marker -- a bare status dir (created
+    # when the pair was marked PENDING at submit) is NOT running, it's queued.
+    if (status_dir / ".running").exists():
         return _RUNNING
     return _PENDING
 
 
-def _write_status(status_dir: Path, status: str) -> None:
+def _write_marker_status(status_dir: Path, status: str) -> None:
     status_dir.mkdir(parents=True, exist_ok=True)
-    for name in (".succeeded", ".failed"):
+    for name in (".succeeded", ".failed", ".running"):
         f = status_dir / name
         if f.exists():
             f.unlink()
@@ -294,6 +304,9 @@ def _write_status(status_dir: Path, status: str) -> None:
         (status_dir / ".succeeded").touch()
     elif status == _FAILED:
         (status_dir / ".failed").touch()
+    elif status == _RUNNING:
+        (status_dir / ".running").touch()
+    # _PENDING: dir exists, no marker
 
 
 # ── GMTSAR discovery ─────────────────────────────────────────────────────────
@@ -322,17 +335,26 @@ def _gmtsar_root_candidates(gmtsar_root: Path | None):
         yield Path(which).resolve().parent.parent, "preproc_batch_tops.csh on $PATH"
     # Common sibling layouts, so a reinstall under a new directory name is
     # picked up without editing every workdir's insarhub_config.json.
-    seen = set()
+    # Prefer an EXACT `GMTSAR`/`gmtsar` directory over glob-suffixed siblings
+    # (e.g. `gmtsar.py.docker.dev`, a build/scratch tree) so the canonical
+    # install wins even when it lives in a base scanned later (e.g. ~/GMTSAR
+    # vs ~/dev/gmtsar.*).
+    seen: set = set()
+    matches: list[tuple[Path, str]] = []
     for base in (Path.home() / "dev", Path.home(), Path("/opt"), Path("/usr/local")):
         if not base.is_dir():
             continue
         try:
-            for cand in sorted(base.glob("[Gg][Mm][Tt][Ss][Aa][Rr]*")):
+            for cand in base.glob("[Gg][Mm][Tt][Ss][Aa][Rr]*"):
                 if cand.is_dir() and cand not in seen:
                     seen.add(cand)
-                    yield cand, f"scan of {base}"
+                    matches.append((cand, f"scan of {base}"))
         except OSError:
             continue
+    # exact name first, then shortest (fewest suffix parts), then path
+    matches.sort(key=lambda m: (m[0].name.lower() != "gmtsar", len(m[0].name), str(m[0])))
+    for cand, how in matches:
+        yield cand, how
 
 
 def _find_gmtsar_root(gmtsar_root: Path | None) -> Path:
@@ -351,11 +373,17 @@ def _find_gmtsar_root(gmtsar_root: Path | None) -> Path:
     """
     tried = []
     for cand, how in _gmtsar_root_candidates(gmtsar_root):
-        if (cand / "bin" / "preproc_batch_tops.csh").exists():
+        # Require a COMPILED C binary (cut_slc), not just a .csh script: a bare
+        # source clone (git clone, install.py not run) has all the scripts but
+        # none of the C tools, so it passes a script-only check yet dies at
+        # runtime with "cut_slc: command not found (rc=127)".
+        if ((cand / "bin" / "preproc_batch_tops.csh").exists()
+                and (cand / "bin" / "cut_slc").exists()):
             if tried:
                 logger.warning(
-                    "gmtsar_root %s is not a GMTSAR install; using %s (found via %s). "
-                    "Update gmtsar_root to silence this.", tried[0], cand, how)
+                    "gmtsar_root %s is not a built GMTSAR install (no bin/cut_slc); "
+                    "using %s (found via %s). Update gmtsar_root to silence this.",
+                    tried[0], cand, how)
             return cand
         tried.append(str(cand))
     raise EnvironmentError(
@@ -381,10 +409,19 @@ def _find_gmtsar_env_bin(gmtsar_env_bin: Path | None) -> Path:
         p = Path(gmtsar_env_bin)
         if (p / "gmt").exists():
             return p
-        raise EnvironmentError(
-            f"No `gmt` binary found under gmtsar_env_bin='{gmtsar_env_bin}'."
-            + _CONTAINER_HINT
-        )
+        # A configured path that has no `gmt` does NOT abort -- it is warned
+        # about and we fall through to auto-detection, exactly as
+        # _find_gmtsar_root does for a stale gmtsar_root. This matters because
+        # a container run auto-resolves and persists its OWN gmtsar_env_bin
+        # (e.g. /opt/conda/envs/gmtsar/bin) into the shared
+        # insarhub_config.json; a later host-side `refresh`/`cancel` reading
+        # that container path would otherwise hard-fail before it could read a
+        # single status file. Self-healing keeps the config portable across
+        # host and container.
+        logger.warning(
+            "gmtsar_env_bin='%s' has no `gmt` binary (a container path read on "
+            "the host, or similar); auto-detecting instead. Set gmtsar_env_bin "
+            "to silence this.", gmtsar_env_bin)
     # Conda-env scan first, deliberately ahead of a bare shutil.which("gmt"):
     # a `gmt` found loose on $PATH could be an unrelated system package (e.g.
     # /usr/bin/gmt from a distro repo) with no numba/scipy alongside it --
@@ -601,10 +638,12 @@ class GMTSAR_S1(LocalProcessor):
         # at staging time via `make_dem` (SRTM) from the SLC footprint or
         # config.bbox -- see _ensure_dem().
         if not self.config.container:
-            self.config.gmtsar_root = str(_find_gmtsar_root(
-                Path(self.config.gmtsar_root) if self.config.gmtsar_root else None))
-            self.config.gmtsar_env_bin = str(_find_gmtsar_env_bin(
-                Path(self.config.gmtsar_env_bin) if self.config.gmtsar_env_bin else None))
+            _gr = self.config.gmtsar_root
+            _ge = self.config.gmtsar_env_bin
+            _gr = Path(_gr) if _gr and str(_gr) not in ("auto", "") else None
+            _ge = Path(_ge) if _ge and str(_ge) not in ("auto", "") else None
+            self.config.gmtsar_root = str(_find_gmtsar_root(_gr))
+            self.config.gmtsar_env_bin = str(_find_gmtsar_env_bin(_ge))
         self.pairs = pairs
         self.jobs: dict[str, dict] = {}
         # Single-subswath mode only: pair_key -> (ref_stem, sec_stem), the
@@ -635,7 +674,7 @@ class GMTSAR_S1(LocalProcessor):
         if self.config.stack_mode:
             self.jobs = {
                 stage: {"stage": stage,
-                        "status": _read_status(self._stack_status_dir(stage)),
+                        "status": self._stage_status(stage),
                         "submitted_at": datetime.now(timezone.utc).isoformat()}
                 for stage in self._stack_stages
             }
@@ -651,7 +690,7 @@ class GMTSAR_S1(LocalProcessor):
                     real_dir = self._rediscover_real_intf_dir(ref_stem, sec_stem)
                     if real_dir:
                         self._real_intf_dirs[key] = real_dir
-            status = _read_status(self._status_dir(pair))
+            status = _read_marker_status(self._status_dir(pair))
             self.jobs[key] = self._job_meta(pair, status)
 
     # ------------------------------------------------------------------ #
@@ -698,7 +737,7 @@ class GMTSAR_S1(LocalProcessor):
             # Not staged yet (or staging failed partway through a
             # multi-pair _stage_case() and never reached this pair) --
             # a path that can never exist reads as PENDING via
-            # _read_status(), instead of a masking KeyError that hides
+            # _read_marker_status(), instead of a masking KeyError that hides
             # the real staging failure (found via audit).
             return self._paths.intf_dir / f"_unstaged_{key}"
         # Not yet run (or the real dir wasn't found post-run, e.g. the
@@ -803,9 +842,9 @@ class GMTSAR_S1(LocalProcessor):
 
     def _find_input(self, name: str, cfg_dir) -> Path:
         """Resolve a .SAFE/.EOF name the caller passed in `pairs` against
-        config.slc_dir/orbit_dir (or workdir, if that config field is
+        config.slc_dir/orbit_dir (or workdir/slc, if that config field is
         left as 'auto')."""
-        base = Path(cfg_dir) if cfg_dir and str(cfg_dir) not in ("auto", "") else self.workdir
+        base = Path(cfg_dir) if cfg_dir and str(cfg_dir) not in ("auto", "") else self.workdir / "slc"
         path = base / name
         if not path.exists():
             raise FileNotFoundError(f"{name} not found under {base}")
@@ -827,7 +866,7 @@ class GMTSAR_S1(LocalProcessor):
         crashing _extract_subswath_stem with "no subswath product found".
         """
         cfg = self.config
-        base = self._resolve_dir(cfg.slc_dir, self.workdir)
+        base = self._resolve_dir(cfg.slc_dir, self.workdir / "slc")
         safe_path = base / safe_name
         if safe_path.exists() and any((safe_path / "measurement").glob("*.tiff")):
             return safe_path
@@ -855,7 +894,24 @@ class GMTSAR_S1(LocalProcessor):
     # the .csh suffix would silently invoke raw SNAPHU with GMTSAR wrapper
     # arguments rather than a port. fitoffset is the other (also shipped as a
     # library, gmtsar/python/utils/fitoffset.py, not an executable).
-    _NO_PYTHON_PORT = frozenset({"snaphu.csh", "fitoffset.csh"})
+    # The GMTSAR fork ships some TOPS batch wrappers as Python SCAFFOLDS that
+    # only `sys.exit("… scaffold — not yet implemented …")` (see
+    # gmtsar/python/utils/intf_tops et al.). `_gmtsar_script` would otherwise
+    # prefer the same-named Python binary over the working `.csh`, so the stack
+    # would die at topo/intf with the scaffold message. Force these to csh --
+    # only align_tops / merge_unwrap_geocode_tops are genuinely ported.
+    _NO_PYTHON_PORT = frozenset({
+        "snaphu.csh", "fitoffset.csh",
+        "intf_tops.csh", "intf_tops_parallel.csh",
+        "preproc_batch_tops.csh", "preproc_batch_tops_esd.csh",
+        "create_merge_input.csh",
+        # geocode's Python port crashes on an absent optional grid
+        # (phase_mask.grd, not produced on the merged frame) instead of guarding
+        # its existence the way geocode.csh does -- so it never reaches
+        # unwrap.grd. Not a scaffold stub, so the auto-detect can't catch it;
+        # force the tolerant classic script.
+        "geocode.csh",
+    })
 
     def _gmtsar_script(self, name: str) -> str:
         """Resolve a GMTSAR script name to the implementation to invoke.
@@ -866,10 +922,14 @@ class GMTSAR_S1(LocalProcessor):
         name we exec -- the arguments and the workflow are identical, so this
         never changes stage structure, only the implementation that runs.
 
-        Falls back to csh for anything in _NO_PYTHON_PORT, and for anything
-        whose Python variant isn't actually present in this install, so a
-        partial or older GMTSAR checkout degrades gracefully instead of
-        failing with "command not found".
+        Falls back to csh for: anything in _NO_PYTHON_PORT (explicit overrides,
+        e.g. snaphu where a same-named NON-GMTSAR binary exists); anything whose
+        Python variant isn't present; and -- crucially -- anything whose Python
+        variant is an UNIMPLEMENTED SCAFFOLD (`sys.exit("scaffold ...")`). The
+        fork ships several ports as scaffolds, and the set changes as it lands
+        real ports, so detecting the scaffold sentinel at resolve time keeps this
+        robust WITHOUT a hand-maintained list drifting against the fork (which is
+        exactly how the create_merge_input stub reached a live run once).
         """
         if not name.endswith(".csh"):
             return name
@@ -878,10 +938,33 @@ class GMTSAR_S1(LocalProcessor):
         if name in self._NO_PYTHON_PORT:
             return name
         py = name[:-4]
-        if shutil.which(py, path=self._subprocess_env().get("PATH")) is None:
+        py_path = shutil.which(py, path=self._subprocess_env().get("PATH"))
+        if py_path is None:
             logger.debug("No Python port for %s in this install; using csh.", name)
             return name
+        if self._is_scaffold_stub(py_path):
+            logger.debug("Python port %s is an unimplemented scaffold; using csh.", py)
+            return name
         return py
+
+    def _is_scaffold_stub(self, py_path: str) -> bool:
+        """True if the GMTSAR-fork Python binary at py_path is a not-yet-ported
+        scaffold (`sys.exit("scaffold — not yet implemented")`) rather than a
+        working port. Cached per path; a compiled C tool or a real script reads
+        as non-stub."""
+        cache = self.__dict__.setdefault("_scaffold_cache", {})
+        if py_path in cache:
+            return cache[py_path]
+        stub = False
+        try:
+            with open(py_path, "r", errors="ignore") as fh:
+                head = fh.read(8192).lower()
+            stub = "scaffold" in head and ("not yet implemented" in head
+                                           or "sys.exit" in head)
+        except OSError:
+            stub = False
+        cache[py_path] = stub
+        return stub
 
     def _safe_source(self, safe_name: str) -> Path:
         """Where this scene's subswath products should be read from: its
@@ -936,7 +1019,7 @@ class GMTSAR_S1(LocalProcessor):
                 dest.symlink_to(src.resolve())
         return stem
 
-    def _stage_one_case_dir(self, target: Path) -> None:
+    def _stage_one_case_dir(self, target: Path, pair: tuple | None = None) -> None:
         """Populate target/{raw,topo}/ and target/config.py, matching what
         GMTSAR's own case.setup / p2p_config would produce for a
         manually-run case.
@@ -966,16 +1049,34 @@ class GMTSAR_S1(LocalProcessor):
         topo_dir.mkdir(exist_ok=True)
 
         if self._multiswath:
-            if cfg.slc_dir and str(cfg.slc_dir) not in ("auto", ""):
-                self._symlink_dir_contents(self._resolve_dir(cfg.slc_dir), raw_dir)
-            if cfg.orbit_dir and str(cfg.orbit_dir) not in ("auto", ""):
-                self._symlink_dir_contents(self._resolve_dir(cfg.orbit_dir), raw_dir)
+            # Frame mode reads whole .SAFE dirs + .EOF from raw/. Resolve slc_dir/
+            # orbit_dir (both default "auto" -> workdir/slc, where the downloader
+            # stages them) and symlink their contents in. Previously this only
+            # ran when the fields were explicitly set, so an "auto" default left
+            # raw/ empty and p2p_S1_TOPS_Frame died on missing raw/<SAFE>/annotation.
+            slc = self._resolve_dir(cfg.slc_dir, self.workdir / "slc")
+            orb = self._resolve_dir(cfg.orbit_dir, self.workdir / "slc")
+            if pair is not None:
+                # Link ONLY this pair's 2 .SAFE + 2 .EOF -- not the whole slc/
+                # (all scenes + their .zips). p2p_S1_TOPS_Frame reads just the
+                # ref/sec it's given, so linking everything only clutters raw/.
+                ref_safe, ref_eof, sec_safe, sec_eof = pair
+                for d in {slc, orb}:
+                    for nm in (ref_safe, ref_eof, sec_safe, sec_eof):
+                        src = d / nm
+                        link = raw_dir / nm
+                        if src.exists() and not (link.exists() or link.is_symlink()):
+                            link.symlink_to(src.resolve())
+            else:
+                self._symlink_dir_contents(slc, raw_dir)
+                if orb != slc:
+                    self._symlink_dir_contents(orb, raw_dir)
 
         self._ensure_dem(topo_dir)
 
         config_py = target / "config.py"
         if not config_py.exists():
-            if cfg.config_template:
+            if cfg.config_template and str(cfg.config_template) not in ("auto", ""):
                 import shutil
                 shutil.copy(cfg.config_template, config_py)
             else:
@@ -998,6 +1099,16 @@ class GMTSAR_S1(LocalProcessor):
         import rasterio
         from dem_stitcher import stitch_dem
 
+        # dem_stitcher reads the COP-DEM COGs anonymously from a public S3
+        # bucket via GDAL /vsicurl. Without anon-S3 config GDAL signs (or errors)
+        # the request and the returned body isn't a GeoTIFF -> rasterio
+        # "not recognized as being in a supported file format". Set it here so
+        # it works in the container too (the host env happened to have it).
+        os.environ.setdefault("AWS_NO_SIGN_REQUEST", "YES")
+        os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")
+        os.environ.setdefault("CPL_VSIL_CURL_USE_HEAD", "NO")
+
+        topo_dir.mkdir(parents=True, exist_ok=True)
         S, N, W, E = bbox
         logger.info("Auto-downloading GLO-30 DEM (dem_stitcher) bbox S=%s N=%s W=%s E=%s…",
                     S, N, W, E)
@@ -1065,7 +1176,7 @@ class GMTSAR_S1(LocalProcessor):
                 if self._grdcut_dem(dest, tmp, box[:4]):
                     tmp.replace(dest)
             return dest
-        if cfg.dem_path:
+        if cfg.dem_path and str(cfg.dem_path) not in ("auto", ""):
             src = self._resolve_dir(cfg.dem_path).resolve()
             if box and box[4]:
                 # Crop ONCE into a shared file beside the source, then symlink
@@ -1079,6 +1190,20 @@ class GMTSAR_S1(LocalProcessor):
                 if shared.exists() or self._grdcut_dem(src, shared, box[:4]):
                     src = shared
             dest.symlink_to(src)
+            return dest
+
+        # Auto-DEM (no dem_path): build ONCE into a shared cache and symlink it
+        # into every pair's topo/. Frame mode stages a topo/ per pair, so without
+        # this the same bbox DEM was downloaded/generated 16x -- the slow "stuck
+        # on dem" step. Recurse into the cache dir to build it, then symlink.
+        shared_dir = self.workdir / "gmtsar" / ".dem_cache"
+        if topo_dir.resolve() != shared_dir.resolve():
+            shared_dir.mkdir(parents=True, exist_ok=True)
+            self._ensure_dem(shared_dir)
+            topo_dir.mkdir(parents=True, exist_ok=True)
+            if dest.exists() or dest.is_symlink():
+                dest.unlink()
+            dest.symlink_to((shared_dir / "dem.grd").resolve())
             return dest
 
         if box is None:
@@ -1119,7 +1244,12 @@ class GMTSAR_S1(LocalProcessor):
     def _resolve_aoi(self) -> str | None:
         """The geographic AOI (WKT POLYGON): config.AOI if set, else the
         downloader's intersectsWith from the workdir's insarhub_config.json
-        (what --select-pairs searched with). None if neither is available."""
+        (what --select-pairs searched with). None if neither is available.
+
+        ``process_full_extent`` overrides both: when set, there is no AOI at all
+        (full SLC frame, no region_cut/reframe, SLC-footprint DEM)."""
+        if getattr(self.config, "process_full_extent", False):
+            return None
         if self.config.AOI:
             return self.config.AOI
         try:
@@ -1263,11 +1393,18 @@ class GMTSAR_S1(LocalProcessor):
             logger.warning("AOI WKT had <3 vertices (%r); skipping region_cut.", aoi_wkt)
             return None
         llt = "\n".join(f"{lon} {lat} 0" for lon, lat in coords) + "\n"
-        proc = subprocess.run(
-            ["SAT_llt2rat", master_prm.name, "0"],
-            cwd=str(master_prm.parent), input=llt, text=True,
-            capture_output=True, env=self._subprocess_env(),
-        )
+        try:
+            proc = subprocess.run(
+                ["SAT_llt2rat", master_prm.name, "0"],
+                cwd=str(master_prm.parent), input=llt, text=True,
+                capture_output=True, env=self._subprocess_env(),
+            )
+        except FileNotFoundError:
+            # SAT_llt2rat isn't on this host (e.g. a bare `refresh` run outside
+            # the container). The narrowing is read from the persisted
+            # .stack_aoi_cuts.json in that case; here we just can't compute it.
+            logger.debug("SAT_llt2rat not found; cannot map AOI to region_cut here.")
+            return None
         if proc.returncode != 0:
             logger.warning("SAT_llt2rat failed (rc=%s), skipping region_cut:\n%s",
                            proc.returncode, proc.stderr)
@@ -1469,7 +1606,7 @@ class GMTSAR_S1(LocalProcessor):
         # otherwise successful merging.
         for name in cfg.GMTSAR_CONFIG_PARAMS:
             val = getattr(cfg, name)
-            if name == "region_cut" and str(val) in ("-999", "", "None"):
+            if name == "region_cut" and str(val) in ("-999", "auto", "", "None"):
                 # Deliberately NO spaces around the '='. config.py is read two
                 # incompatible ways and this is the only form both accept:
                 #
@@ -1517,17 +1654,28 @@ class GMTSAR_S1(LocalProcessor):
                     )
                 lines.append(f'{name} = "{val}"')
                 continue
+            # "auto" (the panel default for GMTSAR's auto-derived numeric params:
+            # num_patches, earth_radius, near_range, fd1, skip_stage) maps back to
+            # GMTSAR's own -999 "unset/auto" sentinel; config.py needs a number,
+            # not the literal `auto` (which would ImportError as a bare name).
+            if str(val) in ("auto", "None", ""):
+                val = -999
             lines.append(f"{name} = {val}")
         return "\n".join(lines) + "\n"
 
     def _stage_case(self) -> None:
+        self._unzip_all()
+        self._stage_dirs()
+
+    def _unzip_all(self) -> None:
         # Extract any scene still sitting as a raw ASF .zip (never manually
-        # unzipped) into a real .SAFE directory before either branch below
-        # touches slc_dir -- see _ensure_safe_extracted()'s docstring.
+        # unzipped) into a real .SAFE directory -- see _ensure_safe_extracted().
         unique_safes = {p[0] for p in self.pairs} | {p[2] for p in self.pairs}
         for safe_name in unique_safes:
             self._ensure_safe_extracted(safe_name)
 
+    def _stage_dirs(self) -> None:
+        # Populate case dir(s): raw/ symlinks + topo/dem.grd + config.py.
         if not self._multiswath:
             self._stage_one_case_dir(self.case_dir)
             raw_dir = self._paths.raw_dir
@@ -1537,12 +1685,9 @@ class GMTSAR_S1(LocalProcessor):
                 sec_stem = self._extract_subswath_stem(sec_safe, sec_eof, raw_dir)
                 self._stems[_pair_key(pair)] = (ref_stem, sec_stem)
             return
-        # Frame mode: one case dir PER PAIR, each independently staged
-        # (raw/topo/config.py symlinked/copied per pair). Slightly more
-        # I/O than sharing one case_dir, but required for correctness --
-        # see pair_case_dir()'s docstring.
+        # Frame mode: one case dir PER PAIR, each independently staged.
         for pair in self.pairs:
-            self._stage_one_case_dir(self.pair_case_dir(pair))
+            self._stage_one_case_dir(self.pair_case_dir(pair), pair=pair)
 
     # ------------------------------------------------------------------ #
     #  Container re-invocation                                           #
@@ -1581,18 +1726,30 @@ class GMTSAR_S1(LocalProcessor):
                    f"-N {type(self).name} -w {self.workdir} {action}")
 
         self.case_dir.mkdir(parents=True, exist_ok=True)
-        log_file = self.case_dir / "executor.log"
-        pid_file = self.case_dir / "executor.pid"
+        log_file = self._paths.executor_log
+        pid_file = self._paths.executor_pid
         if os.name == "posix":
             pid = os.fork()
             if pid == 0:  # child -- detach and run
                 try:
                     os.setsid()
-                    wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
+                    # Redirect stdout/stderr FIRST, before any work, so a
+                    # failure lands in executor.log (os._exit below never
+                    # flushes Python's buffered stderr).
                     with open(log_file, "w") as _lf:
                         os.dup2(_lf.fileno(), sys.stdout.fileno())
                         os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
                     subprocess.run(wrapped, shell=True)
+                except BaseException as exc:
+                    import traceback
+                    try:
+                        with open(log_file, "a") as _lf:
+                            _lf.write(f"\n[executor] container run failed: {exc}\n")
+                            traceback.print_exc(file=_lf)
+                            _lf.flush()
+                    except Exception:
+                        pass
                 finally:
                     os._exit(0)
             # parent
@@ -1617,9 +1774,39 @@ class GMTSAR_S1(LocalProcessor):
         if os.environ.get("INSARHUB_CONTAINER_CHILD"):
             target(*args)
             return
-        thread = threading.Thread(target=target, args=args, daemon=True)
-        thread.start()
-        self._thread = thread
+        # Fork a detached process (not a daemon thread) so its stdout/stderr can
+        # be redirected to case_dir/executor.log -- the whole run's main log,
+        # mirroring ISCE2/ISCE3's executor.log -- and so cancel() has a real PID
+        # (case_dir/executor.pid) to SIGTERM. A thread shares the backend's
+        # stdout and leaves no PID, so neither worked before.
+        self.case_dir.mkdir(parents=True, exist_ok=True)
+        log_file = self._paths.executor_log
+        pid_file = self._paths.executor_pid
+        if os.name != "posix":
+            target(*args)  # Windows: no fork -- run blocking
+            return
+        pid = os.fork()
+        if pid == 0:  # child -- detach, redirect, run
+            try:
+                os.setsid()
+                with open(log_file, "w") as _lf:
+                    os.dup2(_lf.fileno(), sys.stdout.fileno())
+                    os.dup2(_lf.fileno(), sys.stderr.fileno())
+                target(*args)
+            except BaseException as exc:
+                import traceback
+                try:
+                    with open(log_file, "a") as _lf:
+                        _lf.write(f"\n[executor] local run failed: {exc}\n")
+                        traceback.print_exc(file=_lf)
+                        _lf.flush()
+                except Exception:
+                    pass
+            finally:
+                os._exit(0)
+        pid_file.write_text(str(pid))  # parent
+        print(f"Local executor running in background (PID {pid}).")
+        print(f"  log : {log_file}")
 
     # ------------------------------------------------------------------ #
     #  LocalProcessor interface                                          #
@@ -1631,11 +1818,29 @@ class GMTSAR_S1(LocalProcessor):
         # bash bookkeeping that never touches GMTSAR/gmt itself, so it stays
         # on the host regardless of container. The container instead wraps
         # each HPC child job's own command (see _stage_commands()), since
-        # that's the thing that actually needs GMTSAR. Re-invoking the whole
-        # process here would also be a no-op anyway: config.container isn't
-        # persisted to insarhub_config.json (see _reinvoke_via_container),
-        # so _stage_commands()'s wrap check would never see it on the
-        # container-side re-invocation.
+        # that's the thing that actually needs GMTSAR. config.container IS now
+        # persisted to insarhub_config.json (for retry), so on the container
+        # child _stage_commands() would see it and try to wrap again -- that's
+        # docker-in-docker, so _stage_commands() guards on INSARHUB_CONTAINER_CHILD
+        # and skips the wrap when we are already inside the image.
+        # Write gmtsar_jobs.json on the HOST immediately -- before any container
+        # re-invocation or background fork -- so the GUI/refresh see the pairs
+        # (PENDING) the moment submit returns, not only after the run starts
+        # saving from inside the container. p2p non-HPC only; stack/HPC carry
+        # their own state. {pair_key: {pair, status, submitted_at}}.
+        if not self.config.stack_mode and not self.config.hpc_mode:
+            # Steps first (unzip/dem/p2p), so they head the job list, then pairs.
+            for s in self.LOCAL_STEPS:
+                self.jobs.setdefault(
+                    f"step:{s}", {"stage": s, "status": _read_marker_status(self._step_dir(s))})
+            for pair in self.pairs:
+                key = _pair_key(pair)
+                if key not in self.jobs:
+                    st = _read_marker_status(self._status_dir(pair))
+                    self.jobs[key] = self._job_meta(
+                        pair, st if st == _SUCCEEDED else _PENDING)
+            self.save()
+
         if (self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD")
                 and not (self.config.stack_mode and self.config.hpc_mode)):
             self._reinvoke_via_container("submit")
@@ -1643,20 +1848,21 @@ class GMTSAR_S1(LocalProcessor):
         if self.config.stack_mode:
             return self._submit_stack()
 
-        self._stage_case()
-
         if self.config.hpc_mode:
+            # HPC child jobs stage themselves; do it up front here so the
+            # submitted commands find a staged case.
+            self._stage_case()
             return self._submit_p2p_hpc()
 
         pending = []
         for pair in self.pairs:
             key = _pair_key(pair)
-            status = _read_status(self._status_dir(pair))
+            status = _read_marker_status(self._status_dir(pair))
             if status == _SUCCEEDED and self.config.skip_existing:
                 logger.info("%s already succeeded, skipping.", key)
                 self.jobs[key] = self._job_meta(pair, _SUCCEEDED)
                 continue
-            _write_status(self._status_dir(pair), _PENDING)
+            _write_marker_status(self._status_dir(pair), _PENDING)
             self.jobs[key] = self._job_meta(pair, _PENDING)
             pending.append(pair)
 
@@ -1664,9 +1870,77 @@ class GMTSAR_S1(LocalProcessor):
             logger.info("dry_run: would submit %d pair(s): %s", len(pending), pending)
             return self.jobs
 
-        self._run_local_or_sync(self._run_pairs, (pending,))
+        # Stage (unzip SLCs, DEM, case dirs) inside the background thread too --
+        # it's heavy (minutes) and would otherwise block the submit() caller
+        # (the GUI hangs on "Submitting jobs…"). Pairs are already marked PENDING
+        # above, so refresh/cancel work while staging runs.
+        self._run_local_or_sync(self._stage_and_run_pairs, (pending,))
         self.save()
         return self.jobs
+
+    #: Coarse pipeline steps for a local p2p run, shown in refresh + banners.
+    LOCAL_STEPS: ClassVar[tuple] = ("unzip", "dem", "p2p")
+
+    def _step_dir(self, step: str) -> Path:
+        return self.workdir / "gmtsar" / ".stage_status" / step
+
+    def _set_step(self, step: str, status: str) -> None:
+        """Mark a run step (marker + gmtsar_jobs.json entry) + print a banner."""
+        _write_marker_status(self._step_dir(step), status)
+        with self._lock:
+            self.jobs[f"step:{step}"] = {"stage": step, "status": status}
+        self.save()
+        if status == _RUNNING:
+            i = self.LOCAL_STEPS.index(step) + 1
+            print(f"\n===== [{i}/{len(self.LOCAL_STEPS)}] {step} =====", flush=True)
+        elif status == _FAILED:
+            print(f"[step {step}] FAILED", flush=True)
+
+    def _pair_substage(self, pair) -> str:
+        """Current GMTSAR sub-stage for a running pair, from its p2p.log
+        (e.g. 'P2P 2: cutting SLC images'). '' when unknown."""
+        try:
+            log = self.pair_case_dir(pair) / "p2p.log"
+            if not log.exists():
+                return ""
+            last = ""
+            for line in log.read_text(errors="replace").splitlines():
+                s = line.strip()
+                if s.startswith("P2P ") and ":" in s:
+                    last = s
+            return f"({last[:48]})" if last else ""
+        except Exception:
+            return ""
+
+    def _stage_and_run_pairs(self, pending) -> None:
+        """Background entry: stepped stage + run (unzip -> dem -> p2p), with
+        per-step markers (refresh reads them) and banners (executor.log)."""
+        # Surface INFO-level logs (staging, DEM crop, region_cut, per-pair
+        # progress) into executor.log -- otherwise it only carries the coarse
+        # step banners. force=True overrides any prior root config; stream is
+        # stderr, which the fork/container child has redirected to executor.log.
+        import logging as _lg
+        _lg.basicConfig(
+            level=_lg.INFO,
+            format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+            force=True,
+        )
+        # Persist the PENDING jobs up front so gmtsar_jobs.json exists during the
+        # (long) unzip/dem/p2p run -- otherwise the GUI/refresh sees no job file
+        # until the first pair finishes (container child only save()s per pair).
+        self.save()
+        try:
+            self._set_step("unzip", _RUNNING); self._unzip_all(); self._set_step("unzip", _SUCCEEDED)
+            self._set_step("dem", _RUNNING); self._stage_dirs(); self._set_step("dem", _SUCCEEDED)
+            self._set_step("p2p", _RUNNING)
+            self._run_pairs(pending)
+            ok = all(_read_marker_status(self._status_dir(p)) == _SUCCEEDED for p in pending)
+            self._set_step("p2p", _SUCCEEDED if ok else _FAILED)
+        except BaseException:
+            for s in self.LOCAL_STEPS:
+                if _read_marker_status(self._step_dir(s)) == _RUNNING:
+                    self._set_step(s, _FAILED)
+            raise
 
     def _submit_p2p_hpc(self) -> dict:
         """p2p on SLURM: ONE child job per pair, one sliding-window manager.
@@ -1689,7 +1963,7 @@ class GMTSAR_S1(LocalProcessor):
 
         pending = [p for p in self.pairs
                    if not (self.config.skip_existing
-                           and _read_status(self._status_dir(p)) == _SUCCEEDED)]
+                           and _read_marker_status(self._status_dir(p)) == _SUCCEEDED)]
         for p in self.pairs:
             key = _pair_key(p)
             if p not in pending:
@@ -1771,7 +2045,7 @@ class GMTSAR_S1(LocalProcessor):
             # reads the file, so without this a resubmitted pair kept whatever
             # its last run left behind -- a pair cancelled and then resubmitted
             # showed FAILED while its job was actually RUNNING.
-            _write_status(self._status_dir(p), _PENDING)
+            _write_marker_status(self._status_dir(p), _PENDING)
             self.jobs[_pair_key(p)] = self._job_meta(p, _PENDING)
         self.save()
         return self.jobs
@@ -1837,7 +2111,7 @@ class GMTSAR_S1(LocalProcessor):
                     logger.exception("pair %s raised", key)
                     ok = False
                 status = _SUCCEEDED if ok else _FAILED
-                _write_status(self._status_dir(pair), status)
+                _write_marker_status(self._status_dir(pair), status)
                 with self._lock:
                     self.jobs[key]["status"] = status
                 self.save()
@@ -1863,16 +2137,22 @@ class GMTSAR_S1(LocalProcessor):
         return len(self._subswath_list()) > 1
 
     def _swath_layout(self) -> list[tuple[int, Path, Path, Path]]:
-        """(subswath, work_dir, raw_dir, topo_dir) per subswath.
+        """(subswath, work_dir, raw_dir, topo_dir) per subswath ACTUALLY
+        processed. The F<N>/ vs flat directory layout follows config.subswath
+        (so an existing stack's on-disk dirs are always found), but the
+        subswaths iterated are narrowed to those the AOI overlaps
+        (_stack_subswaths) -- so a "1 2 3" stack whose AOI is only in F2
+        processes F2 alone (in its F2/ dir), and merge is skipped.
 
         Multi-subswath (full frame) -> one F<N>/ pipeline each, merged after.
         Single subswath -> the flat case_dir layout (already validated; kept
         untouched so existing single-swath stacks stay valid)."""
         p = self._paths
-        if self._multiswath:
+        subs = self._stack_subswaths()
+        if len(self._subswath_list()) > 1:
             return [(n, p.swath_dir(n), p.swath_raw_dir(n), p.swath_topo_dir(n))
-                    for n in self._subswath_list()]
-        n = self._subswath_list()[0]
+                    for n in subs]
+        n = subs[0]
         return [(n, self.case_dir, p.raw_dir, p.topo_dir)]
 
     @property
@@ -1906,14 +2186,24 @@ class GMTSAR_S1(LocalProcessor):
         # placeholder), so a config-only test would silently drop a stage that
         # demonstrably ran and hide its status from the user.
         extra: tuple[str, ...] = ()
-        ran_esdnet = self._stack_status_dir("esdnet").exists()
+        ran_esdnet = self._stage_ran("esdnet")
         if ran_esdnet or (bool(getattr(self.config, "esd_network", False))
                           and self._scene_count() >= 3):
             extra = ("esdnet",)
+        # A config that names >1 subswath ALWAYS runs the full pipeline, even
+        # when the AOI narrows processing to a single subswath: the stitch
+        # stages (mergeprep/merge/cohmask/unwrap) then become cheap
+        # passthroughs (see _run_single_subswath_merge), so an AOI in one
+        # subswath and an AOI spanning several produce the SAME stage list,
+        # the same merge/<pair>/ file structure, and the same refresh table.
+        # unzip (one job per scene) and dem (one job) front the workflow: SLC
+        # unpacking and DEM download used to be implicit inside _stage_stack;
+        # they are now real, inspectable, independently-submittable stages.
+        head = ("unzip", "dem")
         if self._multiswath:
-            return ("align", *extra, "topo", "intf",
+            return (*head, "align", *extra, "topo", "intf",
                     "mergeprep", "merge", "cohmask", "unwrap")
-        return ("align", *extra, "topo", "intf")
+        return (*head, "align", *extra, "topo", "intf")
 
     def _scene_count(self) -> int:
         """Number of distinct scenes, WITHOUT parsing acquisition times.
@@ -1948,8 +2238,36 @@ class GMTSAR_S1(LocalProcessor):
         # sort by the YYYYMMDDTHHMMSS token in the .SAFE name
         return dict(sorted(m.items(), key=lambda kv: _scene_start_time(kv[0])))
 
-    def _stack_status_dir(self, stage: str) -> Path:
-        return self.case_dir / ".stack_status" / stage
+    def _scene_labels(self) -> list[str]:
+        """Ordered per-scene date labels for the unzip stage. Derived from the
+        on-disk data.in (one line per scene, written by _stage_stack) FIRST --
+        so `refresh`/`--ls` work with a reconstructed placeholder-pairs
+        processor, the same way _stage_command_labels('intf') reads intf.in and
+        _merge_pair_count() reads intf.in rather than self.pairs. Falls back to
+        _scene_map() (real pairs, at submit time before data.in exists)."""
+        for sw in self._stack_subswaths():
+            try:
+                _w, raw, _t = self._swath_paths(sw)
+            except ValueError:
+                continue
+            din = raw / "data.in"
+            if din.exists():
+                dates = []
+                for line in din.read_text().splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    m = re.search(r"(\d{8})[tT]", line) or re.search(r"_(\d{8})", line)
+                    dates.append(m.group(1) if m else line.split(":")[0][:12])
+                if dates:
+                    return dates
+        try:
+            def _d(safe: str) -> str:
+                m = re.search(r"_(\d{8})T", safe)
+                return m.group(1) if m else safe[:24]
+            return [_d(s) for s in self._scene_map()]
+        except Exception:
+            return []
 
     def _submit_stack(self) -> dict:
         if float(self.config.threshold_snaphu) <= 0:
@@ -1965,8 +2283,9 @@ class GMTSAR_S1(LocalProcessor):
             )
             self.config.threshold_snaphu = 0.1
         self._stage_stack()
+        self._write_run_files()   # ISCE2-style run_NN_<stage> command files
         self.jobs = {
-            stage: {"stage": stage, "status": _read_status(self._stack_status_dir(stage)),
+            stage: {"stage": stage, "status": self._stage_status(stage),
                     "submitted_at": datetime.now(timezone.utc).isoformat()}
             for stage in self._stack_stages
         }
@@ -1995,20 +2314,61 @@ class GMTSAR_S1(LocalProcessor):
     # already-implemented per-unit methods above, instead of a raw shell
     # command line running a GMTSAR binary directly.
 
-    def _stage_hpc_dir(self, stage: str) -> Path:
-        """Where a stage's manager/child sbatch scripts, logs, and
-        cmd_<idx>.done/.fail markers live -- kept separate from
-        .stack_status/<stage>/ (the SUCCEEDED/FAILED marker dir _read_status
-        actually reads) so HPC bookkeeping never collides with it."""
-        return self.case_dir / ".hpc" / stage
+    def _write_run_files(self) -> Path:
+        """Write each stack stage's per-unit command list to a numbered file
+        under <workdir>/gmtsar/run_files/ -- the GMTSAR analogue of ISCE2's
+        stackSentinel.py run_NN_* files: one command per line, files numbered in
+        _stack_stages() order (run_01_align, run_02_topo, run_03_intf, ...), so
+        a stage can be inspected or hand-submitted to a scheduler as an array of
+        independent jobs (one line = one job).
+
+        Each line is an `insarhub ... run-stage-unit --stage <s> [--subswath N]
+        [--index i]` re-entry (container-wrapped when config.container is set),
+        because GMTSAR stages are Python-orchestrated units, not standalone bash
+        (see run_stage_unit()). Regenerated on every submit from the same
+        _stage_commands() the HPC managers use, so it never drifts from what
+        actually runs. A README names the files and their line counts."""
+        run_dir = self.run_files_dir
+        run_dir.mkdir(parents=True, exist_ok=True)
+        # Clear any stale run_* from a previous submit (e.g. a different AOI /
+        # subswath count) so the set on disk always matches this submission.
+        for old in run_dir.glob("run_*"):
+            old.unlink()
+        index = []
+        for i, stage in enumerate(self._stack_stages, 1):
+            cmds = self._stage_commands(stage)
+            f = run_dir / f"run_{i:02d}_{stage}"
+            f.write_text("\n".join(cmds) + ("\n" if cmds else ""))
+            # per-stage logs/markers dir (ISCE2's <step>_logs/); holds
+            # cmd_N.done/.fail written by both local loops and HPC managers.
+            self._stage_logs_dir(stage).mkdir(parents=True, exist_ok=True)
+            index.append(f"run_{i:02d}_{stage}\t{len(cmds)} job(s)")
+        (run_dir / "README.txt").write_text(
+            "GMTSAR stack run-files (one command per line = one HPC job).\n"
+            "Run in order; each file's lines are independent and may be arrayed.\n\n"
+            + "\n".join(index) + "\n")
+        logger.info("Wrote %d run-file(s) to %s", len(index), run_dir)
+        return run_dir
 
     def _manager_paths_for_stage(self, stage: str) -> tuple[Path, Path]:
         """Deterministic (manager_script, chained_job_id_file) paths for a
         stage -- computed before the script itself is built, so an earlier
         stage's script can embed the next stage's path in its own
         chain-submit trailer (see slurm_manager.chain_submit_lines)."""
-        d = self._stage_hpc_dir(stage)
+        d = self._stage_logs_dir(stage)
         return d / "manager.sbatch", d / "chained_job_id.txt"
+
+    def _is_hpc_run(self) -> bool:
+        """Whether this stack was submitted to HPC. config.hpc_mode, or -- for a
+        reconstructed processor that has lost that flag -- the presence of a
+        manager.sbatch in any stage's logs dir (a local run writes only
+        cmd_*.done/.fail markers there, never a manager script). Replaces the
+        old '.hpc/<stage> dir exists' heuristic, which broke once <stage>_logs/
+        started being created for every run."""
+        if bool(self.config.hpc_mode):
+            return True
+        return any(self._manager_paths_for_stage(s)[0].exists()
+                   for s in self._stack_stages)
 
     def _stage_commands(self, stage: str) -> list[str]:
         """Shell command(s) for one stack stage's HPC child job(s) -- each
@@ -2038,9 +2398,12 @@ class GMTSAR_S1(LocalProcessor):
         """
         base = (f'insarhub processor -N GMTSAR_S1 -w "{self.workdir}" '
                 f'run-stage-unit --stage {stage}')
-        if stage == "intf":
+        if stage == "unzip":
+            # one job per scene (unpacks + per-subswath SLC extraction)
+            cmds = [f"{base} --index {i}" for i in range(len(self._scene_labels()))]
+        elif stage == "intf":
             cmds = []
-            for sw in self._subswath_list():
+            for sw in self._stack_subswaths():
                 work, _raw, _topo = self._swath_paths(sw)
                 n_pairs = len([l for l in (work / "intf.in").read_text().splitlines() if l.strip()])
                 cmds += [f"{base} --subswath {sw} --index {i}" for i in range(n_pairs)]
@@ -2056,11 +2419,21 @@ class GMTSAR_S1(LocalProcessor):
         elif stage in ("align", "esdnet", "topo") and self._multiswath:
             # esdnet is per-subswath like align/topo: each subswath has its
             # own raw/ dir, its own shift tables and its own ESD network, with
-            # no cross-subswath dependency.
-            cmds = [f"{base} --subswath {sw}" for sw in self._subswath_list()]
+            # no cross-subswath dependency. Enumerate the AOI-narrowed set (the
+            # --subswath flag is still needed because the F<N>/ layout stands).
+            cmds = [f"{base} --subswath {sw}" for sw in self._stack_subswaths()]
         else:
             cmds = [base]
-        if self.config.container:
+        # Wrap each child command to run inside the image ONLY when this submit
+        # is happening on a host that will dispatch the commands elsewhere (the
+        # HPC login node fans them to compute nodes). When we are ALREADY inside
+        # the container (INSARHUB_CONTAINER_CHILD=1, i.e. the local-container
+        # child that _reinvoke_via_container launched), wrapping again would be
+        # docker-in-docker -- and docker isn't on PATH inside the image, so
+        # wrap_container_cmd raises. config.container is now persisted to
+        # insarhub_config.json (for retry), so the child DOES see it; the env
+        # guard is what keeps it from re-wrapping.
+        if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             from insarhub.utils.container import wrap_container_cmd
             cmds = [wrap_container_cmd(self.config.container, c, self.workdir) for c in cmds]
         return cmds
@@ -2069,9 +2442,13 @@ class GMTSAR_S1(LocalProcessor):
         """Human-readable label for each of _stage_commands(stage)'s child
         jobs, in the same order (so cmd_<idx>.done/.fail in .hpc/<stage>/
         lines up with labels[idx]) -- used by refresh()'s --ls detail view."""
+        if stage == "unzip":
+            return self._scene_labels()
+        if stage == "dem":
+            return ["DEM download + stage"]
         if stage == "intf":
             labels: list[str] = []
-            for sw in self._subswath_list():
+            for sw in self._stack_subswaths():
                 work, _raw, _topo = self._swath_paths(sw)
                 pair_lines = [l for l in (work / "intf.in").read_text().splitlines() if l.strip()]
                 labels += [f"F{sw} {line}" for line in pair_lines]
@@ -2093,7 +2470,7 @@ class GMTSAR_S1(LocalProcessor):
             seed = self._pair_id_from_merge_line(lines[0]) if lines else "seed pair"
             return [f"seed {seed}"]
         if stage in ("align", "topo") and self._multiswath:
-            return [f"F{sw}" for sw in self._subswath_list()]
+            return [f"F{sw}" for sw in self._stack_subswaths()]
         return [stage]
 
     def _merge_input_lines(self) -> list[str]:
@@ -2125,7 +2502,7 @@ class GMTSAR_S1(LocalProcessor):
         _run_merge_unit) -- that pair's failure is already reported by the
         intf stage rather than being double-counted here.
         """
-        for sw in self._subswath_list():
+        for sw in self._stack_subswaths():
             work, _raw, _topo = self._swath_paths(sw)
             intf_in = work / "intf.in"
             if intf_in.exists():
@@ -2171,7 +2548,7 @@ class GMTSAR_S1(LocalProcessor):
         to_build: list[str] = []
         cmds_by_stage: dict[str, list[str]] = {}
         for stage in self._stack_stages:
-            if self.config.skip_existing and _read_status(self._stack_status_dir(stage)) == _SUCCEEDED:
+            if self.config.skip_existing and self._stage_status(stage) == _SUCCEEDED:
                 self.jobs[stage] = {"stage": stage, "status": _SUCCEEDED,
                                      "submitted_at": datetime.now(timezone.utc).isoformat()}
                 print(f"  {Fore.GREEN}  ✓ {stage}  (all commands already done)"
@@ -2192,20 +2569,20 @@ class GMTSAR_S1(LocalProcessor):
 
         # ── Pass 3: build every manager script (none submitted yet) ────────
         for i, stage in enumerate(to_build):
-            hpc_dir = self._stage_hpc_dir(stage)
+            hpc_dir = self._stage_logs_dir(stage)
             hpc_dir.mkdir(parents=True, exist_ok=True)
             next_script, next_jobfile = (
                 manager_paths[to_build[i + 1]] if i + 1 < len(to_build) else (None, None)
             )
-            status_dir = self._stack_status_dir(stage)
+            from insarhub.processor.isce2_base import _status_file
+            status_file = _status_file(self.run_files_dir, stage)
             write_status_fn = (
-                f'STATUS_DIR="{status_dir}"\n'
+                f'STATUS_FILE="{status_file}"\n'
                 'write_status() {\n'
-                '    mkdir -p "$STATUS_DIR"\n'
-                '    rm -f "$STATUS_DIR/.succeeded" "$STATUS_DIR/.failed"\n'
+                '    mkdir -p "$(dirname "$STATUS_FILE")"\n'
                 '    case "$1" in\n'
-                '        SUCCEEDED) touch "$STATUS_DIR/.succeeded" ;;\n'
-                '        FAILED*)   touch "$STATUS_DIR/.failed" ;;\n'
+                '        SUCCEEDED) echo SUCCEEDED > "$STATUS_FILE" ;;\n'
+                '        FAILED*)   echo "FAILED:$1" > "$STATUS_FILE" ;;\n'
                 '    esac\n'
                 '}'
             )
@@ -2240,7 +2617,7 @@ class GMTSAR_S1(LocalProcessor):
                   f"{result.stderr.strip()}{Style.RESET_ALL}")
             for stage in to_build:
                 self.jobs[stage]["status"] = _FAILED
-                _write_status(self._stack_status_dir(stage), _FAILED)
+                self._set_stage(stage, _FAILED)
             self.save()
             return self.jobs
         m = re.search(r"\d+", result.stdout)
@@ -2277,7 +2654,7 @@ class GMTSAR_S1(LocalProcessor):
         cfg = self.config
         scenes = self._scene_map()
         ordered = list(scenes)
-        if cfg.reference:
+        if cfg.reference and str(cfg.reference) not in ("auto", ""):
             ref_match = next((s for s in ordered
                               if cfg.reference in s), None)
             if ref_match:
@@ -2482,18 +2859,11 @@ class GMTSAR_S1(LocalProcessor):
         # safe_name -> {subswath: raw measurement stem}
         self._stack_raw_stems: dict[str, dict[int, str]] = {s: {} for s in scenes}
 
-        shared_dem = None   # download once, symlink into every F<N>/topo
         for sw, work, raw, topo in self._swath_layout():
             raw.mkdir(parents=True, exist_ok=True)
             topo.mkdir(parents=True, exist_ok=True)
-
-            # DEM: build for the first swath, reuse for the rest
-            if shared_dem is None:
-                shared_dem = self._ensure_dem(topo).resolve()
-            else:
-                dest = topo / "dem.grd"
-                if not dest.exists():
-                    dest.symlink_to(shared_dem)
+            # DEM download is now the `dem` stage (_run_dem_unit), not staged
+            # here -- so it is tracked, deferrable, and shows in refresh.
 
             # per-subswath stems into this swath's raw/
             for safe, eof in scenes.items():
@@ -2517,13 +2887,19 @@ class GMTSAR_S1(LocalProcessor):
             master_stem = _gmtsar_aligned_stem(self._stack_raw_stems[ordered[0]][sw])
             (work / "batch_tops.config").write_text(self._batch_tops_config(master_stem))
 
-    def _batch_tops_config(self, master_stem: str) -> str:
+    def _batch_tops_config(self, master_stem: str,
+                           region_cut: str | None = None) -> str:
         """GMTSAR csh-style batch_tops.config (key = value), as intf_tops.csh
         parses via `grep KEY | awk '{print $3}'`. Distinct from the config.py
         the per-pair path writes. Pulls the overlapping processing params
         straight from the config's fields (so stack mode honors the same
         filter/decimation/threshold knobs), with master_image filled from the
-        super-master and switch_land derived from mask_water."""
+        super-master and switch_land derived from mask_water.
+
+        region_cut, when given, overrides cfg.region_cut for THIS swath only --
+        the AOI maps to different radar coords per subswath, so
+        _bake_swath_region_cut() passes each swath its own cut here rather than
+        mutating the shared config (which would leak F1's cut onto F2/F3)."""
         cfg = self.config
         # Same filter/looks coupling as the p2p path -- stack mode geocodes
         # through the same proj_ra2ll, so it holes identically (measured on
@@ -2533,6 +2909,7 @@ class GMTSAR_S1(LocalProcessor):
         # sentinel in batch_tops.config's grep-based parser.
         def _blank(v):
             return "" if str(v) == "-999" else v
+        rc = cfg.region_cut if region_cut is None else region_cut
         return (
             f"proc_stage = {cfg.proc_stage}\n"
             f"master_image = {master_stem}\n"
@@ -2545,14 +2922,71 @@ class GMTSAR_S1(LocalProcessor):
             f"azimuth_dec = {cfg.azimuth_dec}\n"
             f"threshold_snaphu = {cfg.threshold_snaphu}\n"
             f"threshold_geocode = {cfg.threshold_geocode}\n"
-            f"region_cut = {_blank(cfg.region_cut)}\n"
+            f"region_cut = {_blank(rc)}\n"
             f"switch_land = {cfg.mask_water}\n"
             f"defomax = {cfg.defomax}\n"
             f"near_interp = {cfg.near_interp}\n"
         )
 
+    @property
+    def run_files_dir(self) -> Path:
+        """ISCE2-style per-stage run-files/status/logs live here (mirrors
+        ISCE2_S1's _paths.run_files_dir): run_NN_<stage> scripts,
+        <stage>.status files, and <stage>_logs/ with per-job cmd_N.done/.fail."""
+        return self.case_dir / "run_files"
+
+    def _stage_logs_dir(self, stage: str) -> Path:
+        """<stage>_logs/ under run_files/ -- this stage's per-job
+        cmd_<idx>.done/.fail markers, child logs, and (HPC) manager scripts.
+        The GMTSAR analogue of ISCE2's {step}_logs/."""
+        return self.run_files_dir / f"{stage}_logs"
+
+    def _stage_status(self, stage: str) -> str:
+        """Stage status read from run_files/<stage>.status. Container-safe: we do
+        NOT use ISCE2's RUNNING:<pid> liveness (os.kill), because the stack runs
+        inside a container -- the recorded pid is the container's, and a host
+        `refresh` checking it would misread a live stage as FAILED. A bare
+        RUNNING is honoured as RUNNING; executor liveness is tracked separately
+        via executor.pid."""
+        from insarhub.processor.isce2_base import _status_file
+        sf = _status_file(self.run_files_dir, stage)
+        if not sf.exists():
+            return _PENDING
+        raw = sf.read_text().strip()
+        if raw.startswith(_RUNNING):
+            return _RUNNING
+        if raw.startswith(_FAILED):
+            return _FAILED
+        if raw == _SUCCEEDED:
+            return _SUCCEEDED
+        return _PENDING
+
+    def _stage_ran(self, stage: str) -> bool:
+        """Whether <stage>.status exists at all (any status ever written)."""
+        from insarhub.processor.isce2_base import _status_file
+        return _status_file(self.run_files_dir, stage).exists()
+
+    def _mark_unit(self, stage: str, index: int | None, ok: bool, rc: str = "") -> None:
+        """Write a per-job cmd_<idx>.done/.fail marker into <stage>_logs/, in
+        BOTH local and HPC runs, so `--ls <stage>` reads one source of truth.
+        index None (single-unit stages: dem/cohmask/mergeprep) uses slot 0."""
+        d = self._stage_logs_dir(stage)
+        d.mkdir(parents=True, exist_ok=True)
+        i = 0 if index is None else index
+        done, fail = d / f"cmd_{i:04d}.done", d / f"cmd_{i:04d}.fail"
+        if ok:
+            fail.unlink(missing_ok=True)
+            done.write_text("")
+        else:
+            done.unlink(missing_ok=True)
+            fail.write_text(str(rc))
+
     def _set_stage(self, stage: str, status: str) -> None:
-        _write_status(self._stack_status_dir(stage), status)
+        from insarhub.processor.isce2_base import _write_status as _rf
+        # Bare status, NO pid: the stack often runs inside a container, so a pid
+        # recorded here is the container's and meaningless to a host-side reader
+        # (see _stage_status). Executor liveness is tracked via executor.pid.
+        _rf(self.run_files_dir, stage, status)
         with self._lock:
             if stage in self.jobs:
                 self.jobs[stage]["status"] = status
@@ -2591,12 +3025,12 @@ class GMTSAR_S1(LocalProcessor):
         2 for intf-only) -- reading and patching the CURRENT on-disk
         batch_tops.config (rather than regenerating from self.config via
         _batch_tops_config()) means any AOI-derived region_cut that
-        _apply_aoi_region_cut() already baked in is respected. Writing a
+        _bake_swath_region_cut() already baked in is respected. Writing a
         SEPARATE file per caller (never mutating the shared batch_tops.config
         in place) means topo/intf callers never race or clobber each other's
         expected stage, regardless of call order or how many pairs are
         running concurrently -- unlike a single shared proc_stage toggle,
-        which _apply_aoi_region_cut()'s own independent rewrites (one per
+        which _bake_swath_region_cut()'s own independent rewrites (one per
         fresh HPC child process, when an AOI is configured) could silently
         reset out from under a concurrently-running sibling."""
         text = (work / "batch_tops.config").read_text()
@@ -2609,32 +3043,109 @@ class GMTSAR_S1(LocalProcessor):
         return out
 
     def _run_align_unit(self, sw: int) -> bool:
-        """Align this swath's whole stack to its super-master: the two
-        sequential preproc_batch_tops[_esd].csh calls. A standalone,
-        self-contained unit of work -- called from _run_stack()'s local loop
-        below AND (re-entering a fresh process via the CLI's run-stage-unit
-        action) from an HPC child job, so it takes only what it needs to
-        derive on its own (sw) rather than values a caller's loop happens to
-        already have on hand."""
+        """Coregister this swath's whole stack to its super-master using
+        GMTSAR's self-contained ``align_tops.csh`` -- the primitive p2p's
+        ``pre_proc`` uses -- one date at a time against a FIXED master, rather
+        than GMTSAR's own ``preproc_batch_tops.csh`` batch.
+
+        ``preproc_batch_tops.csh`` reimplements TOPS coregistration inline (the
+        ``clock_start``-shift + ``SAT_baseline``/``SAT_llt2rat`` burst-offset
+        loop) and is unreliable; ``align_tops.csh`` is the clean per-date
+        coregistration the p2p pipeline relies on. Driving it once per date
+        against one super-master yields the same common-master stack the rest
+        of the pipeline (topo/intf/merge, and the opt-in esdnet refinement)
+        already consumes, from the alignment path we trust.
+
+        Reads ``raw/data.in`` (staged by :meth:`_stage_stack` as
+        ``<raw_stem>:<eof>``, super-master first) so it re-derives everything
+        from disk -- a standalone unit of work, run both in :meth:`_run_stack`'s
+        local loop AND re-entered in a fresh process from an HPC child (the
+        run-stage-unit action).
+        """
         env = self._subprocess_env()
         work, raw, topo = self._swath_paths(sw)
-        dem = (topo / "dem.grd").resolve()
+        # align_tops.csh resolves dem.grd from its cwd (raw/); the DEM lives in
+        # topo/. Symlink it in.
+        dem_local = raw / "dem.grd"
+        if not dem_local.exists():
+            dem_local.symlink_to((topo / "dem.grd").resolve())
         log = work / "stack_align.log"
-        # ESD (enhanced spectral diversity) alignment vs geometry-only,
-        # selected by config.coregistration -- ESD is the analogue of
-        # ISCE2_S1's NESD and the default. Same data.in/output contract,
-        # esd variant just takes a 4th esd_mode arg.
-        esd = str(self.config.coregistration).lower() == "esd"
+
+        lines = [l for l in (raw / "data.in").read_text().splitlines() if l.strip()]
+        stems = [l.split(":")[0].strip() for l in lines]   # raw stems, master first
+        if len(stems) < 2:
+            logger.error("F%d: need >= 2 scenes to align a stack (got %d)", sw, len(stems))
+            return False
+        master_raw = stems[0]
+        m_all = _gmtsar_aligned_stem(master_raw)            # S1_<date>_ALL_F<sw>
+        baseline = raw / "baseline_table.dat"
+
         with open(log, "w") as lf:
-            for mode in ("1", "2"):
-                cmd = ([self._gmtsar_script("preproc_batch_tops_esd.csh"), "data.in", str(dem),
-                        mode, str(self.config.esd_mode)] if esd else
-                       [self._gmtsar_script("preproc_batch_tops.csh"), "data.in", str(dem), mode])
-                proc = subprocess.run(
-                    cmd, cwd=str(raw), stdout=lf, stderr=subprocess.STDOUT, env=env)
-                if proc.returncode != 0:
+            def _run(cmd) -> bool:
+                return subprocess.run(cmd, cwd=str(raw), stdout=lf,
+                                      stderr=subprocess.STDOUT, env=env).returncode == 0
+
+            align = self._gmtsar_script("align_tops.csh")
+            # 1) super-master only: aligned_orb=0 -> align_tops skip_master=2.
+            #    (its 3rd arg is an unused placeholder here; reuse the master's.)
+            if not _run([align, master_raw, f"{master_raw}.EOF",
+                         master_raw, "0", "dem.grd"]):
+                logger.error("F%d: align_tops master pre-process failed -- see %s", sw, log)
+                return False
+            self._normalize_aligned_stem(raw, _gmtsar_stem(master_raw), m_all, env)
+            baseline.unlink(missing_ok=True)
+            self._append_baseline_row(raw, m_all, m_all, baseline, env)  # master row first
+
+            # 2) each other date, reusing the fixed master: master_orb=0 ->
+            #    align_tops skip_master=1 (align aligned image only).
+            for sraw in stems[1:]:
+                if not _run([align, master_raw, "0", sraw, f"{sraw}.EOF", "dem.grd"]):
+                    logger.error("F%d: align_tops failed for %s -- see %s", sw, sraw, log)
                     return False
+                self._normalize_aligned_stem(raw, _gmtsar_stem(sraw),
+                                             _gmtsar_aligned_stem(sraw), env)
+                self._append_baseline_row(raw, m_all, _gmtsar_aligned_stem(sraw),
+                                          baseline, env)
         return True
+
+    def _normalize_aligned_stem(self, raw: Path, time_stem: str, all_stem: str,
+                                env: dict) -> None:
+        """``align_tops.csh`` writes ``S1_<date>_<time>_F<sw>.{PRM,LED,SLC}``,
+        but the rest of the stack (``intf.in``, ``batch_tops.config``,
+        ``baseline_table.dat``, ``_gmtsar_aligned_stem``) keys off
+        ``S1_<date>_ALL_F<sw>``. Alias the SLC/LED to the ``_ALL_`` name and
+        copy the PRM with its ``SLC_file``/``led_file`` repointed so every
+        downstream reader finds them unchanged."""
+        for ext in (".SLC", ".LED"):
+            link = raw / f"{all_stem}{ext}"
+            if link.exists() or link.is_symlink():
+                link.unlink()
+            link.symlink_to(f"{time_stem}{ext}")           # relative, same dir
+        shutil.copy(raw / f"{time_stem}.PRM", raw / f"{all_stem}.PRM")
+        for key, val in (("SLC_file", f"{all_stem}.SLC"),
+                         ("led_file", f"{all_stem}.LED")):
+            subprocess.run(["update_PRM", f"{all_stem}.PRM", key, val],
+                           cwd=str(raw), env=env,
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+    def _append_baseline_row(self, raw: Path, master_all: str, date_all: str,
+                             dest: Path, env: dict) -> None:
+        """Append one 5-column ``baseline_table.dat`` row (file_ID,
+        yyyyddd.frac, day_cnt, b_para, b_perp) via GMTSAR's own
+        ``baseline_table.csh``, exactly as ``preproc_batch_tops`` would -- the
+        native stack + the MintPy analyzer's non-p2p path read it from
+        ``raw/baseline_table.dat``."""
+        p = subprocess.run(["baseline_table.csh", f"{master_all}.PRM", f"{date_all}.PRM"],
+                           cwd=str(raw), env=env, text=True,
+                           stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        row = (p.stdout or "").strip().splitlines()
+        if p.returncode == 0 and row and len(row[0].split()) >= 5:
+            with open(dest, "a") as f:
+                f.write(row[0] + "\n")
+        else:
+            logger.warning("baseline_table.csh gave %d column(s) for %s (need 5): %s",
+                           len(row[0].split()) if row else 0, date_all,
+                           (p.stderr or p.stdout or "")[-200:])
 
     def _run_esdnet_unit(self, sw: int) -> bool:
         """Network-based ESD misregistration refinement for this swath.
@@ -2724,7 +3235,7 @@ class GMTSAR_S1(LocalProcessor):
         only reads topo_ra.grd/trans.dat, so every pair is safe to run with
         full concurrency after this one precompute completes."""
         work, raw, topo = self._swath_paths(sw)
-        self._apply_aoi_region_cut(work, raw)  # must run before Stage 1 so
+        self._bake_swath_region_cut(sw, work, raw)  # must run before Stage 1 so
         # region_cut (if any) is already baked into batch_tops.config --
         # idempotent/no-op once region_cut is set, same as _run_intf_unit's
         # own call.
@@ -2749,19 +3260,50 @@ class GMTSAR_S1(LocalProcessor):
         full-frame layout -- the structural analogue of ISCE topsStack). Single
         subswath: the flat case. Shells out to GMTSAR's batch tools (csh for the
         unported-stub TOPS batch steps, real Python/C for the rest)."""
-        multi = self._multiswath
         swaths = self._swath_layout()
+
+        # ── unzip: one job per scene (unpack .SAFE + stage per-subswath raw
+        # symlinks). Idempotent -- _stage_stack already did this at submit; a
+        # fresh/partial workdir gets it redone here. ──
+        n_scenes = len(self._ordered_scenes()[0])
+        if self.config.skip_existing and self._stage_status("unzip") == _SUCCEEDED:
+            logger.info("unzip already succeeded, skipping.")
+        else:
+            self._set_stage("unzip", _RUNNING)
+            # Reframe is a single all-scenes operation and NOT thread-safe (it
+            # rmtree's shared temp work dirs), so run it ONCE here as a barrier
+            # before the per-scene fan-out. The concurrent unzip units then only
+            # do their own thread-safe .SAFE extraction + symlink staging.
+            if not getattr(self, "_reframed_safe", None):
+                self._reframed_safe = self._reframe_scenes(self._ordered_scenes()[0])
+            ok = self._run_indexed_units("unzip", self._run_unzip_unit, n_scenes)
+            self._set_stage("unzip", _SUCCEEDED if ok else _FAILED)
+            if not ok:
+                logger.error("unzip failed -- see executor log")
+                return
+
+        # ── dem: one job, download once + symlink into each subswath's topo/ ──
+        if self.config.skip_existing and self._stage_status("dem") == _SUCCEEDED:
+            logger.info("dem already succeeded, skipping.")
+        else:
+            self._set_stage("dem", _RUNNING)
+            ok = self._run_dem_unit()
+            self._mark_unit("dem", None, ok)
+            self._set_stage("dem", _SUCCEEDED if ok else _FAILED)
+            if not ok:
+                logger.error("dem failed -- could not download/stage DEM")
+                return
 
         # ── align: every subswath, concurrently (local ThreadPoolExecutor)
         # -- align_F1/F2/F3 are fully independent of each other (different
         # subswath directories, no data dependency), so there's no reason to
         # process them one swath at a time. See run_stage_unit()'s docstring
         # for the HPC-mode analogue. ──
-        if self.config.skip_existing and _read_status(self._stack_status_dir("align")) == _SUCCEEDED:
+        if self.config.skip_existing and self._stage_status("align") == _SUCCEEDED:
             logger.info("align already succeeded, skipping.")
         else:
             self._set_stage("align", _RUNNING)
-            ok = self._run_for_all_swaths(self._run_align_unit, swaths)
+            ok = self._run_for_all_swaths(self._run_align_unit, swaths, "align")
             self._set_stage("align", _SUCCEEDED if ok else _FAILED)
             if not ok:
                 logger.error("align failed -- see stack_align.log in each subswath dir")
@@ -2771,11 +3313,11 @@ class GMTSAR_S1(LocalProcessor):
         # topo_ra.grd once (also applies AOI -> region_cut first, since it
         # must be baked in before Stage 1 runs) -- must complete before any
         # pair's intf starts, see _run_topo_unit's docstring ──
-        if self.config.skip_existing and _read_status(self._stack_status_dir("topo")) == _SUCCEEDED:
+        if self.config.skip_existing and self._stage_status("topo") == _SUCCEEDED:
             logger.info("topo already succeeded, skipping.")
         else:
             self._set_stage("topo", _RUNNING)
-            ok = self._run_for_all_swaths(self._run_topo_unit, swaths)
+            ok = self._run_for_all_swaths(self._run_topo_unit, swaths, "topo")
             self._set_stage("topo", _SUCCEEDED if ok else _FAILED)
             if not ok:
                 logger.error("topo failed -- see stack_topo.log in each subswath dir")
@@ -2784,18 +3326,25 @@ class GMTSAR_S1(LocalProcessor):
         # ── intf: every (subswath, pair) combination, pooled together --
         # safe for full concurrency now that topo has already run once per
         # subswath (see _run_intf_unit's docstring) ──
-        if self.config.skip_existing and _read_status(self._stack_status_dir("intf")) == _SUCCEEDED:
+        if self.config.skip_existing and self._stage_status("intf") == _SUCCEEDED:
             logger.info("intf already succeeded, skipping.")
         elif not self._run_all_intf(swaths):
             return
 
-        if multi:
+        # A config-multi stack ALWAYS runs the merge pipeline, so the stage
+        # list / refresh table / merge/ structure are identical whether the AOI
+        # spans several subswaths (real stitch) or a single one (a passthrough
+        # promote -- see _run_single_subswath_merge).
+        if self._multiswath:
             self._run_merge()
 
-    def _run_for_all_swaths(self, unit_fn, swaths) -> bool:
+    def _run_for_all_swaths(self, unit_fn, swaths, stage: str) -> bool:
         """Run unit_fn(sw) for every subswath concurrently (local
-        ThreadPoolExecutor) -- used for align/topo, both fully independent
-        per subswath. Returns True only if every subswath succeeded."""
+        ThreadPoolExecutor) -- used for align/topo, both fully independent per
+        subswath. Writes a per-swath cmd_<idx>.done/.fail marker (idx = the
+        swath's position in `swaths`, matching _stage_command_labels order) so
+        `--ls <stage>` shows per-subswath status. Returns True iff all ok."""
+        idx_of = {sw: i for i, (sw, *_rest) in enumerate(swaths)}
         results = []
         with ThreadPoolExecutor(max_workers=self.config.max_workers) as pool:
             futs = {pool.submit(unit_fn, sw): sw for sw, _work, _raw, _topo in swaths}
@@ -2806,29 +3355,205 @@ class GMTSAR_S1(LocalProcessor):
                 except Exception:
                     logger.exception("%s(F%s) raised", unit_fn.__name__, sw)
                     ok = False
+                self._mark_unit(stage, idx_of[sw], ok)
                 results.append(ok)
         return bool(results) and all(results)
 
-    def _apply_aoi_region_cut(self, work: Path, raw: Path) -> None:
-        """Derive region_cut from the AOI (if region_cut wasn't set manually)
-        and rewrite this swath's batch_tops.config so intf crops to it."""
-        if str(self.config.region_cut) != "-999":
-            return  # user set it explicitly; respect it
+    def _run_indexed_units(self, stage: str, fn, n: int) -> bool:
+        """Run fn(i) for i in range(n) concurrently, writing a per-job
+        cmd_<i>.done/.fail marker for each. Used by the unzip stage (one job
+        per scene). Returns True iff every unit succeeded."""
+        results = []
+        with ThreadPoolExecutor(max_workers=self.config.max_workers) as pool:
+            futs = {pool.submit(fn, i): i for i in range(n)}
+            for fut in as_completed(futs):
+                i = futs[fut]
+                try:
+                    ok = fut.result()
+                except Exception:
+                    logger.exception("%s unit %d raised", stage, i)
+                    ok = False
+                self._mark_unit(stage, i, ok)
+                results.append(ok)
+        return bool(results) and all(results)
+
+    def _run_unzip_unit(self, index: int) -> bool:
+        """unzip one scene (index into the ordered scene list): ensure its
+        .SAFE is extracted and stage its per-subswath tiff/xml/EOF symlinks into
+        each effective subswath's raw/. Idempotent -- the submit-time
+        _stage_stack already did this, so a normal run re-verifies cheaply; a
+        cleaned/partial workdir gets the scene restaged. Reframe (a no-op when
+        it produces no bursts) is ensured once per process."""
+        scenes, _ordered = self._ordered_scenes()
+        safes = list(scenes)
+        if not (0 <= index < len(safes)):
+            raise ValueError(f"stage 'unzip' needs a valid --index (0..{len(safes)-1})")
+        safe = safes[index]
+        eof = scenes[safe]
+        self._ensure_safe_extracted(safe)
+        # Reframe (a single non-thread-safe all-scenes op) is done once as a
+        # barrier by _run_stack before this fan-out, or at submit by
+        # _stage_stack; _safe_source falls back to the original .SAFE when a
+        # scene wasn't reframed, so this unit never reframes itself.
+        for sw, _work, raw, _topo in self._swath_layout():
+            raw.mkdir(parents=True, exist_ok=True)
+            self._extract_subswath_stem(safe, eof, raw, subswath=sw)
+        return True
+
+    def _run_dem_unit(self) -> bool:
+        """dem stage: download the DEM once (first effective subswath) and
+        symlink it into every effective subswath's topo/. Moved out of
+        _stage_stack so DEM is a tracked, deferrable stage. Idempotent."""
+        shared_dem = None
+        for _sw, _work, _raw, topo in self._swath_layout():
+            topo.mkdir(parents=True, exist_ok=True)
+            if shared_dem is None:
+                shared_dem = self._ensure_dem(topo).resolve()
+            else:
+                dest = topo / "dem.grd"
+                if not dest.exists() and not dest.is_symlink():
+                    dest.symlink_to(shared_dem)
+        return bool(shared_dem and Path(shared_dem).exists())
+
+    def _stack_master_prm(self, sw: int) -> Path | None:
+        """This subswath's aligned super-master PRM (S1_*_ALL_F<sw>.PRM). None
+        until align has produced it. Derives the raw dir from the CONFIG layout
+        (not _swath_layout, which would recurse back through _stack_subswaths)."""
+        p = self._paths
+        raw = p.swath_raw_dir(sw) if len(self._subswath_list()) > 1 else p.raw_dir
+        return next(iter(sorted(raw.glob(f"S1_*_ALL_F{sw}.PRM"))), None)
+
+    def _stack_region_cuts(self) -> dict[int, str]:
+        """{subswath: region_cut} for each configured subswath the AOI falls in,
+        mapped through that swath's aligned super-master PRM via SAT_llt2rat.
+        Empty when there is no AOI, region_cut is set explicitly, or align
+        hasn't produced a PRM yet.
+
+        The stack analogue of _frame_region_cuts() (the p2p path): it both
+        narrows the stack to the subswaths the AOI actually overlaps (via
+        _stack_subswaths) AND gives each kept swath its own crop -- so a "1 2 3"
+        stack whose AOI is only in F2 runs F2 alone, while an AOI spanning all
+        three crops each. Replaces the old per-swath _apply_aoi_region_cut().
+
+        Cached once non-empty (aligned PRMs don't move). The empty result stays
+        uncached and is recomputed cheaply (a glob, no SAT_llt2rat, when no PRM
+        exists) so a from-scratch run that has no PRMs at align time still
+        narrows correctly once topo/intf run and the PRMs appear.
+
+        Persisted to .stack_aoi_cuts.json (keyed by the AOI it was computed for)
+        so a host-side `refresh` -- which has no SAT_llt2rat -- reads the same
+        narrowing the container run computed, instead of silently falling back
+        to the full stage list."""
+        cache = getattr(self, "_stack_cuts_cache", None)
+        if cache:
+            return cache
+        cuts: dict[int, str] = {}
         aoi = self._resolve_aoi()
-        if not aoi:
-            return  # no AOI -> full frame
+        if aoi and str(self.config.region_cut) in ("-999", "auto", "", "None"):
+            persist = self.case_dir / ".stack_aoi_cuts.json"
+            if persist.exists():
+                try:
+                    data = json.loads(persist.read_text())
+                    if data.get("aoi") == aoi:
+                        cuts = {int(k): v for k, v in data.get("cuts", {}).items()}
+                except (ValueError, OSError):
+                    cuts = {}
+            if not cuts:
+                for sw in self._subswath_list():
+                    prm = self._stack_master_prm(sw)
+                    if prm is None:
+                        continue
+                    rc = self._aoi_to_region_cut(prm, aoi)
+                    if rc:
+                        cuts[sw] = rc
+                        logger.info("AOI -> region_cut = %s (F%d, from %s)",
+                                    rc, sw, prm.name)
+                    else:
+                        logger.info("AOI does not overlap F%d -- skipping it.", sw)
+                if cuts:
+                    try:
+                        persist.parent.mkdir(parents=True, exist_ok=True)
+                        # Atomic (temp + rename): topo/intf threads all call
+                        # _stack_region_cuts concurrently, and a host-side
+                        # `refresh` reads this file -- a plain truncate-then-write
+                        # could be read torn, breaking the narrowing display.
+                        tmp = persist.with_name(persist.name + ".tmp")
+                        tmp.write_text(json.dumps(
+                            {"aoi": aoi,
+                             "cuts": {str(k): v for k, v in cuts.items()}}))
+                        tmp.replace(persist)
+                    except OSError:
+                        pass
+        if cuts:
+            self._stack_cuts_cache = cuts
+        return cuts
+
+    def _stack_subswaths(self) -> list[int]:
+        """Configured subswaths narrowed to those the AOI overlaps -- the
+        stack's effective subswath list. No AOI (or region_cut set explicitly,
+        or no aligned PRMs yet) -> all configured subswaths."""
+        cuts = self._stack_region_cuts()
+        if not cuts:
+            return self._subswath_list()
+        keep = [sw for sw in self._subswath_list() if sw in cuts]
+        return keep or self._subswath_list()
+
+    def _stack_effective_multi(self) -> bool:
+        """Whether the stack ACTUALLY spans >1 subswath after AOI narrowing --
+        i.e. whether a merge stage is needed. (self._multiswath is the CONFIG
+        count, which drives the on-disk F<N>/ layout instead.)"""
+        return len(self._stack_subswaths()) > 1
+
+    def _bake_swath_region_cut(self, sw: int, work: Path, raw: Path) -> None:
+        """Bake this swath's AOI region_cut into its batch_tops.config, so topo
+        Stage 1 and every intf pair crop to it. No-op when the AOI doesn't reach
+        this subswath. The dedicated replacement for _apply_aoi_region_cut().
+
+        IDEMPOTENT + ATOMIC, and that matters: topo already bakes the region_cut
+        once, then _run_all_intf fans every pair of a subswath out CONCURRENTLY,
+        each re-calling this. Rewriting the shared batch_tops.config with a plain
+        write_text (truncate-then-write) let a concurrent _config_with_stage()
+        reader catch it truncated -> it wrote an EMPTY per-pair config, whose
+        blank proc_stage made intf_tops.csh run Stage 1 (cleanup.csh topo) and
+        wipe topo_ra.grd, failing every later pair on that subswath. So: skip the
+        write entirely once the cut is already present (the intf-time case), and
+        when a write is needed, do it atomically (temp + rename)."""
+        rc = self._stack_region_cuts().get(sw)
+        if not rc:
+            return
+        cfg_file = work / "batch_tops.config"
+        if cfg_file.exists():
+            try:
+                if f"region_cut = {rc}" in cfg_file.read_text():
+                    return  # already baked (by topo) -- don't race the readers
+            except OSError:
+                pass
         master_prm = next(iter(sorted(raw.glob("S1_*_ALL_F*.PRM"))), None)
-        if master_prm is None:
-            logger.warning("No super-master PRM in %s for AOI->region_cut; full frame.", raw)
+        stem = master_prm.stem if master_prm else ""
+        tmp = cfg_file.with_name(cfg_file.name + ".tmp")
+        tmp.write_text(self._batch_tops_config(stem, region_cut=rc))
+        tmp.replace(cfg_file)   # atomic: readers see the old or new file, never a torn one
+
+    def _stack_single_to_merge(self, swath: tuple[int, Path, Path, Path]) -> None:
+        """When AOI narrowing reduces a configured multi-subswath stack to ONE
+        subswath there is no merge stage -- but the analyzer reads a stack's
+        interferograms from merge/<pair>/unwrap_ll.grd. Surface the single
+        subswath's already-geocoded intf_all/<pair>/ output there (symlinks) so
+        the merge/-based convention still holds. Mirrors the p2p path's
+        _single_subswath_to_merge()."""
+        _sw, work, _raw, _topo = swath
+        intf_all = work / "intf_all"
+        if not intf_all.is_dir():
             return
-        region_cut = self._aoi_to_region_cut(master_prm, aoi)
-        if not region_cut:
-            return
-        logger.info("AOI -> region_cut = %s (from %s)", region_cut, master_prm.name)
-        # NB: region_cut is per-swath but stored on the shared config; the
-        # value is only used immediately below to rewrite THIS swath's config.
-        self.config.region_cut = region_cut
-        (work / "batch_tops.config").write_text(self._batch_tops_config(master_prm.stem))
+        merge = self._paths.merge_dir
+        merge.mkdir(parents=True, exist_ok=True)
+        for pd in sorted(p for p in intf_all.iterdir() if p.is_dir()):
+            tgt = merge / pd.name
+            tgt.mkdir(parents=True, exist_ok=True)
+            for name in ("unwrap_ll.grd", "corr_ll.grd", "phasefilt_ll.grd"):
+                src, link = pd / name, tgt / name
+                if src.exists() and not (link.exists() or link.is_symlink()):
+                    link.symlink_to(src.resolve())
 
     def _stem_julian(self, aligned_stem: str, raw_dir: Path) -> int | None:
         """Integer Julian id GMTSAR names a pair dir with, from the aligned
@@ -2852,13 +3577,14 @@ class GMTSAR_S1(LocalProcessor):
         called both from _run_all_intf()'s local ThreadPoolExecutor below
         and from an HPC child job re-entering via run_stage_unit().
 
-        Calls _apply_aoi_region_cut() unconditionally first: in HPC mode each
+        Calls _bake_swath_region_cut() unconditionally first: in HPC mode each
         pair is a fresh process with no in-memory state, so (unlike
         _run_stack()'s single unconditional call in local mode) there's no
-        other place already guaranteed to run before intf starts. It's cheap
-        and idempotent (self.config.region_cut short-circuits it after the
-        first real computation), so redundant per-pair calls cost a bit of
-        wasted SAT_llt2rat work, not correctness.
+        other place already guaranteed to run before intf starts. It just
+        re-derives this swath's cut and rewrites batch_tops.config each time
+        (no shared-state short-circuit, since region_cut is per-swath), so
+        redundant per-pair calls cost a bit of wasted SAT_llt2rat work, not
+        correctness -- and the rewrite is idempotent (same cut every time).
 
         Always requests Stage 2 only (proc_stage=2, via _config_with_stage)
         -- topo_ra.grd is precomputed once by _run_topo_unit() before any
@@ -2867,7 +3593,7 @@ class GMTSAR_S1(LocalProcessor):
         topo/, only reads it, so this is safe under any pair concurrency.
         """
         work, raw, topo = self._swath_paths(sw)
-        self._apply_aoi_region_cut(work, raw)
+        self._bake_swath_region_cut(sw, work, raw)
         env = self._subprocess_env()
         intf_all = work / "intf_all"   # intf_tops moves finished pairs here
 
@@ -2877,7 +3603,7 @@ class GMTSAR_S1(LocalProcessor):
         # _config_with_stage). The finished product of this stage is then the
         # wrapped phasefilt.grd that the merge stage consumes. Single
         # subswath has no merge stage, so it must still unwrap here.
-        skip_uw = self._multiswath
+        skip_uw = self._stack_effective_multi()   # unwrap here only if NOT merging
         product = ("phasefilt.grd" if skip_uw or float(self.config.threshold_snaphu) <= 0
                    else "unwrap.grd")
 
@@ -2903,16 +3629,19 @@ class GMTSAR_S1(LocalProcessor):
         subswath by this point (see _run_intf_unit's docstring). Returns
         True on full success."""
         self._set_stage("intf", _RUNNING)
-        tasks: list[tuple[int, str]] = []
+        # (flat_index, sw, line) -- flat_index matches _stage_command_labels
+        # ("intf") order (subswaths x intf.in) so cmd_<idx> markers line up.
+        tasks: list[tuple[int, int, str]] = []
         for sw, work, _raw, _topo in swaths:
             pair_lines = [l for l in (work / "intf.in").read_text().splitlines() if l.strip()]
-            tasks += [(sw, l) for l in pair_lines]
+            for l in pair_lines:
+                tasks.append((len(tasks), sw, l))
 
         results = []
         with ThreadPoolExecutor(max_workers=self.config.max_workers) as pool:
-            futs = {pool.submit(self._run_intf_unit, sw, l): (sw, l) for sw, l in tasks}
+            futs = {pool.submit(self._run_intf_unit, sw, l): (i, sw, l) for i, sw, l in tasks}
             for fut in as_completed(futs):
-                sw, line = futs[fut]
+                i, sw, line = futs[fut]
                 try:
                     ok = fut.result()
                 except Exception:
@@ -2921,6 +3650,7 @@ class GMTSAR_S1(LocalProcessor):
                 if not ok:
                     logger.error("intf pair %s (F%s) produced no output -- see intf_*.log",
                                  line, sw)
+                self._mark_unit("intf", i, ok)
                 results.append(ok)
 
         ok = bool(results) and all(results)
@@ -2939,7 +3669,7 @@ class GMTSAR_S1(LocalProcessor):
         state for itself.
         """
         env = self._subprocess_env()
-        swaths = self._subswath_list()
+        swaths = self._stack_subswaths()   # only the AOI-overlapping subswaths
         merge = self._paths.merge_dir
         merge.mkdir(parents=True, exist_ok=True)
 
@@ -2960,6 +3690,21 @@ class GMTSAR_S1(LocalProcessor):
         if not common:
             logger.error("merge: no pair is present in all subswaths; nothing to merge.")
             return None
+
+        # Idempotent fast path. mergeprep (the seed) runs _merge_prepare first as
+        # a barrier and produces merge_input + batch_tops_merge.config; the merge
+        # stage then fans every remaining pair out CONCURRENTLY, and each
+        # _run_merge_unit re-calls _merge_prepare. Those per-pair calls MUST reuse
+        # what the seed made, not re-run create_merge_input and rewrite
+        # intflist/merge_input/config on top of one another (torn files -- the
+        # same failure mode as the batch_tops.config race). So once the seed's
+        # outputs exist, just read them back.
+        merge_input_file = merge / "merge_input"
+        cfg_file = merge / "batch_tops_merge.config"
+        if (merge_input_file.exists() and merge_input_file.read_text().strip()
+                and cfg_file.exists()):
+            lines = [l for l in merge_input_file.read_text().splitlines() if l.strip()]
+            return merge, common, lines, cfg_file
 
         (merge / "intflist").write_text("\n".join(common) + "\n")
 
@@ -3029,7 +3774,7 @@ class GMTSAR_S1(LocalProcessor):
             logger.error("merge: %s is empty.", merge_input)
             return None
         cfg = self._merge_config(
-            self._paths.swath_batch_config(self._subswath_list()[0]), merge)
+            self._paths.swath_batch_config(self._stack_subswaths()[0]), merge)
         return merge, lines, cfg
 
     def _run_mergeprep_unit(self) -> bool:
@@ -3202,7 +3947,7 @@ class GMTSAR_S1(LocalProcessor):
 
     def _unwrap_config(self) -> Path:
         """The real thresholds, for the unwrap stage (merge zeroes them)."""
-        return self._paths.swath_batch_config(self._subswath_list()[0])
+        return self._paths.swath_batch_config(self._stack_subswaths()[0])
 
     def _run_cohmask_unit(self) -> bool:
         """Build mask_def.grd: mean coherence over all merged pairs, thresholded.
@@ -3267,7 +4012,13 @@ class GMTSAR_S1(LocalProcessor):
         if not pair_dir.is_dir():
             logger.error("unwrap: %s not merged -- run the merge stage first.", pair_dir)
             return False
-        if (pair_dir / "unwrap.grd").exists():
+        # The stage's real product is the GEOCODED unwrap_ll.grd when geocoding
+        # is on (what the analyzers consume); only radar unwrap.grd otherwise.
+        # Judge skip/success by that, not unwrap.grd -- else a run that unwrapped
+        # but failed to geocode looks "done" and never re-geocodes.
+        geocoding = float(self.config.threshold_geocode) != 0
+        product = "unwrap_ll.grd" if geocoding else "unwrap.grd"
+        if (pair_dir / product).exists():
             logger.info("unwrap: %s already unwrapped, skipping.", pair)
             return True
 
@@ -3286,8 +4037,14 @@ class GMTSAR_S1(LocalProcessor):
         log = merge / f"stack_unwrap_{pair}.log"
         with open(log, "w") as lf:
             cmd = [script, thr, defomax]
+            # region_cut is a per-subswath RADAR crop; it is meaningless on the
+            # MERGED frame this stage unwraps (merge already cropped), and the
+            # "auto" sentinel must never reach snaphu -- the fork's snaphu.py
+            # _grdcut rejects a non-'w/e/s/n' region ("region string must be
+            # 'w/e/s/n', got 'auto'"). So skip it for the auto/blank sentinels;
+            # snaphu then unwraps the full merged grid, which is what we want.
             rc = str(self.config.region_cut).strip()
-            if rc and rc not in ("-999", "None"):
+            if rc and rc not in ("-999", "None", "auto", ""):
                 cmd.append(rc)
             subprocess.run(cmd, cwd=str(pair_dir), stdout=lf,
                            stderr=subprocess.STDOUT, env=env)
@@ -3299,9 +4056,9 @@ class GMTSAR_S1(LocalProcessor):
         # judged by the product, not the exit code -- these csh scripts end on
         # an `rm` over a glob that often matches nothing, and csh exits 1 on
         # "rm: No match." even when the work completed (see _merge_one_pair).
-        ok = (pair_dir / "unwrap.grd").exists()
+        ok = (pair_dir / product).exists()
         if not ok:
-            logger.error("unwrap: pair %s produced no unwrap.grd -- see %s", pair, log)
+            logger.error("unwrap: pair %s produced no %s -- see %s", pair, product, log)
         return ok
 
     def _run_merge_unit(self, index: int | None = None) -> bool:
@@ -3374,51 +4131,63 @@ class GMTSAR_S1(LocalProcessor):
         symlink; see _run_mergeprep_unit()). Each stage's status is set here
         rather than inside the unit methods, so an HPC child job can call just
         the work with its sbatch manager tracking status instead."""
-        if self.config.skip_existing and _read_status(self._stack_status_dir("mergeprep")) == _SUCCEEDED:
+        if not self._stack_effective_multi():
+            # Config names >1 subswath but the AOI fell in ONE: nothing to
+            # stitch. Run the SAME four stages so the refresh table and merge/
+            # structure match the multi case -- as cheap passthroughs.
+            self._run_single_subswath_merge()
+            return
+        if self.config.skip_existing and self._stage_status("mergeprep") == _SUCCEEDED:
             logger.info("mergeprep already succeeded, skipping.")
         else:
             self._set_stage("mergeprep", _RUNNING)
             ok = self._run_mergeprep_unit()
+            self._mark_unit("mergeprep", None, ok)
             self._set_stage("mergeprep", _SUCCEEDED if ok else _FAILED)
             if not ok:
                 logger.error("mergeprep failed -- see stack_mergeprep.log in %s",
                              self._paths.merge_dir)
                 return
 
-        if self.config.skip_existing and _read_status(self._stack_status_dir("merge")) == _SUCCEEDED:
+        # NB: skipping a completed merge must NOT return -- cohmask/unwrap are
+        # separate stages that may still need to run (e.g. re-running just
+        # unwrap). Skip only the merge fan-out and fall through to them.
+        if self.config.skip_existing and self._stage_status("merge") == _SUCCEEDED:
             logger.info("merge already succeeded, skipping.")
-            return
-        self._set_stage("merge", _RUNNING)
-        n_pairs = len(self._merge_input_lines())
-        results: list[bool] = []
-        with ThreadPoolExecutor(max_workers=self.config.max_workers) as pool:
-            futs = {pool.submit(self._run_merge_unit, i): i for i in range(1, n_pairs)}
-            for fut in as_completed(futs):
-                i = futs[fut]
-                try:
-                    ok = fut.result()
-                except Exception:
-                    logger.exception("merge pair index %d raised", i)
-                    ok = False
-                results.append(ok)
-        ok = all(results)  # vacuously True when the seed was the only pair
-        self._set_stage("merge", _SUCCEEDED if ok else _FAILED)
-        if not ok:
-            return
+        else:
+            self._set_stage("merge", _RUNNING)
+            n_pairs = len(self._merge_input_lines())
+            results: list[bool] = []
+            with ThreadPoolExecutor(max_workers=self.config.max_workers) as pool:
+                futs = {pool.submit(self._run_merge_unit, i): i for i in range(1, n_pairs)}
+                for fut in as_completed(futs):
+                    i = futs[fut]
+                    try:
+                        ok = fut.result()
+                    except Exception:
+                        logger.exception("merge pair index %d raised", i)
+                        ok = False
+                    self._mark_unit("merge", i - 1, ok)  # cmds are range(1,n) -> slot i-1
+                    results.append(ok)
+            ok = all(results)  # vacuously True when the seed was the only pair
+            self._set_stage("merge", _SUCCEEDED if ok else _FAILED)
+            if not ok:
+                return
 
         # cohmask -> unwrap, the same order the HPC chain uses: the mask needs
         # every merged corr.grd, and must exist before snaphu starts to be able
         # to shrink its workload at all.
-        if self.config.skip_existing and _read_status(self._stack_status_dir("cohmask")) == _SUCCEEDED:
+        if self.config.skip_existing and self._stage_status("cohmask") == _SUCCEEDED:
             logger.info("cohmask already succeeded, skipping.")
         else:
             self._set_stage("cohmask", _RUNNING)
             ok = self._run_cohmask_unit()
+            self._mark_unit("cohmask", None, ok)
             self._set_stage("cohmask", _SUCCEEDED if ok else _FAILED)
             if not ok:
                 return
 
-        if self.config.skip_existing and _read_status(self._stack_status_dir("unwrap")) == _SUCCEEDED:
+        if self.config.skip_existing and self._stage_status("unwrap") == _SUCCEEDED:
             logger.info("unwrap already succeeded, skipping.")
             return
         self._set_stage("unwrap", _RUNNING)
@@ -3429,11 +4198,59 @@ class GMTSAR_S1(LocalProcessor):
             for fut in as_completed(futs):
                 i = futs[fut]
                 try:
-                    results.append(fut.result())
+                    ok = fut.result()
                 except Exception:
                     logger.exception("unwrap pair index %d raised", i)
-                    results.append(False)
+                    ok = False
+                self._mark_unit("unwrap", i, ok)
+                results.append(ok)
         self._set_stage("unwrap", _SUCCEEDED if all(results) else _FAILED)
+
+    def _run_single_subswath_merge(self) -> None:
+        """The merge pipeline for a config-multi stack whose AOI fell in ONE
+        subswath. There is nothing to stitch, so mergeprep/merge/cohmask/unwrap
+        are passthroughs that keep the pipeline SHAPE identical to the true
+        multi case: the same four stages report in refresh, and the same
+        merge/<pair>/{unwrap,corr,phasefilt}_ll.grd structure appears -- here by
+        promoting (symlinking) the single subswath's already-unwrapped,
+        geocoded intf output rather than running merge_batch/snaphu again (the
+        heavy work already happened per-pair in intf, since skip_uw is False for
+        a single effective subswath). 'Directly show success', as intended.
+
+        Split across the stages the way the multi path is (mergeprep = seed,
+        merge = the promote, cohmask/unwrap = already done) so status advances
+        the same way and skip_existing short-circuits each stage independently."""
+        swath = self._swath_layout()[0]
+
+        def _passthrough(stage: str, work=None) -> bool:
+            if (self.config.skip_existing
+                    and self._stage_status(stage) == _SUCCEEDED):
+                logger.info("%s already succeeded, skipping.", stage)
+                return True
+            self._set_stage(stage, _RUNNING)
+            ok = work() if work else True
+            if ok:  # mark every job slot done so --ls shows per-job SUCCEEDED
+                for j in range(len(self._stage_command_labels(stage))):
+                    self._mark_unit(stage, j, True)
+            self._set_stage(stage, _SUCCEEDED if ok else _FAILED)
+            return ok
+
+        def _promote() -> bool:
+            self._stack_single_to_merge(swath)
+            ok = bool(list(self._paths.merge_dir.glob("*/unwrap_ll.grd")))
+            if not ok:
+                logger.error("merge (single subswath): no unwrap_ll.grd to "
+                             "promote from %s -- was intf unwrapping enabled?",
+                             swath[1])
+            return ok
+
+        if not _passthrough("mergeprep"):
+            return
+        if not _passthrough("merge", _promote):
+            return
+        if not _passthrough("cohmask"):
+            return
+        _passthrough("unwrap")
 
     def run_stage_unit(self, stage: str, index: int | None = None,
                        subswath: int | None = None) -> bool:
@@ -3466,8 +4283,19 @@ class GMTSAR_S1(LocalProcessor):
                     f"stage 'pair' needs a valid --index (0..{len(self.pairs) - 1})")
             pair = self.pairs[index]
             ok = self._run_one_pair(pair)
-            _write_status(self._status_dir(pair), _SUCCEEDED if ok else _FAILED)
+            _write_marker_status(self._status_dir(pair), _SUCCEEDED if ok else _FAILED)
             return ok
+        # Single-subswath passthrough (config names >1 subswath but the AOI
+        # fell in one): the merge pipeline has nothing to stitch, so promote the
+        # single subswath's already-unwrapped intf output into merge/ and report
+        # success -- the HPC analogue of _run_single_subswath_merge(). The
+        # promote is idempotent, so it's safe to call from any of these units.
+        if (stage in ("mergeprep", "merge", "cohmask", "unwrap")
+                and self._multiswath and not self._stack_effective_multi()):
+            if stage in ("mergeprep", "merge"):
+                self._stack_single_to_merge(self._swath_layout()[0])
+                return bool(list(self._paths.merge_dir.glob("*/unwrap_ll.grd")))
+            return True  # cohmask / unwrap already satisfied by intf's own output
         if stage == "mergeprep":
             return self._run_mergeprep_unit()
         if stage == "merge":
@@ -3478,6 +4306,12 @@ class GMTSAR_S1(LocalProcessor):
             if index is None:
                 raise ValueError("stage 'unwrap' needs --index")
             return self._run_unwrap_unit(index)
+        if stage == "unzip":
+            if index is None:
+                raise ValueError("stage 'unzip' needs --index")
+            return self._run_unzip_unit(index)
+        if stage == "dem":
+            return self._run_dem_unit()
         sw = subswath if subswath is not None else self._subswath_list()[0]
         if stage == "align":
             return self._run_align_unit(sw)
@@ -3540,21 +4374,22 @@ class GMTSAR_S1(LocalProcessor):
         key = _pair_key(pair)
         with self._lock:
             self.jobs[key]["status"] = _RUNNING
+        _write_marker_status(self._status_dir(pair), _RUNNING)  # .running marker
+        self.save()
         run_dir = self.pair_case_dir(pair)
         log_path = run_dir / "p2p.log"
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        cmd = self._build_cmd(pair)
-
         before = set()
         intf_dir = self._paths.intf_dir
         if not self._multiswath and intf_dir.is_dir():
             before = {p.name for p in intf_dir.iterdir()}
 
         with open(log_path, "w") as log_f:
-            proc = subprocess.run(
-                cmd, cwd=str(run_dir), stdout=log_f, stderr=subprocess.STDOUT,
-                env=self._subprocess_env(),
-            )
+            rc = None
+            if self._frame_aoi_cut_enabled():
+                rc = self._run_pair_frame_aoi(pair, run_dir, log_f)
+            if rc is None:
+                rc = self._run_stock_cmd(pair, run_dir, log_f)
 
         if not self._multiswath and intf_dir.is_dir():
             # Real bug found via MintPy integration testing (2026-07-21):
@@ -3570,7 +4405,7 @@ class GMTSAR_S1(LocalProcessor):
             if new_dirs:
                 self._real_intf_dirs[key] = new_dirs[0]
 
-        return proc.returncode == 0
+        return rc == 0
 
     def _build_cmd(self, pair: tuple) -> list[str]:
         cfg = self.config
@@ -3582,6 +4417,281 @@ class GMTSAR_S1(LocalProcessor):
             "p2p_S1_TOPS_Frame", ref_safe, ref_eof, sec_safe, sec_eof,
             "config.py", cfg.polarization, "1" if cfg.parallel else "0",
         ]
+
+    def _run_stock_cmd(self, pair: tuple, run_dir: Path, log_f) -> int:
+        """Run the stock p2p entry point (p2p_S1_TOPS_Frame or single-subswath
+        p2p_processing) and return its exit code."""
+        cmd = self._build_cmd(pair)
+        proc = subprocess.run(
+            cmd, cwd=str(run_dir), stdout=log_f, stderr=subprocess.STDOUT,
+            env=self._subprocess_env(),
+        )
+        return proc.returncode
+
+    def _frame_aoi_cut_enabled(self) -> bool:
+        """Whether a multi-subswath pair is cut to the AOI by driving
+        p2p_processing per subswath with a per-subswath region_cut, instead of
+        the stock p2p_S1_TOPS_Frame (which cannot cut: one shared config.py
+        across subswaths of unequal range width -- cut_slc dies on a mismatch).
+        Requires an AOI and region_cut left at its auto sentinel."""
+        if not self._multiswath:
+            return False
+        if str(getattr(self.config, "region_cut", "auto")) not in ("auto", "-999", "", "None"):
+            return False
+        return bool(self._resolve_aoi())
+
+    def _frame_stem(self, safe: str, sw: int, run_dir: Path) -> str | None:
+        """GMTSAR getFilenameWithPolXml equivalent: the stem (no .xml) of the
+        subswath/polarization annotation for a SAFE staged under raw/."""
+        annots = sorted((run_dir / "raw" / safe / "annotation").glob(
+            f"s1?-iw{sw}-slc-{self.config.polarization}-*.xml"))
+        return annots[0].stem if annots else None
+
+    def _frame_subswath_prm(self, xml_path: Path, out_dir: Path, stem: str) -> Path | None:
+        """Build a pre-alignment master PRM + LED from one subswath's annotation
+        XML, reusing GMTSAR's own s1a_preproc_lib (pop_prm/pop_led). earth_radius
+        is never set by pop_prm, but SAT_llt2rat uses it only for the height
+        output column (range/azimuth are computed independently), so it is
+        irrelevant for region_cut. Returns the PRM path or None (caller falls
+        back to the full-frame stock path)."""
+        # gmtsar_root may still be the "auto" sentinel here (container child:
+        # __init__ skips resolution when container is set), so resolve it before
+        # building bin/ -- otherwise this imports from "auto/bin" and fails with
+        # "No module named 's1a_preproc_lib'".
+        root = self.config.gmtsar_root
+        if not root or str(root) in ("auto", "", "None"):
+            root = _find_gmtsar_root(None)
+        bin_dir = Path(root) / "bin"
+        for p in (str(bin_dir), str(Path(root) / "gmtsar" / "python" / "utils")):
+            if p not in sys.path:
+                sys.path.insert(0, p)
+        try:
+            import s1a_preproc_lib as spl  # noqa: F401
+            import xml.etree.ElementTree as ET
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("region cut: cannot import GMTSAR s1a_preproc_lib (%s)", exc)
+            return None
+        try:
+            root = ET.parse(str(xml_path)).getroot()
+            prm = spl.pop_prm(root, stem)
+            sv = spl.pop_led(root)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("region cut: pop_prm/pop_led failed on %s (%s)", xml_path, exc)
+            return None
+        prm_path = out_dir / f"{stem}.PRM"
+        led_path = out_dir / f"{stem}.LED"
+        try:
+            with open(prm_path, "w") as f:
+                spl.put_sio_struct(prm, f)
+            with open(led_path, "w") as f:
+                spl.write_orb(sv, f)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("region cut: writing PRM/LED failed (%s)", exc)
+            return None
+        return prm_path
+
+    def _frame_region_cuts(self, pair: tuple, run_dir: Path) -> dict | None:
+        """{subswath_index (0-based): 'xl/xh/yl/yh'} for each subswath whose
+        AOI maps to a non-empty region. Subswaths the AOI does not overlap are
+        skipped. Returns None when there is no AOI; returns an empty dict when
+        the AOI is set but overlaps no subswath (caller errors out)."""
+        aoi = self._resolve_aoi()
+        if not aoi:
+            return None
+        ref_safe, _ref_eof, _sec_safe, _sec_eof = pair
+        tmp_dir = run_dir / ".aoi"
+        tmp_dir.mkdir(parents=True, exist_ok=True)
+        cuts = {}
+        for sw in self._subswath_list():
+            annots = sorted((run_dir / "raw" / ref_safe / "annotation").glob(
+                f"s1?-iw{sw}-slc-{self.config.polarization}-*.xml"))
+            if not annots:
+                logger.warning("region cut: no IW%d annotation XML for %s", sw, ref_safe)
+                continue
+            prm = self._frame_subswath_prm(annots[0], tmp_dir, f"_aoi_iw{sw}")
+            if prm is None:
+                continue
+            rc = self._aoi_to_region_cut(prm, aoi)
+            if rc is None:
+                logger.info("region cut: AOI is NOT in IW%d -- skipping this subswath", sw)
+                continue
+            logger.info("region cut: AOI is in IW%d -- region_cut=%s", sw, rc)
+            cuts[sw - 1] = rc
+        kept = sorted(i + 1 for i in cuts)
+        if kept:
+            logger.info("region cut: AOI covers subswath(s) %s; the rest are skipped",
+                        kept)
+        else:
+            logger.info("region cut: AOI is in NONE of the frame's subswaths")
+        return cuts
+
+    @staticmethod
+    def _rewrite_frame_config(text: str, region_cut: str,
+                              skip_merge_stages: bool = True) -> str:
+        """Rewrite a rendered config.py for one subswath: a per-subswath
+        region_cut. When skip_merge_stages (the 2-3 subswath case) also set
+        threshold_geocode/snaphu=0 so the merge stage handles snaphu+geocode
+        across subswaths (mirrors p2p_S1_TOPS_Frame._override_thresholds). For
+        a single overlapping subswath they are left at the parent values so
+        snaphu+geocode run in-place."""
+        overrides = {
+            "region_cut": f'"{region_cut}"',
+            "iono_skip_est": "1",
+        }
+        if skip_merge_stages:
+            overrides["threshold_geocode"] = "0"
+            overrides["threshold_snaphu"] = "0"
+        out, seen = [], set()
+        for line in text.splitlines():
+            s = line.lstrip()
+            replaced = False
+            for k, v in overrides.items():
+                if s.startswith(k + "=") or s.startswith(k + " ") or s.startswith(k + "\t"):
+                    out.append(f"{k} = {v}")
+                    seen.add(k)
+                    replaced = True
+                    break
+            if not replaced:
+                out.append(line)
+        for k, v in overrides.items():
+            if k not in seen:
+                out.append(f"{k} = {v}")
+        return "\n".join(out) + "\n"
+
+    def _run_pair_frame_aoi(self, pair: tuple, run_dir: Path, log_f) -> int | None:
+        """p2p_S1_TOPS_Frame workflow with a per-subswath AOI region_cut: link
+        the subswaths that overlap the AOI, run p2p_processing per subswath with
+        its own region_cut, then merge. Returns the exit code, or None to fall
+        back to the stock Frame path (no AOI, or no subswath overlaps it)."""
+        ref_safe, ref_eof, sec_safe, sec_eof = pair
+        env = self._subprocess_env()
+
+        fm_list = [self._frame_stem(ref_safe, sw, run_dir) for sw in (1, 2, 3)]
+        fs_list = [self._frame_stem(sec_safe, sw, run_dir) for sw in (1, 2, 3)]
+
+        cuts = self._frame_region_cuts(pair, run_dir)
+        if cuts is None:
+            return None
+        if not cuts:
+            msg = "AOI does not overlap with the SLC frame"
+            log_f.write(f"ERROR: {msg}\n")
+            log_f.flush()
+            logger.error("region cut: %s (%s)", msg, _pair_key(pair))
+            return 1
+        swaths = sorted(cuts)
+        if any(fm_list[i] is None or fs_list[i] is None for i in swaths):
+            logger.warning("region cut: missing subswath annotation; full frame")
+            return None
+        single = len(swaths) == 1
+
+        def _link(target: Path, src: Path) -> None:
+            if not target.exists() and not target.is_symlink():
+                target.symlink_to(src.resolve())
+
+        for idx in swaths:
+            sw = idx + 1
+            fdir = run_dir / f"F{sw}"
+            (fdir / "raw").mkdir(parents=True, exist_ok=True)
+            (fdir / "topo").mkdir(parents=True, exist_ok=True)
+            dem = run_dir / "topo" / "dem.grd"
+            _link(fdir / "topo" / "dem.grd", dem)
+            _link(fdir / "raw" / "dem.grd", dem)
+            fm, fs = fm_list[idx], fs_list[idx]
+            for name, safe in ((fm, ref_safe), (fs, sec_safe)):
+                _link(fdir / "raw" / f"{name}.xml",
+                      run_dir / "raw" / safe / "annotation" / f"{name}.xml")
+                _link(fdir / "raw" / f"{name}.tiff",
+                      run_dir / "raw" / safe / "measurement" / f"{name}.tiff")
+            _link(fdir / "raw" / f"{fm}.EOF", run_dir / "raw" / ref_eof)
+            _link(fdir / "raw" / f"{fs}.EOF", run_dir / "raw" / sec_eof)
+
+            (fdir / "config.py").write_text(
+                self._rewrite_frame_config((run_dir / "config.py").read_text(),
+                                           cuts[idx],
+                                           skip_merge_stages=not single))
+            cmd = ["p2p_processing", self.config.sat, fm, fs, "config.py"]
+            log_f.write(f"\n[{datetime.now(timezone.utc).isoformat()}] "
+                        f"p2p_processing IW{sw} (region_cut={cuts[idx]})\n")
+            log_f.flush()
+            with open(fdir / "output.log.txt", "w") as lf:
+                proc = subprocess.run(cmd, cwd=str(fdir), stdout=lf,
+                                      stderr=subprocess.STDOUT, env=env)
+            if proc.returncode != 0:
+                return proc.returncode
+
+        if single:
+            return self._single_subswath_to_merge(run_dir, swaths[0], log_f)
+        return self._merge_frame(run_dir, swaths, fm_list, fs_list, log_f, env)
+
+    def _single_subswath_to_merge(self, run_dir: Path, idx: int, log_f) -> int:
+        """Surface a single-subswath p2p_processing result (F<n>/intf/<julian>)
+        as the frame's merge/ dir so the merge/-based output convention holds
+        for a one-subswath AOI (merge_swath needs 2-3 inputs)."""
+        sw = idx + 1
+        intf_dirs = sorted((run_dir / f"F{sw}" / "intf").iterdir())
+        if not intf_dirs:
+            return 1
+        intf = intf_dirs[0]
+        merge_dir = run_dir / "merge"
+        merge_dir.mkdir(parents=True, exist_ok=True)
+        for p in list(intf.glob("*.grd")) + [intf / "trans.dat"]:
+            tgt = merge_dir / p.name
+            if p.exists() and not (tgt.exists() or tgt.is_symlink()):
+                tgt.symlink_to(p.resolve())
+        missing = [f for f in ("phasefilt.grd", "corr.grd")
+                   if not (merge_dir / f).exists()]
+        if missing:
+            log_f.write(f"merge missing {missing}\n")
+            return 1
+        return 0
+
+    def _merge_frame(self, run_dir: Path, swaths, fm_list, fs_list, log_f, env) -> int:
+        """merge_unwrap_geocode_tops across the per-subswath interferograms
+        (2 or 3 subswaths -- mirrors p2p_S1_TOPS_Frame.merge())."""
+        merge_dir = run_dir / "merge"
+        merge_dir.mkdir(parents=True, exist_ok=True)
+        dem = run_dir / "topo" / "dem.grd"
+        if not (merge_dir / "dem.grd").exists():
+            (merge_dir / "dem.grd").symlink_to(dem.resolve())
+        shutil.copy(run_dir / "config.py", merge_dir / "config.py")
+        for g in (run_dir / f"F{swaths[0] + 1}" / "intf").glob("*/gauss*"):
+            if not (merge_dir / g.name).exists():
+                (merge_dir / g.name).symlink_to(g.resolve())
+
+        def _short(prm_name: str) -> str:
+            return f"S1_{prm_name[15:23]}_{prm_name[24:30]}_F{prm_name[6]}.PRM"
+
+        lines = []
+        for idx in swaths:
+            sw = idx + 1
+            intf_dirs = sorted((run_dir / f"F{sw}" / "intf").iterdir())
+            if not intf_dirs:
+                return 1
+            intf = intf_dirs[0]
+            lines.append(f"../F{sw}/intf/{intf.name}/:"
+                         f"{_short(fm_list[idx])}:{_short(fs_list[idx])}")
+        (merge_dir / "tmp.filelist").write_text("\n".join(lines) + "\n")
+
+        correct_iono = int(getattr(self.config, "correct_iono", 0) or 0)
+        if correct_iono != 0:
+            log_f.write("merge skipped: correct_iono!=0 not supported\n")
+            return 1
+        det_stitch = int(getattr(self.config, "det_stitch", 0) or 0)
+        cmd = ["merge_unwrap_geocode_tops", "tmp.filelist", "config.py",
+               str(det_stitch)]
+        log_f.write(f"\n[{datetime.now(timezone.utc).isoformat()}] "
+                    f"{' '.join(cmd)}\n")
+        log_f.flush()
+        proc = subprocess.run(cmd, cwd=str(merge_dir), stdout=log_f,
+                              stderr=subprocess.STDOUT, env=env)
+        if proc.returncode != 0:
+            return proc.returncode
+        missing = [f for f in ("phasefilt.grd", "corr.grd")
+                   if not (merge_dir / f).exists()]
+        if missing:
+            log_f.write(f"merge missing {missing}\n")
+            return 1
+        return 0
 
     def refresh(self, ls: str | bool | None = None) -> dict:
         """Read file-based status for all stages and print a coloured table.
@@ -3597,15 +4707,24 @@ class GMTSAR_S1(LocalProcessor):
             ls_stage: str | None = None
             if isinstance(ls, str):
                 if ls not in self._stack_stages:
+                    hint = ""
+                    if (ls in ("mergeprep", "merge", "cohmask", "unwrap")
+                            and not self._stack_effective_multi()
+                            and len(self._subswath_list()) > 1):
+                        hint = (f" This stack's AOI falls in a single subswath "
+                                f"(F{self._stack_subswaths()[0]}), so there is no "
+                                f"merge stage -- the interferograms are the "
+                                f"subswath's own geocoded output.")
                     raise ValueError(
-                        f"Unknown stage for --ls: {ls!r}. Valid stages: {list(self._stack_stages)}"
+                        f"Unknown stage for --ls: {ls!r}. Valid stages: "
+                        f"{list(self._stack_stages)}.{hint}"
                     )
                 ls_stage = ls
             show_all_cmds = ls is True
             detail_stages = (list(self._stack_stages) if show_all_cmds
                              else ([ls_stage] if ls_stage else []))
 
-            hpc = bool(self.config.hpc_mode) or self._stage_hpc_dir(self._stack_stages[0]).exists()
+            hpc = self._is_hpc_run()
             active_slurm: dict[str, str] = {}
             sacct_states: dict[str, str] = {}
             job_ids_by_stage: dict[str, list[str]] = {}
@@ -3633,7 +4752,7 @@ class GMTSAR_S1(LocalProcessor):
                 # -> job YYYY" log lines) so per-command status can show
                 # RUNNING/queued, not just done/fail/unknown.
                 for stage in detail_stages:
-                    hpc_dir = self._stage_hpc_dir(stage)
+                    hpc_dir = self._stage_logs_dir(stage)
                     cmd_ids: dict[int, str] = {}
                     # A stage's .hpc dir accumulates one manager_<jobid>.out
                     # per retry -- sort oldest-to-newest by job id (SLURM job
@@ -3655,7 +4774,7 @@ class GMTSAR_S1(LocalProcessor):
                     sacct_states = slurm_job_states(all_ids)
 
             for stage in self._stack_stages:
-                status = _read_status(self._stack_status_dir(stage))
+                status = self._stage_status(stage)
                 if hpc and status in (_PENDING, _RUNNING):
                     job_ids = job_ids_by_stage.get(stage, [])
                     if job_ids and not any(jid in active_slurm for jid in job_ids):
@@ -3665,7 +4784,7 @@ class GMTSAR_S1(LocalProcessor):
                             logger.error(
                                 "%s: SLURM job %s ended (%s) without writing status "
                                 "-- marking FAILED.", stage, dead[0], sacct_states[dead[0]])
-                            _write_status(self._stack_status_dir(stage), _FAILED)
+                            self._set_stage(stage, _FAILED)
                             status = _FAILED
                 if stage in self.jobs:
                     self.jobs[stage]["status"] = status
@@ -3698,7 +4817,7 @@ class GMTSAR_S1(LocalProcessor):
         counts: dict[str, int] = {}
         for i, pair in enumerate(self.pairs):
             key = _pair_key(pair)
-            status = _read_status(self._status_dir(pair))
+            status = _read_marker_status(self._status_dir(pair))
             if i in live_idx:
                 status = _RUNNING
             elif mgr_live and status == _RUNNING:
@@ -3711,15 +4830,26 @@ class GMTSAR_S1(LocalProcessor):
 
         colour = {_SUCCEEDED: Fore.GREEN, _FAILED: Fore.RED,
                   _RUNNING: Fore.CYAN, _PENDING: Fore.YELLOW}
+        # Coarse run steps (local p2p): unzip -> dem -> p2p. Shown once a local
+        # run has written any marker (skipped for a fresh/HPC job).
+        step_states = [(s, _read_marker_status(self._step_dir(s))) for s in self.LOCAL_STEPS]
+        if any(st != _PENDING for _, st in step_states):
+            print(f"\n{Style.BRIGHT}  STEP{Style.RESET_ALL}")
+            print("  " + "-" * 44)
+            for i, (s, st) in enumerate(step_states, 1):
+                print(f"  [{i}/{len(self.LOCAL_STEPS)}] {s:<10} "
+                      f"{colour.get(st, '')}{st}{Style.RESET_ALL}")
         print(f"\n{Style.BRIGHT}  {'PAIR':<22} STATUS{Style.RESET_ALL}")
         print("  " + "-" * 44)
         for pair in self.pairs:
             st = self.jobs.get(_pair_key(pair), {}).get(
-                "status", _read_status(self._status_dir(pair)))
+                "status", _read_marker_status(self._status_dir(pair)))
             # Full .SAFE names are ~68 chars each and unreadable side by side;
-            # a pair is identified by its two dates.
+            # a pair is identified by its two dates. For a running pair, append
+            # its current GMTSAR sub-stage read from p2p.log.
+            sub = f"  {self._pair_substage(pair)}" if st == _RUNNING else ""
             print(f"  {_pair_dates(pair):<22} "
-                  f"{colour.get(st, '')}{st}{Style.RESET_ALL}")
+                  f"{colour.get(st, '')}{st}{Style.RESET_ALL}{sub}")
         print("  " + "-" * 44)
         print("  " + "  ".join(f"{colour.get(k, '')}{k}={v}{Style.RESET_ALL}"
                                for k, v in sorted(counts.items())))
@@ -3746,28 +4876,31 @@ class GMTSAR_S1(LocalProcessor):
             # reset to PENDING, which resubmitted already-finished managers
             # just to have them skip every command via .done markers.
             failed = [s for s in self._stack_stages
-                      if _read_status(self._stack_status_dir(s)) == _FAILED]
+                      if self._stage_status(s) == _FAILED]
             if not failed:
                 print(f"{Fore.GREEN}No failed stages.{Style.RESET_ALL}")
                 return self.jobs
             first_failed = failed[0]
             to_retry = list(self._stack_stages[self._stack_stages.index(first_failed):])
             for stage in to_retry:
-                _write_status(self._stack_status_dir(stage), _PENDING)
+                self._set_stage(stage, _PENDING)
             print(f"{Fore.YELLOW}Retrying {len(to_retry)} stage(s) "
                   f"from {first_failed}…{Style.RESET_ALL}")
             if self.config.hpc_mode:
                 return self._submit_stack_hpc()
             self._run_local_or_sync(self._run_stack)
             return self.jobs
-        failed = [p for p in self.pairs if _read_status(self._status_dir(p)) == _FAILED]
+        failed = [p for p in self.pairs if _read_marker_status(self._status_dir(p)) == _FAILED]
         if not failed:
             print(f"{Fore.GREEN}No failed pairs.{Style.RESET_ALL}")
             return self.jobs
         for pair in failed:
-            _write_status(self._status_dir(pair), _PENDING)
+            _write_marker_status(self._status_dir(pair), _PENDING)
         print(f"{Fore.YELLOW}Retrying {len(failed)} pair(s)…{Style.RESET_ALL}")
-        self._run_local_or_sync(self._run_pairs, (failed,))
+        # Re-stage (raw/ symlinks, DEM, config.py) before rerunning: a pair that
+        # failed before staging completed has an empty raw/, so _run_pairs alone
+        # would fail again on raw/<SAFE>/annotation.
+        self._run_local_or_sync(self._stage_and_run_pairs, (failed,))
         return self.jobs
 
     def watch(self, poll_interval: float = 10.0) -> dict:
@@ -3804,7 +4937,7 @@ class GMTSAR_S1(LocalProcessor):
         from colorama import Fore, Style
         from insarhub.utils.slurm_manager import slurm_active_jobs
 
-        pid_file = self.case_dir / "executor.pid"
+        pid_file = self._paths.executor_pid
         if pid_file.exists():
             import signal
             try:
@@ -3820,14 +4953,14 @@ class GMTSAR_S1(LocalProcessor):
                 print(f"{Fore.RED}Cancel error: {e}{Style.RESET_ALL}")
             if self.config.stack_mode:
                 for stage in self._stack_stages:
-                    status = _read_status(self._stack_status_dir(stage))
+                    status = self._stage_status(stage)
                     if status in (_PENDING, _RUNNING):
-                        _write_status(self._stack_status_dir(stage), _FAILED)
+                        self._set_stage(stage, _FAILED)
             else:
                 for pair in self.pairs:
-                    status = _read_status(self._status_dir(pair))
+                    status = _read_marker_status(self._status_dir(pair))
                     if status in (_PENDING, _RUNNING):
-                        _write_status(self._status_dir(pair), _FAILED)
+                        _write_marker_status(self._status_dir(pair), _FAILED)
             return
 
         if not self.config.stack_mode:
@@ -3856,8 +4989,8 @@ class GMTSAR_S1(LocalProcessor):
                     return
                 subprocess.run(["scancel", *ids], capture_output=True, text=True)
                 for pair in self.pairs:
-                    if _read_status(self._status_dir(pair)) in (_PENDING, _RUNNING):
-                        _write_status(self._status_dir(pair), _FAILED)
+                    if _read_marker_status(self._status_dir(pair)) in (_PENDING, _RUNNING):
+                        _write_marker_status(self._status_dir(pair), _FAILED)
                 print(f"{Fore.GREEN}[{type(self).name}] cancelled "
                       f"{len(ids)} job(s): {' '.join(ids)}{Style.RESET_ALL}")
                 return
@@ -3866,7 +4999,7 @@ class GMTSAR_S1(LocalProcessor):
                   f"has no separate process to signal once the submit() call's "
                   f"process has exited.{Style.RESET_ALL}")
             return
-        hpc = bool(self.config.hpc_mode) or self._stage_hpc_dir(self._stack_stages[0]).exists()
+        hpc = self._is_hpc_run()
         if not hpc:
             print(f"{Fore.YELLOW}No HPC jobs found -- local (non-HPC, "
                   f"non-container) stack_mode runs have no separate process to "
@@ -3887,7 +5020,7 @@ class GMTSAR_S1(LocalProcessor):
         def _child_ids() -> list[str]:
             ids: list[str] = []
             for stage in self._stack_stages:
-                child_file = self._stage_hpc_dir(stage) / "submitted_child_jobs.txt"
+                child_file = self._stage_logs_dir(stage) / "submitted_child_jobs.txt"
                 if child_file.exists():
                     ids.extend(l.strip() for l in child_file.read_text().splitlines()
                                if l.strip() and l.strip() != "unknown")
@@ -3937,9 +5070,9 @@ class GMTSAR_S1(LocalProcessor):
               f"{Style.RESET_ALL}")
 
         for stage in self._stack_stages:
-            status = _read_status(self._stack_status_dir(stage))
+            status = self._stage_status(stage)
             if status in (_PENDING, _RUNNING):
-                _write_status(self._stack_status_dir(stage), _FAILED)
+                self._set_stage(stage, _FAILED)
 
     def save(self) -> None:
         jobs_path = self.case_dir / JOBS_FILE
@@ -3998,10 +5131,11 @@ class GMTSAR_S1(LocalProcessor):
 
             if stage not in detail_stages:
                 continue
-            hpc_dir = self._stage_hpc_dir(stage)
-            if not hpc_dir.exists():
-                continue
             labels = self._stage_command_labels(stage)
+            # Per-job cmd_<idx>.done/.fail markers are written into <stage>_logs/
+            # by BOTH the local run loops (_mark_unit) and the HPC managers, so
+            # this one path renders `--ls <stage>` detail in either mode.
+            hpc_dir = self._stage_logs_dir(stage)
             cmd_ids = cmd_job_ids_by_stage.get(stage, {})
             for i, label in enumerate(labels):
                 done_f = hpc_dir / f"cmd_{i:04d}.done"
@@ -4030,6 +5164,12 @@ class GMTSAR_S1(LocalProcessor):
                 elif jid and sacct_states.get(jid) in SLURM_DEAD_STATES:
                     cmd_st, cmd_color = _FAILED, Fore.RED
                     extra = f"  [job {jid} {sacct_states[jid]}, no marker]"
+                elif status == _RUNNING:
+                    # No per-job marker yet, but the stage is RUNNING -- the unit
+                    # is in flight (local runs have no per-job jid to check), so
+                    # show RUNNING rather than a misleading PENDING.
+                    cmd_st, cmd_color = _RUNNING, Fore.CYAN
+                    extra = ""
                 else:
                     cmd_st, cmd_color = _PENDING, Fore.YELLOW  # not yet submitted
                     extra = ""

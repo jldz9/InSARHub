@@ -10,22 +10,23 @@ from colorama import Fore, Style
 from tqdm import tqdm
 
 from .mintpy_base import Mintpy_SBAS_Base_Analyzer
-from insarhub.config.defaultconfig import Hyp3_SBAS_Config
+from insarhub.config.defaultconfig import Hyp3_Mintpy_SBAS_Config
 
-class Hyp3_SBAS(Mintpy_SBAS_Base_Analyzer):
-    name = 'Hyp3_SBAS'
+class Hyp3_Mintpy_SBAS(Mintpy_SBAS_Base_Analyzer):
+    name = 'Hyp3_Mintpy_SBAS'
+    aliases = ('Hyp3_SBAS', 'Hyp3_TS', 'Hyp3_Mintpy_TS')   # legacy names
     description = "SBAS time-series analysis of HyP3 InSAR outputs using MintPy."
     compatible_processor = "Hyp3_S1"
-    default_config = Hyp3_SBAS_Config
+    default_config = Hyp3_Mintpy_SBAS_Config
     required = ['unw_phase.tif', 'corr.tif',  'dem.tif'] # also need meta files to get the date and other info
     optional = ['lv_theta.tif', 'lv_phi.tif', 'water_mask.tif']
     # own output dir (workdir/hyp3_mintpy/) -- keeps this analyzer's MintPy
-    # products separate from ISCE_SBAS/GMTSAR_MINTPY_SBAS runs on the same
+    # products separate from ISCE2_Mintpy_SBAS/GMTSAR_Mintpy_SBAS runs on the same
     # workdir (previously all shared workdir/mintpy/ and silently overwrote
     # each other). Path layout centralized in config/paths.py (MintPyPaths).
     MINTPY_SUBDIR = "hyp3_mintpy"
 
-    def __init__(self, config: Hyp3_SBAS_Config | None = None):
+    def __init__(self, config: Hyp3_Mintpy_SBAS_Config | None = None):
         super().__init__(config)
 
     def prep_data(self):

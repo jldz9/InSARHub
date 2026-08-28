@@ -42,7 +42,7 @@ nav:
   - Home: index.md
   - QuickStart:
         - Installation: quickstart/install.md
-        - API Setup: quickstart/api_setup.md
+        - Account Setup: quickstart/api_setup.md
         - Running:
           - API: quickstart/running.md
           - CLI: quickstart/cli.md
@@ -58,7 +58,9 @@ nav:
         - Processor: advanced/processor.md
         - Analyzer: advanced/analyzer.md
         - HPC (SLURM): advanced/hpc.md
+        - Container Execution: advanced/container.md
         - Utilities: advanced/utilities.md
+        - CLI Reference: advanced/cli_reference.md
         - Pair Quality Scoring: advanced/pair_quality.md
         - Frontend Reference: advanced/frontend.md
         - Program Structure: advanced/program_structure.md
@@ -125,10 +127,11 @@ plugins:
             Home: 主页
             QuickStart: 快速开始
             Installation: 安装
-            API Setup: API 配置
+            Account Setup: 账号配置
             Running: 运行
             API: API
             CLI: 命令行
+            CLI Reference: 命令行参考
             Web UI: Web 界面
             Overview: 概览
             Search & Download: 搜索与下载
@@ -143,6 +146,7 @@ plugins:
             Frontend: 前端
             File Structure: 文件结构
             Downloader: 下载器
+            Container Execution: 容器运行
             Utilities: 工具集
             Pair Quality Scoring: 配对质量评分
             Frontend Reference: 前端参考

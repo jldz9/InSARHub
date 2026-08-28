@@ -19,6 +19,8 @@ import re
 import subprocess
 from pathlib import Path
 
+from colorama import Fore
+
 from insarhub.config import GMTSAR_SBAS_Config
 from insarhub.config.paths import GMTSARPaths
 from insarhub.core.base import BaseAnalyzer
@@ -28,6 +30,7 @@ logger = logging.getLogger(__name__)
 
 class GMTSAR_SBAS(BaseAnalyzer):
     name = "GMTSAR_SBAS"
+    aliases = ("GMTSAR_TS",)   # legacy name
     description = (
         "GMTSAR-native SBAS time-series (prep_sbas + sbas C binary). Consumes "
         "a GMTSAR_S1 stack_mode stack (workdir/gmtsar/), produces disp_*.grd + "
@@ -39,13 +42,11 @@ class GMTSAR_SBAS(BaseAnalyzer):
     def __init__(self, config: GMTSAR_SBAS_Config | None = None):
         super().__init__(config)
         self.config: GMTSAR_SBAS_Config = self.config or GMTSAR_SBAS_Config()
-        if not self.config.gmtsar_root or not self.config.gmtsar_env_bin:
-            raise ValueError(
-                "GMTSAR_SBAS_Config.gmtsar_root and gmtsar_env_bin are both "
-                "required -- the sbas binary and `gmt` come from GMTSAR's own "
-                "install/conda env, not InSARHub's. See GMTSAR_S1's "
-                "_subprocess_env() for the same requirement."
-            )
+        # Resolved by _resolve_stack_inputs() for a stack-mode run: the raw/
+        # whose baseline_table.dat + metadata PRM describe the actual data
+        # (not the default first F<N>/raw), and the radar-coordinate pair dir.
+        self._raw_dir: Path | None = None
+        self._intf_path: Path | None = None
 
     # ── paths ──────────────────────────────────────────────────────────────
     @property
@@ -67,19 +68,32 @@ class GMTSAR_SBAS(BaseAnalyzer):
     def sbas_dir(self) -> Path:
         return self._gmtsar_paths.sbas_dir
 
+    @staticmethod
+    def _unset(v) -> bool:
+        """A config value the user didn't set -- treat as 'auto-detect'."""
+        return v is None or str(v).strip().lower() in ("", "auto", "none")
+
     def _subprocess_env(self) -> dict:
         """PATH-prepend GMTSAR bin + its conda env bin, same mechanism as
-        GMTSAR_S1._subprocess_env() (see that docstring for the real bug)."""
+        GMTSAR_S1._subprocess_env() (see that docstring for the real bug).
+
+        gmtsar_root / gmtsar_env_bin are auto-detected (not user input): an
+        explicit config value wins, otherwise _find_gmtsar_root / _find_gmtsar_
+        env_bin locate them from $GMTSAR, a GMTSAR script on PATH, or the
+        container's own install."""
+        from insarhub.processor.gmtsar_s1 import (
+            _find_gmtsar_root, _find_gmtsar_env_bin,
+        )
         cfg = self.config
+        root = None if self._unset(cfg.gmtsar_root) else Path(cfg.gmtsar_root)
+        env_bin = None if self._unset(cfg.gmtsar_env_bin) else Path(cfg.gmtsar_env_bin)
+        root = _find_gmtsar_root(root)
+        env_bin = _find_gmtsar_env_bin(env_bin)
+
         env = os.environ.copy()
-        prepend = []
-        if cfg.gmtsar_env_bin:
-            prepend.append(str(cfg.gmtsar_env_bin))
-        if cfg.gmtsar_root:
-            env["GMTSAR"] = str(cfg.gmtsar_root)
-            prepend.append(str(Path(cfg.gmtsar_root) / "bin"))
-        if prepend:
-            env["PATH"] = ":".join(prepend) + ":" + env.get("PATH", "")
+        env["GMTSAR"] = str(root)
+        env["PATH"] = ":".join([str(env_bin), str(Path(root) / "bin"),
+                                env.get("PATH", "")])
         return env
 
     # ── network pruning ────────────────────────────────────────────────────
@@ -98,20 +112,50 @@ class GMTSAR_SBAS(BaseAnalyzer):
             logger.warning("could not read %s (%s); assuming usable", grd, exc)
         return 0.0
 
-    def _stem_julian(self, aligned_stem: str) -> int | None:
-        """Julian id GMTSAR names pair dirs with, from the stem's PRM."""
-        prm = self._gmtsar_paths.meta_raw_dir / f"{aligned_stem}.PRM"
-        if not prm.exists():
-            return None
-        for l in prm.read_text().splitlines():
-            if l.strip().startswith("SC_clock_start"):
-                try:
-                    return int(float(l.split("=")[1]))
-                except (ValueError, IndexError):
-                    return None
-        return None
+    @staticmethod
+    def _baseline_stem_to_julian(baseline: Path) -> dict[str, int]:
+        """Map baseline_table.dat col1 (measurement stem) -> int(col2) Julian id.
 
-    def _prune_network(self, intf_in: Path, intf_path: Path) -> Path | None:
+        prep_sbas keys its ``grep <stem> baseline_table.dat`` on col1, so the
+        intf.in it reads must name MEASUREMENT stems (``s1a-iw2-slc-vv-...-005``),
+        not the processor's aligned stems (``S1_<date>_ALL_F<N>``) which grep
+        never matches -- a mismatch that left ref_id/rep_id empty and prep_sbas
+        producing garbage rows. col2 carries the Julian id GMTSAR names the
+        pair dirs with.
+        """
+        out: dict[str, int] = {}
+        for ln in baseline.read_text().splitlines():
+            parts = ln.split()
+            if len(parts) >= 2:
+                try:
+                    out[parts[0]] = int(float(parts[1]))
+                except ValueError:
+                    continue
+        return out
+
+    def _write_stack_intf_in(self, intf_dir: Path, baseline: Path) -> Path | None:
+        """intf.in in prep_sbas's ``ref:rep`` form (measurement stems), built
+        from the pair dirs present under intf_dir and the baseline table."""
+        jul2stem = {j: s for s, j in self._baseline_stem_to_julian(baseline).items()}
+        lines: list[str] = []
+        for d in sorted(p for p in intf_dir.iterdir() if p.is_dir()):
+            try:
+                j1, j2 = (int(x) for x in d.name.split("_"))
+            except ValueError:
+                continue
+            if j1 in jul2stem and j2 in jul2stem:
+                lines.append(f"{jul2stem[j1]}:{jul2stem[j2]}")
+            else:
+                logger.warning("GMTSAR_SBAS: pair %s not in baseline_table.dat; "
+                               "skipped", d.name)
+        if not lines:
+            return None
+        out = self.sbas_dir / "intf.in"
+        out.write_text("\n".join(lines) + "\n")
+        return out
+
+    def _prune_network(self, intf_in: Path, intf_path: Path,
+                       baseline: Path) -> Path | None:
         """Drop decorrelated pairs, then any date left orphaned, then keep
         only the largest connected component -- writing a pruned intf.in.
 
@@ -124,12 +168,16 @@ class GMTSAR_SBAS(BaseAnalyzer):
         """
         import networkx as nx
         cfg = self.config
+        stem2jul = self._baseline_stem_to_julian(baseline)
         lines = [l.strip() for l in intf_in.read_text().splitlines() if l.strip()]
 
         kept, dropped = [], []
         for line in lines:
             ref, rep = line.split(":")
-            rid, pid = self._stem_julian(ref), self._stem_julian(rep)
+            rid, pid = stem2jul.get(ref), stem2jul.get(rep)
+            if rid is None or pid is None:
+                dropped.append((line, 1.0))
+                continue
             grd = intf_path / f"{rid}_{pid}" / cfg.phase_grd
             frac = self._nan_fraction(grd) if grd.exists() else 1.0
             (dropped if frac > cfg.max_nan_fraction else kept).append((line, frac))
@@ -165,34 +213,142 @@ class GMTSAR_SBAS(BaseAnalyzer):
         out.write_text("\n".join(l for l, _ in kept) + "\n")
         print(f"  network: kept {len(kept)}/{len(lines)} pairs, "
               f"{len(scenes)} dates -> {out.name}")
-        self._kept_scenes = {self._stem_julian(s) for s in scenes}
+        self._kept_scenes = {stem2jul[s] for s in scenes}
         return out
 
     # ── pipeline ───────────────────────────────────────────────────────────
+    def _resolve_stack_inputs(self) -> tuple[Path, Path, Path, str, str] | None:
+        """(intf.in, baseline_table.dat, radar_intf_dir, phase_grd, corr_grd)
+        for a stack_mode run, or None when this isn't a stack-mode layout.
+
+        Detects the radar-coordinate pair dir (per-pair unwrap.grd/corr.grd)
+        and the matching raw/ (baseline_table.dat + metadata PRM) across the
+        three layouts GMTSAR_S1 stack_mode leaves behind:
+
+            flat                 gmtsar/intf_all   + gmtsar/raw
+            subswath, AOI-in-one F<N>/intf_all     + F<N>/raw
+            subswath, merged     gmtsar/merge      + F<N>/raw   (true multi)
+
+        For the single-subswath case merge/ only holds geocoded *_ll.grd
+        symlinks (no radar unwrap.grd), so the radar check skips it and falls
+        through to the F<N>/intf_all that actually produced the stack -- the
+        same subswath narrowing GMTSAR_Mintpy_SBAS's _meta_raw_dir does. intf.in
+        is (re)written with measurement stems because prep_sbas greps
+        baseline_table.dat by col1 (see _write_stack_intf_in).
+        """
+        p = self._gmtsar_paths
+        phase, corr = self.config.phase_grd, self.config.corr_grd
+
+        candidates: list[tuple[Path, Path]] = []
+        # merged radar product first (true multi), then each subswath, then flat.
+        candidates.append((p.merge_dir, p.meta_raw_dir))
+        for d in p._swath_dirs():
+            candidates.append((d / "intf_all", d / "raw"))
+        candidates.append((p.intf_all_dir, p.raw_dir))
+
+        for intf_dir, raw_dir in candidates:
+            baseline = raw_dir / "baseline_table.dat"
+            if not baseline.exists():
+                continue
+            pairs = ([x for x in intf_dir.iterdir() if x.is_dir()]
+                     if intf_dir.is_dir() else [])
+            if not any((d / phase).exists() for d in pairs):
+                continue
+            intf_in = self._write_stack_intf_in(intf_dir, baseline)
+            if intf_in is None:
+                continue
+            self._raw_dir = raw_dir
+            self._intf_path = intf_dir
+            return (intf_in.resolve(), baseline.resolve(), intf_dir.resolve(),
+                    phase, corr)
+        return None
+
+    def _resolve_sbas_inputs(self) -> tuple[Path, Path, Path, str, str]:  # noqa: D401
+        """Return (intf.in, baseline_table.dat, product_dir, phase_name,
+        corr_name) for prep_sbas, from EITHER a stack_mode stack or p2p output.
+
+        stack_mode gives native radar-coord grids on a common grid (its whole
+        point); p2p geocodes each pair separately, so for p2p we fall back to
+        the geocoded *_ll grids staged onto a common grid -- the exact same
+        inputs GMTSAR_Mintpy_SBAS feeds MintPy, run through GMTSAR's own sbas
+        instead. All resolve()d: prep_sbas runs with cwd=sbas_dir."""
+        cfg = self.config
+        stack_inputs = self._resolve_stack_inputs()
+        if stack_inputs is not None:
+            intf_in, baseline, intf_path, phase, corr = stack_inputs
+            if cfg.auto_prune:
+                intf_in = self._prune_network(intf_in, intf_path, baseline) or intf_in
+            return intf_in, baseline, intf_path, phase, corr
+        return self._resolve_sbas_inputs_p2p()
+
+    def _resolve_sbas_inputs_p2p(self) -> tuple[Path, Path, Path, str, str]:
+        """p2p → sbas inputs. Reuses GMTSAR_Mintpy_SBAS's proven p2p staging
+        (per-pair geocoded grids clipped to a common grid) and baseline builder,
+        then writes intf.in in prep_sbas's `ref_stem:rep_stem` form from the
+        baseline table (prep_sbas keys the pair dir off int(col2)=Julian, which
+        is exactly how the staged dirs are named)."""
+        from insarhub.analyzer.gmtsar_mintpy_sbas import GMTSAR_Mintpy_SBAS
+        from insarhub.config.defaultconfig import GMTSAR_Mintpy_SBAS_Config
+
+        helper = GMTSAR_Mintpy_SBAS(GMTSAR_Mintpy_SBAS_Config(workdir=str(self.workdir)))
+        intf = helper._p2p_product_dir()
+        if intf is None:
+            raise FileNotFoundError(
+                f"No stack_mode intf.in under {self.stack_dir} and no p2p "
+                f"merge/*_ll.grd either -- run GMTSAR_S1 first (stack_mode or p2p)."
+            )
+        clip = helper._consistent_intf_dir(intf)
+
+        baseline = helper._gmtsar_paths.baseline_table_auto
+        if not baseline.exists():
+            if not helper._build_baseline_table(baseline):
+                raise FileNotFoundError(
+                    "could not build baseline_table.dat from the p2p per-date PRMs "
+                    "(need one .PRM + .LED per date under gmtsar/<case>/F<n>/raw/)."
+                )
+
+        # Julian id (int of col2) -> stem (col1), to write intf.in `ref:rep`.
+        jul2stem: dict[int, str] = {}
+        for ln in baseline.read_text().splitlines():
+            p = ln.split()
+            if len(p) >= 2:
+                try:
+                    jul2stem[int(float(p[1]))] = p[0]
+                except ValueError:
+                    continue
+        lines = []
+        for d in sorted(p for p in clip.iterdir() if p.is_dir()):
+            try:
+                j1, j2 = (int(x) for x in d.name.split("_"))
+            except ValueError:
+                continue
+            if j1 in jul2stem and j2 in jul2stem:
+                lines.append(f"{jul2stem[j1]}:{jul2stem[j2]}")
+            else:
+                logger.warning("p2p sbas: pair %s not in baseline_table; skipped", d.name)
+        if not lines:
+            raise RuntimeError(
+                "no p2p pairs matched the baseline table -- Julian dir names and "
+                "baseline_table.dat dates disagree.")
+        intf_in = self.sbas_dir / "intf.in"
+        intf_in.write_text("\n".join(lines) + "\n")
+        print(f"{Fore.CYAN}p2p: {len(lines)} pair(s) -> GMTSAR-native sbas on the "
+              f"geocoded common grid ({clip}){Fore.RESET}")
+        # p2p pairs are geocoded; auto_prune's radar-stem logic doesn't apply.
+        # Also tells run() to skip the radar->ll projection: sbas ran on lon/lat
+        # grids, so vel.grd/disp_*.grd come out geographic already.
+        self._p2p_geocoded = True
+        return (intf_in.resolve(), baseline.resolve(), clip.resolve(),
+                "unwrap_ll.grd", "corr_ll.grd")
+
     def prep_data(self) -> str:
         """Run prep_sbas → intf.tab + scene.tab in sbas_dir. Returns the
         sbas command line prep_sbas echoes (with N/S/xdim/ydim filled in)."""
-        # resolve() everything: prep_sbas runs with cwd=sbas_dir, so relative
-        # workdir paths (e.g. workdir='p100_f466') would not resolve from there.
-        stack = self.stack_dir.resolve()
-        intf_in = stack / "intf.in"
-        # GMTSAR's preproc_batch_tops writes baseline_table.dat into raw/
-        # (its own cwd), not the case-dir root.
-        baseline = self._gmtsar_paths.baseline_table_auto.resolve()
-        intf_path = self._gmtsar_paths.product_dir().resolve()
-        for p in (intf_in, baseline, intf_path):
-            if not p.exists():
-                raise FileNotFoundError(
-                    f"{p} not found -- run GMTSAR_S1 with stack_mode=True first."
-                )
         self.sbas_dir.mkdir(parents=True, exist_ok=True)
-
-        cfg = self.config
-        if cfg.auto_prune:
-            intf_in = self._prune_network(intf_in, intf_path) or intf_in
+        intf_in, baseline, intf_path, phase_name, corr_name = self._resolve_sbas_inputs()
         # prep_sbas intf.in baseline_table.dat <intf_path> <phase_grd> <corr_grd>
         cmd = ["prep_sbas", str(intf_in), str(baseline), str(intf_path),
-               cfg.phase_grd, cfg.corr_grd]
+               phase_name, corr_name]
         proc = subprocess.run(cmd, cwd=str(self.sbas_dir), capture_output=True,
                               text=True, env=self._subprocess_env())
         if proc.returncode != 0:
@@ -257,7 +413,8 @@ class GMTSAR_SBAS(BaseAnalyzer):
         """
         cfg = self.config
         try:
-            prm = next(iter(sorted(self._gmtsar_paths.meta_raw_dir.glob("S1_*_ALL_F*.PRM"))), None)
+            raw = self._raw_dir or self._gmtsar_paths.meta_raw_dir
+            prm = next(iter(sorted(raw.glob("S1_*_ALL_F*.PRM"))), None)
             if prm is None:
                 raise FileNotFoundError("no super-master PRM")
             txt = prm.read_text()
@@ -271,7 +428,8 @@ class GMTSAR_SBAS(BaseAnalyzer):
             rng_samp_rate = _prm("rng_samp_rate")
             near_range = _prm("near_range")
 
-            grd = next(iter(sorted(self._gmtsar_paths.product_dir().glob(f"*/{cfg.phase_grd}"))), None)
+            intf_path = self._intf_path or self._gmtsar_paths.product_dir()
+            grd = next(iter(sorted(intf_path.glob(f"*/{cfg.phase_grd}"))), None)
             if grd is None:
                 raise FileNotFoundError(f"no {cfg.phase_grd} to size the grid from")
             info = subprocess.run(["gmt", "grdinfo", "-C", str(grd)],
@@ -313,9 +471,22 @@ class GMTSAR_SBAS(BaseAnalyzer):
                 e, cfg.range_dist, cfg.incidence)
             return float(cfg.range_dist), float(cfg.incidence)
 
+    def _run_via_container(self) -> None:
+        """Re-invoke `insarhub analyzer ... run` inside self.config.container,
+        which ships GMTSAR + insarhub. Mirrors Mintpy_SBAS_Base._run_via_container."""
+        import subprocess
+        from insarhub.utils.container import wrap_container_cmd
+        cli_cmd = f"insarhub analyzer -N {type(self).name} -w {self.workdir} run --step sbas"
+        wrapped = wrap_container_cmd(self.config.container, cli_cmd, Path(self.workdir))
+        result = subprocess.run(wrapped, shell=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"Container run failed (exit {result.returncode}): {wrapped}")
+
     def run(self, steps=None) -> None:
         """prep_data() (if needed) then run the sbas inversion with the
         configured flags → disp_*.grd + vel.grd in sbas_dir."""
+        if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
+            return self._run_via_container()
         sbas_base = self.prep_data()   # "sbas intf.tab scene.tab N S xdim ydim"
         print(f"prep_sbas OK -> {sbas_base}")
         cfg = self.config
@@ -353,7 +524,24 @@ class GMTSAR_SBAS(BaseAnalyzer):
         print(f"SBAS inversion complete: {self.sbas_dir}\n"
               f"  vel.grd + {n_disp} disp_*.grd (cumulative displacement per date)")
         logger.info("SBAS inversion complete: %s (vel.grd, disp_*.grd)", self.sbas_dir)
-        self.geocode()
+        if getattr(self, "_p2p_geocoded", False):
+            self._alias_geocoded_outputs()
+        else:
+            self.geocode()
+
+    def _alias_geocoded_outputs(self) -> None:
+        """p2p sbas ran on geocoded (_ll) grids, so vel.grd/disp_*.grd are
+        ALREADY in lon/lat -- no proj_ra2ll needed. Write *_ll.grd aliases so
+        anything expecting GMTSAR's geocoded naming (the results viewer, the
+        recipe's Google-Earth step) finds them."""
+        print(f"{Fore.CYAN}p2p: sbas ran on geocoded grids -- vel.grd/disp_*.grd "
+              f"are already lon/lat; writing *_ll.grd aliases.{Fore.RESET}")
+        for grd in ([self.sbas_dir / "vel.grd"]
+                    + sorted(self.sbas_dir.glob("disp_*.grd"))):
+            if grd.exists():
+                out = grd.with_name(f"{grd.stem}_ll.grd")
+                if not out.exists():
+                    out.symlink_to(grd.name)
 
     def geocode(self) -> None:
         """Project sbas's radar-coordinate output into lat/lon (recipe §12c).
@@ -370,14 +558,16 @@ class GMTSAR_SBAS(BaseAnalyzer):
         to a warning rather than throwing away the run.
         """
         env = self._subprocess_env()
-        trans_src = self._gmtsar_paths.merge_dir / "trans.dat"
-        if not trans_src.exists():
-            trans_src = self._gmtsar_paths.topo_dir / "trans.dat"
-        if not trans_src.exists():
+        candidates = [self._gmtsar_paths.merge_dir / "trans.dat"]
+        if self._raw_dir is not None:
+            candidates.append(self._raw_dir.parent / "topo" / "trans.dat")
+        candidates.append(self._gmtsar_paths.topo_dir / "trans.dat")
+        trans_src = next((c for c in candidates if c.exists()), None)
+        if trans_src is None:
             logger.warning(
-                "No trans.dat found (looked in %s and %s) -- skipping geocoding; "
+                "No trans.dat found (looked in %s) -- skipping geocoding; "
                 "vel.grd/disp_*.grd remain in radar coordinates.",
-                self._gmtsar_paths.merge_dir, self._gmtsar_paths.topo_dir)
+                ", ".join(str(c) for c in candidates))
             return
 
         trans = self.sbas_dir / "trans.dat"
@@ -423,7 +613,8 @@ class GMTSAR_SBAS(BaseAnalyzer):
         time_series.dat in sbas_dir. Needs a PRM + dem.grd + scene.tab."""
         scene_tab = self.sbas_dir / "scene.tab"
         dem = self._gmtsar_paths.dem_grd
-        prm = next(self._gmtsar_paths.raw_dir.glob("S1_*.PRM"), None)
+        raw = self._raw_dir or self._gmtsar_paths.raw_dir
+        prm = next(raw.glob("S1_*.PRM"), None)
         if prm is None:
             raise FileNotFoundError("no S1_*.PRM in stack raw/ for llt2rat")
         cmd = ["extract_one_time_series", str(lon), str(lat), str(prm),

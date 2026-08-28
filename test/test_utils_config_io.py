@@ -49,11 +49,15 @@ class TestReadInsarhubConfig:
         result = read_insarhub_config(tmp_path)
         assert result["downloader"]["type"] == "NEW_DOWNLOADER"
 
-    def test_corrupt_json_returns_empty(self, tmp_path):
+    def test_corrupt_json_raises(self, tmp_path):
+        # A file that EXISTS but doesn't parse must raise, not silently return
+        # {} -- an empty config would run every step unconstrained. (A MISSING
+        # file is the only case that returns {}.)
+        import pytest
         from insarhub.utils.config_io import read_insarhub_config
         (tmp_path / "insarhub_config.json").write_text("{INVALID JSON")
-        result = read_insarhub_config(tmp_path)
-        assert result == {}
+        with pytest.raises(ValueError):
+            read_insarhub_config(tmp_path)
 
     def test_string_role_promoted_to_dict(self, tmp_path):
         from insarhub.utils.config_io import read_insarhub_config

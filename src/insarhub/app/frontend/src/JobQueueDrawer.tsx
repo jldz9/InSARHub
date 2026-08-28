@@ -14,6 +14,11 @@ export interface RasterOverlay {
   id:        string
   url:       string          // blob URL of rendered canvas
   bounds:    [number, number, number, number]  // [west, south, east, north]
+  // Optional 4 ground corners [lon,lat] in TL,TR,BR,BL order for a rotated
+  // (non-axis-aligned) overlay -- e.g. a Sentinel-1 SLC quicklook whose swath
+  // is tilted. When set, the map places the image at these corners instead of
+  // deriving an axis-aligned box from `bounds`.
+  corners?:  [number, number][]
   pixelData: Float32Array
   width:     number
   height:    number
@@ -22,12 +27,16 @@ export interface RasterOverlay {
   label:     string
   vmin:      number
   vmax:      number
-  source?:   { kind: 'mintpy'; folderPath: string; tsFile: string | null }
+  source?:   { kind: 'mintpy' | 'dolphin'; folderPath: string; tsFile?: string | null }
 }
 
 
 // Persist active download job IDs across L2 drawer unmount/remount
 const _dlJobs:    Map<string, string> = new Map()
+
+// Suggested processing container, offered when the user opts into running a
+// local processor (ISCE2_S1 / GMTSAR_S1 / ISCE3_Burst) inside Docker. It ships
+// insarhub + isce3/dolphin/mintpy; the field stays editable for other images.
 const _orbitJobs: Map<string, string> = new Map()
 
 interface JobFolder {
@@ -51,6 +60,7 @@ interface Props {
   mapClickSignal: number
   aoiWkt:         string | null
   onClose:        () => void
+  onMinimize:     () => void
   onRasterSelect: (overlay: RasterOverlay | null) => void
 }
 
@@ -274,11 +284,11 @@ function PairsDrawer({ theme: t, folderPath, onClose, rightOffset }: PairsDrawer
 
 // ── Process Modal ────────────────────────────────────────────────────────────
 
-interface FieldMeta { key: string; label: string; type: string; default: any; options?: string[]; min?: number; max?: number; step?: number; hint?: string }
-interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label: string; fields: string[] }>; compatible_downloader?: string | null; is_local?: boolean }
+interface FieldMeta { key: string; label: string; type: string; default: any; options?: string[]; min?: number; max?: number; step?: number; hint?: string; show_if?: Record<string, any> }
+interface ProcMeta  { label: string; fields: FieldMeta[]; groups?: Array<{ label: string; fields: string[] }>; compatible_downloader?: string | null; is_local?: boolean; container_default?: string | null }
 
 // ── SbatchOptionsModal — shared by ProcessModal (ISCE2_S1, GMTSAR_S1) and
-// AnalyzerConfigModal (ISCE_SBAS, Hyp3_SBAS, GMTSAR_MINTPY_SBAS) ──
+// AnalyzerConfigModal (ISCE2_Mintpy_SBAS, Hyp3_Mintpy_SBAS, GMTSAR_Mintpy_SBAS) ──
 
 interface SbatchOptionsModalProps { theme: Theme; folderPath: string; processorType?: string; onClose: () => void; onSaved?: (msg: string) => void; zIndex?: number }
 
@@ -367,9 +377,9 @@ function SbatchOptionsModal({ theme: t, folderPath, processorType, onClose, onSa
   )
 }
 
-interface ProcessModalProps { theme: Theme; folderPath: string; downloaderType: string; aoiWkt: string | null; onClose: () => void; onDone: () => void }
+interface ProcessModalProps { theme: Theme; folderPath: string; downloaderType: string; aoiWkt: string | null; onClose: () => void; onDone: () => void; onSubmitted?: () => void }
 
-function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, onDone }: ProcessModalProps) {
+function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, onDone, onSubmitted }: ProcessModalProps) {
   const { t: tr } = useTranslation()
   const [loading,      setLoading]      = useState(true)
   const [procType,     setProcType]     = useState('')
@@ -386,7 +396,8 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
       fetch(`${API}/api/settings`).then(r => r.json()),
       fetch(`${API}/api/workflows`).then(r => r.json()),
       fetch(`${API}/api/folder-details?path=${encodeURIComponent(folderPath)}`).then(r => r.json()).catch(() => ({})),
-    ]).then(([settings, workflows, details]) => {
+      fetch(`${API}/api/folder-config?path=${encodeURIComponent(folderPath)}`).then(r => r.json()).catch(() => ({})),
+    ]).then(([settings, workflows, details, folderCfg]) => {
       const allProcs: Record<string, ProcMeta> = workflows.processors ?? {}
       const compat = Object.fromEntries(
         Object.entries(allProcs).filter(([, m]) =>
@@ -394,10 +405,13 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
         )
       )
       setProcOptions(compat)
-      const cur = settings.processor
+      // Prefer THIS folder's saved processor type/config over the global
+      // settings, so the panel reflects what was last submitted for this folder
+      // (stack_mode, reference, …) instead of app-wide defaults.
+      const cur = folderCfg?.processor?.type || settings.processor
       const sel = compat[cur] ? cur : (Object.keys(compat)[0] ?? '')
       setProcType(sel)
-      setProcConfig(settings.processor_config ?? {})
+      setProcConfig(folderCfg?.processor?.config ?? settings.processor_config ?? {})
       const wkt = details?.downloader_config?.intersectsWith ?? null
       setFolderAoiWkt(wkt)
       setLoading(false)
@@ -453,6 +467,10 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
       })
       if (!res.ok) { const d = await res.json(); setStatus('error'); setMessage(d.detail ?? tr('scenePanel.error')); return }
       const { job_id } = await res.json()
+      // Submit accepted -> the folder's job file exists now (written host-side),
+      // so refresh the folder's job tags immediately instead of waiting for the
+      // user to close the modal (dry-run writes nothing, so skip it).
+      if (!dryRun) onSubmitted?.()
       pollRef.current = setInterval(async () => {
         try {
           const r = await fetch(`${API}/api/jobs/${job_id}`)
@@ -550,10 +568,20 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
               </select>
             </div>
 
-            {/* Grouped parameter fields */}
-            {currentMeta?.groups?.map(grp => {
+            {/* Grouped parameter fields. HPC + Container groups always render
+                last, regardless of where a config lists them. */}
+            {[...(currentMeta?.groups ?? [])].sort((a, b) => {
+              const rank = (g: { label: string }) =>
+                /container/i.test(g.label) ? 2 : /hpc/i.test(g.label) ? 1 : 0
+              return rank(a) - rank(b)
+            }).map(grp => {
               const byKey = Object.fromEntries(currentMeta.fields.map(f => [f.key, f]))
-              const grpFields = grp.fields.map(k => byKey[k]).filter(Boolean)
+              // show_if: hide a field (and drop empty groups) unless every
+              // named field currently holds the required value. e.g. the ESD
+              // params only apply when coregistration=esd.
+              const visible = (f: FieldMeta) => !f.show_if || Object.entries(f.show_if)
+                .every(([k, v]) => String((procConfig[k] ?? byKey[k]?.default)) === String(v))
+              const grpFields = grp.fields.map(k => byKey[k]).filter(Boolean).filter(visible)
               if (!grpFields.length) return null
               const isPathsGroup = grp.label.toLowerCase() === 'paths'
               // Both ISCE2_S1 and GMTSAR_S1 are local SLURM/HPC-capable
@@ -579,6 +607,40 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
                       </div>
                     )}
                     {grpFields.map(f => {
+                      // Container: opt-in checkbox (off by default = host
+                      // processing). Checking it pre-fills the suggested image
+                      // but leaves the field editable for any other image.
+                      // Only local processors carry a "container" field, so
+                      // this control is naturally hidden for Hyp3_S1.
+                      if (f.key === 'container') {
+                        const cur = procConfig.container ?? ''
+                        const enabled = !!String(cur).trim()
+                        // Per-processor default image, from the schema endpoint
+                        // (currentMeta.container_default) -- GMTSAR uses
+                        // gmtsar-mintpy, ISCE2 uses isce2, etc. It's a UI-only
+                        // constant and is no longer persisted in the config, so
+                        // read it from the schema (fall back to any legacy value
+                        // still in an older config). No default -> the user types
+                        // an image.
+                        const defImg = currentMeta?.container_default || procConfig.container_default || ''
+                        return (
+                          <div key={f.key} style={{ gridColumn: '1 / -1' }} title={f.hint}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 11, color: t.text }}>
+                              <input type="checkbox" checked={enabled}
+                                onChange={e => setProcConfig(c => ({ ...c, container: e.target.checked ? defImg : '' }))}
+                                style={{ accentColor: t.accent, width: 13, height: 13 }} />
+                              {tr('jobQueue.runInContainer')}
+                            </label>
+                            {enabled && (
+                              <input type="text" value={cur} spellCheck={false}
+                                onChange={e => setProcConfig(c => ({ ...c, container: e.target.value }))}
+                                placeholder={defImg}
+                                style={{ ...inp, marginTop: 6, fontFamily: 'monospace', fontSize: 11 }} />
+                            )}
+                            <div style={{ color: t.textMuted, fontSize: 10, marginTop: 4 }}>{tr('jobQueue.runInContainerHint')}</div>
+                          </div>
+                        )
+                      }
                       if (f.key === 'hpc_mode' && isIsceProc) return (
                         <div key={f.key} style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 8 }} title={f.hint}>
                           <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', flex: 1, fontSize: 11, color: t.text }}>
@@ -664,7 +726,7 @@ function ProcessModal({ theme: t, folderPath, downloaderType, aoiWkt, onClose, o
 interface AzCompMeta {
   fields: FieldMeta[]
   groups?: Array<{ label: string; fields: string[] }>
-  compatible_processor?: string | null
+  compatible_processor?: string | string[] | null
 }
 
 interface AnalyzerConfigModalProps { theme: Theme; folderPath: string; analyzerType: string; onClose: () => void }
@@ -739,7 +801,7 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
               <input type="checkbox" checked={val === true} onChange={e => setField(f.key, e.target.checked)} style={{ accentColor: t.accent, width: 14, height: 14 }} />
-              <span style={{ color: t.text, fontSize: 12 }}>{val === true ? tr('jobQueue.enabled') : tr('jobQueue.disabled')}</span>
+              <span style={{ color: t.text, fontSize: 12 }}>{tr('jobQueue.enable')}</span>
             </label>
             <button onClick={() => { setSbatchMsg(''); setSbatchOpen(true) }} style={{
               padding: '3px 10px', fontSize: 10, borderRadius: 4,
@@ -779,6 +841,28 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
             )}
           </div>
         )}
+        {f.type === 'adaptive_number' && (() => {
+          const isNum = val != null && val !== 'auto' && val !== 'adaptive'
+          const mode = isNum ? 'custom' : String(val ?? 'adaptive')
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <select value={mode}
+                onChange={e => setField(f.key, e.target.value === 'custom'
+                  ? (typeof f.default === 'number' ? f.default : (f.min ?? 0.5))
+                  : e.target.value)}
+                style={{ ...inputSt, width: 110 }}>
+                <option value="adaptive">adaptive</option>
+                <option value="auto">auto</option>
+                <option value="custom">custom…</option>
+              </select>
+              {isNum && (
+                <input type="number" value={val} min={f.min} max={f.max} step={f.step ?? 0.05}
+                  onChange={e => setField(f.key, parseFloat(e.target.value))}
+                  style={{ ...inputSt, width: 90 }} />
+              )}
+            </div>
+          )
+        })()}
         {f.type === 'text' && (
           <input type="text" value={val ?? ''} onChange={e => setField(f.key, e.target.value)} style={{ ...inputSt, width: '100%' }} />
         )}
@@ -841,7 +925,7 @@ function AnalyzerConfigModal({ theme: t, folderPath, analyzerType, onClose }: An
       </div>
     </div>
     {sbatchOpen && (
-      <SbatchOptionsModal theme={t} folderPath={folderPath} processorType={meta?.compatible_processor ?? undefined}
+      <SbatchOptionsModal theme={t} folderPath={folderPath} processorType={(Array.isArray(meta?.compatible_processor) ? meta?.compatible_processor[0] : meta?.compatible_processor) ?? undefined}
         onClose={() => setSbatchOpen(false)} onSaved={m => setSbatchMsg(m)} zIndex={10000} />
     )}
     </>
@@ -861,6 +945,9 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
   const [activeJobId, setActiveJobId] = useState<string | null>(null)
   const [cleanupMsg,  setCleanupMsg]  = useState('')
   const [configOpen,  setConfigOpen]  = useState(false)
+  const [containerImg,      setContainerImg]      = useState('')   // '' = run on host
+  const [supportsContainer, setSupportsContainer] = useState(false)
+  const [containerDefault,  setContainerDefault]  = useState('')   // this analyzer's default image
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const _storageKey      = `analyzer_job:${folderPath}`
@@ -948,6 +1035,30 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
 
   useEffect(() => () => { if (pollRef.current) clearInterval(pollRef.current) }, [])
 
+  // Whether this analyzer can re-run inside a container (its config exposes a
+  // 'container' field -- e.g. GMTSAR_SBAS and every MintPy analyzer do), plus
+  // the last image used for it. Runtime-only, so it lives in localStorage, not
+  // the saved config.
+  const _containerStorageKey = `analyzer_container:${folderPath}:${analyzerType}`
+  useEffect(() => {
+    fetch(`${API}/api/workflows`).then(r => r.json()).then(w => {
+      const meta = w?.analyzers?.[analyzerType]
+      const has = !!meta?.fields?.some((f: FieldMeta) => f.key === 'container')
+      setSupportsContainer(has)
+      setContainerDefault(meta?.container_default ?? '')
+      try { setContainerImg(has ? (localStorage.getItem(_containerStorageKey) ?? '') : '') }
+      catch { setContainerImg('') }
+    }).catch(() => setSupportsContainer(false))
+  }, [analyzerType, folderPath])
+
+  function setContainer(img: string) {
+    setContainerImg(img)
+    try {
+      if (img) localStorage.setItem(_containerStorageKey, img)
+      else localStorage.removeItem(_containerStorageKey)
+    } catch { /* ignore */ }
+  }
+
   function _saveChecked(next: Set<string>) {
     localStorage.setItem(_stepsStorageKey, JSON.stringify([...next]))
   }
@@ -975,7 +1086,8 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
     fetch(`${API}/api/folder-run-analyzer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ folder_path: folderPath, analyzer_type: analyzerType, steps: selected }),
+      body: JSON.stringify({ folder_path: folderPath, analyzer_type: analyzerType, steps: selected,
+                             container: containerImg || null }),
     })
       .then(r => r.json())
       .then(({ job_id }) => { _saveState(job_id, tr('jobQueue.submitting'), 0); _startPolling(job_id) })
@@ -1025,6 +1137,27 @@ function AnalyzerPanel({ theme: t, folderPath, analyzerType }: AnalyzerPanelProp
           </label>
         ))}
       </div>
+
+      {/* Run in container (opt-in). Only for analyzers whose config supports it. */}
+      {supportsContainer && !busy && (
+        <div title={tr('jobQueue.runInContainerHint')}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 11, color: t.text }}>
+            <input type="checkbox" checked={!!containerImg}
+              onChange={e => setContainer(e.target.checked ? containerDefault : '')}
+              style={{ accentColor: t.accent, width: 13, height: 13 }} />
+            {tr('jobQueue.runInContainer')}
+          </label>
+          {!!containerImg && (
+            <input type="text" value={containerImg} spellCheck={false}
+              onChange={e => setContainer(e.target.value)}
+              placeholder={containerDefault}
+              style={{ background: t.inputBg, border: `1px solid ${t.inputBorder}`,
+                       color: t.text, borderRadius: 4, padding: '4px 8px', width: '100%',
+                       boxSizing: 'border-box', marginTop: 6, fontFamily: 'monospace', fontSize: 11,
+                       colorScheme: t.isDark ? 'dark' : 'light' }} />
+          )}
+        </div>
+      )}
 
       {/* Progress bar */}
       {busy && (
@@ -1247,6 +1380,94 @@ function IfgViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightO
   )
 }
 
+// ── L3: raw downloaded-data viewer (downloader "View Data") ───────────────────
+// Lists the raw products under slc/ and overlays each one's georeferenced
+// quicklook on the map: Sentinel-1 SLC/burst (quick-look.png at its 4 KML
+// ground corners) and NISAR GSLC (a cached downsampled amplitude). See
+// app/routes/render.py's /api/folder-slc-list + /api/render-slc-preview.
+interface SlcItem { file: string; kind: string; date: string }
+
+function SlcViewerDrawer({ theme: t, folderPath, onClose, onRasterSelect, rightOffset }: IfgViewerProps) {
+  const { t: tr } = useTranslation()
+  const { width, onHandleMouseDown } = useResizable(300)
+  const [active,   setActive]   = useState<string | null>(null)
+  const [decoding, setDecoding] = useState(false)
+
+  const { data, loading, error } = useFetchJson<{ items: SlcItem[] }>(
+    `${API}/api/folder-slc-list?path=${encodeURIComponent(folderPath)}`, [folderPath])
+  const items = data?.items ?? []
+
+  async function handleClick(it: SlcItem) {
+    if (active === it.file) { setActive(null); onRasterSelect(null); return }
+    setActive(it.file); setDecoding(true)
+    try {
+      const resp = await fetch(
+        `${API}/api/render-slc-preview?path=${encodeURIComponent(folderPath)}&file=${encodeURIComponent(it.file)}`)
+      if (!resp.ok) throw new Error(`render-slc-preview ${resp.status}`)
+      const d = await resp.json()
+      const corners = d.corners as [number, number][]
+      const lons = corners.map(c => c[0]); const lats = corners.map(c => c[1])
+      onRasterSelect({
+        id: `slc:${folderPath}:${it.file}`,
+        url: `data:image/png;base64,${d.png_b64}`,
+        bounds: [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)],
+        corners,
+        pixelData: new Float32Array(0), width: 0, height: 0, nodata: null,
+        type: 'amplitude', label: d.label ?? it.file, vmin: 0, vmax: 1,
+      })
+    } catch (e) { console.error(e); setActive(null) }
+    setDecoding(false)
+  }
+
+  const KIND_COLOR: Record<string, string> = { s1: '#80cbc4', nisar: '#ffcc80' }
+
+  return (
+    <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={113} onHandleMouseDown={onHandleMouseDown}>
+      <DrawerHeader theme={t} onClose={onClose}>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.data')}</span>
+      </DrawerHeader>
+
+      {decoding && (
+        <div style={{ padding: '4px 14px', background: '#0d3b6e', fontSize: 10, color: '#90caf9' }}>
+          {tr('jobQueue.renderingPreview')}
+        </div>
+      )}
+
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {loading ? (
+          <div style={{ color: t.textMuted, fontSize: 11, textAlign: 'center', padding: '32px 0' }}>{tr('jobQueue.loading')}</div>
+        ) : error ? (
+          <div style={{ color: '#e53935', fontSize: 11, padding: 14 }}>{error}</div>
+        ) : items.length === 0 ? (
+          <div style={{ color: t.textMuted, fontSize: 11, textAlign: 'center', padding: '32px 0' }}>
+            {tr('jobQueue.noRawData')}
+          </div>
+        ) : items.map(it => {
+          const isActive = active === it.file
+          return (
+            <button key={it.file}
+              onClick={() => handleClick(it)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 14px', borderBottom: `1px solid ${t.divider}`,
+                background: isActive ? t.btnActiveBg : 'transparent',
+                border: 'none', cursor: 'pointer', textAlign: 'left',
+              }}
+            >
+              <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: 2,
+                background: KIND_COLOR[it.kind] ?? t.textMuted, flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontFamily: 'monospace', color: isActive ? t.accent : t.text }}>
+                {it.date || it.file}
+              </span>
+              <span style={{ fontSize: 9, color: t.textMuted, marginLeft: 'auto', textTransform: 'uppercase' }}>{it.kind}</span>
+            </button>
+          )
+        })}
+      </div>
+    </DrawerShell>
+  )
+}
+
 // ── Processor Panel (HyP3 job actions) ───────────────────────────────────────
 
 interface Hyp3File { name: string; total: number; users: string[] }
@@ -1312,9 +1533,24 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
       fetch(`${API}/api/settings`).then(r => r.json()),
       fetch(`${API}/api/workflows`).then(r => r.json()),
     ]).then(([settings, workflows]) => {
-      const names: string[] = Object.keys(workflows.analyzers ?? {})
+      // Only show analyzers CHAINED to this folder's processor -- an analyzer
+      // declares its upstream via compatible_processor (e.g. ISCE3_Dolphin_PL ->
+      // ISCE3_Burst). Showing every analyzer let the user pick one that cannot
+      // read this processor's output. Analyzers with no declared processor stay
+      // visible as a catch-all.
+      const all = workflows.analyzers ?? {}
+      const names: string[] = Object.keys(all).filter((n: string) => {
+        // compatible_processor may be null/'all' (catch-all), a single name, or
+        // an array of names (an analyzer serving several upstreams, e.g.
+        // ISCE3_Dolphin_PL -> ["ISCE3_Burst","ISCE3_NISAR"]).
+        const cp = all[n]?.compatible_processor
+        if (!cp || cp === 'all') return true
+        if (Array.isArray(cp)) return cp.includes(processorType) || cp.includes('all')
+        return cp === processorType
+      })
       setAnalyzers(names)
-      setSelectedAnalyzer(settings.analyzer || names[0] || '')
+      setSelectedAnalyzer(
+        names.includes(settings.analyzer) ? settings.analyzer : (names[0] || ''))
       const procMeta: ProcMeta | undefined = workflows.processors?.[processorType]
       if (procMeta) setIsLocal(procMeta.is_local ?? true)
     }).catch(() => {})
@@ -1408,7 +1644,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
       {loading ? (
         <span style={{ color: t.textMuted, fontSize: 11 }}>{tr('jobQueue.loading')}</span>
       ) : files.length === 0 ? (
-        <span style={{ color: t.textMuted, fontSize: 11 }}>{isLocal ? tr('jobQueue.noIsceJobFiles') : tr('jobQueue.noHyp3JobFiles')}</span>
+        <span style={{ color: t.textMuted, fontSize: 11 }}>{isLocal ? tr('jobQueue.noLocalJobFiles') : tr('jobQueue.noHyp3JobFiles')}</span>
       ) : (
         <>
           {/* File selector */}
@@ -1497,7 +1733,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
             </div>
           )}
 
-          {/* View Data */}
+          {/* View Result — the processed interferograms this processor produced */}
           <button
             onClick={() => onViewIfgToggle()}
             style={{
@@ -1513,7 +1749,7 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
               <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
               <polyline points="21 15 16 10 5 21"/>
             </svg>
-            {ifgViewerOpen ? tr('jobQueue.hideData') : tr('jobQueue.viewData')}
+            {ifgViewerOpen ? tr('jobQueue.hideResults') : tr('jobQueue.viewResults')}
           </button>
 
           {/* Progress bar — shown during download */}
@@ -1674,6 +1910,89 @@ function MintpyViewerDrawer({ theme: t, folderPath, tsList, hidden, onClose, onR
         }}>
           {decoding ? tr('jobQueue.loading') : active ? tr('jobQueue.hideVelocity') : tr('jobQueue.plot')}
         </button>
+      </div>
+    </DrawerShell>
+  )
+}
+
+
+// ── L3: Dolphin (ISCE3_Dolphin_PL) Results Viewer ─────────────────────────────
+
+interface DolphinViewerProps {
+  theme:          Theme
+  folderPath:     string
+  epochs:         Array<{ date: string; file: string }>
+  hasVelocity:    boolean
+  hidden:         boolean
+  onClose:        () => void
+  onRasterSelect: (overlay: RasterOverlay | null) => void
+  rightOffset:    number
+}
+
+function DolphinViewerDrawer({ theme: t, folderPath, epochs, hasVelocity, hidden, onClose, onRasterSelect, rightOffset }: DolphinViewerProps) {
+  const { t: tr } = useTranslation()
+  const { width, onHandleMouseDown } = useResizable(260)
+  const [active,   setActive]   = useState(false)
+  const [decoding, setDecoding] = useState(false)
+  const [error,    setError]    = useState('')
+  // selected product: '' = velocity, else a displacement epoch filename
+  const [sel,      setSel]      = useState<string>('')
+  const rc = ROLE_COLORS.analyzer
+
+  async function plot(product: string) {
+    setDecoding(true); setError('')
+    try {
+      const q = product ? `&file=${encodeURIComponent(product)}` : ''
+      const resp = await fetch(`${API}/api/dolphin-velocity?path=${encodeURIComponent(folderPath)}${q}`)
+      if (!resp.ok) { const e = await resp.json().catch(() => ({})); throw new Error(e.detail ?? `HTTP ${resp.status}`) }
+      const d = await resp.json()
+      const pngBytes  = Uint8Array.from(atob(d.png_b64), c => c.charCodeAt(0))
+      const imgUrl    = URL.createObjectURL(new Blob([pngBytes], { type: 'image/png' }))
+      const pixelData = new Float32Array(Uint8Array.from(atob(d.pixel_b64), c => c.charCodeAt(0)).buffer)
+      onRasterSelect({
+        id: `dolphin:${folderPath}:${product || 'velocity'}`, url: imgUrl,
+        bounds: d.bounds as [number, number, number, number], pixelData,
+        width: d.pixel_width, height: d.pixel_height, nodata: null,
+        type: product ? 'displacement' : 'velocity', label: d.label,
+        vmin: d.vmin, vmax: d.vmax,
+        source: { kind: 'dolphin', folderPath },   // map click → dolphin-ts-pixel
+      })
+      setActive(true); setSel(product)
+    } catch (e) { setError(String(e)) }
+    setDecoding(false)
+  }
+
+  const btn = (label: string, product: string) => (
+    <button key={product} onClick={() => plot(product)} disabled={decoding} style={{
+      width: '100%', padding: '5px 10px', borderRadius: 4, textAlign: 'left',
+      fontSize: 10, fontFamily: 'monospace', cursor: decoding ? 'wait' : 'pointer',
+      background: active && sel === product ? rc.bg : 'transparent',
+      color: active && sel === product ? rc.color : t.textMuted,
+      border: `1px solid ${active && sel === product ? rc.border : t.border}`,
+      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+    }} title={label}>{active && sel === product ? '● ' : '○ '}{label}</button>
+  )
+
+  return (
+    <DrawerShell theme={t} rightOffset={rightOffset} width={width} zIndex={113} onHandleMouseDown={onHandleMouseDown} hidden={hidden}>
+      <DrawerHeader theme={t} onClose={onClose}>
+        <span style={{ color: t.text, fontWeight: 600, fontSize: 12 }}>{tr('jobQueue.results')}</span>
+      </DrawerHeader>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {hasVelocity && btn(tr('jobQueue.dolphinVelocity'), '')}
+        {epochs.length > 0 && (
+          <span style={{ fontSize: 10, color: t.textMuted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 4 }}>
+            {tr('jobQueue.dolphinDisplacement')}
+          </span>
+        )}
+        {epochs.map(e => btn(e.date, e.file))}
+        {error && <span style={{ color: '#e53935', fontSize: 10 }}>{error}</span>}
+        {active && (
+          <div style={{ padding: '8px 10px', borderRadius: 4, fontSize: 10, lineHeight: 1.6,
+            background: t.bg2, border: `1px solid ${t.divider}`, color: t.textMuted, marginTop: 4 }}>
+            {tr('jobQueue.clickVelocityHint')}
+          </div>
+        )}
       </div>
     </DrawerShell>
   )
@@ -2054,6 +2373,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
   const [orbitJobId,   setOrbitJobId]   = useState<string | null>(() => _orbitJobs.get(job.path) ?? null)
   const [orbitStatus,  setOrbitStatus]  = useState<string>('')
   const [ifgViewerOpen,     setIfgViewerOpen]     = useState(false)
+  const [slcViewerOpen,     setSlcViewerOpen]     = useState(false)
   const [cohMapOpen,        setCohMapOpen]        = useState(false)
   const [mintpyViewerOpen,     setMintpyViewerOpen]     = useState(false)
   const [mintpyViewerEverOpen, setMintpyViewerEverOpen] = useState(false)
@@ -2064,6 +2384,11 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
   const [mintpyHasNetwork,  setMintpyHasNetwork]  = useState(false)
   const [mintpyNetOpen,     setMintpyNetOpen]     = useState(false)
   const [mintpyFolder,      setMintpyFolder]      = useState(job.path)
+  // ISCE3_Dolphin_PL produces GeoTIFF products (velocity + displacement epochs)
+  const [dolphinViewerOpen, setDolphinViewerOpen] = useState(false)
+  const [dolphinHasData,    setDolphinHasData]    = useState(false)
+  const [dolphinHasVel,     setDolphinHasVel]     = useState(false)
+  const [dolphinEpochs,     setDolphinEpochs]     = useState<Array<{ date: string; file: string }>>([])
 
   // Close all L3/L4 sub-panels when the map is clicked
   useEffect(() => {
@@ -2072,8 +2397,10 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
 
     setProcOpen(false)
     setIfgViewerOpen(false)
+    setSlcViewerOpen(false)
     setCohMapOpen(false)
     setMintpyViewerOpen(false)
+    setDolphinViewerOpen(false)
     setNetEditorOpen(false)
   }, [mapClickSignal])
 
@@ -2101,6 +2428,15 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
         setMintpyHasOverview(!!d.has_overview)
         setMintpyHasNetwork(!!d.has_network)
         if (d.mintpy_folder) setMintpyFolder(d.mintpy_folder)
+      })
+      .catch(() => {})
+    // Dolphin (ISCE3_Dolphin_PL) GeoTIFF products — separate from MintPy .h5
+    fetch(`${API}/api/dolphin-check?path=${encodeURIComponent(job.path)}`)
+      .then(r => r.json())
+      .then(d => {
+        setDolphinHasData(!!d.exists)
+        setDolphinHasVel(!!d.velocity)
+        setDolphinEpochs(Array.isArray(d.epochs) ? d.epochs : [])
       })
       .catch(() => {})
   }, [job.path, role])
@@ -2259,12 +2595,37 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
         />
       )}
 
+      {/* L3 Dolphin (ISCE3_Dolphin_PL) results viewer */}
+      {!hidden && dolphinViewerOpen && (
+        <DolphinViewerDrawer
+          theme={t}
+          folderPath={job.path}
+          epochs={dolphinEpochs}
+          hasVelocity={dolphinHasVel}
+          hidden={hidden}
+          onClose={() => setDolphinViewerOpen(false)}
+          onRasterSelect={onRasterSelect}
+          rightOffset={rightOffset + width}
+        />
+      )}
+
       {/* L3 interferogram viewer */}
       {!hidden && ifgViewerOpen && (
         <IfgViewerDrawer
           theme={t}
           folderPath={job.path}
           onClose={() => setIfgViewerOpen(false)}
+          onRasterSelect={onRasterSelect}
+          rightOffset={rightOffset + width}
+        />
+      )}
+
+      {/* L3 raw downloaded-data viewer */}
+      {!hidden && slcViewerOpen && (
+        <SlcViewerDrawer
+          theme={t}
+          folderPath={job.path}
+          onClose={() => setSlcViewerOpen(false)}
           onRasterSelect={onRasterSelect}
           rightOffset={rightOffset + width}
         />
@@ -2290,6 +2651,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
           aoiWkt={aoiWkt}
           onClose={() => setProcOpen(false)}
           onDone={() => { setProcOpen(false); loadDetails() }}
+          onSubmitted={loadDetails}
         />
       )}
 
@@ -2415,6 +2777,27 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                 <circle cx="15" cy="15" r="2"/>
               </svg>
               {cohMapOpen ? tr('jobQueue.hideDecayMaps') : tr('jobQueue.decayMaps')}
+            </button>
+          )}
+
+          {/* ── Downloader: view raw downloaded data (georeferenced quicklook) ── */}
+          {role === 'downloader' && (
+            <button
+              onClick={() => setSlcViewerOpen(o => !o)}
+              style={{
+                width: '100%', padding: '7px 12px', fontSize: 11, textAlign: 'left',
+                background: slcViewerOpen ? '#0d3b6e' : 'transparent',
+                color: slcViewerOpen ? '#90caf9' : t.text,
+                border: `1px solid ${slcViewerOpen ? '#1565c0' : t.border}`,
+                borderRadius: 4, cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 8,
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21 15 16 10 5 21"/>
+              </svg>
+              {slcViewerOpen ? tr('jobQueue.hideData') : tr('jobQueue.viewData')}
             </button>
           )}
 
@@ -2599,6 +2982,24 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
                   {mintpyViewerOpen ? tr('jobQueue.hideResults') : tr('jobQueue.viewResults')}
                 </button>
               )}
+              {dolphinHasData && (
+                <button
+                  onClick={() => setDolphinViewerOpen(o => !o)}
+                  style={{
+                    width: '100%', padding: '6px 12px', fontSize: 11, textAlign: 'left',
+                    background: dolphinViewerOpen ? ROLE_COLORS.analyzer.bg : 'transparent',
+                    color: dolphinViewerOpen ? ROLE_COLORS.analyzer.color : t.text,
+                    border: `1px solid ${dolphinViewerOpen ? ROLE_COLORS.analyzer.border : t.border}`,
+                    borderRadius: 4, cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+                  </svg>
+                  {dolphinViewerOpen ? tr('jobQueue.hideResults') : tr('jobQueue.viewResults')}
+                </button>
+              )}
             </>
           )}
 
@@ -2614,7 +3015,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
 
 // ── Main Drawer ───────────────────────────────────────────────────────────────
 
-export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiWkt, onClose, onRasterSelect }: Props) {
+export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiWkt, onClose, onMinimize, onRasterSelect }: Props) {
   const { t: tr } = useTranslation()
   const { width: l1Width, onHandleMouseDown: onL1Handle } = useResizable(260)
   const [jobs,    setJobs]    = useState<JobFolder[]>([])
@@ -2658,9 +3059,9 @@ export default function JobQueueDrawer({ theme: t, workdir, mapClickSignal, aoiW
 
   return (
     <>
-      {/* Backdrop — click closes drawer */}
+      {/* Backdrop — click minimizes the drawer (hides panel, keeps the Jobs tag) */}
       <div
-        onClick={() => { setL2(null); setL2Visible(false); onClose() }}
+        onClick={() => { setL2(null); setL2Visible(false); onMinimize() }}
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 110 }}
       />
 

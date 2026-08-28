@@ -20,8 +20,8 @@
 3. 点击**搜索**
 
 <!-- screenshot: search panel with results -->
-![搜索面板](fig/search_light.png#only-light){: .doc-img}
-![搜索面板](fig/search_dark.png#only-dark){: .doc-img}
+![搜索面板](fig/search_light.gif#only-light){: .doc-img}
+![搜索面板](fig/search_dark.gif#only-dark){: .doc-img}
 /// caption
 搜索面板，显示可用的 Sentinel-1 堆叠。
 ///

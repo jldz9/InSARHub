@@ -28,28 +28,23 @@ onto the other::
 
 Stages
 ------
-Modelled on the COMPASS stack notebook, one stage per numbered section::
+COMPASS front-end (as in the stack notebook), then dolphin's own engine::
 
-    dem     Copernicus DEM (sardem) + NASADEM water-body mask       section 1.3
-    tec     IONEX global ionosphere maps, one per acquisition date   section 1.4
-    cslc    s1_geocode_stack.py -> runconfigs -> s1_cslc.py          section 2
-    static  static layers (layover/shadow, incidence, LOS)           section 2.4
-    crop    cut each geocoded burst down to the AOI                  section 3.1
-    ifg     pair network + per-burst interferograms                  sections 3.2-3.3
-    stitch  merge bursts into one raster per pair                    section 3.4
-    filt    multilook -> Goldstein -> coherence                      sections 3.5-3.7
-    unwrap  snaphu + connected components                            section 3.8
+    dem     Copernicus DEM (sardem) + water mask                section 1.3
+    tec     IONEX global ionosphere maps, one per date           section 1.4
+    cslc    s1_geocode_stack.py -> runconfigs -> s1_cslc.py      section 2
+    static  static layers (layover/shadow, incidence, LOS)       section 2.4
+    ifg     PS + phase-link + interferograms per burst           dolphin wrapped_phase.run
+    stitch  mosaic bursts + correlation                          dolphin stitching_bursts.run
+    unwrap  snaphu + connected components                        dolphin unwrapping.run
+    los     LOS geometry onto the stack grid
 
-``dem``/``tec``/``cslc`` drive COMPASS and ISCE3 directly. Everything from
-``crop`` onwards is `dolphin <https://github.com/opera-adt/dolphin>`_ -- the
-same OPERA package behind the operational DISP-S1 product -- rather than the
-notebook's hand-rolled ``utils.py`` helpers; see the "dolphin helpers" section
-below for the one-to-one mapping. The output is a stack of unwrapped
-interferograms ready for SBAS inversion.
-
-``static`` is not implemented yet: the static layers carry incidence angle and
-LOS unit vectors, which SBAS needs to convert LOS displacement into a ground
-component, but nothing in the wrapped-to-unwrapped chain depends on them.
+``dem``/``tec``/``cslc``/``static`` drive COMPASS and ISCE3 directly. Everything
+from ``ifg`` onwards delegates each stage to the exact function dolphin's own
+``displacement.run`` calls -- so the wrapped/unwrapped stack and the time series
+are byte-identical to ``dolphin run`` by construction. Output lands in dolphin's
+native layout: ``<burst_id>/linked_phase/`` + ``interferograms/`` per burst,
+then ``interferograms/``, ``unwrapped/`` and ``timeseries/`` at the workdir root.
 
 Environment
 -----------
@@ -89,19 +84,14 @@ class ISCE3_Burst(ISCE3_Base):
     #: processor keeps the two job files apart.
     JOBS_FILE = "isce3_burst_jobs.json"
 
-    #: stage order. 'static' is the only one still unimplemented.
-    # `los` is LAST, not folded into `static`, because the two have different
-    # dependencies: the static layers themselves come from cslc, but putting
-    # them on the stack grid needs a filtered interferogram to resample onto.
-    # While both lived in `static` (stage 4 of 9) the grid never existed yet,
-    # so the LOS half ALWAYS deferred and geometry/ was silently never built
-    # unless the user knew to re-run the stage after filt.
-    STAGES = ("dem", "tec", "cslc", "static", "crop", "ifg", "stitch",
-              "filt", "unwrap", "los")
-    _IMPLEMENTED = ("dem", "tec", "cslc", "static", "crop", "ifg", "stitch",
-                    "filt", "unwrap", "los")
+    #: stage order. The dolphin engine (ifg/stitch/unwrap) delegates each stage
+    #: to the exact function dolphin's own displacement.run calls, so output is
+    #: byte-identical to `dolphin run` by construction.
+    #: `los` is LAST: it needs the stitched interferogram grid to resample onto.
+    STAGES = ("dem", "tec", "cslc", "static", "ifg", "stitch", "unwrap", "los")
+    _IMPLEMENTED = ("dem", "tec", "cslc", "static", "ifg", "stitch", "unwrap", "los")
 
-    # dolphin drives crop..unwrap; compass drives cslc/static/tec. Both are
+    # dolphin drives ifg..unwrap; compass drives cslc/static/tec. Both are
     # imported inside the stage methods, so a child job only discovers a
     # missing one after it starts -- hence the pre-submit check.
     REQUIRED_MODULES = ("dolphin", "compass")
@@ -117,13 +107,12 @@ class ISCE3_Burst(ISCE3_Base):
             "tec":    "IONEX ionosphere maps, one per acquisition date",
             "cslc":   "COMPASS geocoding -- ONE JOB PER BURST-DATE, the long pole",
             "static": "static geometry layers, one job per burst, then LOS mosaic",
-            "crop":   "cut geocoded bursts to the AOI, one job per burst",
-            "ifg":    "form interferograms, one job per burst",
-            "stitch": "mosaic each pair's bursts, ONE JOB PER PAIR",
-            "filt":   "multilook + Goldstein + coherence, ONE JOB PER PAIR",
-            "unwrap": "snaphu, ONE JOB PER PAIR (plus a 1-job water-mask prologue)",
-            "los":    "LOS/incidence geometry onto the stack grid -- needs filt, "
-                      "so it runs LAST rather than inside static",
+            "ifg":    "PS + phase-link + interferograms, ONE JOB PER BURST "
+                      "(dolphin wrapped_phase.run)",
+            "stitch": "mosaic bursts + estimate correlation, ONE JOB "
+                      "(dolphin stitching_bursts.run)",
+            "unwrap": "snaphu, ONE JOB (dolphin unwrapping.run)",
+            "los":    "LOS/incidence geometry onto the stack grid -- runs LAST",
         },
         # "default" is the BASE every stage inherits (see
         # ISCE3_Base._stage_slurm_kwargs), so site-wide settings -- partition
@@ -140,14 +129,10 @@ class ISCE3_Burst(ISCE3_Base):
         "tec":     {"time": "02:00:00", "cpus_per_task": 1, "mem": "2G"},
         "cslc":    {"time": "04:00:00", "cpus_per_task": 4, "mem": "32G"},
         "static":  {"time": "02:00:00", "cpus_per_task": 4, "mem": "16G"},
-        "crop":    {"time": "01:00:00", "cpus_per_task": 2, "mem": "8G"},
-        # Sized for the default ifg_mode=phase_link, which holds a ministack's
-        # worth of SLC covariance in memory rather than multiplying two rasters
-        # -- far heavier than the pairwise path. Drop it back to ~16G/2h if you
-        # switch to ifg_mode=network.
+        # Sized for phase_link: holds a ministack's worth of SLC covariance in
+        # memory rather than multiplying two rasters.
         "ifg":     {"time": "08:00:00", "cpus_per_task": 8, "mem": "64G"},
         "stitch":  {"time": "01:00:00", "cpus_per_task": 2, "mem": "16G"},
-        "filt":    {"time": "01:00:00", "cpus_per_task": 2, "mem": "16G"},
         "unwrap":  {"time": "04:00:00", "cpus_per_task": 4, "mem": "24G"},
         "los":     {"time": "01:00:00", "cpus_per_task": 4, "mem": "16G"},
     }
@@ -159,8 +144,13 @@ class ISCE3_Burst(ISCE3_Base):
     @property
     def slc_dir(self) -> Path:
         # lowercase 'slc': S1_Burst writes .SAFE and their .EOF orbits together
-        # there, the same layout S1_SLC produces.
-        return self._p("slc_dir", "slc")
+        # there, the same layout S1_SLC produces. The GUI/config exposes this as
+        # `burst_path` (the assembled .SAFE stack); `slc_dir` is kept as a
+        # back-compat alias that still wins if set explicitly.
+        v = getattr(self.config, "slc_dir", None)
+        if v:
+            return Path(v).expanduser()
+        return self._p("burst_path", "slc")
 
     @property
     def orbit_dir(self) -> Path:
@@ -179,50 +169,42 @@ class ISCE3_Burst(ISCE3_Base):
     def cslc_dir(self) -> Path:
         return self._p("cslc_dir", "cslc")
 
-    # dolphin-stage products. Laid out per stage rather than per burst so each
-    # can be inspected, deleted and re-run on its own.
-    @property
-    def crop_dir(self) -> Path:
-        return self._p("crop_dir", "cropped_slc")
-
-    @property
-    def pl_dir(self) -> Path:
-        """Phase-linked SLCs, one directory per burst (ifg_mode=phase_link)."""
-        return self._p("pl_dir", "phase_linked")
-
-    @property
-    def ifg_dir(self) -> Path:
-        return self._p("ifg_dir", "ifgrams")
-
-    # Overridable so the two ifg_mode paths can be run side by side in one
-    # workdir; they share filenames but not grids, so writing both to the same
-    # place would silently mix them.
+    # dolphin-engine products, in dolphin's native layout (identical to what
+    # `dolphin run` writes): per-burst dirs under <workdir>/<burst_id>/ from the
+    # ifg stage, stitched products under interferograms/ + unwrapped/.
     @property
     def stitch_dir(self) -> Path:
-        return self._p("stitch_dir", "stitched/ifgrams")
-
-    @property
-    def filt_dir(self) -> Path:
-        return self._p("filt_dir", "stitched/ifgrams_filtered")
+        """Stitched interferograms + correlation + temporal coherence."""
+        return self._p("stitch_dir", "interferograms")
 
     @property
     def unwrap_dir(self) -> Path:
-        return self._p("unwrap_dir", "stitched/unwrapped")
+        return self._p("unwrap_dir", "unwrapped")
 
-    @property
-    def quality_path(self) -> Path:
-        """Per-pixel quality on the stack grid, for the time-series inversion.
+    def burst_dirs(self) -> list[Path]:
+        """Per-burst output directories written by the ifg stage."""
+        import re as _re
+        if not self.workdir.is_dir():
+            return []
+        pat = re.compile(_BURST_RE)
+        return sorted(d for d in self.workdir.iterdir()
+                      if d.is_dir() and pat.match(d.name))
 
-        Phase linking fills this with stitched temporal coherence. In network
-        mode there is no equivalent single raster -- the analyzer builds a
-        temporal average of the pairwise correlations instead.
-        """
-        return self.stitch_dir.parent / "temporal_coherence.tif"
+    def quality_file(self) -> Path | None:
+        """Stitched temporal coherence (dolphin's quality raster), by glob."""
+        for p in sorted(self.stitch_dir.glob("temporal_coherence*.tif")):
+            return p
+        return None
 
     @property
     def water_mask_path(self) -> Path:
-        """NASADEM water-body mask written next to the DEM by ``run_dem``."""
-        return self.dem_path.parent / "swbd_nasadem.wbd"
+        """ESA WorldCover water mask (GeoTIFF, 1=land/0=water) by ``run_dem``.
+
+        dolphin's mask convention -- consumed directly by the unwrap stage and by
+        ``displacement.run``'s ``mask_file``, both of which warp it onto the
+        interferogram grid, so no ``.wbd``/sidecar handling is needed.
+        """
+        return self.dem_path.parent / "water_mask.tif"
 
     # ------------------------------------------------------------------
     # inputs
@@ -298,35 +280,31 @@ class ISCE3_Burst(ISCE3_Base):
             print(f"  -> {dem}  ({dem.stat().st_size / 1e6:.0f} MB)")
 
         if getattr(self.config, "water_mask", True):
-            wbd = dem.parent / "swbd_nasadem.wbd"
+            wbd = self.water_mask_path
             if wbd.exists() and not force:
                 print(f"[ISCE3_Burst] water mask already present: {wbd.name}")
-            elif not self._download_water_mask((w, s, e, n), dem.parent):
+            elif not self._download_water_mask((w, s, e, n), wbd):
                 # Non-fatal: the mask only blanks water before unwrapping.
                 logger.warning("ISCE3_Burst: water mask unavailable; unwrapping "
                                "will proceed without masking open water")
         return True
 
-    def _download_water_mask(self, bbox, out_dir: Path) -> bool:
-        """NASADEM water-body mask, via the COMPASS notebooks' helper.
+    def _download_water_mask(self, bbox, out_path: Path) -> bool:
+        """ESA WorldCover water mask (1=land/0=water) to ``out_path``.
 
-        That helper lives in the tutorial's ``utils.py`` rather than an
-        installed package, so it is imported opportunistically and its absence
-        is a warning, not a failure.
+        sardem's old ``NASA_WATER`` source (SRTM Water Body Data on
+        ``e4ftl01.cr.usgs.gov``) was migrated off that host and 404s for every
+        tile, so it silently produced an all-land mask. ESA WorldCover is on
+        open AWS (no Earthdata/account) and marks permanent water as class 80.
         """
         try:
-            from insarhub.utils.tool import download_nasadem_water_mask  # type: ignore
-        except Exception:                                        # noqa: BLE001
-            try:
-                import utils as _nb_utils                        # notebook-local
-                download_nasadem_water_mask = _nb_utils.download_nasadem_water_mask
-            except Exception as exc:                             # noqa: BLE001
-                logger.warning("ISCE3_Burst: no download_nasadem_water_mask "
-                               "available (%s)", exc)
-                return False
+            from insarhub.utils.tool import download_worldcover_water_mask
+        except Exception as exc:                                 # noqa: BLE001
+            logger.warning("ISCE3_Burst: no water-mask downloader available (%s)",
+                           exc)
+            return False
         try:
-            download_nasadem_water_mask(bbox, out_dir)
-            return (out_dir / "swbd_nasadem.wbd").exists()
+            return bool(download_worldcover_water_mask(bbox, out_path))
         except Exception as exc:                                 # noqa: BLE001
             logger.warning("ISCE3_Burst: water mask download failed: %s", exc)
             return False
@@ -343,12 +321,28 @@ class ISCE3_Burst(ISCE3_Base):
         must exist before the cslc stage -- a missing TEC file silently drops
         the ionospheric term rather than failing.
         """
+        # COMPASS's own download_ionex hits CDDIS unauthenticated, which now
+        # requires Earthdata Login -- it silently saves a URS login page instead
+        # of the map. Use InSARHub's Earthdata-authenticated resolver, which
+        # reuses COMPASS's filename logic so the files still land where the cslc
+        # runconfigs expect them. (Importing get_ionex_filename here also asserts
+        # COMPASS is present, as before.)
         try:
-            from compass.utils.iono import download_ionex
+            from insarhub.utils.ionex import (download_ionex_earthdata,
+                                              have_earthdata_creds)
+            from compass.utils.iono import get_ionex_filename  # noqa: F401
         except ImportError as exc:                               # noqa: BLE001
-            logger.error("ISCE3_Burst: COMPASS is not importable in this "
-                         "environment (%s). TEC download needs "
-                         "compass.utils.iono.", exc)
+            logger.error("ISCE3_Burst: TEC download needs COMPASS "
+                         "(compass.utils.iono) plus insarhub.utils.ionex (%s).", exc)
+            return False
+
+        if not have_earthdata_creds():
+            logger.error(
+                "ISCE3_Burst: no Earthdata credentials in ~/.netrc "
+                "(machine urs.earthdata.nasa.gov). CDDIS IONEX downloads require "
+                "Earthdata Login -- run the S1 downloader once to store them, or "
+                "add the entry by hand. Skipping the TEC stage; bursts will be "
+                "geocoded without an ionospheric correction.")
             return False
 
         dates = self.acquisition_dates()
@@ -380,7 +374,7 @@ class ISCE3_Burst(ISCE3_Base):
             got = None
             for i, c in enumerate([code, *fallbacks]):
                 try:
-                    got = download_ionex(d, str(tec), sol_code=c)
+                    got = download_ionex_earthdata(d, str(tec), sol_code=c)
                 except Exception:                                # noqa: BLE001
                     continue
                 if i:
@@ -413,7 +407,11 @@ class ISCE3_Burst(ISCE3_Base):
                   f"any centre and will be geocoded without an ionospheric "
                   f"correction: {', '.join(missing[:8])}"
                   + (" ..." if len(missing) > 8 else ""))
-        return ok > 0
+        # TEC is non-fatal: the cslc stage geocodes WITHOUT the ionospheric
+        # correction when no IONEX map exists (a small phase offset, not a
+        # broken stack). Returning `ok > 0` here made an all-missing TEC stage
+        # (e.g. CDDIS behind Earthdata auth) abort the whole pipeline.
+        return True
 
     # ------------------------------------------------------------------
     # stage: cslc
@@ -495,9 +493,18 @@ class ISCE3_Burst(ISCE3_Base):
             if not p.exists():
                 logger.error("ISCE3_Burst: %s not found at %s", what, p)
                 return False
-        aoi = getattr(self.config, "AOI", None)
+        # Geocode extent: under process_full_extent this is the full burst
+        # footprint (from the .SAFE files); otherwise config.AOI. Going through
+        # _aoi() keeps the cslc --bbox, the DEM footprint and every later stage
+        # measuring the SAME extent.
+        try:
+            aoi = self._aoi()
+        except Exception as exc:                                 # noqa: BLE001
+            logger.error("ISCE3_Burst: cannot determine a geocode extent for "
+                         "--bbox (%s)", exc)
+            return False
         if not aoi or len(aoi) != 4:
-            logger.error("ISCE3_Burst: config.AOI (W,S,E,N) required for --bbox")
+            logger.error("ISCE3_Burst: could not resolve a (W,S,E,N) extent for --bbox")
             return False
 
         env = self._env()
@@ -614,43 +621,8 @@ class ISCE3_Burst(ISCE3_Base):
         return True
 
     # ------------------------------------------------------------------
-    # stages: crop / ifg / stitch / filt / unwrap  (dolphin)
+    # dolphin engine: ifg / stitch / unwrap
     # ------------------------------------------------------------------
-
-    def _selected_pairs(self) -> list[tuple[str, str]]:
-        """The user's pair network for ``ifg_mode = user_defined``.
-
-        Prefers the pairs the caller was constructed with (the GUI and CLI both
-        read the folder's ``stack_*.json`` and hand them over). Falls back to
-        reading those files directly, so the mode also works when the processor
-        is driven straight from Python with no pairs argument.
-        """
-        import json
-
-        pairs = [tuple(p) for p in (getattr(self, "pairs", None) or []) if len(p) >= 2]
-        if pairs:
-            return pairs
-
-        files = sorted(self.workdir.glob("stack_p*.json")) or \
-                sorted(self.workdir.glob("stack_*.json"))
-        for f in files:
-            try:
-                data = json.loads(f.read_text())
-            except Exception as exc:                             # noqa: BLE001
-                logger.warning("ISCE3_Burst: unreadable pair file %s: %s", f.name, exc)
-                continue
-            pairs.extend(tuple(p[:2]) for p in data.get("pairs", []) if len(p) >= 2)
-
-        if not pairs:
-            raise FileNotFoundError(
-                f"ISCE3_Burst: ifg_mode=user_defined needs a pair "
-                f"network, but no stack_*.json with pairs was found in "
-                f"{self.workdir}. Run select_pairs for this folder (or the "
-                f"network editor), or switch ifg_mode to 'network' to build the "
-                f"graph from n_connections.")
-        # A merged folder holds one pair file per path; the burst stack they
-        # describe is a single date list, so dedupe across files.
-        return sorted(set(pairs))
 
     def _aoi(self) -> list[float]:
         """Processing extent as (W, S, E, N) degrees.
@@ -670,16 +642,20 @@ class ISCE3_Burst(ISCE3_Base):
         hand, and processing a whole burst footprint was not expressible.
         """
         if bool(getattr(self.config, "process_full_extent", False)):
-            box = self._aoi_from_bursts()
+            # Prefer geocoded bursts once they exist (exact output extent);
+            # before then, measure the burst footprint straight from the .SAFE
+            # files so dem/cslc actually cover the full extent rather than
+            # silently shrinking to the AOI.
+            box = self._aoi_from_bursts() or self._full_extent_from_safes()
             if box:
                 print(f"[ISCE3_Burst] full downloaded extent: "
                       f"{['%.4f' % v for v in box]}")
                 return box
-            raise ValueError(
-                "ISCE3_Burst: process_full_extent measures the extent from the "
-                "geocoded bursts, and none exist yet. The dem and cslc stages "
-                "run before anything is geocoded, so they need a starting "
-                "extent -- leave process_full_extent off for those, or set AOI.")
+            # Neither geocoded bursts nor readable .SAFE footprints -- fall back
+            # to the AOI so the stage can still run rather than hard-failing.
+            print(f"[ISCE3_Burst] process_full_extent set but could not measure "
+                  f"the burst footprint (no geocoded bursts, no readable .SAFE) "
+                  f"-- falling back to AOI for this stage")
 
         aoi = getattr(self.config, "AOI", None)
         if aoi and len(aoi) == 4:
@@ -714,9 +690,13 @@ class ISCE3_Burst(ISCE3_Base):
         except Exception:                                        # noqa: BLE001
             return None
 
-        tifs = sorted(self.crop_dir.rglob("*.slc.tif")) or \
-               sorted(self.cslc_dir.rglob("*.slc.tif"))
-        if not tifs:
+        # The geocoded CSLC .h5 (written by `cslc`, before any crop) are the full
+        # burst footprints on a common UTM grid. Do NOT fall back to a bare
+        # cslc_dir *.slc.tif glob: the only *.slc.tif under cslc/ are COMPASS's
+        # radar-coordinate SCRATCH intermediates with no map CRS.
+        h5s = sorted(p for p in self.cslc_dir.glob("t*_iw*/*/*.h5")
+                     if "static_layers" not in p.name)
+        if not h5s:
             return None
 
         wgs = osr.SpatialReference()
@@ -724,32 +704,87 @@ class ISCE3_Burst(ISCE3_Base):
         wgs.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
 
         w = s = e = n = None
-        for t in tifs:
-            ds = gdal.Open(str(t))
-            if ds is None:
+        for h5 in h5s:
+            # A partially-written or corrupt raster (e.g. a crop that died
+            # mid-write, or a stray leftover) must NOT abort extent measurement
+            # -- skip it and use the rest. The ``if ds is None`` guard below only
+            # catches failures when gdal.UseExceptions() is OFF; other ISCE3
+            # stages turn it ON process-globally, and then gdal.Open RAISES
+            # "OGR Error: Corrupt data" on a bad file instead of returning None,
+            # which previously escaped here and failed the whole crop stage.
+            try:
+                ds = gdal.Open(f'NETCDF:"{h5}":/data/VV')
+                if ds is None:
+                    continue
+                gt, nx, ny = ds.GetGeoTransform(), ds.RasterXSize, ds.RasterYSize
+                src = osr.SpatialReference()
+                src.ImportFromWkt(ds.GetProjection())
+                src.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
+                tf = osr.CoordinateTransformation(src, wgs)
+                xs = (gt[0], gt[0] + gt[1] * nx)
+                ys = (gt[3], gt[3] + gt[5] * ny)
+                for x in xs:
+                    for y in ys:
+                        lon, lat, *_ = tf.TransformPoint(x, y)
+                        w = lon if w is None else min(w, lon)
+                        e = lon if e is None else max(e, lon)
+                        s = lat if s is None else min(s, lat)
+                        n = lat if n is None else max(n, lat)
+            except Exception as exc:                              # noqa: BLE001
+                logger.warning("ISCE3_Burst: skipping unreadable CSLC %s while "
+                               "measuring the full extent (%s)", h5.name, exc)
                 continue
-            gt, nx, ny = ds.GetGeoTransform(), ds.RasterXSize, ds.RasterYSize
-            src = osr.SpatialReference()
-            src.ImportFromWkt(ds.GetProjection())
-            src.SetAxisMappingStrategy(osr.OAMS_TRADITIONAL_GIS_ORDER)
-            tf = osr.CoordinateTransformation(src, wgs)
-            xs = (gt[0], gt[0] + gt[1] * nx)
-            ys = (gt[3], gt[3] + gt[5] * ny)
-            for x in xs:
-                for y in ys:
-                    lon, lat, *_ = tf.TransformPoint(x, y)
-                    w = lon if w is None else min(w, lon)
-                    e = lon if e is None else max(e, lon)
-                    s = lat if s is None else min(s, lat)
-                    n = lat if n is None else max(n, lat)
-            ds = None
+            finally:
+                ds = None
 
         return None if w is None else [w, s, e, n]
+
+    def _full_extent_from_safes(self) -> list[float] | None:
+        """(W, S, E, N) covering every downloaded burst, from the .SAFE burst
+        footprints -- the PRE-geocode source for ``process_full_extent``.
+
+        ``_aoi_from_bursts`` can only measure geocoded output, which does not
+        exist until after cslc, so before then it returns None and the extent
+        would otherwise fall back to the (smaller) AOI -- silently defeating
+        process_full_extent for the two stages that define the footprint (dem,
+        cslc). A burst stack is the SAME burst IDs on every date, so one SAFE's
+        burst borders already describe the whole stack's ground footprint: this
+        reads the first readable SAFE, unions its bursts across all subswaths,
+        and caches the result. Borders come from the annotation geolocation
+        grid, so no orbit file is needed.
+        """
+        cached = getattr(self, "_full_extent_cache", None)
+        if cached is not None:
+            return cached or None            # a miss is cached as [] -> None
+        box = None
+        try:
+            import warnings
+            import s1reader
+            from shapely.ops import unary_union
+            for safe in sorted(self.slc_dir.glob("*.SAFE")):
+                polys = []
+                for sw in (1, 2, 3):
+                    try:
+                        with warnings.catch_warnings():
+                            warnings.simplefilter("ignore")
+                            polys += [b.border for b in
+                                      s1reader.load_bursts(str(safe), None, sw)]
+                    except Exception:                            # noqa: BLE001
+                        continue
+                if polys:
+                    w, s, e, n = unary_union(polys).bounds
+                    box = [float(w), float(s), float(e), float(n)]
+                    break
+        except Exception as exc:                                  # noqa: BLE001
+            logger.warning("ISCE3_Burst: could not read burst footprints from "
+                           "the .SAFE files for process_full_extent (%s)", exc)
+        self._full_extent_cache = box or []
+        return box
 
     @property
     def geom_dir(self) -> Path:
         """LOS/geometry rasters on the interferogram grid, for SBAS."""
-        return self.workdir / "stitched" / "geometry"
+        return self.workdir / "geometry"
 
     def run_static(self, force: bool = False) -> bool:
         """Static geometry layers per burst, then LOS vectors on the stack grid.
@@ -808,16 +843,16 @@ class ISCE3_Burst(ISCE3_Base):
             return False
 
         # put them on the grid the unwrapped products live on
-        like = sorted(self.filt_dir.glob("*.int.tif"))
+        like = sorted(self.stitch_dir.glob("*.int.tif"))
         if not like:
-            print("[ISCE3_Burst] static layers generated, but no filtered "
-                  "interferogram to define the output grid -- run 'filt' to "
+            print("[ISCE3_Burst] static layers generated, but no stitched "
+                  "interferogram to define the output grid -- run 'stitch' to "
                   "get los_*.tif on the stack grid")
             return True
 
         made = build_los_layers(
             self.cslc_dir, self.geom_dir, self._aoi(), like[0],
-            buffer_deg=float(getattr(self.config, "crop_buffer_deg", 0.05)))
+            buffer_deg=0.05)
         print(f"[ISCE3_Burst] geometry on stack grid: "
               f"{sorted(made)} -> {self.geom_dir}")
         return "los_up" in made
@@ -825,159 +860,165 @@ class ISCE3_Burst(ISCE3_Base):
     def run_los(self, force: bool = False) -> bool:
         """Put the static geometry layers on the interferogram grid.
 
-        Separate from `static` because it needs a filtered interferogram to
+        Separate from `static` because it needs a stitched interferogram to
         resample onto -- see the STAGES comment. Produces los_east/los_north/
         los_up and incidence in geometry/, which the analyzer needs to convert
         line-of-sight displacement into a ground component.
         """
         return self._run_static_los()
 
-    def run_crop(self, force: bool = False) -> bool:
-        """Cut each geocoded burst to the AOI (notebook 3.1)."""
+    def _cslc_list(self) -> list[str]:
+        """All geocoded CSLC ``.h5`` (excluding static layers), sorted."""
+        cslc = sorted(self.cslc_dir.glob("t*_iw*/*/t*_iw*_2*.h5"))
+        cslc = [str(p) for p in cslc if "static_layers" not in p.name]
+        if not cslc:
+            raise FileNotFoundError(
+                f"ISCE3_Burst: no CSLC HDF5 under {self.cslc_dir}; "
+                "run the 'cslc' stage first")
+        return cslc
 
-        made, total = crop_cslc(
-            self.cslc_dir, self.crop_dir, self._aoi(),
-            buffer_deg=float(getattr(self.config, "crop_buffer_deg", 0.05)),
-            max_workers=self._nw, force=force)
-        print(f"[ISCE3_Burst] cropped SLCs: {made} (from {total} CSLC)")
-        return total > 0 and made >= total
+    #: HDF5 subdataset dolphin reads the complex SLC from. COMPASS CSLC stores
+    #: it at ``/data/VV``; a NISAR-GSLC subclass overrides this with the NISAR
+    #: GSLC grid path (``/science/LSAR/GSLC/grids/frequencyA/<pol>``).
+    _subdataset: str = "/data/VV"
+
+    def _dolphin_cfg(self):
+        """Build dolphin's ``DisplacementWorkflow`` from this processor's config.
+
+        The single source of truth for every dolphin-engine stage (ifg/stitch/
+        unwrap). ``process_full_extent=True`` leaves ``bounds`` unset so dolphin
+        uses the burst union (exactly ``dolphin run``); a specific AOI clips the
+        stitched output via ``bounds``.
+        """
+        from dolphin.workflows.config import DisplacementWorkflow
+
+        c = self.config
+        out_opts: dict = {"strides": {"x": int(getattr(c, "rglks", 4)),
+                                      "y": int(getattr(c, "azlks", 2))}}
+        if not bool(getattr(c, "process_full_extent", False)):
+            aoi = self._aoi()
+            if aoi and len(aoi) == 4:
+                out_opts["bounds"] = [float(x) for x in aoi]
+                out_opts["bounds_epsg"] = 4326
+        wmask = self.water_mask_path if self.water_mask_path.exists() else None
+        # Full phase-linking option set, so every pl_* config field is honoured
+        # (matches the native `dolphin config` defaults for the unset ones).
+        phase_linking: dict = {
+            "ministack_size": int(getattr(c, "pl_ministack_size", 15)),
+            "half_window": {"x": int(getattr(c, "pl_half_window_x", 14)),
+                            "y": int(getattr(c, "pl_half_window_y", 7))},
+            "shp_method": str(getattr(c, "pl_shp_method", "glrt")),
+            "shp_alpha": float(getattr(c, "pl_shp_alpha", 0.001)),
+            "use_evd": bool(getattr(c, "pl_use_evd", False)),
+            "beta": float(getattr(c, "pl_beta", 0.0)),
+            "baseline_lag": getattr(c, "pl_baseline_lag", None),
+        }
+        # network after phase linking: 'single_reference' -> output_reference_idx,
+        # 'bandwidth' (default, matches dolphin) -> max_bandwidth = n_connections;
+        # max_temporal_baseline (days) wins over n_connections when set.
+        net_opts: dict = {}
+        if str(getattr(c, "pl_ifg_network", "bandwidth")).lower() == "single_reference":
+            net_opts["reference_idx"] = 0
+        elif getattr(c, "max_temporal_baseline", None):
+            net_opts["max_temporal_baseline"] = float(c.max_temporal_baseline)
+        else:
+            net_opts["max_bandwidth"] = int(getattr(c, "n_connections", 3))
+        t = int(getattr(c, "unwrap_tiles", 1))
+        unwrap_opts: dict = {
+            "run_unwrap": True,
+            "unwrap_method": str(getattr(c, "unw_method", "snaphu")),
+            "n_parallel_jobs": max(1, int(self._nw)),
+            "snaphu_options": {
+                "ntiles": (t, t),
+                "tile_overlap": (0, 0),
+                "init_method": str(getattr(c, "unwrap_init_method", "mcf")),
+                "cost": str(getattr(c, "unwrap_cost", "smooth")),
+            },
+        }
+        return DisplacementWorkflow(
+            cslc_file_list=self._cslc_list(),
+            input_options={"subdataset": self._subdataset},
+            work_directory=str(self.workdir),
+            mask_file=str(wmask) if wmask else None,
+            output_options=out_opts,
+            phase_linking=phase_linking,
+            interferogram_network=net_opts,
+            unwrap_options=unwrap_opts,
+            worker_settings={
+                "threads_per_worker": max(1, int(getattr(c, "num_threads", 4))),
+                "n_parallel_bursts": 1,
+            },
+        )
+
+    def _wrapped_phase_manifest_path(self) -> Path:
+        return self.workdir / "interferograms" / "wrapped_phase_manifest.json"
 
     def run_ifg(self, force: bool = False) -> bool:
-        """Form per-burst interferograms (3.2-3.3).
+        """PS + phase-link + interferograms per burst (dolphin ``wrapped_phase.run``).
 
-        Two estimators, selected by ``config.ifg_mode``:
-
-        ``network``      form a chosen subset of pairs directly from the
-                         cropped SLCs. Cheap, and what the COMPASS notebook
-                         does.
-        ``phase_link``   first estimate each burst's phase history from the
-                         full SLC covariance, then form the network from
-                         *that*. Every pair contributes to the estimate; the
-                         network afterwards only decides how the result is
-                         expressed.
-
-        Both end with :func:`form_ifgs` over a directory of ``<date>.slc.tif``,
-        so the pairing code is shared -- phase linking just changes which SLCs
-        it reads.
+        One ``wrapped_phase.run`` call per burst, exactly as dolphin's
+        ``displacement.run`` does. Outputs land in dolphin's native per-burst
+        layout (``<workdir>/<burst_id>/linked_phase/``, ``interferograms/``,
+        ``PS/``); the per-burst file lists are recorded to a manifest that the
+        ``stitch`` stage consumes.
         """
-        import json
+        ensure_proj_env()
+        ensure_gdal_cli()          # dolphin's stitch shells out to gdal_merge.py
+        from dolphin.workflows import wrapped_phase
+        from dolphin.workflows._utils import _create_burst_cfg, _remove_dir_if_empty
+        from opera_utils import group_by_burst
 
-        mode = str(getattr(self.config, "ifg_mode", "network")).lower()
-        if mode not in ("network", "phase_link", "user_defined"):
-            raise ValueError(
-                f"ISCE3_Burst: ifg_mode must be 'network', 'user_defined' "
-                f"or 'phase_link', got {mode!r}")
+        cfg = self._dolphin_cfg()
+        grouped = group_by_burst(cfg.cslc_file_list)
+        if not grouped:
+            raise FileNotFoundError(
+                f"ISCE3_Burst: no bursts from {len(cfg.cslc_file_list)} CSLC(s)")
 
-        # Products from the two modes have identical names but different grids
-        # (phase linking decimates by `strides`). Leaving the previous mode's
-        # rasters in place would let `stitch` mix the two without complaint, so
-        # a mode change clears them.
-        manifest = self.ifg_dir / "ifg_manifest.json"
-        if manifest.exists():
-            try:
-                prev = json.loads(manifest.read_text()).get("mode")
-            except Exception:                                    # noqa: BLE001
-                prev = None
-            if prev and prev != mode:
-                print(f"[ISCE3_Burst] ifg_mode changed {prev} -> {mode}; "
-                      "clearing interferograms from the previous mode")
-                for f in self.ifg_dir.glob("t*_iw*/*.int.tif"):
-                    f.unlink()
-                force = True
+        empty = {b: [] for b in grouped}
+        ifg_files: list[str] = []
+        temp_coh: list[str] = []
+        ps: list[str] = []
+        crlb: list[str] = []
+        closure: list[str] = []
+        amp_disp: list[str] = []
+        shp: list[str] = []
+        sim: list[str] = []
+        for burst in sorted(grouped):
+            burst_cfg = _create_burst_cfg(cfg, burst, grouped, empty, empty, empty)
+            # Create the per-burst work dir (and subdirs) first -- dolphin's
+            # displacement.run does this before wrapped_phase.run, and it also
+            # removes the empty timeseries/unwrapped dirs re-grouping leaves.
+            burst_cfg.create_dir_tree()
+            _remove_dir_if_empty(burst_cfg.timeseries_options._directory)
+            _remove_dir_if_empty(burst_cfg.unwrap_options._directory)
+            print(f"[ISCE3_Burst] ifg: {burst} ({len(grouped[burst])} CSLC) "
+                  f"-> wrapped_phase.run")
+            out = wrapped_phase.run(burst_cfg, max_workers=self._nw)
+            ifg_files += [str(p) for p in out.ifg_file_list]
+            temp_coh += [str(p) for p in out.temp_coh_files]
+            ps.append(str(out.ps_looked_file))
+            crlb += [str(p) for p in out.crlb_files]
+            closure += [str(p) for p in out.closure_phase_files]
+            amp_disp.append(str(out.amp_disp_looked_file))
+            shp += [str(p) for p in out.shp_count_files]
+            sim += [str(p) for p in out.similarity_files]
 
-        looks_applied = None
-        src = self.crop_dir
-        reference_idx = None
-        temp_coh: dict[str, str] = {}
-        if mode == "phase_link":
-            lks = (int(getattr(self.config, "azlks", 2)),
-                   int(getattr(self.config, "rglks", 4)))
-            tc = phase_link_bursts(
-                self.crop_dir, self.pl_dir,
-                half_window=(int(getattr(self.config, "pl_half_window_y", 7)),
-                             int(getattr(self.config, "pl_half_window_x", 14))),
-                strides=lks,
-                ministack_size=int(getattr(self.config, "pl_ministack_size", 15)),
-                shp_method=str(getattr(self.config, "pl_shp_method", "glrt")),
-                shp_alpha=float(getattr(self.config, "pl_shp_alpha", 0.001)),
-                use_evd=bool(getattr(self.config, "pl_use_evd", False)),
-                beta=float(getattr(self.config, "pl_beta", 0.0)),
-                baseline_lag=getattr(self.config, "pl_baseline_lag", None),
-                max_workers=self._nw, force=force)
-            src = self.pl_dir
-            looks_applied = list(lks)      # strides already decimated
-            temp_coh = {k: str(v) for k, v in tc.items()}
-
-            # After phase linking the estimator's output IS the single-reference
-            # stack: the reference date's SLC has zero phase and every other
-            # carries theta_i - theta_ref, so ifg(ref, i) reproduces it exactly.
-            # A bandwidth network here re-derives those differences -- verified
-            # identical to 1e-8 rad -- so it buys no wrapped-phase information,
-            # only more unwrapping. Redundancy still helps catch UNWRAPPING
-            # errors, which is why 'bandwidth' remains selectable.
-            if str(getattr(self.config, "pl_ifg_network",
-                           "single_reference")).lower() == "single_reference":
-                reference_idx = 0
-
-        # Explicit pair network. Selected by ifg_mode rather than a separate
-        # flag so there is exactly one control deciding where pairs come from.
-        want_pairs = None
-        if mode == "user_defined":
-            want_pairs = self._selected_pairs()
-            print(f"[ISCE3_Burst] user_defined: {len(want_pairs)} pair(s) "
-                  f"from the folder's pair file (n_connections ignored)")
-
-        pairs = form_ifgs(
-            src, self.ifg_dir,
-            n_connections=int(getattr(self.config, "n_connections", 3)),
-            max_temporal_baseline=getattr(self.config, "max_temporal_baseline", None),
-            reference_idx=reference_idx, pairs=want_pairs,
-            max_workers=self._nw, force=force)
-
-        # record the network so the analyzer and any SBAS step downstream read
-        # the same pair list the interferograms were actually formed from
-        lst = self.ifg_dir / "ifgram_list.txt"
-        lst.parent.mkdir(parents=True, exist_ok=True)
-        lst.write_text("# ISCE3_Burst pair network (ref_sec)\n"
-                       + "\n".join(pairs) + "\n")
-
-        # Phase linking writes temporal coherence per burst, at burst extent.
-        # The time-series inversion needs one raster on the stack grid (it is
-        # the quality file used to pick the reference point), so mosaic it here
-        # -- the analyzer should consume a product, not rebuild one.
-        quality = None
-        if mode == "phase_link" and temp_coh:
-            quality = self.quality_path
-            try:
-                _mosaic_real([Path(v) for v in temp_coh.values()],
-                             quality, self._aoi())
-                print(f"[ISCE3_Burst] temporal coherence mosaic -> {quality.name}")
-            except Exception as exc:                             # noqa: BLE001
-                logger.error("ISCE3_Burst: temporal-coherence mosaic failed: %s", exc)
-                quality = None
-
-        info = {"mode": mode, "pairs": pairs, "looks_applied": looks_applied,
-                "temporal_coherence": temp_coh,
-                "quality_file": str(quality) if quality else None,
-                "ifg_dir": str(self.ifg_dir)}
-        manifest.write_text(json.dumps(info, indent=1))
-
-        # Also drop it beside the stitched products. The analyzer is pointed at
-        # an unwrap directory, and with both ifg_modes present in one workdir
-        # there is no way to tell which ifgrams/ dir produced it -- searching by
-        # convention picks whichever exists first and silently mislabels the
-        # stack. Writing it into the stack's own tree keeps them tied.
-        side = self.stitch_dir.parent / "stack_info.json"
-        side.parent.mkdir(parents=True, exist_ok=True)
-        side.write_text(json.dumps(info, indent=1))
-
-        n_burst = len(sorted(d for d in self.ifg_dir.iterdir()
-                             if d.is_dir() and d.name.startswith("t")))
-        made = len(list(self.ifg_dir.glob("t*_iw*/*.int.tif")))
-        want = len(pairs) * n_burst
-        print(f"[ISCE3_Burst] {len(pairs)} pairs x {n_burst} bursts -> "
-              f"{made}/{want} interferograms")
-        return want > 0 and made >= want
+        import json as _json
+        manifest = self._wrapped_phase_manifest_path()
+        manifest.parent.mkdir(parents=True, exist_ok=True)
+        manifest.write_text(_json.dumps({
+            "ifg_file_list": ifg_files,
+            "temp_coh_file_list": temp_coh,
+            "ps_file_list": ps,
+            "crlb_file_list": crlb,
+            "closure_phase_file_list": closure,
+            "amp_dispersion_list": amp_disp,
+            "shp_count_file_list": shp,
+            "similarity_file_list": sim,
+        }, indent=1))
+        print(f"[ISCE3_Burst] ifg: {len(ifg_files)} per-burst interferogram(s) "
+              f"over {len(grouped)} burst(s)")
+        return bool(ifg_files)
 
     # ------------------------------------------------------------------
     # HPC decomposition
@@ -1019,29 +1060,36 @@ class ISCE3_Burst(ISCE3_Base):
                         "local_incidence_angle", "layover_shadow_mask"]
                 have = sum(1 for w in want if (self.geom_dir / f"{w}.tif").exists())
                 return (have, len(want))
-            if stage == "crop":
-                src = _burst_dirs(self.cslc_dir)
-                want = sum(len([h for h in (b).rglob("*.h5")
-                                if "static_layers" not in h.name]) for b in src)
-                have = len(list(self.crop_dir.rglob("*.slc.tif")))
-                return (have, want)
             if stage == "ifg":
-                pairs = (self._ifg_manifest().get("pairs") or [])
-                nb = len(_burst_dirs(self.crop_dir))
-                return (len(list(self.ifg_dir.glob("t*_iw*/*.int.tif"))),
-                        len(pairs) * nb)
+                bursts = self.burst_dirs()
+                done = sum(1 for b in bursts if (b / "interferograms").is_dir())
+                return (done, len(bursts))
             if stage == "stitch":
-                pairs = (self._ifg_manifest().get("pairs") or [])
-                return (len(list(self.stitch_dir.glob("*.int.tif"))), len(pairs))
-            if stage == "filt":
-                pairs = (self._ifg_manifest().get("pairs") or [])
-                return (len(list(self.filt_dir.glob("*.int.tif"))), len(pairs))
+                n = len(self._pairs())
+                return (len(list(self.stitch_dir.glob("*.int.tif"))), n)
             if stage == "unwrap":
-                pairs = (self._ifg_manifest().get("pairs") or [])
-                return (len(list(self.unwrap_dir.glob("*.unw.tif"))), len(pairs))
+                n = len(self._pairs())
+                return (len(list(self.unwrap_dir.glob("*.unw.tif"))), n)
         except Exception as exc:                                 # noqa: BLE001
             logger.debug("stage_progress(%s) failed: %s", stage, exc)
         return (0, 0)
+
+    def _pairs(self) -> list[str]:
+        """Unique ``YYYYMMDD_YYYYMMDD`` pairs, from the ifg stage's manifest."""
+        import json as _json
+        m = self._wrapped_phase_manifest_path()
+        if not m.exists():
+            return []
+        try:
+            data = _json.loads(m.read_text())
+        except Exception:                                        # noqa: BLE001
+            return []
+        pairs = set()
+        for f in data.get("ifg_file_list", []):
+            mm = re.search(r"(\d{8})_(\d{8})", Path(f).name)
+            if mm:
+                pairs.add(f"{mm.group(1)}_{mm.group(2)}")
+        return sorted(pairs)
 
     def stage_units(self, stage: str) -> list[tuple[str, bool]]:
         """``[(unit label, done), ...]`` for every real unit of a stage.
@@ -1072,30 +1120,13 @@ class ISCE3_Burst(ISCE3_Base):
                 return [(w, (self.geom_dir / f"{w}.tif").exists())
                         for w in ("los_east", "los_north", "los_up",
                                   "local_incidence_angle", "layover_shadow_mask")]
-            if stage == "crop":
-                out = []
-                for b in _burst_dirs(self.cslc_dir):
-                    for h in sorted(b.rglob("*.h5")):
-                        if "static_layers" in h.name:
-                            continue
-                        d = h.parent.name
-                        out.append((f"{b.name}/{d}",
-                                    (self.crop_dir / b.name / f"{d}.slc.tif").exists()))
-                return out
-            if stage in ("stitch", "filt", "unwrap"):
-                pairs = self._ifg_manifest().get("pairs") or []
-                d, suf = {"stitch": (self.stitch_dir, ".int.tif"),
-                          "filt":   (self.filt_dir, ".int.tif"),
-                          "unwrap": (self.unwrap_dir, ".unw.tif")}[stage]
-                return [(p, (d / f"{p}{suf}").exists()) for p in pairs]
             if stage == "ifg":
-                pairs = self._ifg_manifest().get("pairs") or []
-                out = []
-                for b in _burst_dirs(self.crop_dir):
-                    for p in pairs:
-                        out.append((f"{b.name}/{p}",
-                                    (self.ifg_dir / b.name / f"{p}.int.tif").exists()))
-                return out
+                return [(b.name, (b / "interferograms").is_dir())
+                        for b in self.burst_dirs()]
+            if stage in ("stitch", "unwrap"):
+                d, suf = {"stitch": (self.stitch_dir, ".int.tif"),
+                          "unwrap": (self.unwrap_dir, ".unw.tif")}[stage]
+                return [(p, (d / f"{p}{suf}").exists()) for p in self._pairs()]
         except Exception as exc:                                 # noqa: BLE001
             logger.debug("stage_units(%s) failed: %s", stage, exc)
         return []
@@ -1117,8 +1148,6 @@ class ISCE3_Burst(ISCE3_Base):
     def hpc_phases(self, stage: str) -> list[tuple[str, list[str]]]:
         """How each stage splits into parallel SLURM child jobs.
 
-        Granularity follows where the time actually goes:
-
         ==========  ==========================================================
         dem/tec     one job each -- network-bound, minutes, nothing to split
         cslc        one job per ``run_*.sh`` COMPASS already wrote. These are
@@ -1126,13 +1155,13 @@ class ISCE3_Burst(ISCE3_Base):
                     exactly ISCE2's shape. The long pole: N dates x M bursts.
         static      map over bursts, then a 1-job reduce that mosaics the LOS
                     layers onto the interferogram grid
-        crop/ifg    map over bursts
-        stitch      map over pairs, one job each
-        filt        map over pairs
-        unwrap      map over pairs -- snaphu, the second-longest stage
+        ifg         one job -- dolphin's wrapped_phase.run loops all bursts
+        stitch      one job -- dolphin's stitching_bursts.run is monolithic
+        unwrap      one job -- dolphin's unwrapping.run is monolithic
+        los         one job
         ==========  ==========================================================
 
-        `cslc` needs its runconfigs to exist before the units can be listed, so
+        ``cslc`` needs its runconfigs to exist before the units can be listed, so
         the generation half runs here, synchronously, before submission -- the
         analogue of ISCE2 generating run files up front.
         """
@@ -1150,34 +1179,10 @@ class ISCE3_Burst(ISCE3_Base):
         if stage == "los":
             return [("", [self._reentry("los")])]
 
-        if stage == "crop":
-            bursts = [d.name for d in _burst_dirs(self.cslc_dir)]
-            return [("", [self._reentry("crop", i) for i in range(len(bursts))])]
-
-        if stage == "ifg":
-            # ONE job for the whole stage, not one per burst.
-            #
-            # run_ifg() has no single-burst mode: phase linking estimates from
-            # the full N x N covariance of every date, form_ifgs() loops every
-            # burst, and both write a shared ifg_manifest.json. Emitting one
-            # job per burst therefore did not split the work at all -- it ran
-            # the ENTIRE stage N times concurrently, racing on the same
-            # phase_linked/ and ifgrams/ outputs. Parallelism inside the stage
-            # comes from max_workers threads in one process, so this is a
-            # single job sized cpus_per_task=max_workers.
-            return [("", [self._reentry("ifg")])]
-
-        if stage in ("stitch", "filt"):
-            pairs = self._hpc_pair_list()
-            return [("", [self._reentry(stage, i) for i in range(len(pairs))])]
-
-        if stage == "unwrap":
-            # Two phases: the water mask must be built ONCE (see unwrap_ifgs'
-            # prepare_only) before N per-pair jobs read it, or they race on the
-            # same file.
-            pairs = self._hpc_pair_list()
-            return [("prep", [self._reentry("unwrap_prep")]),
-                    ("pairs", [self._reentry("unwrap", i) for i in range(len(pairs))])]
+        if stage in ("ifg", "stitch", "unwrap"):
+            # dolphin's wrapped_phase.run / stitching_bursts.run / unwrapping.run
+            # are each a single monolithic call -- no safe per-burst/pair split.
+            return [("", [self._reentry(stage)])]
 
         return []
 
@@ -1223,22 +1228,21 @@ class ISCE3_Burst(ISCE3_Base):
     def _run_static_los(self) -> bool:
         """The reduce half of `static`: mosaic LOS layers onto the ifg grid.
 
-        Deferring is NOT a failure. `static` sits before `filt` in the stage
-        order, but the grid it must resample onto is defined by the filtered
+        Deferring is NOT a failure. `static` sits before `stitch` in the stage
+        order, but the grid it must resample onto is defined by the stitched
         interferograms -- so on a first pass through the chain there is nothing
         to resample onto yet. run_static() has always handled that by returning
-        success with a note; this mirrors it, so an HPC chain does not halt at
-        stage 4 of 9. Re-run `static` once `filt` is done to get los_*.tif.
+        success with a note; this mirrors it. Re-run `static` once `stitch` is
+        done to get los_*.tif.
         """
-        like = sorted(self.filt_dir.glob("*.int.tif"))
+        like = sorted(self.stitch_dir.glob("*.int.tif"))
         if not like:
-            print("[ISCE3_Burst] static layers generated, but no filtered "
+            print("[ISCE3_Burst] static layers generated, but no stitched "
                   "interferogram to define the output grid -- re-run 'static' "
-                  "after 'filt' to get los_*.tif on the stack grid")
+                  "after 'stitch' to get los_*.tif on the stack grid")
             return True
         made = build_los_layers(
-            self.cslc_dir, self.geom_dir, self._aoi(), like[0],
-            buffer_deg=float(getattr(self.config, "crop_buffer_deg", 0.05)))
+            self.cslc_dir, self.geom_dir, self._aoi(), like[0], buffer_deg=0.05)
         print(f"[ISCE3_Burst] geometry on stack grid: {sorted(made)}")
         return "los_up" in made
 
@@ -1254,179 +1258,99 @@ class ISCE3_Burst(ISCE3_Base):
             return self._run_static_unit(self._static_runconfigs()[int(index)])
         if stage in ("los", "static_los"):   # static_los: pre-split alias
             return self._run_static_los()
-        if stage == "unwrap_prep":
-            return self._run_unwrap_prep()
-        if index is not None and stage in ("crop", "ifg", "stitch", "filt", "unwrap"):
-            return self._run_dolphin_unit(stage, int(index))
         runner = getattr(self, f"run_{stage}", None)
         if runner is None:
             raise ValueError(f"ISCE3_Burst: no unit runner for stage {stage!r}")
         return bool(runner())
 
-    def _hpc_pair_list(self) -> list[str]:
-        """Pairs the ifg stage actually formed, from its manifest.
-
-        The per-pair stages index into THIS list, so it must be the network
-        that was really built -- not one recomputed from config, which could
-        differ if ifg_mode or n_connections changed between stages and would
-        silently map index i onto a different pair in each stage.
-        """
-        pairs = self._ifg_manifest().get("pairs") or []
-        if not pairs:
-            raise RuntimeError(
-                "ISCE3_Burst: no ifg_manifest.json with pairs in "
-                f"{self.ifg_dir}. The per-pair stages (stitch/filt/unwrap) "
-                "cannot be split into jobs until 'ifg' has run and recorded "
-                "its network.")
-        return list(pairs)
-
-    def _run_unwrap_prep(self) -> bool:
-        """Build the on-grid water mask once, before the per-pair unwrap jobs."""
-        mask = self.water_mask_path if self.water_mask_path.exists() else None
-        if mask is None:
-            logger.warning("ISCE3_Burst: no water mask at %s -- unwrapping over "
-                           "water, which can seed errors that leak inland",
-                           self.water_mask_path)
-        unwrap_ifgs(self.filt_dir, self.unwrap_dir, mask_file=mask,
-                    max_workers=self._nw, prepare_only=True)
-        return True
-
-    def _run_dolphin_unit(self, stage: str, index: int) -> bool:
-        """One burst (crop/ifg) or one pair (stitch/filt/unwrap)."""
-        cfg = self.config
-        if stage == "crop":
-            burst = _burst_dirs(self.cslc_dir)[index].name
-            made, total = crop_cslc(
-                self.cslc_dir, self.crop_dir, self._aoi(),
-                buffer_deg=float(getattr(cfg, "crop_buffer_deg", 0.05)),
-                max_workers=self._nw, only=burst)
-            return total > 0 and made >= total
-
-        if stage == "ifg":
-            # Whole stage in one call -- see hpc_phases, which emits exactly
-            # one ifg job for this reason. `index` is ignored and should never
-            # be supplied.
-            return self.run_ifg()
-
-        pair = self._hpc_pair_list()[index]
-        if stage == "stitch":
-            made = stitch_ifgs(self.ifg_dir, self.stitch_dir, self._aoi(),
-                               max_workers=self._nw, only=pair)
-            return bool(made)
-        if stage == "filt":
-            mf = self._ifg_manifest()
-            applied = mf.get("looks_applied")
-            lks_y, lks_x = (1, 1) if applied else (
-                int(getattr(cfg, "azlks", 2)), int(getattr(cfg, "rglks", 4)))
-            out = filter_ifgs(
-                self.stitch_dir, self.filt_dir, lks_y=lks_y, lks_x=lks_x,
-                alpha=float(getattr(cfg, "filt_strength", 0.5)),
-                coh_window=int(getattr(cfg, "coh_window", 11)),
-                max_workers=self._nw, only=pair)
-            return bool(out)
-        if stage == "unwrap":
-            t = int(getattr(cfg, "unwrap_tiles", 2))
-            mask = self.water_mask_path if self.water_mask_path.exists() else None
-            unw = unwrap_ifgs(
-                self.filt_dir, self.unwrap_dir,
-                nlooks=float(getattr(cfg, "unwrap_nlooks", 8.0)),
-                ntiles=(t, t), cost=str(getattr(cfg, "unwrap_cost", "smooth")),
-                init_method=str(getattr(cfg, "unwrap_init_method", "mcf")),
-                mask_file=mask, max_workers=self._nw, only=pair)
-            return bool(unw)
-        raise ValueError(f"ISCE3_Burst: no dolphin unit runner for {stage!r}")
-
     def run_stitch(self, force: bool = False) -> bool:
-        """Merge each pair's bursts into a single raster (notebook 3.4)."""
+        """Mosaic per-burst ifgs + estimate correlation (dolphin ``stitching_bursts.run``)."""
+        ensure_proj_env()
+        ensure_gdal_cli()          # dolphin's stitch shells out to gdal_merge.py
+        import json as _json
+        from dolphin.workflows import stitching_bursts
 
-        made = stitch_ifgs(self.ifg_dir, self.stitch_dir, self._aoi(),
-                               max_workers=self._nw)
-        print(f"[ISCE3_Burst] stitched interferograms: {len(made)}")
-        return bool(made)
-
-    def _ifg_manifest(self) -> dict:
-        import json
-        p = self.ifg_dir / "ifg_manifest.json"
-        if not p.exists():
-            return {}
-        try:
-            return json.loads(p.read_text())
-        except Exception:                                        # noqa: BLE001
-            return {}
-
-    def run_filt(self, force: bool = False) -> bool:
-        """Multilook, Goldstein-filter and estimate coherence (3.5-3.7).
-
-        Reads the looks from the ifg stage's manifest rather than the config,
-        because phase linking already decimated by ``strides``. Taking the
-        configured looks again would multilook the stack twice -- silently, and
-        only visible as an unexpectedly small raster.
-        """
-        mf = self._ifg_manifest()
-        applied = mf.get("looks_applied")
-        if applied:
-            lks_y, lks_x = 1, 1
-            print(f"[ISCE3_Burst] {mf.get('mode')} mode already applied "
-                  f"{applied[0]}x{applied[1]} looks via strides; not re-looking")
-        else:
-            lks_y = int(getattr(self.config, "azlks", 2))
-            lks_x = int(getattr(self.config, "rglks", 4))
-
-        pairs = filter_ifgs(
-            self.stitch_dir, self.filt_dir,
-            lks_y=lks_y,
-            lks_x=lks_x,
-            alpha=float(getattr(self.config, "filt_strength", 0.5)),
-            coh_window=int(getattr(self.config, "coh_window", 11)),
-            max_workers=self._nw, force=force)
-        n_in = len(list(self.stitch_dir.glob("*.int.tif")))
-        print(f"[ISCE3_Burst] filtered + coherence: {len(pairs)}/{n_in}")
-        return bool(pairs) and len(pairs) >= n_in
+        manifest = self._wrapped_phase_manifest_path()
+        if not manifest.exists():
+            raise FileNotFoundError(
+                f"ISCE3_Burst: {manifest} missing -- run the 'ifg' stage first")
+        m = _json.loads(manifest.read_text())
+        cfg = self._dolphin_cfg()
+        stitched = stitching_bursts.run(
+            ifg_file_list=[Path(p) for p in m["ifg_file_list"]],
+            temp_coh_file_list=[Path(p) for p in m["temp_coh_file_list"]],
+            ps_file_list=[Path(p) for p in m["ps_file_list"]],
+            crlb_file_list=[Path(p) for p in m["crlb_file_list"]],
+            closure_phase_file_list=[Path(p) for p in m["closure_phase_file_list"]],
+            amp_dispersion_list=[Path(p) for p in m["amp_dispersion_list"]],
+            shp_count_file_list=[Path(p) for p in m["shp_count_file_list"]],
+            similarity_file_list=[Path(p) for p in m["similarity_file_list"]],
+            stitched_ifg_dir=cfg.interferogram_network._directory,
+            output_options=cfg.output_options,
+            file_date_fmt=cfg.input_options.cslc_date_fmt,
+            corr_window_size=(11, 11),
+            num_workers=self._nw,
+        )
+        print(f"[ISCE3_Burst] stitch: {len(stitched.ifg_paths)} stitched ifgs, "
+              f"{len(stitched.interferometric_corr_paths)} correlations -> "
+              f"{cfg.interferogram_network._directory}")
+        return (bool(stitched.ifg_paths)
+                and len(stitched.interferometric_corr_paths) >= len(stitched.ifg_paths))
 
     def run_unwrap(self, force: bool = False) -> bool:
-        """Unwrap with snaphu (notebook 3.8)."""
+        """Unwrap stitched ifgs with snaphu (dolphin ``unwrapping.run``)."""
+        ensure_proj_env()
+        from dolphin.workflows import unwrapping
 
-        t = int(getattr(self.config, "unwrap_tiles", 2))
+        cfg = self._dolphin_cfg()
+        stitched_dir = cfg.interferogram_network._directory
+        ifg_files = sorted(stitched_dir.glob("*.int.tif"))
+        cor_files = sorted(stitched_dir.glob("*.int.cor.tif"))
+        if not ifg_files:
+            raise FileNotFoundError(
+                f"ISCE3_Burst: no stitched .int.tif under {stitched_dir}; "
+                "run the 'stitch' stage first")
         mask = self.water_mask_path if self.water_mask_path.exists() else None
         if mask is None:
             logger.warning("ISCE3_Burst: no water mask at %s -- unwrapping over "
                            "water, which can seed errors that leak inland",
                            self.water_mask_path)
-        unw = unwrap_ifgs(
-            self.filt_dir, self.unwrap_dir,
-            nlooks=float(getattr(self.config, "unwrap_nlooks", 8.0)),
-            ntiles=(t, t),
-            cost=str(getattr(self.config, "unwrap_cost", "smooth")),
-            init_method=str(getattr(self.config, "unwrap_init_method", "mcf")),
-            mask_file=mask, max_workers=self._nw, force=force)
-        n_in = len(list(self.filt_dir.glob("*.int.tif")))
-        print(f"[ISCE3_Burst] unwrapped: {len(unw)}/{n_in} -> {self.unwrap_dir}")
-        return bool(unw) and len(unw) >= n_in
+        unwrapped, conncomp = unwrapping.run(
+            ifg_file_list=ifg_files,
+            cor_file_list=cor_files,
+            nlooks=self._unwrap_nlooks(),
+            unwrap_options=cfg.unwrap_options,
+            temporal_coherence_filename=self.quality_file(),
+            similarity_filename=None,
+            mask_file=str(mask) if mask else None,
+        )
+        print(f"[ISCE3_Burst] unwrap: {len(unwrapped)} unwrapped, "
+              f"{len(conncomp)} conncomp -> {cfg.unwrap_options._directory}")
+        return len(unwrapped) >= len(ifg_files)
+
+    def _unwrap_nlooks(self) -> float:
+        """Effective looks handed to snaphu, derived exactly as dolphin does.
+
+        dolphin's displacement workflow computes ``nlooks = (2*hw_y+1)*(2*hw_x+1)``
+        (15*29 = 435 at the defaults) -- the SHP window *is* the adaptive
+        multilook. A configured ``unwrap_nlooks`` overrides it.
+        """
+        v = getattr(self.config, "unwrap_nlooks", None)
+        if v:
+            return float(v)
+        return float(
+            (2 * int(getattr(self.config, "pl_half_window_y", 7)) + 1)
+            * (2 * int(getattr(self.config, "pl_half_window_x", 14)) + 1))
 
 # ----------------------------------------------------------------------
-# dolphin helpers: interferogram stages after ``cslc``
+# helpers
 # ----------------------------------------------------------------------
 #
-# COMPASS stops once every burst is a geocoded SLC (the ``cslc`` stage).
-# Everything after that -- pairing, interferogram formation, stitching,
-# multilooking, filtering, coherence and unwrapping -- is done here with
-# `dolphin <https://github.com/opera-adt/dolphin>`_, the OPERA package behind
-# the operational DISP-S1 product, rather than the COMPASS notebook's
-# hand-rolled ``utils.py`` helpers. Each of those has a maintained dolphin
-# equivalent:
-#
-#     generate_ifgram_pairs                -> dolphin.interferogram.Network(max_bandwidth=...)
-#     form_single_ifgram                   -> dolphin.interferogram.VRTInterferogram
-#     stitch_ifgrams                       -> _mosaic_complex
-#     multilook_tif                        -> dolphin.utils.take_looks
-#     filter_tif                           -> dolphin.goldstein.goldstein
-#     generate_phsig_coh_tif               -> dolphin.interferogram.estimate_interferometric_correlations
-#     unwrap_single_ifgram                 -> dolphin.unwrap.run (snaphu-py)
-#
-# Stitching is the one exception, and deliberately so: dolphin's mosaic warps
-# through GDAL, which does not honour nodata on complex bands, so one burst's
-# zero-fill silently erases another's data. :func:`_mosaic_complex` composites
-# by explicit validity mask instead; its docstring carries the measurements.
+# The dolphin engine (ifg/stitch/unwrap) delegates to dolphin's own
+# displacement.run sub-functions, so there are no hand-rolled interferogram
+# helpers left. What remains below is shared infrastructure: the PROJ/GDAL env
+# fix, the gdal_merge.py CLI shim dolphin's stitch shells out to, IONEX date
+# decoding, and the LOS geometry builder used by the `los`/`static` stage.
 #
 # Imports are deferred into the functions on purpose: dolphin lives in the
 # ``isce3`` conda env, not necessarily the one InSARHub is installed into, so
@@ -1461,31 +1385,38 @@ def ensure_proj_env() -> None:
             os.environ[var] = str(cand)
 
 
-def _burst_dirs(root: Path) -> list[Path]:
-    """Burst directories under ``root``; empty when it does not exist yet.
+def ensure_gdal_cli() -> None:
+    """Guarantee ``gdal_merge.py`` / ``gdal_calc.py`` are runnable.
 
-    Returning [] rather than raising matters for HPC planning: a stage's job
-    count is derived from its INPUT directory, and a full-chain submission asks
-    every stage for that count before anything has run. A bare iterdir() turned
-    "the previous stage has not produced its output yet" into an opaque
-    FileNotFoundError from deep inside the planner.
+    dolphin's stitching shells out to ``gdal_merge.py`` via subprocess (GDAL's
+    nodata read crashes on complex bands in-process, so dolphin warps + calls the
+    CLI). Some conda gdal builds -- including this env's -- ship libgdal without
+    those console scripts, so make sure they exist in the interpreter's bin dir
+    (thin wrappers onto ``osgeo_utils``) and that the dir is on PATH. Runs in
+    every process that stitches, including the bare ``<env>/bin/python`` SLURM
+    child jobs that never fired conda's activate hooks.
     """
-    import re
+    import sys
+    import stat
 
-    if not root.is_dir():
-        return []
-    pat = re.compile(_BURST_RE)
-    return sorted(d for d in root.iterdir() if d.is_dir() and pat.match(d.name))
-
-
-def _map(fn, items, max_workers: int) -> list:
-    """Thread-pool map that keeps ordering and does not swallow exceptions."""
-    if not items:
-        return []
-    if max_workers <= 1:
-        return [fn(i) for i in items]
-    with ThreadPoolExecutor(max_workers=max_workers) as ex:
-        return list(ex.map(fn, items))
+    bindir = Path(sys.executable).parent
+    parts = os.environ.get("PATH", "").split(os.pathsep)
+    if str(bindir) not in parts:
+        os.environ["PATH"] = str(bindir) + os.pathsep + os.environ.get("PATH", "")
+    for mod in ("gdal_merge", "gdal_calc"):
+        script = bindir / f"{mod}.py"
+        if script.exists():
+            continue
+        try:
+            script.write_text(
+                f"#!{sys.executable}\n"
+                f"import sys\n"
+                f"from osgeo_utils.{mod} import main\n"
+                f"sys.exit(main(sys.argv))\n")
+            script.chmod(script.stat().st_mode | stat.S_IXUSR | stat.S_IRUSR
+                         | stat.S_IWUSR)
+        except Exception as exc:                                  # noqa: BLE001
+            logger.warning("ensure_gdal_cli: could not create %s: %s", script, exc)
 
 
 def _ionex_dates_on_disk(tec_dir: Path) -> set[str]:
@@ -1506,6 +1437,8 @@ def _ionex_dates_on_disk(tec_dir: Path) -> set[str]:
     """
     from datetime import date as _date, timedelta as _td
 
+    from insarhub.utils.ionex import is_valid_ionex
+
     out: set[str] = set()
     if not tec_dir.is_dir():
         return out
@@ -1513,6 +1446,12 @@ def _ionex_dates_on_disk(tec_dir: Path) -> set[str]:
         m = (re.match(r"[A-Za-z]{3}\dOPSFIN_(\d{4})(\d{3})\d{4}_", f.name)
              or re.match(r"[a-z]{3}g(\d{3})\d\.(\d{2})i$", f.name))
         if not m:
+            continue
+        # A matching name is not enough: an unauthenticated CDDIS fetch saves a
+        # URS login PAGE under the right filename. Only count a date as cached
+        # when the bytes are a real, uncompressed IONEX map -- otherwise the
+        # stage would skip a date it never actually downloaded.
+        if not is_valid_ionex(f):
             continue
         if f.name[3:4].isdigit():                    # new form: YYYY then DDD
             yr, doy = int(m.group(1)), int(m.group(2))
@@ -1557,538 +1496,22 @@ def _intersect_window(uri: str, proj_win: list[float]) -> list[float] | None:
     return [ulx, uly, lrx, lry]
 
 
-# ----------------------------------------------------------------------
-# stage: crop  (notebook 3.1)
-# ----------------------------------------------------------------------
-
-def crop_cslc(cslc_dir: Path, out_dir: Path, aoi, *, buffer_deg: float = 0.05,
-              pol: str = "VV", max_workers: int = 3,
-              force: bool = False, only: str | None = None) -> tuple[int, int]:
-    """Cut each CSLC burst down to the AOI, writing ``<burst>/<date>.slc.tif``.
-
-    A COMPASS burst is ~10000 x 2300 px of geocoded complex data; an AOI is
-    usually a small part of that. Cropping first means every later stage --
-    interferograms, filtering, unwrapping -- moves a fraction of the pixels.
-
-    ``buffer_deg`` pads the AOI so filtering and unwrapping have valid data
-    outside the area of interest rather than hitting a nodata edge (the
-    notebook uses the same 0.05 degrees).
-
-    Returns ``(written, total)``.
-    """
-    ensure_proj_env()
-    from osgeo import gdal
-
-    gdal.UseExceptions()
-
-    w, s, e, n = (float(x) for x in aoi)
-    b = float(buffer_deg)
-    # gdal projWin is (ulx, uly, lrx, lry): west/north then east/south
-    proj_win = [w - b, n + b, e + b, s - b]
-
-    h5s = [f for f in sorted(cslc_dir.glob("t*_iw*/*/*.h5"))
-           if "static_layers" not in f.name]
-    if only:
-        # One burst per SLURM job. Each CSLC crops independently into its own
-        # <burst>/<date>.slc.tif, so restricting to one burst directory is the
-        # whole split -- the bursts never read each other.
-        h5s = [f for f in h5s if f.parent.parent.name == only]
-        if not h5s:
-            raise FileNotFoundError(
-                f"crop_cslc: burst {only!r} has no CSLC .h5 under {cslc_dir}")
-    if not h5s:
-        logger.warning("crop_cslc: no CSLC .h5 under %s", cslc_dir)
-        return (0, 0)
-
-    tasks = []
-    for f in h5s:
-        burst_id, date_str = f.parts[-3], f.parts[-2]
-        out = out_dir / burst_id / f"{date_str}.slc.tif"
-        if out.exists() and not force:
-            continue
-        tasks.append((f, out))
-
-    def _one(t):
-        src, out = t
-        out.parent.mkdir(parents=True, exist_ok=True)
-        uri = f'NETCDF:"{src}":/data/{pol}'
-        tmp = out.with_suffix(".tmp.tif")
-        try:
-            # Intersect the AOI window with the burst's own extent. A burst is a
-            # slanted footprint inside a much larger bounding raster, and an AOI
-            # commonly reaches past its edge; GDAL happily honours a projWin
-            # beyond the source and pads the difference with nodata, which
-            # inflates every downstream raster with empty rows and columns.
-            win = _intersect_window(uri, proj_win)
-            if win is None:
-                logger.warning("crop_cslc: %s does not intersect the AOI", src.name)
-                return False
-            gdal.Translate(str(tmp), uri, projWin=win,
-                           projWinSRS="EPSG:4326", format="GTiff",
-                           creationOptions=["COMPRESS=DEFLATE", "TILED=YES"])
-            tmp.replace(out)
-            return True
-        except Exception as exc:                                  # noqa: BLE001
-            logger.error("crop_cslc: %s -> %s failed: %s", src.name, out.name, exc)
-            tmp.unlink(missing_ok=True)
-            return False
-
-    results = _map(_one, tasks, max_workers)
-    made = len(list(out_dir.glob("t*_iw*/*.slc.tif")))
-    logger.info("crop_cslc: %d cropped this run, %d on disk (%d CSLC inputs)",
-                sum(results), made, len(h5s))
-    return (made, len(h5s))
-
-
-# ----------------------------------------------------------------------
-# stage: ifg  (notebook 3.2 + 3.3)
-# ----------------------------------------------------------------------
-
-_DATE_RE = re.compile(r"(\d{8})")
-
-
-def _date_of_slc(p: Path) -> str | None:
-    """``YYYYMMDD`` from a cropped-SLC filename (``20240102.slc.tif``)."""
-    m = _DATE_RE.search(Path(p).name)
-    return m.group(1) if m else None
-
-
-def pair_indexes(slcs: list[Path], pairs) -> list[tuple[int, int]]:
-    """Map ``(YYYYMMDD, YYYYMMDD)`` pairs onto positions in ``slcs``.
-
-    dolphin's ``Network(indexes=...)`` wants ``(ref_idx, sec_idx)`` positions in
-    ``slc_list``, not dates -- but a pair network is only meaningful as dates
-    (``select_pairs`` returns dates precisely because one date owns many
-    bursts). This is the translation.
-
-    Pairs naming a date the stack does not contain are dropped with a warning
-    rather than raising: a folder's pair file is written from the SEARCH, while
-    the SLCs on disk are whatever survived download and geocoding, so a
-    legitimate stack can be a subset. Ordering is normalised so the earlier date
-    is always the reference, and duplicates collapse -- dolphin would otherwise
-    happily form the same interferogram twice.
-    """
-    pos = {}
-    for i, p in enumerate(slcs):
-        d = _date_of_slc(p)
-        if d is not None:
-            pos.setdefault(d, i)
-
-    out: list[tuple[int, int]] = []
-    seen: set[tuple[int, int]] = set()
-    missing: set[str] = set()
-    for pair in pairs or []:
-        if len(pair) < 2:
-            continue
-        a, b = str(pair[0])[:8], str(pair[1])[:8]
-        if a not in pos or b not in pos:
-            missing.update(d for d in (a, b) if d not in pos)
-            continue
-        i, j = pos[a], pos[b]
-        if i == j:
-            continue
-        key = (i, j) if i < j else (j, i)
-        if key not in seen:
-            seen.add(key)
-            out.append(key)
-
-    if missing:
-        logger.warning("pair_indexes: %d pair-date(s) absent from the cropped "
-                       "stack, those pairs skipped: %s",
-                       len(missing), ", ".join(sorted(missing)[:8]))
-    return sorted(out)
-
-
-def _network_kwargs(n_connections: int, max_temporal_baseline: float | None,
-                    reference_idx: int | None,
-                    indexes: list[tuple[int, int]] | None = None) -> dict:
-    """Pick the one Network topology option dolphin should use.
-
-    They are mutually exclusive, and dolphin will NOT enforce that:
-    ``_make_ifg_pairs`` tests each option with a separate ``if``, so passing
-    two makes it emit the UNION of both networks rather than choosing. Exactly
-    one key is returned here for that reason.
-
-    Precedence, highest first:
-
-    ``reference_idx``  only ever set by phase linking's ``single_reference``
-                       mode, where the estimator's output already IS the
-                       single-reference stack; an explicit pair list cannot
-                       improve on it and is ignored (with a note) in that case.
-    ``indexes``        the user's own pair network, from ``config.pairs``.
-    ``max_temporal_baseline`` / ``max_bandwidth``   the rule-based fallbacks.
-    """
-    if reference_idx is not None:
-        if indexes:
-            print("[ISCE3_Burst] ignoring the explicit pair network: phase "
-                  "linking's single_reference output already is that network. "
-                  "Set pl_ifg_network=bandwidth to form your pairs instead.")
-        return {"reference_idx": int(reference_idx)}
-    if indexes:
-        return {"indexes": list(indexes)}
-    if max_temporal_baseline:
-        return {"max_temporal_baseline": float(max_temporal_baseline)}
-    return {"max_bandwidth": int(n_connections)}
-
-
-def build_network(crop_dir: Path, n_connections: int = 3,
-                  max_temporal_baseline: float | None = None,
-                  reference_idx: int | None = None,
-                  pairs=None) -> list[str]:
-    """Pair list as ``YYYYMMDD_YYYYMMDD``, over the dates EVERY burst shares.
-
-    The date list is the INTERSECTION across burst directories, not the first
-    burst's. ``--common-bursts-only`` drops bursts missing from some dates, but
-    it does not drop a date that is missing a burst -- so when ASF simply has
-    no coverage for one burst on one day, the burst stacks end up with
-    different date lists.
-
-    That happened on a real stack: ASF had burst 118970 but not 118971 on
-    2025-05-20, and 118971 but not 118970 on 2026-04-21. Building from
-    ``bursts[0]`` prescribed a pair the other burst could not form and never
-    mentioned the one it formed instead, so the two bursts silently built
-    DIFFERENT 95-pair networks and ifg_manifest.json described only one of
-    them. Downstream stages read that manifest, so two pairs would have
-    stitched from a single burst -- half-width products, unflagged.
-
-    Intersecting makes the network formable on every burst by construction:
-    the manifest then describes what actually exists, at the cost of dropping
-    the dates that were never fully covered anyway.
-
-    ``pairs`` is an explicit ``(YYYYMMDD, YYYYMMDD)`` network -- normally
-    ``config.pairs``, as written by ``S1_Burst.select_pairs``. When given it
-    replaces the rule-based topology; see :func:`_network_kwargs` for precedence.
-    """
-    ensure_proj_env()
-    from dolphin.interferogram import Network
-
-    bursts = _burst_dirs(crop_dir)
-    if not bursts:
-        raise FileNotFoundError(f"build_network: no burst dirs under {crop_dir}")
-
-    per_burst = {b.name: {_date_of_slc(f): f for f in b.glob("*.slc.tif")
-                          if _date_of_slc(f)} for b in bursts}
-    shared = set.intersection(*(set(d) for d in per_burst.values()))
-    dropped = {n: sorted(set(d) - shared) for n, d in per_burst.items()}
-    for name, miss in dropped.items():
-        if miss:
-            logger.warning(
-                "build_network: %s has %d date(s) no other burst covers, so "
-                "they cannot form a full-width interferogram and are excluded "
-                "from the network: %s", name, len(miss), ", ".join(miss))
-            print(f"[ISCE3_Burst] {name}: dropped {len(miss)} date(s) absent "
-                  f"from another burst ({', '.join(miss)})")
-
-    if len(shared) < 2:
-        raise ValueError(
-            f"build_network: only {len(shared)} date(s) are present in every "
-            f"burst ({', '.join(b.name for b in bursts)}); need at least 2. "
-            f"Per-burst date counts: "
-            f"{ {n: len(d) for n, d in per_burst.items()} }")
-
-    # Any burst's files work now that the dates agree; use the first for paths.
-    first = per_burst[bursts[0].name]
-    slcs = [first[d] for d in sorted(shared)]
-
-    idx = pair_indexes(slcs, pairs) if pairs else None
-    if pairs and not idx:
-        raise ValueError(
-            f"build_network: none of the {len(pairs)} configured pair(s) match "
-            f"the {len(slcs)} date(s) in {bursts[0].name}. The pair file names "
-            f"dates this stack does not contain -- re-run select_pairs against "
-            f"the downloaded stack, or clear config.pairs to use n_connections.")
-    kw = _network_kwargs(n_connections, max_temporal_baseline, reference_idx, idx)
-    net = Network(slc_list=slcs, verify_slcs=False, write=False, **kw)
-    return [f"{v.ref_date:%Y%m%d}_{v.sec_date:%Y%m%d}" for v in net.ifg_list]
-
-
-def phase_link_bursts(crop_dir: Path, pl_dir: Path, *,
-                      half_window: tuple[int, int] = (7, 14),
-                      strides: tuple[int, int] = (2, 4),
-                      ministack_size: int = 15, shp_method: str = "glrt",
-                      shp_alpha: float = 0.001, use_evd: bool = False,
-                      beta: float = 0.0, baseline_lag: int | None = None,
-                      max_workers: int = 1,
-                      force: bool = False) -> dict[str, Path]:
-    """Estimate each burst's phase history from the full SLC covariance.
-
-    The alternative to forming a chosen subset of pairs. Phase linking builds
-    the N x N sample covariance for every pixel neighbourhood and solves for the
-    phase history explaining all of it, so every pair contributes and there is
-    no network to select. ``baseline_lag`` band-limits the covariance if you
-    want the StBAS behaviour instead.
-
-    Two details make this drop into the existing chain unchanged:
-
-    * dolphin names the phase-linked SLCs ``<date>.slc.tif``, exactly the
-      convention :func:`crop_cslc` writes, so :func:`form_ifgs` runs on this
-      directory with no modification -- the post-estimation network stays fully
-      user-controlled via ``n_connections``.
-    * ``strides`` decimates on output, so it does the job ``take_looks`` does in
-      the pairwise path. The ``filt`` stage must therefore NOT multilook again;
-      :func:`run_ifg` records this in the manifest so it doesn't.
-
-    ``glrt``/``ks`` need per-pixel amplitude statistics, which dolphin's PS step
-    produces; that is run first here rather than being a documented
-    prerequisite, because without it the SHP estimator fails deep inside a
-    worker with an unrelated-looking ``AxisError``.
-
-    Returns ``{burst_id: temporal_coherence_path}``.
-    """
-    ensure_proj_env()
-    from dolphin import ps
-    from dolphin.io import VRTStack
-    from dolphin.workflows.sequential import run_wrapped_phase_sequential
-
-    bursts = _burst_dirs(crop_dir)
-    if not bursts:
-        raise FileNotFoundError(f"phase_link_bursts: no burst dirs under {crop_dir}")
-
-    out: dict[str, Path] = {}
-    for bd in bursts:
-        slcs = sorted(bd.glob("*.slc.tif"))
-        if len(slcs) < 2:
-            logger.warning("phase_link_bursts: %s has %d SLC(s), skipping",
-                           bd.name, len(slcs))
-            continue
-        dest = pl_dir / bd.name
-        done = sorted(dest.glob("2*.slc.tif"))
-        if len(done) == len(slcs) and not force:
-            tc = sorted(dest.glob("temporal_coherence_*.tif"))
-            if tc:
-                out[bd.name] = tc[0]
-                logger.info("phase_link_bursts: %s already linked, skipping", bd.name)
-                continue
-        dest.mkdir(parents=True, exist_ok=True)
-
-        vrt = VRTStack(file_list=slcs, outfile=dest / "slc_stack.vrt")
-        amp_mean = dest / "amp_mean.tif"
-        amp_disp = dest / "amp_dispersion.tif"
-        ps_mask = dest / "ps_pixels.tif"
-        if not amp_disp.exists() or force:
-            ps.create_ps(reader=vrt, like_filename=vrt.outfile,
-                         output_file=ps_mask, output_amp_mean_file=amp_mean,
-                         output_amp_dispersion_file=amp_disp)
-
-        res = run_wrapped_phase_sequential(
-            slc_vrt_stack=vrt, output_folder=dest,
-            ministack_size=int(ministack_size),
-            half_window={"y": int(half_window[0]), "x": int(half_window[1])},
-            strides={"y": int(strides[0]), "x": int(strides[1])},
-            shp_method=str(shp_method), shp_alpha=float(shp_alpha),
-            use_evd=bool(use_evd), beta=float(beta),
-            baseline_lag=baseline_lag,
-            amp_mean_file=amp_mean, amp_dispersion_file=amp_disp,
-            ps_mask_file=ps_mask,
-            # dolphin's own workflow defaults (PhaseLinkingOptions), NOT the
-            # looser ones in run_wrapped_phase_sequential's signature. The two
-            # disagree: the function signature is the older low-level API and
-            # still says max_num_compressed=100 / write_closure_phase=True,
-            # while the configuration dolphin actually ships and OPERA runs
-            # says 10 / False. Passing them explicitly keeps this pipeline on
-            # the shipped configuration instead of silently inheriting
-            # whichever value the function signature happens to carry.
-            max_num_compressed=10,
-            write_closure_phase=False,
-            max_workers=max(1, int(max_workers)),
-            disable=True,                      # tqdm option; see note below
-        )
-        pl_slcs, _crlb, _closure, _comp, temp_coh, _shp, _sim = res
-        if temp_coh:
-            out[bd.name] = Path(list(temp_coh)[0])
-        logger.info("phase_link_bursts: %s -> %d phase-linked SLCs",
-                    bd.name, len(list(pl_slcs)))
-    return out
-
-
-def form_ifgs(crop_dir: Path, out_dir: Path, *, n_connections: int = 3,
-              max_temporal_baseline: float | None = None,
-              reference_idx: int | None = None, pairs=None,
-              max_workers: int = 3, force: bool = False) -> list[str]:
-    """Form every pair for every burst: ``<burst>/<d1>_<d2>.int.tif``.
-
-    dolphin builds each interferogram as a VRT with a ``mul`` pixel function --
-    nothing is computed until read. That is ideal for a chain that stays inside
-    dolphin, but the VRT points at absolute source paths and only exists as a
-    recipe, so the stack would break if the CSLCs moved. These are materialised
-    to real GeoTIFFs, matching what the notebook leaves on disk.
-
-    Returns the pair list.
-    """
-    ensure_proj_env()
-    import numpy as np
-    from dolphin import io
-    from dolphin.interferogram import Network
-
-    want_pairs = pairs
-    pairs = build_network(crop_dir, n_connections, max_temporal_baseline,
-                          reference_idx, want_pairs)
-    bursts = _burst_dirs(crop_dir)
-    logger.info("form_ifgs: %d pairs x %d bursts = %d interferograms",
-                len(pairs), len(bursts), len(pairs) * len(bursts))
-
-    tasks = []
-    # Restrict every burst to the dates the network was actually built over.
-    # Globbing a burst's own files here would re-introduce the divergence
-    # build_network just removed: a burst holding a date no other burst covers
-    # would form a pair present in no other burst and in no manifest, and
-    # stitch would later find one burst for that pair instead of two.
-    net_dates = {d for p in pairs for d in p.split("_")}
-    for bd in bursts:
-        slcs = [f for f in sorted(bd.glob("*.slc.tif"))
-                if _date_of_slc(f) in net_dates]
-        # Indexes are positions in THIS burst's slc_list. The stack is built
-        # with --common-bursts-only so every burst holds the same dates and the
-        # mapping is identical, but deriving it per burst keeps a partially
-        # geocoded burst from silently pairing the wrong two dates.
-        kw = _network_kwargs(n_connections, max_temporal_baseline, reference_idx,
-                             pair_indexes(slcs, want_pairs) if want_pairs else None)
-        vrt_dir = out_dir / bd.name / ".vrt"
-        vrt_dir.mkdir(parents=True, exist_ok=True)
-        net = Network(slc_list=slcs, outdir=vrt_dir, verify_slcs=False,
-                      write=True, **kw)
-        for v in net.ifg_list:
-            out = out_dir / bd.name / f"{v.ref_date:%Y%m%d}_{v.sec_date:%Y%m%d}.int.tif"
-            if out.exists() and not force:
-                continue
-            tasks.append((Path(v.path), out))
-
-    def _one(t):
-        vrt, out = t
-        try:
-            arr = io.load_gdal(vrt)
-            io.write_arr(arr=arr.astype(np.complex64), output_name=out,
-                         driver="GTiff", like_filename=vrt,
-                         options=["COMPRESS=DEFLATE", "TILED=YES"])
-            return True
-        except Exception as exc:                                  # noqa: BLE001
-            logger.error("form_ifgs: %s failed: %s", out.name, exc)
-            return False
-
-    ok = _map(_one, tasks, max_workers)
-    logger.info("form_ifgs: %d/%d formed this run", sum(ok), len(tasks))
-    return pairs
-
-
-# ----------------------------------------------------------------------
-# stage: stitch  (notebook 3.4)
-# ----------------------------------------------------------------------
-
-def _mosaic_complex(files: list[Path], out_path: Path, aoi=None) -> Path:
-    """Composite co-gridded complex bursts, keeping the first valid pixel.
-
-    Written by hand rather than handed to ``dolphin.stitching.merge_images``
-    because that path silently drops all but the last burst here. It mosaics by
-    warping through GDAL, and a burst's empty region is plain ``0+0j`` rather
-    than a declared nodata value -- so the last file's zeros overwrite the
-    earlier files' real data. Declaring ``nodata=0`` on the rasters and passing
-    ``in_nodata=0`` were both measured to make no difference: GDAL does not
-    honour nodata for complex bands. On the Hawaii A124 test stack that turned a
-    1103 km2 two-burst union into 583 km2, one burst's worth, with no warning.
-
-    ``dolphin`` is not at fault for its own purpose -- DISP-S1 stitches
-    unwrapped and phase-linked rasters, which are real-valued and carry proper
-    nodata. Complex burst mosaicking is outside what it stitches.
-
-    All inputs share the CSLC grid (same CRS and posting, cropped from a common
-    window), so this pastes by integer offset instead of resampling, which also
-    avoids interpolating across the phase discontinuity at a burst edge.
-    """
-    import numpy as np
-    from osgeo import gdal, osr
-    from pyproj import Transformer
-
-    gdal.UseExceptions()
-
-    metas = []
-    for f in files:
-        ds = gdal.Open(str(f))
-        metas.append({"path": f, "gt": ds.GetGeoTransform(),
-                      "nx": ds.RasterXSize, "ny": ds.RasterYSize,
-                      "proj": ds.GetProjection()})
-        ds = None
-
-    gt0 = metas[0]["gt"]
-    dx, dy = gt0[1], gt0[5]
-    for m in metas[1:]:
-        if abs(m["gt"][1] - dx) > 1e-6 or abs(m["gt"][5] - dy) > 1e-6:
-            raise ValueError(
-                f"_mosaic_complex: {m['path'].name} has posting "
-                f"{m['gt'][1]}/{m['gt'][5]}, expected {dx}/{dy}")
-
-    # union extent, then clip to the AOI
-    x_min = min(m["gt"][0] for m in metas)
-    x_max = max(m["gt"][0] + m["gt"][1] * m["nx"] for m in metas)
-    y_max = max(m["gt"][3] for m in metas)
-    y_min = min(m["gt"][3] + m["gt"][5] * m["ny"] for m in metas)
-
-    if aoi is not None and len(aoi) == 4:
-        tf = Transformer.from_crs("EPSG:4326", metas[0]["proj"], always_xy=True)
-        w, s, e, n = (float(v) for v in aoi)
-        xs, ys = tf.transform([w, e, w, e], [s, n, n, s])
-        x_min = max(x_min, min(xs)); x_max = min(x_max, max(xs))
-        y_min = max(y_min, min(ys)); y_max = min(y_max, max(ys))
-
-    nx = int(round((x_max - x_min) / abs(dx)))
-    ny = int(round((y_max - y_min) / abs(dy)))
-    if nx <= 0 or ny <= 0:
-        raise ValueError(f"_mosaic_complex: empty output extent for {out_path.name}")
-    out_gt = (x_min, abs(dx), 0.0, y_max, 0.0, -abs(dy))
-
-    acc = np.zeros((ny, nx), dtype=np.complex64)
-    filled = np.zeros((ny, nx), dtype=bool)
-
-    for m in metas:
-        ds = gdal.Open(str(m["path"]))
-        src = ds.GetRasterBand(1).ReadAsArray()
-        ds = None
-        # integer offset of this burst's origin within the output grid
-        cx = (m["gt"][0] - x_min) / abs(dx)
-        ry = (y_max - m["gt"][3]) / abs(dy)
-        if abs(cx - round(cx)) > 0.01 or abs(ry - round(ry)) > 0.01:
-            logger.warning("_mosaic_complex: %s is off-grid by (%.2f, %.2f) px; "
-                           "pasting to the nearest pixel",
-                           m["path"].name, cx - round(cx), ry - round(ry))
-        c0, r0 = int(round(cx)), int(round(ry))
-
-        # overlap of the source with the output window, in both index spaces
-        sr0, sc0 = max(0, -r0), max(0, -c0)
-        dr0, dc0 = max(0, r0), max(0, c0)
-        h = min(m["ny"] - sr0, ny - dr0)
-        w_ = min(m["nx"] - sc0, nx - dc0)
-        if h <= 0 or w_ <= 0:
-            continue
-
-        sub = src[sr0:sr0 + h, sc0:sc0 + w_]
-        dst = (slice(dr0, dr0 + h), slice(dc0, dc0 + w_))
-        valid = np.isfinite(sub) & (np.abs(sub) > 1e-6)
-        take = valid & ~filled[dst]
-        acc[dst][take] = sub[take]
-        filled[dst] |= take
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    srs = osr.SpatialReference()
-    srs.ImportFromWkt(metas[0]["proj"])
-    drv = gdal.GetDriverByName("GTiff")
-    ods = drv.Create(str(out_path), nx, ny, 1, gdal.GDT_CFloat32,
-                     options=["COMPRESS=DEFLATE", "TILED=YES"])
-    ods.SetGeoTransform(out_gt)
-    ods.SetProjection(srs.ExportToWkt())
-    ods.GetRasterBand(1).WriteArray(acc)
-    ods = None
-    return out_path
-
-
 def _mosaic_real(files: list[Path], out_path: Path, aoi=None,
-                 nodata: float = 0.0) -> Path:
+                 nodata: float = 0.0, drop_degenerate: bool = False) -> Path:
     """Composite co-gridded real-valued burst rasters, first valid pixel wins.
 
-    The real-valued twin of :func:`_mosaic_complex`, used for the static
-    geometry layers. Kept separate rather than folded in because "valid" is a
-    different test: a complex interferogram's empty region is ``0+0j`` and
-    ``|z| > 1e-6`` identifies data, whereas a LOS component is a signed number
-    that legitimately passes near zero, so validity here is ``isfinite`` plus an
-    explicit nodata comparison.
+    Used for the static geometry layers (build_los_layers). "valid" is
+    ``isfinite`` plus an explicit nodata comparison, because a LOS component is
+    a signed number that legitimately passes near zero.
+
+    ``drop_degenerate`` (temporal-coherence mosaic only): treat coherence == 1.0
+    as invalid. Phase linking emits a perfect-coherence artifact along each
+    burst's edge (a window with a single/near-single sample). Where two bursts
+    overlap, first-valid-wins would let burst A's degenerate edge overwrite
+    burst B's real interior, so the stitched coherence -- and every mask derived
+    from it -- carries a bright line across the seam. Skipping coherence == 1.0
+    lets the burst with real coherence win the overlap instead. A pixel where
+    both bursts are degenerate stays 1.0 (nothing better to fall back to).
     """
     import numpy as np
     from osgeo import gdal, osr
@@ -2122,6 +1545,8 @@ def _mosaic_real(files: list[Path], out_path: Path, aoi=None,
     ny = int(round((y_max - y_min) / abs(dy)))
     acc = np.full((ny, nx), np.nan, dtype=np.float32)
     filled = np.zeros((ny, nx), dtype=bool)
+    # priority of the value currently held at each pixel (drop_degenerate only)
+    best = np.full((ny, nx), -1.0, dtype=np.float32)
 
     for m in metas:
         ds = gdal.Open(str(m["path"]))
@@ -2138,9 +1563,25 @@ def _mosaic_real(files: list[Path], out_path: Path, aoi=None,
         sub = src[sr0:sr0 + h, sc0:sc0 + w_]
         dst = (slice(dr0, dr0 + h), slice(dc0, dc0 + w_))
         valid = np.isfinite(sub) & (sub != nodata)
-        take = valid & ~filled[dst]
-        acc[dst][take] = sub[take]
-        filled[dst] |= take
+        if drop_degenerate:
+            # Quality mosaic: keep, per pixel, the HIGHEST real coherence across
+            # the bursts that cover it, not the first one. In the burst overlap
+            # each burst is at its tapered azimuth edge, so first-valid-wins can
+            # take burst A's low/degenerate value while burst B has a good one
+            # right there -- which draws the seam line. Ranking by coherence
+            # (coh == 1.0 demoted below any real value, so it wins only where
+            # nothing real covers) picks the good burst and the overlap ends up
+            # as clean as the surrounding scene. ``best`` holds the priority of
+            # whatever currently occupies each pixel.
+            prio = np.where(valid & (sub < 0.999999), sub,
+                            np.where(valid, 1e-4, -1.0)).astype(np.float32)
+            take = valid & (prio > best[dst])
+            acc[dst][take] = sub[take]
+            best[dst][take] = prio[take]
+        else:
+            take = valid & ~filled[dst]
+            acc[dst][take] = sub[take]
+            filled[dst] |= take
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     srs = osr.SpatialReference()
@@ -2264,290 +1705,3 @@ def build_los_layers(cslc_dir: Path, out_dir: Path, aoi, like_raster: Path,
     return made
 
 
-def stitch_ifgs(ifg_dir: Path, out_dir: Path, aoi=None,
-                max_workers: int = 3, only: str | None = None) -> list[Path]:
-    """Merge the per-burst interferograms of each pair into one raster.
-
-    ``group_by_date`` keys on every date it finds in the filename, so
-    ``20240705_20240717.int.tif`` groups by the ``(ref, sec)`` tuple and all
-    bursts of one pair -- and only those -- land in a single output.
-
-    ``only`` restricts the run to one pair (``"20240705_20240717"``), which is
-    what lets each pair become its own SLURM job. Mosaicking a pair reads only
-    that pair's bursts and writes only its own output, so the split is safe --
-    no shared state, nothing to reduce afterwards.
-    """
-    ensure_proj_env()
-    from opera_utils import group_by_date
-
-    files = sorted(ifg_dir.glob("t*_iw*/*.int.tif"))
-    if not files:
-        raise FileNotFoundError(f"stitch_ifgs: no per-burst .int.tif under {ifg_dir}")
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    groups = group_by_date(files)
-    tasks = [(sorted(flist),
-              out_dir / f"{k[0]:%Y%m%d}_{k[1]:%Y%m%d}.int.tif")
-             for k, flist in sorted(groups.items())]
-    if only:
-        tasks = [t for t in tasks if t[1].name.startswith(only)]
-        if not tasks:
-            raise FileNotFoundError(
-                f"stitch_ifgs: pair {only!r} has no per-burst interferograms "
-                f"under {ifg_dir}")
-
-    def _one(t):
-        flist, out = t
-        try:
-            return _mosaic_complex(flist, out, aoi)
-        except Exception as exc:                                  # noqa: BLE001
-            logger.error("stitch_ifgs: %s failed: %s", out.name, exc)
-            return None
-
-    _map(_one, tasks, max_workers)
-    made = sorted(out_dir.glob("*.int.tif"))
-    logger.info("stitch_ifgs: %d per-burst (%d bursts) -> %d stitched",
-                len(files), len(files) // max(1, len(tasks)), len(made))
-    return made
-
-
-# ----------------------------------------------------------------------
-# stage: filt  (notebook 3.5 + 3.6 + 3.7)
-# ----------------------------------------------------------------------
-
-def filter_ifgs(stitch_dir: Path, out_dir: Path, *, lks_y: int = 2, lks_x: int = 4,
-                alpha: float = 0.5, coh_window: int = 11, max_workers: int = 3,
-                force: bool = False, only: str | None = None
-                ) -> list[tuple[Path, Path]]:
-    """Multilook, Goldstein-filter, then estimate coherence.
-
-    One pass per pair rather than the notebook's three, so a full-size complex
-    raster is not written and re-read twice in between.
-
-    Coherence is estimated *after* filtering, matching the notebook. That makes
-    it comparable to ISCE's ``filt_fine.cor`` (a filtered-phase quality measure),
-    not to a raw normalised cross-correlation -- filtering raises it, so it must
-    not be read as the raw interferometric correlation.
-
-    Returns ``[(ifg, cor), ...]``.
-    """
-    ensure_proj_env()
-    import numpy as np
-    from dolphin import io
-    from dolphin.goldstein import goldstein
-    from dolphin.interferogram import estimate_interferometric_correlations
-    from dolphin.utils import take_looks
-
-    files = sorted(stitch_dir.glob("*.int.tif"))
-    if only:
-        # One pair per SLURM job. Filtering is strictly per-raster -- multilook,
-        # Goldstein and coherence all read one interferogram and write one pair
-        # of outputs -- so restricting the glob is the whole change.
-        files = [f for f in files if f.name.startswith(only)]
-        if not files:
-            raise FileNotFoundError(
-                f"filter_ifgs: pair {only!r} not stitched in {stitch_dir}")
-    if not files:
-        raise FileNotFoundError(f"filter_ifgs: no stitched .int.tif in {stitch_dir}")
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    todo = [f for f in files if force or not (out_dir / f.name).exists()]
-
-    def _one(f: Path):
-        out = out_dir / f.name
-        try:
-            arr = io.load_gdal(f)
-            ml = take_looks(arr, int(lks_y), int(lks_x), func_type="nanmean")
-            filt = goldstein(ml.astype(np.complex64), alpha=float(alpha))
-
-            # multilooking changes the pixel size; the geotransform must follow
-            # or every downstream product is georeferenced wrong
-            gt = list(io.get_raster_gt(f))
-            gt[1] *= int(lks_x)
-            gt[5] *= int(lks_y)
-            io.write_arr(arr=filt.astype(np.complex64), output_name=out,
-                         driver="GTiff", like_filename=f, shape=filt.shape,
-                         dtype=np.complex64, geotransform=tuple(gt),
-                         projection=io.get_raster_crs(f).to_wkt(),
-                         options=["COMPRESS=DEFLATE", "TILED=YES"])
-            return True
-        except Exception as exc:                                  # noqa: BLE001
-            logger.error("filter_ifgs: %s failed: %s", f.name, exc)
-            return False
-
-    ok = _map(_one, todo, max_workers)
-    logger.info("filter_ifgs: %d/%d multilooked+filtered", sum(ok), len(todo))
-
-    made = sorted(out_dir.glob("*.int.tif"))
-    if only:
-        # Restrict the coherence step to THIS job's pair as well. Globbing the
-        # output directory here was a real bug: `only` bounded the multilook /
-        # Goldstein loop above but not this reduce, so every concurrent job
-        # recomputed coherence for every file present and wrote the same
-        # .cor.tif paths at the same time. GDAL surfaced it as
-        #     TIFFResetField: <pair>.int.cor.tif: Can not read TIFF directory entry
-        # on 6 of the first 8 jobs -- corrupt output, not a data problem.
-        made = [f for f in made if f.name.startswith(only)]
-    cors = estimate_interferometric_correlations(
-        made, window_size=(int(coh_window), int(coh_window)),
-        out_driver="GTiff", num_workers=max_workers)
-    logger.info("filter_ifgs: %d coherence rasters", len(cors))
-    return list(zip(made, [Path(c) for c in cors]))
-
-
-# ----------------------------------------------------------------------
-# stage: unwrap  (notebook 3.8)
-# ----------------------------------------------------------------------
-
-def water_mask_on_grid(wbd_path: Path, like_raster: Path,
-                       out_path: Path) -> Path | None:
-    """Warp the NASADEM ``.wbd`` water mask onto an interferogram's grid.
-
-    Two conversions are needed and both are easy to get backwards.
-
-    *Format*: ``swbd_nasadem.wbd`` is a headerless uint8 raster -- GDAL cannot
-    open it at all ("not recognized as being in a supported file format"). Its
-    geotransform lives in a sidecar ``.json`` written by sardem, so the array is
-    read with numpy and wrapped in an in-memory GDAL dataset before warping.
-
-    *Polarity*: the ``.wbd`` marks **water** with nonzero, while dolphin's mask
-    convention is **1 = valid pixel, 0 = invalid**. The mask is therefore
-    inverted on write. Getting this backwards silently unwraps the ocean and
-    masks the land -- it does not raise, it just returns nonsense.
-
-    Returns the written mask, or None if the ``.wbd``/``.json`` pair is missing.
-    """
-    ensure_proj_env()
-    import json
-
-    import numpy as np
-    from osgeo import gdal, osr
-
-    gdal.UseExceptions()
-
-    wbd_path = Path(wbd_path)
-    meta_path = wbd_path.with_suffix(".json")
-    if not wbd_path.exists() or not meta_path.exists():
-        logger.warning("water_mask_on_grid: need both %s and %s", wbd_path, meta_path)
-        return None
-
-    meta = json.loads(meta_path.read_text())
-    wbd = np.fromfile(wbd_path, dtype=np.uint8).reshape(meta["height"], meta["width"])
-
-    mem = gdal.GetDriverByName("MEM")
-    wgs = osr.SpatialReference()
-    wgs.ImportFromEPSG(4326)
-    src = mem.Create("", meta["width"], meta["height"], 1, gdal.GDT_Byte)
-    src.SetGeoTransform((meta["lon0"], meta["dlon"], 0, meta["lat0"], 0, meta["dlat"]))
-    src.SetProjection(wgs.ExportToWkt())
-    src.GetRasterBand(1).WriteArray(wbd)
-
-    ref = gdal.Open(str(like_raster))
-    dst = mem.Create("", ref.RasterXSize, ref.RasterYSize, 1, gdal.GDT_Byte)
-    dst.SetGeoTransform(ref.GetGeoTransform())
-    dst.SetProjection(ref.GetProjection())
-    gdal.ReprojectImage(src, dst, wgs.ExportToWkt(), ref.GetProjection(),
-                        gdal.GRA_NearestNeighbour)
-    warped = dst.GetRasterBand(1).ReadAsArray()
-    src = dst = ref = None
-
-    valid = (warped == 0).astype(np.uint8)      # water -> 0 (invalid), land -> 1
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out = gdal.GetDriverByName("GTiff").Create(
-        str(out_path), valid.shape[1], valid.shape[0], 1, gdal.GDT_Byte)
-    ref2 = gdal.Open(str(like_raster))
-    out.SetGeoTransform(ref2.GetGeoTransform())
-    out.SetProjection(ref2.GetProjection())
-    out.GetRasterBand(1).WriteArray(valid)
-    out = ref2 = None
-
-    logger.info("water_mask_on_grid: %s -- %.1f%% water masked out",
-                out_path.name, 100.0 * (1.0 - valid.mean()))
-    return out_path
-
-def unwrap_ifgs(filt_dir: Path, out_dir: Path, *, nlooks: float = 8,
-                ntiles: tuple[int, int] = (2, 2), tile_overlap: int = 200,
-                cost: str = "smooth", init_method: str = "mcf",
-                mask_file: Path | None = None, max_workers: int = 3,
-                force: bool = False, only: str | None = None,
-                prepare_only: bool = False) -> list[Path]:
-    """snaphu-unwrap every filtered pair, writing ``<d1>_<d2>.unw.tif``.
-
-    Also writes ``.unw.conncomp.tif`` connected-component labels. Those matter
-    for the SBAS step that consumes this stack: a pair whose largest component
-    covers only part of the scene has an unwrapping error somewhere, and time
-    series inversion should down-weight or drop it.
-    """
-    ensure_proj_env()
-    from dolphin import unwrap
-    from dolphin.workflows.config import SnaphuOptions, UnwrapMethod, UnwrapOptions
-
-    ifgs = sorted(filt_dir.glob("*.int.tif"))
-    if not ifgs:
-        raise FileNotFoundError(f"unwrap_ifgs: no filtered .int.tif in {filt_dir}")
-
-    cors, paired = [], []
-    for f in ifgs:
-        c = f.with_suffix(".cor.tif")            # <stem>.int.tif -> <stem>.int.cor.tif
-        if not c.exists():
-            logger.error("unwrap_ifgs: no coherence for %s (expected %s)",
-                         f.name, c.name)
-            continue
-        paired.append(f)
-        cors.append(c)
-    if not paired:
-        raise FileNotFoundError(
-            f"unwrap_ifgs: no ifg/coherence pairs in {filt_dir}; run 'filt' first")
-
-    # unwrap.run writes straight into output_path and will not create it
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    # A raw .wbd is not a GDAL raster and uses the opposite polarity to
-    # dolphin's mask; convert it onto this stack's grid first. All filtered
-    # interferograms share that grid, so the first one defines it.
-    #
-    # This is the ONE piece of shared state in an otherwise per-pair stage, so
-    # it must not run inside per-pair jobs: N of them would race to write the
-    # same water_mask.tif, and a job reading it mid-write gets a truncated
-    # raster. `prepare_only` builds it once (its own single-job phase); the
-    # per-pair jobs then find it on disk and reuse it.
-    grid_mask = out_dir / "water_mask.tif"
-    if mask_file is not None:
-        mask_file = Path(mask_file)
-        if mask_file.suffix == ".wbd":
-            if grid_mask.exists() and not force:
-                mask_file = grid_mask
-            else:
-                mask_file = water_mask_on_grid(mask_file, paired[0], grid_mask)
-
-    if prepare_only:
-        print(f"[ISCE3_Burst] unwrap prologue done: "
-              f"{'water mask ' + grid_mask.name if mask_file else 'no water mask'}")
-        return []
-
-    if only:
-        keep = [i for i, f in enumerate(paired) if f.name.startswith(only)]
-        if not keep:
-            raise FileNotFoundError(
-                f"unwrap_ifgs: pair {only!r} has no filtered interferogram in "
-                f"{filt_dir}")
-        paired = [paired[i] for i in keep]
-        cors = [cors[i] for i in keep]
-
-    opts = UnwrapOptions(
-        unwrap_method=UnwrapMethod.SNAPHU,
-        run_goldstein=False,        # the filt stage already applied Goldstein
-        n_parallel_jobs=max(1, int(max_workers)),
-        snaphu_options=SnaphuOptions(
-            ntiles=tuple(ntiles), tile_overlap=(tile_overlap, tile_overlap),
-            init_method=init_method, cost=cost),
-    )
-    kw = {}
-    if mask_file and Path(mask_file).exists():
-        kw["mask_filename"] = str(mask_file)
-
-    unw, ccl = unwrap.run(ifg_filenames=paired, cor_filenames=cors,
-                          output_path=out_dir, unwrap_options=opts,
-                          nlooks=float(nlooks), overwrite=bool(force), **kw)
-    logger.info("unwrap_ifgs: %d unwrapped, %d conncomp", len(unw), len(ccl))
-    return [Path(u) for u in unw]

@@ -8,7 +8,7 @@ Runs the actual insarhub library against real infrastructure, no mocking:
   - submits real InSAR_GAMMA jobs to HyP3 (consumes real processing credits
     on your Earthdata account)
   - watches HyP3 for real job status and downloads the real result ZIPs
-  - runs Hyp3_SBAS.prep_data() for real (real rasterio clip/overlap)
+  - runs Hyp3_Mintpy_SBAS.prep_data() for real (real rasterio clip/overlap)
   - runs the real MintPy time-series workflow
 
 Operates on p100_f466/ (repo root) by default -- a real S1 SLC stack
@@ -46,10 +46,10 @@ FRAME = 466
 
 
 def run_pipeline(workdir: Path) -> None:
-    from insarhub.config import S1_SLC_Config, Hyp3_S1_Config, Hyp3_SBAS_Config
+    from insarhub.config import S1_SLC_Config, Hyp3_S1_Config, Hyp3_Mintpy_SBAS_Config
     from insarhub.downloader.s1_slc import S1_SLC
     from insarhub.processor.hyp3_s1 import Hyp3_S1
-    from insarhub.analyzer.hyp3_sbas import Hyp3_SBAS
+    from insarhub.analyzer.hyp3_sbas import Hyp3_Mintpy_SBAS
 
     workdir.mkdir(parents=True, exist_ok=True)
     jobs_path = workdir / "hyp3_jobs.json"
@@ -66,7 +66,7 @@ def run_pipeline(workdir: Path) -> None:
         )
         downloader = S1_SLC(dl_cfg)
         downloader.search()
-        pairs, *_ = downloader.select_pairs()  # real ASF search is cheap/idempotent to redo
+        pairs, *_ = downloader.select_pairs(quality_check=False, plot_network=False)  # real ASF search is cheap/idempotent to redo
 
         proc = Hyp3_S1(Hyp3_S1_Config(workdir=str(workdir), pairs=pairs))
         proc.submit()
@@ -77,8 +77,8 @@ def run_pipeline(workdir: Path) -> None:
     # downloading each job's real output ZIP as it finishes.
     proc.watch()
 
-    print("== Stage 3/3: Hyp3_SBAS prep_data + real MintPy run " + "=" * 30)
-    analyzer = Hyp3_SBAS(Hyp3_SBAS_Config(workdir=str(workdir)))
+    print("== Stage 3/3: Hyp3_Mintpy_SBAS prep_data + real MintPy run " + "=" * 30)
+    analyzer = Hyp3_Mintpy_SBAS(Hyp3_Mintpy_SBAS_Config(workdir=str(workdir)))
     analyzer.prep_data()
     # troposphericDelay_method defaults to 'pyaps', which needs a CDS API
     # token (~/.cdsapirc) for the correct_troposphere step -- you'll be

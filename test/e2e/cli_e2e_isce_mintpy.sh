@@ -4,12 +4,12 @@
 # Runs the actual insarhub CLI with no mocking of any kind:
 #   - downloads real Sentinel-1 SLC scenes (~4GB each)
 #   - runs real ISCE2 stackSentinel processing for every real selected pair
-#   - runs ISCE_SBAS.prep_data() for real (real path discovery)
+#   - runs ISCE2_Mintpy_SBAS.prep_data() for real (real path discovery)
 #   - runs the real MintPy time-series workflow
 #
 # By default this operates on p100_f466_isce/ (repo root) — a real S1 SLC
 # stack (path 100 / frame 466), kept separate from cli_e2e_hyp3_mintpy.sh's
-# default p100_f466/ workdir: Hyp3_SBAS and ISCE_SBAS derive their MintPy
+# default p100_f466/ workdir: Hyp3_Mintpy_SBAS and ISCE2_Mintpy_SBAS derive their MintPy
 # output directory purely from workdir (workdir/mintpy/, with no
 # analyzer-type awareness — see MintPyPaths in config/paths.py), so running
 # both e2e tests against the same workdir would silently overwrite one
@@ -87,8 +87,8 @@ echo "== Stage 3/4: Watch real ISCE2 processing to completion ==================
 # on-disk state.
 insarhub processor -N ISCE2_S1 -w "$WORKDIR" watch
 
-echo "== Stage 4/4: ISCE_SBAS prep_data + real MintPy run ==========================="
-insarhub analyzer -N ISCE_SBAS -w "$WORKDIR" run --step prep_data
-insarhub analyzer -N ISCE_SBAS -w "$WORKDIR" run
+echo "== Stage 4/4: ISCE2_Mintpy_SBAS prep_data + real MintPy run ==========================="
+insarhub analyzer -N ISCE2_Mintpy_SBAS -w "$WORKDIR" run --step prep_data
+insarhub analyzer -N ISCE2_Mintpy_SBAS -w "$WORKDIR" run
 
 echo "Done. MintPy outputs are under $WORKDIR/mintpy/"

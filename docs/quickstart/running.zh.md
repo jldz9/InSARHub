@@ -206,6 +206,31 @@ s1.reset()
 
     所有步骤显示 `SUCCEEDED` 后，干涉图位于 `workdir/isce/merged/interferograms/`。
 
+=== "在容器中处理"
+
+    在预构建的镜像内运行处理流程——主机上只需 Docker（或 Apptainer），无需本地安装 ISCE2。将 `container` 设为镜像名称（可用镜像见[安装](install.md)）；InSARHub 会在容器内部重新调用自身，并挂载工作目录。
+
+    ```python
+    from insarhub import Processor
+    from insarhub.config import ISCE2_S1_Config
+
+    for (path, frame), pairs in pair_stacks.items():
+        cfg = ISCE2_S1_Config(
+            workdir=f'your/directory/p{path}_f{frame}',
+            bbox=[37.74, 38.00, -113.05, -112.68],   # [S, N, W, E]
+            slc_dir=f'your/directory/p{path}_f{frame}/slc',
+            container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+        )
+        processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
+        processor.submit()   # 在容器内部运行
+    ```
+
+    状态会写入挂载的工作目录，因此 `refresh()` 可照常在主机上使用：
+
+    ```python
+    processor.refresh()                      # 打印步骤表
+    ```
+
 ### 时序分析
 
 生成干涉图后，使用对应的分析器运行 MintPy SBAS 时序分析：
@@ -216,7 +241,7 @@ s1.reset()
     from insarhub import Analyzer
 
     workdir = 'your/directory/p100_f466'
-    analyzer = Analyzer.create('Hyp3_SBAS', workdir=workdir)
+    analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', workdir=workdir)
     analyzer.prep_data()
     analyzer.run()
     ```
@@ -227,9 +252,43 @@ s1.reset()
     from insarhub import Analyzer
 
     workdir = 'your/directory/p100_f466'
-    analyzer = Analyzer.create('ISCE_SBAS', workdir=workdir)
+    analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir)
     analyzer.prep_data()   # 自动发现 ISCE2 输出，写入 mintpy/.mintpy.cfg
     analyzer.run()         # 所有 MintPy 输出写入 workdir/mintpy/
+    ```
+
+分析器默认在本地主机上运行。它接受与处理器相同的**容器**和 **HPC** 选项——既可通过 Python API，也可通过命令行（任意 `*_Mintpy_SBAS` 分析器）：
+
+=== "在容器中运行"
+
+    在预构建的镜像内运行 MintPy——无需本地安装 MintPy（镜像见[安装](install.md)）。
+
+    ```python
+    # Python API —— 在 create() 上设置 container；run() 会在其内部重新调用。
+    analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir,
+                               container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev')
+    analyzer.run()
+    ```
+
+    ```bash
+    # 命令行 —— --container 放在 run 动作之后（不带取值即使用分析器默认镜像）
+    insarhub analyzer -N ISCE2_Mintpy_SBAS -w your/directory/p100_f466 run --container
+    ```
+
+=== "在 HPC 上运行（SLURM）"
+
+    将整个分析（prep_data → SBAS → plot）作为单个 sbatch 作业提交。
+
+    ```python
+    # Python API —— hpc_mode 会将 run() 路由到 SLURM
+    analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir, hpc_mode=True)
+    job_id = analyzer.run()   # 首次调用会写出 sbatch_options.json 供你审阅；
+                              # 再次调用 run() 即可提交。
+    ```
+
+    ```bash
+    # 命令行 —— --hpc-mode 放在 run 动作之前
+    insarhub analyzer -N ISCE2_Mintpy_SBAS -w your/directory/p100_f466 --hpc-mode run
     ```
 
 ### 后处理

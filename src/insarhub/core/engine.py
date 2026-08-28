@@ -17,14 +17,14 @@ class InSAREngine:
 
         from insarhub.downloader.s1_slc import S1_SLC
         from insarhub.processor.hyp3_s1 import Hyp3_S1
-        from insarhub.analyzer.hyp3_sbas import Hyp3_SBAS
-        from insarhub.config import S1_SLC_Config, Hyp3_S1_Config, Hyp3_SBAS_Config
+        from insarhub.analyzer.hyp3_sbas import Hyp3_Mintpy_SBAS
+        from insarhub.config import S1_SLC_Config, Hyp3_S1_Config, Hyp3_Mintpy_SBAS_Config
 
         engine = InSAREngine(
             workdir="~/insar/my_project",
             downloader=S1_SLC(S1_SLC_Config(intersectsWith="POINT(-122 37)")),
             processor=Hyp3_S1(Hyp3_S1_Config(pairs=[("S1A...", "S1B...")])),
-            analyzer=Hyp3_SBAS(Hyp3_SBAS_Config()),
+            analyzer=Hyp3_Mintpy_SBAS(Hyp3_Mintpy_SBAS_Config()),
         )
         engine.run()
 
@@ -34,7 +34,7 @@ class InSAREngine:
             workdir="~/insar/my_project",
             downloader="S1_SLC",
             processor="Hyp3_S1",
-            analyzer="Hyp3_SBAS",
+            analyzer="Hyp3_Mintpy_SBAS",
         )
         engine.run()
     """
@@ -81,7 +81,7 @@ class InSAREngine:
             workdir: Common working directory for all pipeline stages.
             downloader: Registered downloader name, e.g. ``"S1_SLC"``.
             processor: Registered processor name, e.g. ``"Hyp3_S1"``.
-            analyzer: Registered analyzer name, e.g. ``"Hyp3_SBAS"``.
+            analyzer: Registered analyzer name, e.g. ``"Hyp3_Mintpy_SBAS"``.
             downloader_config: Config object, or ``None`` to use the class default.
             processor_config: Config object, or ``None`` to use the class default.
             analyzer_config: Config object, or ``None`` to use the class default.

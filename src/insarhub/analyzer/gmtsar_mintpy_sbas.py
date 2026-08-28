@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-GMTSAR_MINTPY_SBAS — MintPy SBAS on a GMTSAR stack_mode stack.
+GMTSAR_Mintpy_SBAS — MintPy SBAS on a GMTSAR stack_mode stack.
 
 Hands the coherent stack GMTSAR_S1 (stack_mode=True) produces
 (workdir/gmtsar/: baseline_table.dat + per-pair geocoded *_ll.grd) to MintPy
-via its own prep_gmtsar.py loader + smallbaselineApp. Mirror of ISCE_SBAS /
-Hyp3_SBAS, differing only in _set_load_parameters() (wires the mintpy.load.*
+via its own prep_gmtsar.py loader + smallbaselineApp. Mirror of ISCE2_Mintpy_SBAS /
+Hyp3_Mintpy_SBAS, differing only in _set_load_parameters() (wires the mintpy.load.*
 keys prep_gmtsar.py reads from GMTSAR's output layout). Output → workdir/mintpy/.
 """
 from __future__ import annotations
@@ -16,23 +16,24 @@ from pathlib import Path
 
 from colorama import Fore
 
-from insarhub.config import GMTSAR_MINTPY_SBAS_Config
+from insarhub.config import GMTSAR_Mintpy_SBAS_Config
 from insarhub.config.paths import GMTSARPaths
 from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
 
 logger = logging.getLogger(__name__)
 
 
-class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
-    name                 = "GMTSAR_MINTPY_SBAS"
+class GMTSAR_Mintpy_SBAS(Mintpy_SBAS_Base_Analyzer):
+    name                 = "GMTSAR_Mintpy_SBAS"
+    aliases              = ("GMTSAR_MINTPY_SBAS", "GMTSAR_MINTPY_TS", "GMTSAR_Mintpy_TS")   # legacy names
     description          = "SBAS time-series of a GMTSAR stack_mode stack using MintPy (prep_gmtsar.py)."
     compatible_processor = "GMTSAR_S1"
-    default_config       = GMTSAR_MINTPY_SBAS_Config
-    # own output dir (workdir/gmtsar_mintpy/) -- separate from Hyp3_SBAS/
-    # ISCE_SBAS runs on the same workdir; layout via MintPyPaths
+    default_config       = GMTSAR_Mintpy_SBAS_Config
+    # own output dir (workdir/gmtsar_mintpy/) -- separate from Hyp3_Mintpy_SBAS/
+    # ISCE2_Mintpy_SBAS runs on the same workdir; layout via MintPyPaths
     MINTPY_SUBDIR        = "gmtsar_mintpy"
 
-    def __init__(self, config: GMTSAR_MINTPY_SBAS_Config | None = None):
+    def __init__(self, config: GMTSAR_Mintpy_SBAS_Config | None = None):
         super().__init__(config)
         self._gmtsar_paths = GMTSARPaths(Path(self.workdir))
         #: subswath _collect_date_prms pinned the baselines to (p2p only)
@@ -247,7 +248,7 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
 
         prms = self._collect_date_prms()
         if len(prms) < 2:
-            logger.warning("GMTSAR_MINTPY_SBAS: found %d date PRM(s) under %s; "
+            logger.warning("GMTSAR_Mintpy_SBAS: found %d date PRM(s) under %s; "
                            "need at least 2 to build a baseline table",
                            len(prms), self.stack_dir)
             return False
@@ -257,7 +258,7 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
         for date, src in prms.items():
             led = src.with_suffix(".LED")
             if not led.exists():
-                logger.warning("GMTSAR_MINTPY_SBAS: %s has no .LED beside it; "
+                logger.warning("GMTSAR_Mintpy_SBAS: %s has no .LED beside it; "
                                "baselines for %s would be wrong", src.name, date)
                 shutil.rmtree(tmpdir, ignore_errors=True)
                 return False
@@ -280,7 +281,7 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
                     cwd=str(tmpdir))
                 line = (p.stdout or "").strip()
                 if p.returncode != 0 or not line:
-                    logger.error("GMTSAR_MINTPY_SBAS: baseline_table.csh failed "
+                    logger.error("GMTSAR_Mintpy_SBAS: baseline_table.csh failed "
                                  "for %s: %s", d, (p.stderr or p.stdout or "")[-300:])
                     return False
                 row = line.splitlines()[0]
@@ -290,7 +291,7 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
                 # "invalid column index 4" three steps downstream.
                 if len(row.split()) < 5:
                     logger.error(
-                        "GMTSAR_MINTPY_SBAS: baseline_table.csh returned %d "
+                        "GMTSAR_Mintpy_SBAS: baseline_table.csh returned %d "
                         "columns for %s (need 5). The .LED beside %s is "
                         "probably unreadable:\n  %s",
                         len(row.split()), d, prms[d].name, row[:160])
@@ -418,57 +419,80 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
             return None
 
     def _consistent_intf_dir(self, intf_all: Path) -> Path:
-        """Return a directory whose */unwrap_ll.grd all share one grid size,
-        clipping every pair to their common (intersection) region when they
-        don't.
+        """Return a directory whose */unwrap_ll.grd all share ONE common grid,
+        clipping every pair to the common overlap when they don't already.
 
-        GMTSAR geocodes each pair to its own valid-data extent, so a pair with
-        less coherence can come out a few columns narrower (real case: one pair
-        1830x1870 vs 1830x1880 -- 10 columns short on the west edge). MintPy's
-        own skip_files_with_inconsistent_size() *detects* that but can't drop
-        it: it removes by matching the pair's `yymmdd` dates as a substring of
-        the file path, and GMTSAR names pair dirs by Julian date
-        (2021115_2021151), so nothing matches and the file loads anyway ->
-        "Can't broadcast (1830,1870) -> (1830,1880)". Clipping keeps every pair
-        (vs. dropping one) at the cost of the few edge columns not common to
-        all -- the grids share registration and increments, so this is an exact
-        cut, no resampling.
+        GMTSAR geocodes each pair to its own valid-data EXTENT but the SAME grid
+        (identical pixel size + registration -- origins differ only by whole
+        pixels; measured here: 540x540 vs 540x550, y-origins exactly 10 pixels
+        apart). MintPy's skip_files_with_inconsistent_size() detects the size
+        mismatch but can't drop it (it matches `yymmdd`, and GMTSAR names dirs by
+        Julian date), so the file loads anyway -> "can't broadcast".
+
+        Because the pairs share one underlying grid, the reconciliation is an
+        exact integer-pixel CLIP onto the intersection extent -- no resampling
+        (this is what HyP3's prep does: clip products to their common overlap).
+        The bogus header nodata (a plain number, the Julian ref date e.g.
+        2024025 -- NOT NaN, which `gmt grdcut` mishandles into 50-70% spurious
+        NaN that zeroes the inversion) is masked to real NaN in NumPy; the clip
+        + netCDF write go through gdal ReadAsArray/Translate. A nearest-neighbour
+        warp is used only as a fallback if a pair is ever sub-pixel-misaligned.
+        (We avoid gdal.Warp with srcNodata+dstNodata: GDAL 3.6.3 segfaults on
+        that exact combination.)
         """
-        from collections import Counter
-        import shutil, subprocess as _sp
+        import shutil
+        import numpy as np
+        from osgeo import gdal
+        gdal.UseExceptions()
 
         pairs = sorted(d for d in intf_all.iterdir() if d.is_dir())
-        shapes = {d: self._grd_shape(d / "unwrap_ll.grd") for d in pairs}
-        shapes = {d: s for d, s in shapes.items() if s}
-        if not shapes:
+        geo: dict[Path, tuple] = {}     # dir -> (geotransform, W, H)
+        for d in pairs:
+            u = d / "unwrap_ll.grd"
+            if not u.exists():
+                continue
+            ds = gdal.Open(str(u))
+            geo[d] = (ds.GetGeoTransform(), ds.RasterXSize, ds.RasterYSize)
+            ds = None
+        if not geo:
             return intf_all
-        modal, _ = Counter(shapes.values()).most_common(1)[0]
-        odd = [d for d, s in shapes.items() if s != modal]
-        if not odd:
-            return intf_all
-        for d in odd:
-            print(f"  size mismatch {d.name}: {shapes[d]} != modal {modal}")
+        if len({(W, H) for _, W, H in geo.values()}) == 1:
+            return intf_all             # already one grid -> raw grids are fine
 
-        # common region = intersection over every pair
-        regions = {d: self._grd_region(d / "unwrap_ll.grd") for d in shapes}
-        regions = {d: r for d, r in regions.items() if r}
-        if not regions:
-            return intf_all
-        R = (max(r[0] for r in regions.values()), min(r[1] for r in regions.values()),
-             max(r[2] for r in regions.values()), min(r[3] for r in regions.values()))
-        Rstr = f"{R[0]}/{R[1]}/{R[2]}/{R[3]}"
-        print(f"  clipping all {len(regions)} pairs to common region {Rstr}")
+        for d, (_, W, H) in geo.items():
+            print(f"  pair {d.name}: {W}x{H}")
 
-        # same convention as Hyp3_SBAS._clip_rasters(): clipped copies live
-        # in clip_dir (MintPyPaths), not the source stack
+        # Common overlap = the INTERSECTION extent. GMTSAR geocodes every pair
+        # to the SAME posting and grid registration (identical pixel size, and
+        # origins that differ only by whole pixels), so the pairs share one
+        # underlying grid and merely cover different extents. Reconcile them by
+        # an exact integer-pixel CLIP onto the common overlap -- no resampling
+        # (this is what HyP3's prep does: clip products to their common overlap).
+        # Only if a pair turns out sub-pixel-misaligned do we fall back to a
+        # nearest-neighbour warp.
+        gt0 = next(iter(geo.values()))[0]
+        px, py = gt0[1], gt0[5]                       # x_step (+), y_step (-)
+        minx = max(gt[0] for gt, _, _ in geo.values())
+        maxy = min(gt[3] for gt, _, _ in geo.values())
+        maxx = min(gt[0] + w * gt[1] for gt, w, _ in geo.values())
+        miny = max(gt[3] + h * gt[5] for gt, _, h in geo.values())
+        W = int(round((maxx - minx) / abs(px)))
+        H = int(round((maxy - miny) / abs(py)))
+        aligned = all(
+            abs((minx - gt[0]) / px - round((minx - gt[0]) / px)) < 1e-3
+            and abs((maxy - gt[3]) / py - round((maxy - gt[3]) / py)) < 1e-3
+            for gt, _, _ in geo.values())
+        new_gt = (minx, px, 0.0, maxy, 0.0, py)
+        print(f"  reconciling {len(geo)} pairs onto a common {W}x{H} grid "
+              f"({'exact integer-pixel clip' if aligned else 'nearest-neighbour resample'})")
+
         links = self.clip_dir
         if links.exists():
             shutil.rmtree(links)
         links.mkdir(parents=True)
 
-        env = self._gdal_env()
         kept = 0
-        for d in regions:
+        for d in geo:
             out = links / d.name
             out.mkdir()
             ok = True
@@ -477,10 +501,48 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
                 if not src.exists():
                     ok = False
                     break
-                p = _sp.run(["gmt", "grdcut", str(src), f"-R{Rstr}", f"-G{out / name}"],
-                            capture_output=True, text=True, env=env)
-                if p.returncode != 0:
-                    print(f"  grdcut failed for {d.name}/{name}: {p.stderr.strip()}")
+                try:
+                    # Invalid pixels carry a bogus NODATA value that is a plain
+                    # number (the pair's Julian ref date, e.g. 2024001) declared
+                    # in the header -- NOT NaN. Mask it to real NaN so MintPy/sbas
+                    # treat it as no-data instead of ~2e6 "phase". (Do NOT use
+                    # gdal.Warp with srcNodata+dstNodata: GDAL 3.6.3 here
+                    # SEGFAULTs on that combo -- so we clip in NumPy and write
+                    # netCDF via Translate, whose write path is stable.)
+                    sd = gdal.Open(str(src))
+                    nd = sd.GetRasterBand(1).GetNoDataValue()
+                    gt = sd.GetGeoTransform()
+                    if aligned:
+                        xoff = int(round((minx - gt[0]) / px))
+                        yoff = int(round((maxy - gt[3]) / py))
+                        arr = sd.GetRasterBand(1).ReadAsArray(xoff, yoff, W, H)
+                        sd = None
+                        arr = arr.astype("float32")
+                        if nd is not None:
+                            arr = np.where(arr == nd, np.nan, arr)
+                    else:
+                        a = sd.GetRasterBand(1).ReadAsArray().astype("float32")
+                        if nd is not None:
+                            a = np.where(a == nd, np.nan, a)
+                        src_mem = gdal.GetDriverByName("MEM").Create(
+                            "", sd.RasterXSize, sd.RasterYSize, 1, gdal.GDT_Float32)
+                        src_mem.SetGeoTransform(gt)
+                        src_mem.GetRasterBand(1).WriteArray(a)
+                        sd = None
+                        w = gdal.Warp("", src_mem, format="MEM",
+                                      outputBounds=(minx, miny, maxx, maxy),
+                                      width=W, height=H, resampleAlg="near")
+                        src_mem = None
+                        arr = w.GetRasterBand(1).ReadAsArray()
+                        w = None
+                    m = gdal.GetDriverByName("MEM").Create("", W, H, 1, gdal.GDT_Float32)
+                    m.SetGeoTransform(new_gt)
+                    m.GetRasterBand(1).WriteArray(arr)
+                    m.GetRasterBand(1).SetNoDataValue(float("nan"))
+                    gdal.Translate(str(out / name), m, format="netCDF")
+                    m = None
+                except Exception as exc:                 # noqa: BLE001
+                    logger.warning("clip failed for %s/%s: %s", d.name, name, exc)
                     ok = False
                     break
             if ok:
@@ -488,11 +550,36 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
             else:
                 shutil.rmtree(out, ignore_errors=True)
 
-        cut_shapes = {self._grd_shape(p / "unwrap_ll.grd")
-                      for p in links.iterdir() if p.is_dir()}
-        print(f"  clipped {kept}/{len(regions)} pairs -> {links} "
-              f"(uniform grid: {cut_shapes.pop() if len(cut_shapes) == 1 else cut_shapes})")
+        print(f"{Fore.GREEN}  reconciled {kept}/{len(geo)} pairs -> {links} "
+              f"(uniform {W}x{H} master grid){Fore.RESET}")
         return links
+
+    def _meta_raw_dir(self) -> Path:
+        """The raw/ of the subswath whose output actually populated merge/.
+
+        _gmtsar_paths.meta_raw_dir blindly returns the FIRST F<N>/raw, which is
+        wrong for an AOI-narrowed stack: it processes a single subswath that may
+        not be F1 (e.g. an AOI only in F2), while F1/raw still holds stale
+        aligned PRMs + baseline_table.dat from an earlier full-frame run. The
+        single-subswath merge output is a symlink into F<sw>/intf_all/, so
+        resolve one merge/<pair>/unwrap_ll.grd back to its real F<sw>/raw. Falls
+        back to meta_raw_dir for a true multi-subswath merge (whose merged
+        product is a real file, not a symlink into a subswath)."""
+        default = self._gmtsar_paths.meta_raw_dir
+        for u in sorted(self._product_dir().glob("*/unwrap_ll.grd")):
+            try:
+                real = u.resolve()
+            except OSError:
+                continue
+            if real == u:
+                continue                       # not a symlink -> real merge
+            for parent in real.parents:
+                if parent.name == "intf_all":
+                    raw = parent.parent / "raw"
+                    if raw.is_dir() and list(raw.glob("S1_*_ALL_F*.PRM")):
+                        return raw
+                    break
+        return default
 
     def _set_load_parameters(self) -> None:
         """Wire the mintpy.load.* keys prep_gmtsar.py reads from GMTSAR's
@@ -505,12 +592,11 @@ class GMTSAR_MINTPY_SBAS(Mintpy_SBAS_Base_Analyzer):
 
         self.config.load_unwFile     = str(intf / "*" / "unwrap_ll.grd")
         self.config.load_corFile     = str(intf / "*" / "corr_ll.grd")
-        self.config.load_baselineDir = str(self._gmtsar_paths.baseline_table_auto)
 
-        # prefer the aligned super-master PRM (S1_<date>_ALL_F<sw>, first in
-        # date order = the reference every scene was coregistered to) over the
-        # pre-alignment per-time PRMs
-        raw = self._gmtsar_paths.meta_raw_dir   # F<N>/raw for a merged stack
+        # metadata + per-date baselines from the subswath that actually produced
+        # merge/ (not a stale sibling F<N>/raw) -- see _meta_raw_dir.
+        raw = self._meta_raw_dir()
+        self.config.load_baselineDir = str(raw / "baseline_table.dat")
         prm = (next(iter(sorted(raw.glob("S1_*_ALL_F*.PRM"))), None)
                or next(iter(sorted(raw.glob("S1_*.PRM"))), None))
         if prm is None:

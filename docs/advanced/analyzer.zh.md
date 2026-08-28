@@ -57,6 +57,17 @@ Analyzer.available()
                 members: false
                 heading_level: 0
 
+        !!! note "自适应相干性阈值"
+            有三个相干性参数默认取字面值 `"adaptive"` 而非固定数值。在 `prep_data` 期间，InSARHub 会检查堆叠实际的相干性分布，并将每个参数解析写入 `.mintpy.cfg`：
+
+            | 参数 | 解析依据 | 上限 |
+            |------|----------|------|
+            | `network_minCoherence` | 在保持网络连通且冗余的前提下最严格的阈值 | ≤ 0.6 |
+            | `networkInversion_maskThreshold` | 保留可靠像素比例的分位数 | ≤ 0.6 |
+            | `reference_minCoherence` | 第 98 百分位（最低 0.30），用于稳定的参考点 | ≤ 0.85 |
+
+            仅当数据*低于*上限时才会启用自适应；干净、高相干的堆叠直接取上限值。将其中任一参数设为明确的数值即可完全覆盖自适应逻辑。
+
     - **运行**
 
         根据提供的配置运行 Mintpy 时序分析
@@ -73,7 +84,7 @@ Analyzer.available()
 
     - **提交（HPC / SLURM 模式）**
 
-        生成一个涵盖所有选定步骤的单个 `sbatch` 脚本并提交至 SLURM。`Hyp3_SBAS` 和 `ISCE_SBAS` 均继承此方法。
+        生成一个涵盖所有选定步骤的单个 `sbatch` 脚本并提交至 SLURM。`Hyp3_Mintpy_SBAS` 和 `ISCE2_Mintpy_SBAS` 均继承此方法。
 
         ```python
         # 将完整流程作为一个 SLURM 作业提交
@@ -93,7 +104,7 @@ Analyzer.available()
             load_processor="hyp3",
             hpc_mode=True,
         )
-        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         job_id = analyzer.submit_hpc()
         if job_id is None:
             print("sbatch_options.json 刚被创建/更新 — 请先检查，再重新提交。")
@@ -123,15 +134,15 @@ Analyzer.available()
 
     - **无需本地安装 MintPy（或 ISCE2）**
 
-        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`run()`/`prep_data()`/`submit_hpc()` 都会在容器内而非宿主机上重新执行同一个 `insarhub analyzer ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处。容器镜像只需在 MintPy（`ISCE_SBAS` 还需要 ISCE2）旁额外安装 `insarhub`（可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) 作为现成示例）。
+        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`run()`/`prep_data()`/`submit_hpc()` 都会在容器内而非宿主机上重新执行同一个 `insarhub analyzer ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处。容器镜像只需在 MintPy（`ISCE2_Mintpy_SBAS` 还需要 ISCE2）旁额外安装 `insarhub`（可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile) 作为现成示例）。
 
         ```python
         cfg = Mintpy_SBAS_Base_Config(
             workdir="/your/work/dir",
             load_processor="hyp3",
-            container="ghcr.io/jldz9/insarhub-isce2:latest",
+            container="ghcr.io/jldz9/insarhub-isce2-mintpy:dev",
         )
-        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         analyzer.run()
         ```
 
@@ -151,11 +162,11 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
-=== "Hyp3_SBAS"
+=== "Hyp3_Mintpy_SBAS"
 
-    `Hyp3_SBAS` 是专门为处理 HyP3 InSAR 产品时序数据而预配置的分析器，扩展自 `Mintpy_SBAS_Base_Analyzer`。
+    `Hyp3_Mintpy_SBAS` 是专门为处理 HyP3 InSAR 产品时序数据而预配置的分析器，扩展自 `Mintpy_SBAS_Base_Analyzer`。
 
-    ::: insarhub.analyzer.Hyp3_SBAS
+    ::: insarhub.analyzer.Hyp3_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -167,19 +178,19 @@ Analyzer.available()
         初始化分析器实例
 
         ```python
-        analyzer = Analyzer.create('Hyp3_SBAS',
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS',
                                     workdir="/your/work/dir")
         ```
         或
         ```python
         params = {"workdir": "/your/work/dir"}
-        analyzer = Analyzer.create('Hyp3_SBAS', **params)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', **params)
         ```
         或
         ```python
         from insarhub.config import Mintpy_SBAS_Base_Config
         cfg = Mintpy_SBAS_Base_Config(workdir="/your/work/dir")
-        analyzer = Analyzer.create('Hyp3_SBAS', config=cfg)
+        analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         ```
 
     - **准备数据**
@@ -190,7 +201,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.Hyp3_SBAS.prep_data
+        ::: insarhub.analyzer.Hyp3_Mintpy_SBAS.prep_data
             options:
                 members: false
                 heading_level: 5
@@ -203,7 +214,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.Hyp3_SBAS.run
+        ::: insarhub.analyzer.Hyp3_Mintpy_SBAS.run
             options:
                 members: false
                 heading_level: 5
@@ -230,11 +241,11 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
-=== "ISCE_SBAS"
+=== "ISCE2_Mintpy_SBAS"
 
-    `ISCE_SBAS` 分析器扩展自 `Mintpy_SBAS_Base_Analyzer`，专为 ISCE2 `stackSentinel` 输出预配置。`prep_data()` 自动发现 `isce/` 目录中的干涉图和几何数据，并将 MintPy 配置写入 `mintpy/.mintpy.cfg`。所有 MintPy 输出写入 `workdir/mintpy/`。
+    `ISCE2_Mintpy_SBAS` 分析器扩展自 `Mintpy_SBAS_Base_Analyzer`，专为 ISCE2 `stackSentinel` 输出预配置。`prep_data()` 自动发现 `isce/` 目录中的干涉图和几何数据，并将 MintPy 配置写入 `mintpy/.mintpy.cfg`。所有 MintPy 输出写入 `workdir/mintpy/`。
 
-    ::: insarhub.analyzer.isce_sbas.ISCE_SBAS
+    ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -246,19 +257,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('ISCE_SBAS', workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir='/your/work/dir')
         ```
 
         或使用显式配置：
 
         ```python
-        from insarhub.config.defaultconfig import ISCE_SBAS_Config
+        from insarhub.config.defaultconfig import ISCE2_Mintpy_SBAS_Config
 
-        cfg = ISCE_SBAS_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('ISCE_SBAS', config=cfg)
+        cfg = ISCE2_Mintpy_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.ISCE_SBAS_Config
+        ::: insarhub.config.defaultconfig.ISCE2_Mintpy_SBAS_Config
             options:
                 members: false
                 show_source: false
@@ -272,7 +283,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.prep_data
+        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -286,7 +297,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.run
+        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -309,17 +320,17 @@ Analyzer.available()
         analyzer.cleanup()
         ```
 
-        ::: insarhub.analyzer.isce_sbas.ISCE_SBAS.cleanup
+        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.cleanup
             options:
                 members: false
                 show_source: false
                 heading_level: 5
 
-=== "GMTSAR_MINTPY_SBAS"
+=== "GMTSAR_Mintpy_SBAS"
 
-    `GMTSAR_MINTPY_SBAS` 分析器对 `GMTSAR_S1` 处理器生成的相干堆叠运行 MintPy SBAS 时序分析。它将 GMTSAR 的地理编码 `*_ll.grd` 产品和 `baseline_table.dat` 交给 MintPy 自带的 `prep_gmtsar.py` 加载器（通过 `mintpy.load.*` 键），因此无需任何公共配准参考即可工作——每对干涉图已经共享同一地理网格。它是 `ISCE_SBAS` 的 MintPy 对应物，唯一区别在于如何配置 `load_*` 路径。输出写入 `workdir/gmtsar_mintpy/`（独立目录，不会与同一工作目录中的 Hyp3/ISCE MintPy 运行相互覆盖）。
+    `GMTSAR_Mintpy_SBAS` 分析器对 `GMTSAR_S1` 处理器生成的相干堆叠运行 MintPy SBAS 时序分析。它将 GMTSAR 的地理编码 `*_ll.grd` 产品和 `baseline_table.dat` 交给 MintPy 自带的 `prep_gmtsar.py` 加载器（通过 `mintpy.load.*` 键），因此无需任何公共配准参考即可工作——每对干涉图已经共享同一地理网格。它是 `ISCE2_Mintpy_SBAS` 的 MintPy 对应物，唯一区别在于如何配置 `load_*` 路径。输出写入 `workdir/gmtsar_mintpy/`（独立目录，不会与同一工作目录中的 Hyp3/ISCE MintPy 运行相互覆盖）。
 
-    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS
+    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -331,19 +342,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', workdir='/your/work/dir')
+        analyzer = Analyzer.create('GMTSAR_Mintpy_SBAS', workdir='/your/work/dir')
         ```
 
         或使用显式配置：
 
         ```python
-        from insarhub.config.defaultconfig import GMTSAR_MINTPY_SBAS_Config
+        from insarhub.config.defaultconfig import GMTSAR_Mintpy_SBAS_Config
 
-        cfg = GMTSAR_MINTPY_SBAS_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('GMTSAR_MINTPY_SBAS', config=cfg)
+        cfg = GMTSAR_Mintpy_SBAS_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('GMTSAR_Mintpy_SBAS', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.GMTSAR_MINTPY_SBAS_Config
+        ::: insarhub.config.defaultconfig.GMTSAR_Mintpy_SBAS_Config
             options:
                 members: false
                 show_source: false
@@ -357,7 +368,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.prep_data
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -371,7 +382,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_MINTPY_SBAS.run
+        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -467,11 +478,13 @@ Analyzer.available()
                 show_source: false
                 heading_level: 5
 
-=== "Dolphin_SBAS"
+=== "ISCE3_Dolphin_PL"
 
-    `Dolphin_SBAS` 分析器对 `ISCE3_Burst` 生成的解缠干涉图堆叠运行 dolphin 的 `timeseries.run`。同一分析器同时服务于该处理器的**两种**缠绕相位估计器（`ifg_mode="network"` 与 `ifg_mode="phase_link"`）——两者的线性反演完全相同；区别仅在于用于选择参考点和掩膜低质量像素的质量栅格（`phase_link` 用时序相干性，`network` 用逐对相关性的时间平均）。估计器选择从堆叠的 `ifg_manifest.json` 读取，绝不会在此处重复指定。输出写入 `workdir/timeseries/`。
+    `ISCE3_Dolphin_PL` 分析器对**任一** ISCE3 处理器生成的解缠干涉图堆叠运行 dolphin 的 `timeseries.run`——`ISCE3_Burst`（Sentinel-1 burst）或 `ISCE3_NISAR`（NISAR GSLC）。两者都写出相同的 `unwrapped/` + `interferograms/` 布局，因此同一个分析器同时服务于二者；在来自任一处理器的工作目录中，它都会出现在 GUI 的分析器下拉框里（其 `compatible_processor` 同时列出了两者）。同一分析器还同时服务于该处理器的**两种**缠绕相位估计器（`ifg_mode="network"` 与 `ifg_mode="phase_link"`）——两者的线性反演完全相同；区别仅在于用于选择参考点和掩膜低质量像素的质量栅格（`phase_link` 用时序相干性，`network` 用逐对相关性的时间平均）。估计器选择从堆叠的 `ifg_manifest.json` 读取，绝不会在此处重复指定。输出写入 `workdir/timeseries/`。
 
-    ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS
+    默认情况下（`apply_water_mask=True`）会在反演中掩膜掉水体，使用处理器的 `dem/water_mask.tif`，与 dolphin 自身的 `displacement.run` 行为完全一致。开启此项时，分析器的速度/位移输出与原生 `dolphin run` 逐字节一致；关闭它则会反演每一个像素（在输出中保留开阔水域）。
+
+    ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL
         options:
             members: false
             heading_level: 0
@@ -483,19 +496,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('Dolphin_SBAS', workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_PL', workdir='/your/work/dir')
         ```
 
         或使用显式配置：
 
         ```python
-        from insarhub.config.defaultconfig import Dolphin_SBAS_Config
+        from insarhub.config.defaultconfig import ISCE3_Dolphin_PL_Config
 
-        cfg = Dolphin_SBAS_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('Dolphin_SBAS', config=cfg)
+        cfg = ISCE3_Dolphin_PL_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_PL', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.Dolphin_SBAS_Config
+        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_PL_Config
             options:
                 members: false
                 show_source: false
@@ -509,7 +522,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.dolphin_sbas.Dolphin_SBAS.run
+        ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL.run
             options:
                 members: false
                 show_source: false

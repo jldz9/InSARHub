@@ -1,5 +1,5 @@
 """
-Full pipeline integration test: real ASF search → select_pairs → ISCE processing → ISCE_SBAS
+Full pipeline integration test: real ASF search → select_pairs → ISCE processing → ISCE2_Mintpy_SBAS
 
 Real network calls:
   - ASF search via asf_search
@@ -138,7 +138,7 @@ def run_tests():
         # ─────────────────────────────────────────────────────────────────────
         print("\n── STAGE 2: select_pairs ───────────────────────────────────")
 
-        pairs_result, _, _, _ = downloader.select_pairs(
+        pairs_result, *_ = downloader.select_pairs(
             dt_targets            = (12, 24),
             dt_max                = 36,
             pb_max                = 200.0,
@@ -146,6 +146,8 @@ def run_tests():
             max_degree            = 3,
             force_connect         = True,
             avoid_low_quality_days= False,
+            quality_check         = False,   # offline test: skip weather/snow/coherence scoring
+            plot_network          = False,
         )
 
         # pairs_result may be a dict (multi-stack) or list (single stack)
@@ -215,15 +217,15 @@ def run_tests():
         print(f"  job file: {saved_path.name} — OK")
 
         # ─────────────────────────────────────────────────────────────────────
-        # STAGE 5 — ISCE_SBAS prep_data
+        # STAGE 5 — ISCE2_Mintpy_SBAS prep_data
         # ─────────────────────────────────────────────────────────────────────
-        print("\n── STAGE 5: ISCE_SBAS prep_data ────────────────────────────")
+        print("\n── STAGE 5: ISCE2_Mintpy_SBAS prep_data ────────────────────────────")
 
-        from insarhub.config import ISCE_SBAS_Config
-        from insarhub.analyzer.isce_sbas import ISCE_SBAS
+        from insarhub.config import ISCE2_Mintpy_SBAS_Config
+        from insarhub.analyzer.isce2_sbas import ISCE2_Mintpy_SBAS
 
-        cfg_sbas = ISCE_SBAS_Config(workdir=str(workdir))
-        analyzer = ISCE_SBAS(cfg_sbas)
+        cfg_sbas = ISCE2_Mintpy_SBAS_Config(workdir=str(workdir))
+        analyzer = ISCE2_Mintpy_SBAS(cfg_sbas)
         analyzer.prep_data()
 
         assert (workdir / ".mintpy.cfg").exists(), ".mintpy.cfg not written"

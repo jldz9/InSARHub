@@ -39,6 +39,13 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
+#: Background-executor artifacts, written under each processor's own directory
+#: (isce/, gmtsar/, or the workdir for ISCE3). Kept here so every processor
+#: family names them identically -- never hardcode these strings in processors.
+EXECUTOR_LOG = "executor.log"
+EXECUTOR_PID = "executor.pid"
+
+
 @dataclass
 class Hyp3Paths:
     """Path layout for HyP3 processor outputs (any satellite)."""
@@ -88,6 +95,14 @@ class ISCEPaths:
     def dem_dir(self) -> Path:
         return self.workdir / "dem"
 
+    @property
+    def executor_log(self) -> Path:
+        return self.isce_dir / EXECUTOR_LOG
+
+    @property
+    def executor_pid(self) -> Path:
+        return self.isce_dir / EXECUTOR_PID
+
 
 @dataclass
 class MintPyPaths:
@@ -127,6 +142,14 @@ class GMTSARPaths:
     @property
     def case_dir(self) -> Path:
         return self.workdir / "gmtsar"
+
+    @property
+    def executor_log(self) -> Path:
+        return self.case_dir / EXECUTOR_LOG
+
+    @property
+    def executor_pid(self) -> Path:
+        return self.case_dir / EXECUTOR_PID
 
     @property
     def raw_dir(self) -> Path:
@@ -226,6 +249,37 @@ class GMTSARPaths:
     @property
     def baseline_table_auto(self) -> Path:
         return self.meta_raw_dir / "baseline_table.dat"
+
+
+@dataclass
+class ISCE3Paths:
+    """Path layout for the ISCE3 processors (ISCE3_Burst, ISCE3_NISAR).
+
+    Unlike ISCE2/GMTSAR, ISCE3 writes its products (interferograms/,
+    linked_phase/, timeseries/, ...) directly into the workdir rather than a
+    dedicated subdir, so the executor log/pid live at the workdir root too.
+    """
+    workdir: Path
+
+    @property
+    def executor_log(self) -> Path:
+        return self.workdir / EXECUTOR_LOG
+
+    @property
+    def executor_pid(self) -> Path:
+        return self.workdir / EXECUTOR_PID
+
+    @property
+    def hpc_dir(self) -> Path:
+        return self.workdir / "hpc"
+
+    @property
+    def cropped_gslc_dir(self) -> Path:
+        """NISAR AOI-cropped GSLC VRTs (ISCE3_NISAR's crop stage)."""
+        return self.workdir / "cropped_gslc"
+
+    def stage_status_dir(self, stage: str) -> Path:
+        return self.workdir / ".stage_status" / stage
 
 
 @dataclass

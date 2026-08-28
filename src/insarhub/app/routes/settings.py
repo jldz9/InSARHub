@@ -269,6 +269,17 @@ async def get_folder_config(path: str):
     if "analyzer" not in cfg:
         az = state._settings["analyzer"]
         cfg["analyzer"] = {"type": az, "config": state._settings["analyzer_configs"].get(az, {})}
+    # GMTSAR_S1: show the AOI the folder was searched with instead of an empty
+    # box -- pre-fill AOI from the downloader's intersectsWith when it's blank
+    # (matches _resolve_aoi()'s own fallback; process_full_extent still overrides).
+    try:
+        pc = cfg.get("processor", {}).get("config", {})
+        if cfg.get("processor", {}).get("type") == "GMTSAR_S1" and not pc.get("AOI"):
+            aoi = cfg.get("downloader", {}).get("config", {}).get("intersectsWith")
+            if aoi:
+                pc["AOI"] = aoi
+    except Exception:
+        pass
     return cfg
 
 
@@ -300,11 +311,31 @@ async def get_processor_defaults(processor: str, workdir: str):
         raise HTTPException(status_code=404, detail=f"Unknown processor: {processor}")
     try:
         resolved = cfg_cls(workdir=folder)
-        return {
+        out = {
             k: str(v) if isinstance(v, Path) else v
             for k, v in dataclasses.asdict(resolved).items()
             if k not in ("workdir", "name") and v is not None
         }
+        # GMTSAR_S1: pre-fill AOI from the folder's downloader intersectsWith so
+        # the panel shows the searched AOI instead of an empty box (mirrors
+        # _resolve_aoi()'s fallback; process_full_extent still overrides). AOI
+        # defaults to None so it was dropped above -- add it back when found.
+        if processor == "GMTSAR_S1" and not out.get("AOI"):
+            aoi = (read_insarhub_config(folder)
+                   .get("downloader", {}).get("config", {}).get("intersectsWith"))
+            if aoi:
+                out["AOI"] = aoi
+        # Overlay the folder's SAVED processor config so the panel reflects
+        # prior submits (e.g. stack_mode, reference) instead of resetting every
+        # field to the dataclass default. Without this the frontend merges these
+        # defaults over the form and silently reverts a user's saved choices
+        # (stack_mode checked in the GUI kept landing back on False).
+        saved = read_insarhub_config(folder).get("processor", {})
+        if saved.get("type") in (None, "", processor) and isinstance(saved.get("config"), dict):
+            for k, v in saved["config"].items():
+                if k not in ("workdir", "name") and v is not None:
+                    out[k] = v
+        return out
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

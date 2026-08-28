@@ -27,11 +27,6 @@ interface Props {
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: 'FeatureCollection', features: [] }
 
 const BASEMAP_TILES: Record<Basemap, { tiles: string[]; overlay?: string[]; attribution: string }> = {
-  // Carto Voyager — English labels, no API key required
-  osm:       { tiles: ['https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-                        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'],
-                attribution: '© OpenStreetMap contributors © CARTO' },
   // Esri World Imagery — satellite, no text labels
   satellite: { tiles: ['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
                 overlay: ['https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}'],
@@ -514,21 +509,30 @@ export default function Map({
 
         if (!rasterOverlay) return
 
-        const [W, S, E, N] = rasterOverlay.bounds
-
-
-        if (!isFinite(W) || !isFinite(S) || !isFinite(E) || !isFinite(N) || W >= E || S >= N) {
-          console.error('[InSARHub] invalid raster overlay bounds — skipping:', rasterOverlay.bounds)
-          return
+        // A rotated overlay (e.g. a tilted S1 SLC quicklook) carries explicit 4
+        // ground corners; otherwise derive an axis-aligned box from bounds.
+        const quad = rasterOverlay.corners
+        let coordinates: [number, number][]
+        if (quad && quad.length === 4 && quad.every(c => isFinite(c[0]) && isFinite(c[1]))) {
+          coordinates = quad
+        } else {
+          const [W, S, E, N] = rasterOverlay.bounds
+          if (!isFinite(W) || !isFinite(S) || !isFinite(E) || !isFinite(N) || W >= E || S >= N) {
+            console.error('[InSARHub] invalid raster overlay bounds — skipping:', rasterOverlay.bounds)
+            return
+          }
+          coordinates = [[W, N], [E, N], [E, S], [W, S]]
         }
 
         map.addSource('raster-overlay', {
           type: 'image', url: rasterOverlay.url,
-          coordinates: [[W, N], [E, N], [E, S], [W, S]],
+          coordinates,
         } as any)
         map.addLayer({ id: 'raster-overlay', type: 'raster', source: 'raster-overlay',
           paint: { 'raster-opacity': 0.85, 'raster-resampling': 'nearest' } }, 'ts-click-ring')
-        map.fitBounds([[W, S], [E, N]], { padding: 40, duration: 0 })
+        const lons = coordinates.map(c => c[0]); const lats = coordinates.map(c => c[1])
+        map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+          { padding: 40, duration: 0 })
       } catch (err) {
         console.error('[InSARHub] raster-overlay error:', err)
       }

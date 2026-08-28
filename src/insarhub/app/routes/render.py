@@ -33,15 +33,41 @@ _TS_PRIORITY = [
 ]
 
 
+#: MintPy output subdirs, one per analyzer -- Mintpy_SBAS_Base ("mintpy"),
+#: Hyp3_Mintpy_SBAS ("hyp3_mintpy"), ISCE2_Mintpy_SBAS ("isce_mintpy"),
+#: GMTSAR_Mintpy_SBAS ("gmtsar_mintpy"). Kept in sync with each analyzer's
+#: MINTPY_SUBDIR; any other "*_mintpy" folder is also picked up as a fallback.
+_MINTPY_SUBDIRS = ('mintpy', 'gmtsar_mintpy', 'isce_mintpy', 'hyp3_mintpy')
+
+
 def _resolve_mintpy_folder(path_str: str) -> Path:
-    """Return the MintPy output folder: path/mintpy/ if it has outputs, else path/."""
+    """Return the MintPy output folder under `path`, whichever analyzer wrote it.
+
+    The subdir is analyzer-specific (mintpy / gmtsar_mintpy / isce_mintpy /
+    hyp3_mintpy), so check each known name -- plus any other `*_mintpy` dir --
+    and return the first that actually holds a velocity result. Falls back to
+    `path` itself so callers still get a sensible base when nothing is found.
+    """
     base = Path(path_str).expanduser().resolve()
-    sub = base / 'mintpy'
-    if sub.is_dir() and (
-        (sub / 'velocity.h5').exists() or
-        (sub / 'geo' / 'geo_velocity.h5').exists()
-    ):
-        return sub
+
+    candidates: list[Path] = [base / name for name in _MINTPY_SUBDIRS]
+    for p in sorted(base.glob('*_mintpy')):
+        if p not in candidates:
+            candidates.append(p)
+
+    # Prefer a subdir that already has a velocity result (the velocity viewer),
+    # then fall back to any that looks like a MintPy output dir -- so endpoints
+    # that run before velocity exists (network view, diagnostics) still resolve.
+    def _has_vel(d: Path) -> bool:
+        return (d / 'velocity.h5').exists() or (d / 'geo' / 'geo_velocity.h5').exists()
+
+    def _is_mintpy(d: Path) -> bool:
+        return (d / '.mintpy.cfg').exists() or (d / 'inputs').is_dir()
+
+    for want in (_has_vel, _is_mintpy):
+        for sub in candidates:
+            if sub.is_dir() and want(sub):
+                return sub
     return base
 
 
@@ -275,9 +301,69 @@ async def render_coh_map(path: str, season: str, pol: str = "vv", band: int = 1)
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+def _loose_tif_bounds(tif: Path):
+    """WGS84 [W,S,E,N] of a loose geocoded raster (GeoTIFF or GMT .grd)."""
+    try:
+        import rasterio
+        from rasterio.warp import transform_bounds
+        with rasterio.open(tif) as src:
+            return list(transform_bounds(src.crs, "EPSG:4326", *src.bounds))
+    except Exception:
+        return None
+
+
+def _loose_pairs(groups: dict) -> list[dict]:
+    """Turn {pair_key: {type: Path}} into folder-ifg-list `pairs` entries whose
+    files point at loose paths (zip=""). render-tif opens those by path."""
+    out = []
+    for key in sorted(groups):
+        fdict = groups[key]
+        files = [{"filename": str(p), "type": typ} for typ, p in fdict.items()]
+        out.append({"name": key, "zip": "",
+                    "files": files, "bounds": _loose_tif_bounds(next(iter(fdict.values())))})
+    return out
+
+
+def _isce3_ifg_pairs(folder: Path) -> list[dict]:
+    """ISCE3_NISAR / ISCE3_Burst geocoded products: unwrapped/<pair>.unw.tif +
+    interferograms/<pair>.int.tif / .int.cor.tif at the workdir root."""
+    import re
+    pair_re = re.compile(r"(\d{8}_\d{8})")
+    groups: dict[str, dict] = {}
+    unw_dir, ifg_dir = folder / "unwrapped", folder / "interferograms"
+    if unw_dir.is_dir():
+        for f in sorted(unw_dir.glob("*.unw.tif")):
+            m = pair_re.search(f.name)
+            if m: groups.setdefault(m.group(1), {})["unw_phase"] = f
+    if ifg_dir.is_dir():
+        for f in sorted(ifg_dir.glob("*.int.tif")):
+            m = pair_re.search(f.name)
+            if m: groups.setdefault(m.group(1), {})["int"] = f
+        for f in sorted(ifg_dir.glob("*.int.cor.tif")):
+            m = pair_re.search(f.name)
+            if m: groups.setdefault(m.group(1), {})["corr"] = f
+    return _loose_pairs(groups)
+
+
+def _gmtsar_ifg_pairs(folder: Path) -> list[dict]:
+    """GMTSAR geocoded per-pair grids (unwrap_ll.grd / phasefilt_ll.grd /
+    corr_ll.grd) under gmtsar/<pair>/ (intf_all/, intf/, or merge/)."""
+    gm = folder / "gmtsar"
+    if not gm.is_dir():
+        return []
+    TYPES = {"unwrap_ll.grd": "unw_phase", "phasefilt_ll.grd": "int", "corr_ll.grd": "corr"}
+    groups: dict[str, dict] = {}
+    for grd in gm.rglob("*_ll.grd"):
+        if grd.name in TYPES:
+            groups.setdefault(grd.parent.name, {})[TYPES[grd.name]] = grd
+    return _loose_pairs(groups)
+
+
 @router.get("/api/folder-ifg-list")
 async def folder_ifg_list(path: str):
-    """List interferogram zip files in a folder with per-file types and WGS84 bounds."""
+    """List interferogram products in a folder with per-file types and WGS84
+    bounds. Covers HyP3 zipped GeoTIFFs plus loose geocoded rasters written by
+    ISCE3 (unwrapped/interferograms *.tif) and GMTSAR (*_ll.grd)."""
     folder = Path(path).expanduser().resolve()
     if not folder.exists():
         raise HTTPException(status_code=404, detail="Folder not found")
@@ -351,6 +437,13 @@ async def folder_ifg_list(path: str):
                 for zip_path in sorted(root.rglob("*.zip")):
                     _process_zip(zip_path)
 
+    # No HyP3 zips? Fall back to loose geocoded products from the local
+    # processors (ISCE3 *.tif, GMTSAR *_ll.grd).
+    if not pairs:
+        pairs += _isce3_ifg_pairs(folder)
+    if not pairs:
+        pairs += _gmtsar_ifg_pairs(folder)
+
     return {"pairs": pairs}
 
 
@@ -358,63 +451,70 @@ async def folder_ifg_list(path: str):
 async def render_tif_colored(zip: str, file: str, type_hint: str = ""):
     """Server-side render a TIF to colored PNG + downsampled float32 for hover."""
     import base64
+    import rasterio
+    from contextlib import ExitStack
+    from rasterio.warp import transform_bounds
+    from rasterio.io import MemoryFile
 
     MAX_PIXEL   = 256
 
     try:
-        with _zipfile.ZipFile(zip) as zf:
-            tif_bytes = zf.read(file)
-    except Exception as e:
+        with ExitStack() as _stack:
+            if zip:
+                # HyP3 product: read `file` from inside the zip archive.
+                _zf   = _stack.enter_context(_zipfile.ZipFile(zip))
+                _memf = _stack.enter_context(MemoryFile(_zf.read(file)))
+                src   = _stack.enter_context(_memf.open())
+            else:
+                # Loose geocoded raster on disk (ISCE3 unwrapped/*.unw.tif,
+                # GMTSAR *_ll.grd). Open by PATH -- GDAL's netCDF/GMT driver
+                # reads .grd from a file, not from an in-memory buffer.
+                src = _stack.enter_context(rasterio.open(file))
+
+            orig_h, orig_w = src.height, src.width
+            dh = orig_h
+            dw = orig_w
+            nodata_val = src.nodata
+            bounds_wgs84 = list(transform_bounds(src.crs, "EPSG:4326", *src.bounds))
+
+            # Reproject to Web Mercator (EPSG:3857) — same approach as
+            # render-velocity.  Maplibre stretches the image between 4
+            # corner points in Mercator space, so pixels must be Mercator-
+            # aligned; reprojecting to geographic (4326) still causes a
+            # slight shift at most latitudes.
+            raw = src.read(1, out_shape=(dh, dw)).astype(np.float32)
+            if nodata_val is not None:
+                raw[raw == float(nodata_val)] = np.nan
+            raw = np.where(np.isfinite(raw), raw, np.nan)
+
+            src_tf = from_bounds(src.bounds.left, src.bounds.bottom,
+                                 src.bounds.right, src.bounds.top, dw, dh)
+
+            # WGS84 envelope of the source raster
+            w84_w, w84_s, w84_e, w84_n = bounds_wgs84
+
+            # Project that WGS84 envelope into Mercator
+            tf_to_merc = Transformer.from_crs(4326, 3857, always_xy=True)
+            merc_w, merc_s = tf_to_merc.transform(w84_w, w84_s)
+            merc_e, merc_n = tf_to_merc.transform(w84_e, w84_n)
+
+            dst_tf = from_bounds(merc_w, merc_s, merc_e, merc_n, dw, dh)
+            disp_data = np.full((dh, dw), np.nan, dtype=np.float32)
+            reproject(
+                source=raw, destination=disp_data,
+                src_transform=src_tf, src_crs=src.crs,
+                dst_transform=dst_tf, dst_crs=CRS.from_epsg(3857),
+                resampling=Resampling.bilinear,
+                src_nodata=np.nan, dst_nodata=np.nan,
+            )
+
+            # Convert Mercator bounds back to WGS84 for Maplibre corners
+            tf_to_wgs = Transformer.from_crs(3857, 4326, always_xy=True)
+            wgs_w, wgs_s = tf_to_wgs.transform(merc_w, merc_s)
+            wgs_e, wgs_n = tf_to_wgs.transform(merc_e, merc_n)
+            bounds_wgs84 = [wgs_w, wgs_s, wgs_e, wgs_n]
+    except FileNotFoundError as e:
         raise HTTPException(status_code=404, detail=str(e))
-
-    try:
-        from rasterio.warp import transform_bounds
-        from rasterio.io import MemoryFile
-
-        with MemoryFile(tif_bytes) as memf:
-            with memf.open() as src:
-                orig_h, orig_w = src.height, src.width
-                dh = orig_h
-                dw = orig_w
-                nodata_val = src.nodata
-                bounds_wgs84 = list(transform_bounds(src.crs, "EPSG:4326", *src.bounds))
-
-                # Reproject to Web Mercator (EPSG:3857) — same approach as
-                # render-velocity.  Maplibre stretches the image between 4
-                # corner points in Mercator space, so pixels must be Mercator-
-                # aligned; reprojecting to geographic (4326) still causes a
-                # slight shift at most latitudes.
-                raw = src.read(1, out_shape=(dh, dw)).astype(np.float32)
-                if nodata_val is not None:
-                    raw[raw == float(nodata_val)] = np.nan
-                raw = np.where(np.isfinite(raw), raw, np.nan)
-
-                src_tf = from_bounds(src.bounds.left, src.bounds.bottom,
-                                     src.bounds.right, src.bounds.top, dw, dh)
-
-                # WGS84 envelope of the source raster
-                w84_w, w84_s, w84_e, w84_n = bounds_wgs84
-
-                # Project that WGS84 envelope into Mercator
-                tf_to_merc = Transformer.from_crs(4326, 3857, always_xy=True)
-                merc_w, merc_s = tf_to_merc.transform(w84_w, w84_s)
-                merc_e, merc_n = tf_to_merc.transform(w84_e, w84_n)
-
-                dst_tf = from_bounds(merc_w, merc_s, merc_e, merc_n, dw, dh)
-                disp_data = np.full((dh, dw), np.nan, dtype=np.float32)
-                reproject(
-                    source=raw, destination=disp_data,
-                    src_transform=src_tf, src_crs=src.crs,
-                    dst_transform=dst_tf, dst_crs=CRS.from_epsg(3857),
-                    resampling=Resampling.bilinear,
-                    src_nodata=np.nan, dst_nodata=np.nan,
-                )
-
-                # Convert Mercator bounds back to WGS84 for Maplibre corners
-                tf_to_wgs = Transformer.from_crs(3857, 4326, always_xy=True)
-                wgs_w, wgs_s = tf_to_wgs.transform(merc_w, merc_s)
-                wgs_e, wgs_n = tf_to_wgs.transform(merc_e, merc_n)
-                bounds_wgs84 = [wgs_w, wgs_s, wgs_e, wgs_n]
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"rasterio error: {e}")
 
@@ -462,7 +562,7 @@ async def mintpy_check(path: str):
     all_ts = [n for n in _TS_PRIORITY if (folder / n).exists()]
     # If geocoded geo/ timeseries exist, exclude radar-coord root-level ones.
     # Root-level files are only returned when no geo/ versions exist (HyP3_SBAS /
-    # ISCE_SBAS with already-geocoded .geo inputs — those files have Y_FIRST set).
+    # ISCE2_Mintpy_SBAS with already-geocoded .geo inputs — those files have Y_FIRST set).
     geo_ts  = [n for n in all_ts if n.startswith('geo/')]
     ts_files = geo_ts if geo_ts else [n for n in all_ts if not n.startswith('geo/')]
     has_overview = (folder / 'numTriNonzeroIntAmbiguity.h5').exists() or (folder / 'geo' / 'geo_numTriNonzeroIntAmbiguity.h5').exists()
@@ -475,7 +575,7 @@ async def mintpy_check(path: str):
 @router.get("/api/mintpy-network-data")
 async def mintpy_network_data(path: str):
     """Read coherenceSpatialAvg.txt and return nodes+pairs in folder-network-data format."""
-    folder = Path(path).expanduser().resolve()
+    folder = _resolve_mintpy_folder(path)
     coh_txt = folder / 'coherenceSpatialAvg.txt'
     if not coh_txt.exists():
         raise HTTPException(status_code=404, detail='coherenceSpatialAvg.txt not found')
@@ -599,7 +699,7 @@ async def render_velocity(path: str):
 
     MAX_PIXEL = 256
 
-    _base = Path(path).expanduser().resolve()
+    _base = _resolve_mintpy_folder(path)
     vel_path = _base / 'geo' / 'geo_velocity.h5'
     if not vel_path.exists():
         vel_path = _base / 'velocity.h5'
@@ -766,7 +866,7 @@ async def render_mintpy_diag(path: str, name: str):
         raise HTTPException(status_code=400, detail=f"Unknown diagnostic: {name}. Choose from {list(_DIAG_META)}")
 
     meta    = _DIAG_META[name]
-    _base   = Path(path).expanduser().resolve()
+    _base   = _resolve_mintpy_folder(path)
     geo_path   = _base / 'geo' / f"geo_{meta['file']}"
     plain_path = _base / meta['file']
 
@@ -899,7 +999,7 @@ async def render_mintpy_diag(path: str, name: str):
 @router.get("/api/timeseries-pixel")
 async def timeseries_pixel(path: str, lat: float, lon: float, ts_file: str | None = None):
     """Extract a single pixel time series without loading the full 3-D stack."""
-    folder = Path(path).expanduser().resolve()
+    folder = _resolve_mintpy_folder(path)
     if ts_file:
         ts_name = ts_file if (folder / ts_file).exists() else None
     else:
@@ -945,3 +1045,280 @@ async def timeseries_pixel(path: str, lat: float, lon: float, ts_file: str | Non
         raise HTTPException(status_code=500, detail=f'h5py error: {e}')
 
     return {'dates': iso_dates, 'values': values, 'file': ts_name, 'unit': unit}
+
+
+# ── ISCE3_Dolphin_PL products (plain GeoTIFFs, not MintPy .h5) ───────────────
+# Dolphin writes workdir/timeseries/{velocity.tif, <ref>_<date>.tif ...}. The
+# MintPy viewer above only reads .h5, so these endpoints render the GeoTIFFs the
+# same way (reproject to Web Mercator + colormap) and sample the epoch stack for
+# a per-pixel time series -- returning the identical overlay/plot shapes so the
+# frontend reuses the RasterOverlay + time-series plot code.
+import re as _re
+
+
+def _dolphin_ts_dir(path: str) -> Path:
+    return Path(path).expanduser().resolve() / "timeseries"
+
+
+def _dolphin_epochs(ts_dir: Path) -> list[dict]:
+    """Sorted [{date, file}] for the per-date displacement rasters named
+    ``<ref>_<date>.tif`` (excludes velocity.tif and other aux files)."""
+    out = []
+    if ts_dir.is_dir():
+        for f in sorted(ts_dir.glob("*.tif")):
+            m = _re.fullmatch(r"(\d{8})_(\d{8})", f.stem)
+            if m:
+                out.append({"date": m.group(2), "file": f.name})
+    return out
+
+
+@router.get("/api/dolphin-check")
+async def dolphin_check(path: str):
+    """Whether an ISCE3_Dolphin_PL run produced viewable products."""
+    ts = _dolphin_ts_dir(path)
+    epochs = _dolphin_epochs(ts)
+    return {"exists": bool(epochs) or (ts / "velocity.tif").exists(),
+            "velocity": (ts / "velocity.tif").exists(),
+            "epochs": epochs}
+
+
+def _render_geotiff_overlay(tif: Path, cmap: str, unit: str, label: str) -> dict:
+    """Reproject a single-band GeoTIFF to Web Mercator + colormap → the same
+    overlay dict shape /api/render-velocity returns."""
+    import base64
+    import rasterio
+    from rasterio.warp import transform_bounds
+    MAX_PIXEL = 256
+    with rasterio.open(tif) as src:
+        data = src.read(1).astype(np.float32)
+        src_crs = src.crs
+        b = src.bounds
+        nodata = src.nodata
+    orig_h, orig_w = data.shape
+    west, south, east, north = transform_bounds(src_crs, 4326, b.left, b.bottom, b.right, b.top)
+    tf_to_merc = Transformer.from_crs(4326, 3857, always_xy=True)
+    merc_w, merc_s = tf_to_merc.transform(west, south)
+    merc_e, merc_n = tf_to_merc.transform(east, north)
+    src_tf = from_bounds(b.left, b.bottom, b.right, b.top, orig_w, orig_h)
+    dst_tf = from_bounds(merc_w, merc_s, merc_e, merc_n, orig_w, orig_h)
+    _nd = nodata if nodata is not None else 0
+    src_data = np.where(np.isfinite(data) & (data != _nd), data, np.nan)
+    dst = np.full((orig_h, orig_w), np.nan, np.float32)
+    reproject(source=src_data, destination=dst, src_transform=src_tf, src_crs=src_crs,
+              dst_transform=dst_tf, dst_crs=CRS.from_epsg(3857),
+              resampling=Resampling.bilinear, src_nodata=np.nan, dst_nodata=np.nan)
+    mask = ~np.isfinite(dst)
+    valid = dst[~mask]
+    if valid.size:
+        m = max(float(np.percentile(np.abs(valid), 98)), 1e-6)
+        vmin, vmax = -m, m
+    else:
+        vmin, vmax = -0.1, 0.1
+    png_b64 = base64.b64encode(_rgba_to_png_bytes(_colormap_numpy(dst, mask, vmin, vmax, cmap))).decode()
+    scale = min(1.0, MAX_PIXEL / max(orig_h, orig_w))
+    ph, pw = max(1, int(orig_h * scale)), max(1, int(orig_w * scale))
+    ri = (np.arange(ph) * orig_h / ph).astype(int)
+    ci = (np.arange(pw) * orig_w / pw).astype(int)
+    pix_b64 = base64.b64encode(dst[np.ix_(ri, ci)].astype(np.float32).tobytes()).decode()
+    tf_to_wgs = Transformer.from_crs(3857, 4326, always_xy=True)
+    wgs_w, wgs_s = tf_to_wgs.transform(merc_w, merc_s)
+    wgs_e, wgs_n = tf_to_wgs.transform(merc_e, merc_n)
+    return {"png_b64": png_b64, "pixel_b64": pix_b64,
+            "bounds": [wgs_w, wgs_s, wgs_e, wgs_n], "vmin": vmin, "vmax": vmax,
+            "width": orig_w, "height": orig_h, "pixel_width": pw, "pixel_height": ph,
+            "unit": unit, "label": label}
+
+
+@router.get("/api/dolphin-velocity")
+async def dolphin_velocity(path: str, file: str | None = None):
+    """Render velocity.tif (default) or a named displacement epoch → overlay."""
+    ts = _dolphin_ts_dir(path)
+    if file:
+        tif, label, unit = ts / file, f"Displacement {file}", "m"
+    else:
+        tif, label, unit = ts / "velocity.tif", "Velocity (m/year)", "m/year"
+    if not tif.exists():
+        raise HTTPException(status_code=404, detail=f"{tif.name} not found")
+    try:
+        return _render_geotiff_overlay(tif, "velocity", unit, label)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"render error: {e}")
+
+
+@router.get("/api/dolphin-ts-pixel")
+async def dolphin_ts_pixel(path: str, lat: float, lon: float):
+    """Displacement time series at one pixel, sampled from the epoch stack.
+
+    The reference date (displacement 0) is prepended so the plot starts at the
+    stack's reference acquisition."""
+    import rasterio
+    from rasterio.warp import transform as _rio_transform
+    ts = _dolphin_ts_dir(path)
+    epochs = _dolphin_epochs(ts)
+    if not epochs:
+        raise HTTPException(status_code=404, detail="no displacement epochs found")
+    ref = _re.fullmatch(r"(\d{8})_\d{8}", Path(epochs[0]["file"]).stem).group(1)
+    dates = [f"{ref[:4]}-{ref[4:6]}-{ref[6:8]}"]
+    values = [0.0]
+    for ep in epochs:
+        with rasterio.open(ts / ep["file"]) as src:
+            xs, ys = _rio_transform("EPSG:4326", src.crs, [lon], [lat])
+            row, col = src.index(xs[0], ys[0])
+            if 0 <= row < src.height and 0 <= col < src.width:
+                v = float(src.read(1, window=((row, row + 1), (col, col + 1)))[0, 0])
+            else:
+                v = float("nan")
+        d = ep["date"]
+        dates.append(f"{d[:4]}-{d[4:6]}-{d[6:8]}")
+        values.append(v)
+    return {"dates": dates, "values": values, "unit": "m"}
+
+
+# ── Raw downloaded-data preview (downloader "View Data") ──────────────────────
+# The downloader's slc/ holds radar-geometry Sentinel-1 SLC/burst .zip (no native
+# georef) and geocoded NISAR GSLC .h5 (geocoded but huge -> slow to render live).
+# For a fast *georeferenced preview* we reuse each product's built-in quicklook:
+#   S1  : preview/quick-look.png + preview/map-overlay.kml (4 ground corners)
+#   NISAR: a one-time downsampled amplitude, cached under slc/.preview_cache/.
+
+def _slc_dir(path: str) -> Path:
+    return Path(path).expanduser().resolve() / "slc"
+
+
+def _slc_scene_date(name: str) -> str:
+    import re
+    m = re.search(r"(\d{8})T\d{6}", name)   # S1 & NISAR both carry YYYYMMDDTHHMMSS
+    return m.group(1) if m else ""
+
+
+def _order_corners(pts: list[list[float]]) -> list[list[float]]:
+    """Order 4 [lon,lat] corners as MapLibre wants: [TL, TR, BR, BL] (NW,NE,SE,SW).
+    Classifies each corner by quadrant about the centroid -- robust to whatever
+    order the source lists them in (S1 KML order varies; a UTM extent is axis-
+    aligned). Assumes a mild tilt (true for S1 swaths and geocoded frames)."""
+    clon = sum(p[0] for p in pts) / len(pts)
+    clat = sum(p[1] for p in pts) / len(pts)
+    nw = ne = se = sw = None
+    for p in pts:
+        east = p[0] >= clon
+        north = p[1] >= clat
+        if north and not east:   nw = p
+        elif north and east:     ne = p
+        elif not north and east: se = p
+        else:                    sw = p
+    got = [nw, ne, se, sw]
+    if any(c is None for c in got):       # degenerate quad -> fall back to bbox
+        lons = [p[0] for p in pts]; lats = [p[1] for p in pts]
+        w, e, s, n = min(lons), max(lons), min(lats), max(lats)
+        return [[w, n], [e, n], [e, s], [w, s]]
+    return [[round(c[0], 6), round(c[1], 6)] for c in got]
+
+
+@router.get("/api/folder-slc-list")
+async def folder_slc_list(path: str):
+    """List raw products under slc/ that can show a georeferenced preview."""
+    slc = _slc_dir(path)
+    items: list[dict] = []
+    if not slc.is_dir():
+        return {"items": items}
+    for p in sorted(slc.iterdir()):
+        n = p.name
+        if n.endswith(".zip"):
+            try:
+                with _zipfile.ZipFile(p) as z:
+                    if any(m.endswith("preview/quick-look.png") for m in z.namelist()):
+                        items.append({"file": n, "kind": "s1", "date": _slc_scene_date(n)})
+            except Exception:
+                pass
+        elif n.endswith(".h5") and "GSLC" in n.upper():
+            items.append({"file": n, "kind": "nisar", "date": _slc_scene_date(n)})
+    items.sort(key=lambda d: (d["date"], d["file"]))
+    return {"items": items}
+
+
+def _s1_preview(zip_path: Path) -> dict:
+    import base64, re
+    with _zipfile.ZipFile(zip_path) as z:
+        ql = next(m for m in z.namelist() if m.endswith("preview/quick-look.png"))
+        kml = next(m for m in z.namelist() if m.endswith("preview/map-overlay.kml"))
+        png = z.read(ql)
+        kml_txt = z.read(kml).decode("utf-8", "ignore")
+    m = re.search(r"<coordinates>(.*?)</coordinates>", kml_txt, re.S)
+    if not m:
+        raise HTTPException(status_code=422, detail="map-overlay.kml has no <coordinates>")
+    pts = [[float(x) for x in c.split(",")[:2]] for c in m.group(1).split()]
+    # drop a repeated closing vertex if present
+    if len(pts) >= 5 and pts[0] == pts[-1]:
+        pts = pts[:4]
+    return {"png_b64": base64.b64encode(png).decode(),
+            "corners": _order_corners(pts[:4]), "label": zip_path.stem, "kind": "s1"}
+
+
+def _nisar_preview(h5_path: Path, max_px: int = 1024) -> dict:
+    """Downsampled amplitude of the GSLC (geocoded), cached as a PNG + corners."""
+    import base64
+    cache_dir = h5_path.parent / ".preview_cache"
+    cache_dir.mkdir(exist_ok=True)
+    png_cache = cache_dir / (h5_path.stem + ".png")
+    json_cache = cache_dir / (h5_path.stem + ".json")
+    if (png_cache.exists() and json_cache.exists()
+            and png_cache.stat().st_mtime >= h5_path.stat().st_mtime):
+        meta = json.loads(json_cache.read_text())
+        return {"png_b64": base64.b64encode(png_cache.read_bytes()).decode(),
+                "corners": meta["corners"], "label": h5_path.stem, "kind": "nisar"}
+
+    from osgeo import gdal
+    gdal.UseExceptions()
+    sub = f'NETCDF:"{h5_path}"://science/LSAR/GSLC/grids/frequencyA/HH'
+    ds = gdal.Open(sub)
+    W, H = ds.RasterXSize, ds.RasterYSize
+    scale = min(1.0, max_px / max(W, H))
+    ow, oh = max(1, int(W * scale)), max(1, int(H * scale))
+    arr = ds.GetRasterBand(1).ReadAsArray(buf_xsize=ow, buf_ysize=oh)
+    amp = np.abs(arr).astype("float32")
+    finite = np.isfinite(amp) & (amp > 0)
+    disp = np.zeros_like(amp)
+    if finite.any():
+        v = amp[finite]
+        lo, hi = np.percentile(v, 2), np.percentile(v, 98)
+        # compute only on finite pixels so NaNs never reach the uint8 cast
+        disp[finite] = np.clip(
+            (np.log1p(amp[finite]) - np.log1p(lo)) / max(np.log1p(hi) - np.log1p(lo), 1e-6),
+            0, 1)
+    g = (disp * 255).astype("uint8")
+    rgba = np.dstack([g, g, g, np.where(finite, 255, 0).astype("uint8")])
+    png_bytes = _rgba_to_png_bytes(rgba)
+    png_cache.write_bytes(png_bytes)
+
+    gt = ds.GetGeoTransform()
+    epsg = 0
+    srs = ds.GetSpatialRef()
+    if srs is not None and srs.GetAuthorityCode(None):
+        epsg = int(srs.GetAuthorityCode(None))
+    xs = [gt[0], gt[0] + gt[1] * W]
+    ys = [gt[3], gt[3] + gt[5] * H]
+    proj_corners = [[xs[0], ys[0]], [xs[1], ys[0]], [xs[1], ys[1]], [xs[0], ys[1]]]
+    if epsg and epsg != 4326:
+        tf = Transformer.from_crs(epsg, 4326, always_xy=True)
+        proj_corners = [[*tf.transform(x, y)] for x, y in proj_corners]
+    corners = _order_corners(proj_corners)
+    json_cache.write_text(json.dumps({"corners": corners}))
+    return {"png_b64": base64.b64encode(png_bytes).decode(),
+            "corners": corners, "label": h5_path.stem, "kind": "nisar"}
+
+
+@router.get("/api/render-slc-preview")
+async def render_slc_preview(path: str, file: str):
+    """Georeferenced quicklook overlay for one raw product under slc/."""
+    slc = _slc_dir(path)
+    p = (slc / file).resolve()
+    if slc not in p.parents or not p.exists():
+        raise HTTPException(status_code=404, detail=f"{file} not found under slc/")
+    try:
+        if p.name.endswith(".zip"):
+            return _s1_preview(p)
+        return _nisar_preview(p)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"preview error: {e}")

@@ -17,7 +17,7 @@ from insarhub.app.models import FolderDownloadRequest, SelectPairsRequest, SaveP
 from insarhub.commands.downloader import DownloadScenesCommand, SearchCommand
 from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
-from insarhub.app.routes.search import _download_workers
+from insarhub.app.routes.search import _download_workers, _EXECUTION_CONFIG_FIELDS
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, read_insarhub_config, write_insarhub_config
 from insarhub.utils.pair_quality._cache import seed_prefetch
 from insarhub.utils.pair_quality._geom import footprint_wkt_from_products
@@ -75,6 +75,14 @@ async def _run_folder_download(job_id: str, folder_path: str):
             cfg_cls = getattr(dl_cls, "default_config", S1_SLC_Config) if dl_cls else S1_SLC_Config
             cfg = cfg_cls(workdir=folder)
             _apply_config_from_dict(cfg, raw, skip_keys={"workdir"})
+            # Execution settings (max_workers, ssl_verify) track the CURRENT
+            # settings form, not the folder's saved config -- otherwise changing
+            # max_workers in the GUI after the folder was created would have no
+            # effect (the saved config froze it at add-job time). Search filters
+            # still come from the folder's config above; only these override.
+            _exec = {k: v for k, v in (state._settings.get("downloader_config", {}) or {}).items()
+                     if k in _EXECUTION_CONFIG_FIELDS}
+            _apply_config_from_dict(cfg, _exec, skip_keys={"workdir"})
 
             downloader = Downloader.create(dl_type, cfg)
             search_result = SearchCommand(downloader, progress_callback=state._make_progress(job_id)).run()
@@ -89,12 +97,13 @@ async def _run_folder_download(job_id: str, folder_path: str):
             total = sum(len(v) for v in downloader.results.values())
             state._jobs[job_id]["message"] = f"Downloading 0/{total}"
 
-            # S1_SLC.download treats save_path as a root and re-creates the
-            # per-stack <p<path>_f<frame>>/slc folder itself; S1_Burst.download
-            # assembles .SAFE directly into save_path. Send the burst folder
-            # so its SAFEs land inside the job folder, matching the layout.
-            _dl_save = (str(folder.parent) if dl_type != "S1_Burst"
-                        else str((folder / "slc")))
+            # Download INTO the job folder itself, not its parent. Passing the
+            # parent (a workdir root) breaks whenever that root also carries an
+            # insarhub_config.json: download() then treats the root as a single
+            # flat stack and dumps every scene into <root>/slc instead of
+            # <folder>/slc. Passing the folder keeps the SLCs co-located with
+            # the folder's own config/stack file for every downloader.
+            _dl_save = str(folder) if dl_type != "S1_Burst" else str(folder / "slc")
             dl_result = DownloadScenesCommand(
                 downloader,
                 stop_event=stop_ev,
@@ -251,7 +260,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 _dl_is_stack and isinstance(active, dict)
                 and len(_active_paths) == 1 and len(active) > 1
             )
-            pairs, baselines, scene_bperp, prefetch_cache = downloader.select_pairs(
+            pairs, baselines, scene_bperp, prefetch_cache, _qs, _qf = downloader.select_pairs(
                 dt_targets=tuple(req.dt_targets),
                 dt_tol=req.dt_tol,
                 dt_max=req.dt_max,
@@ -264,6 +273,8 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 snow_threshold=req.snow_threshold,
                 precip_mm_threshold=req.precip_mm_threshold,
                 merge=merge_flag,
+                quality_check=False,   # GUI scores via its own async DB build below
+                plot_network=False,
             )
 
             # Build scenes_by_stack from search results for the DB — keys

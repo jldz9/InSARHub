@@ -12,6 +12,7 @@ from pathlib import Path
 import asf_search as asf
 import contextily as ctx
 import dem_stitcher
+import matplotlib
 import matplotlib.pyplot as plt
 import rasterio as rio
 from asf_search.exceptions import ASFAuthenticationError
@@ -22,10 +23,16 @@ from shapely.ops import transform
 from shapely.geometry import shape
 from tqdm import tqdm
 
+from insarhub._version import __version__
 from insarhub.core.base import BaseDownloader
 from insarhub.config import ASF_Base_Config
 from insarhub.config.paths import StackPaths
 from insarhub.utils.tool import _to_wkt
+
+# OpenStreetMap's tile servers are volunteer-run and require a valid,
+# identifying User-Agent (their tile usage policy); a bare request with
+# the default urllib UA is rejected with "Access blocked". Identify the app.
+_OSM_TILE_HEADERS = {"User-Agent": f"InSARHub/{__version__} (https://github.com/anomalyco/InSARHub)"}
 
 def _parse_scene_filter(scenes) -> set[str] | None:
     """Return a set of scene name strings, or None meaning 'no filter'.
@@ -54,6 +61,33 @@ def _parse_scene_filter(scenes) -> set[str] | None:
             # single-stack pairs list
             return {str(s) for pair in scenes for s in pair}
     return set(str(s) for s in scenes)
+
+
+def _product_byte_size(props: dict) -> int | None:
+    """Byte size of the main product file (the one ``download()`` fetches).
+
+    S1/ALOS expose ``bytes`` as an int. NISAR exposes a dict mapping every file
+    in the granule to ``{'bytes': N, 'format': ...}``; return the entry for the
+    file we actually download (``fileName`` == the ``url`` basename), falling
+    back to the sum of all entries.
+    """
+    raw = props.get('bytes')
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, (int, float)):
+        return int(raw)
+    if isinstance(raw, dict):
+        filename = props.get('fileName')
+        if filename:
+            entry = raw.get(filename)
+            if isinstance(entry, dict) and isinstance(entry.get('bytes'), (int, float)):
+                return int(entry['bytes'])
+        total = 0
+        for v in raw.values():
+            if isinstance(v, dict) and isinstance(v.get('bytes'), (int, float)):
+                total += int(v['bytes'])
+        return total or None
+    return None
 
 
 def _end_of_day(value: str) -> str:
@@ -90,7 +124,7 @@ class ASF_Base_Downloader(BaseDownloader):
     _DATASET_GROUP_KEYS = {
         'SENTINEL-1': ('pathNumber', 'frameNumber'),
         'ALOS':       ('pathNumber', 'frameNumber'),
-        'NISAR':      ('pathNumber', 'frameID'),
+        'NISAR':      ('pathNumber', 'frameNumber'),  # NISAR carries frameNumber, not frameID
         'BURST':      ('pathNumber', 'burstID'),
     }
     _DATASET_PROPERTY_KEYS = {
@@ -107,7 +141,7 @@ class ASF_Base_Downloader(BaseDownloader):
             'flightDirection': 'flightDirection',
         },
         'NISAR': {
-            'relativeOrbit': 'relativeOrbit',
+            'relativeOrbit': 'pathNumber',   # NISAR exposes track as pathNumber, like S1
             'absoluteOrbit': 'absoluteOrbit',
             'polarization':  'polarization',
             'flightDirection': 'flightDirection',
@@ -223,7 +257,7 @@ Check documentation for how to setup .netrc file.\n""")
                 if 'ALOS' in pl_upper:
                     return (props.get('pathNumber'), props.get('frameNumber'))
                 if 'NISAR' in pl_upper:
-                    return (props.get('pathNumber'), props.get('frameID'))
+                    return (props.get('pathNumber'), props.get('frameNumber'))
         # last resort — group everything under the platform name
         return (props.get('pathNumber'), props.get('frameNumber'))
     
@@ -475,7 +509,7 @@ Check documentation for how to setup .netrc file.\n""")
         
         transformer = Transformer.from_crs("EPSG:4326", "EPSG:3857", always_xy=True)
         N = len(results_to_plot)
-        cmap = plt.cm.get_cmap('hsv', N+1)
+        cmap = matplotlib.colormaps['hsv'].resampled(N+1)
 
         fig, ax = plt.subplots(1, 1, figsize=(10,10), dpi=150)
 
@@ -514,7 +548,7 @@ Check documentation for how to setup .netrc file.\n""")
                 x, y = geom.exterior.xy
                 ax.plot(x, y, color=cmap(i))
         
-        ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik)
+        ctx.add_basemap(ax, source=ctx.providers.OpenStreetMap.Mapnik, headers=_OSM_TILE_HEADERS)
 
         ax.set_xlim(global_minx, global_maxx)
         ax.set_ylim(global_miny, global_maxy)
@@ -757,6 +791,8 @@ Check documentation for how to setup .netrc file.\n""")
         safe_dir: str | None = None,
         eof_dir: str | None = None,
         poeorb_cache: str | None = None,
+        quality_check: bool = True,
+        plot_network: bool = True,
     ) -> tuple:
         """Compute interferogram pairs for all active stacks.
 
@@ -791,15 +827,29 @@ Check documentation for how to setup .netrc file.\n""")
                 ``.EOF`` files used for bperp (offline).
             poeorb_cache (str, optional): Burst mode: directory for POEORB
                 downloads keyed by date + mission (online fallback).
+            quality_check (bool, optional): After pairing, write the stack
+                file(s), seed the weather/snow cache, and precompute the
+                PairQualityDB coherence scores for all possible pairs (the
+                slow, network-heavy step). ``False`` skips scoring. Defaults
+                to True.
+            plot_network (bool, optional): Save ``network_*.png`` with the
+                pair network, coloured by quality when ``quality_check`` is
+                True (falls back to temporal-baseline colouring otherwise).
+                Defaults to True.
 
         Returns:
-            tuple: (pairs, baselines, scene_bperp, prefetch_cache)
+            tuple: ``(pairs, baselines, scene_bperp, prefetch_cache,
+            quality_scores, quality_factors)``
                 - pairs: dict keyed by (path, frame) for multi-stack — or
                   (path, "merged") per distinct path when merge=True — or a
                   flat list for a single stack.
                 - baselines: temporal baselines
                 - scene_bperp: perpendicular baselines per scene
                 - prefetch_cache: coherence/weather cache dict for downstream use
+                - quality_scores: ``{pair_key: score}`` (list case) or
+                  ``{(path, frame): {pair_key: score}}`` (dict case); ``None``
+                  when ``quality_check`` is False or scoring failed.
+                - quality_factors: factor breakdown, same keying as scores.
         """
         # None → pull from the single source of truth
         from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
@@ -865,7 +915,70 @@ Check documentation for how to setup .netrc file.\n""")
         baselines  = _sp_result[1]
         scene_bperp: dict = _sp_result[2] if len(_sp_result) > 2 else {}
         prefetch:   dict  = _sp_result[3] if len(_sp_result) > 3 else {}
-        return pairs, baselines, scene_bperp, prefetch
+
+        if not (quality_check or plot_network):
+            return pairs, baselines, scene_bperp, prefetch, None, None
+
+        # ── Finalize: write stack files, score pairs, plot network ────────
+        from dataclasses import asdict
+        from insarhub.utils.config_io import write_insarhub_config
+        from insarhub.utils.stack_io import finalize_stack
+        from insarhub.utils.tool import group_scenes_by_stack, write_workflow_marker
+
+        scenes_by_stack = group_scenes_by_stack(self.active_results, merge=merge)
+        workdir = Path(self.config.workdir).expanduser()
+        workdir.mkdir(parents=True, exist_ok=True)
+        _sp = StackPaths(workdir)
+        _dl_is_stack = (workdir / "insarhub_config.json").exists()
+
+        quality_scores: dict | None
+        quality_factors: dict | None
+        if isinstance(pairs, dict):
+            quality_scores = {}
+            quality_factors = {}
+            for (path, frame), group_pairs in pairs.items():
+                is_merged = StackPaths.is_merge_key(frame)
+                label = f"P{path} ({frame})" if is_merged else f"P{path}/F{frame}"
+                tag = _sp.dir_for(path, frame).name
+                subdir = workdir if _dl_is_stack else workdir / tag
+                subdir.mkdir(parents=True, exist_ok=True)
+                write_workflow_marker(subdir, downloader=type(self).name)
+                cfg = {k: v for k, v in asdict(self.config).items() if k != "workdir"}
+                cfg["relativeOrbit"] = path
+                if not is_merged:
+                    cfg["frame"] = frame
+                write_insarhub_config(subdir, {"downloader": {"type": type(self).name, "config": cfg}})
+                sp = scene_bperp.get((path, frame)) or {}
+                stack_scenes = scenes_by_stack.get((path, frame), [])
+                stack_path = subdir / _sp.stack_file_for(path, frame).name
+                qs, qf = finalize_stack(
+                    subdir, stack_path, group_pairs, sp, stack_scenes,
+                    prefetch.get((path, frame), {}),
+                    key=(path, frame),
+                    baselines=baselines[(path, frame)],
+                    title=f"Interferogram Network — {label}",
+                    save_path=subdir / f"network_{tag}.png",
+                    quality_check=quality_check,
+                    plot_network=plot_network,
+                )
+                if qs is not None:
+                    quality_scores[(path, frame)] = qs
+                    quality_factors[(path, frame)] = qf
+        else:
+            sp = scene_bperp if isinstance(scene_bperp, dict) else {}
+            stack_scenes = scenes_by_stack.get((0, 0), [])
+            stack_path = workdir / _sp.stack_file(0, 0).name
+            quality_scores, quality_factors = finalize_stack(
+                workdir, stack_path, pairs, sp, stack_scenes, prefetch,
+                key=(0, 0),
+                baselines=baselines,
+                title="Interferogram Network",
+                save_path=workdir / "network.png",
+                quality_check=quality_check,
+                plot_network=plot_network,
+            )
+
+        return pairs, baselines, scene_bperp, prefetch, quality_scores, quality_factors
 
     def _mark_stack_dir(self, stack_dir, extra_cfg: dict | None = None) -> None:
         """Write the two files that make a directory a recognised stack.
@@ -946,7 +1059,14 @@ Check documentation for how to setup .netrc file.\n""")
         # and the downloaded SLCs end up co-located. active_results is always
         # a dict[(path, frame), list[ASFProduct]] (see its docstring/contract).
         _sp = StackPaths(output_dir)
-        if merge:
+        # A single stack is never a merge: merge naming (p{path}_merged_f...) is
+        # only meaningful for 2+ frames sharing one path. This mirrors
+        # select_pairs(merge=...)'s own `len > 1` gate, so a single-frame
+        # --merge download lands in p{path}_f{frame}/slc alongside the plain
+        # stack file rather than in a mismatched p{path}_merged_f{frame}/.
+        do_merge = (merge and isinstance(self.active_results, dict)
+                    and len(self.active_results) > 1)
+        if do_merge:
             paths = {path for (path, _frame) in self.active_results.keys()}
             if len(paths) > 1:
                 raise ValueError(
@@ -965,7 +1085,7 @@ Check documentation for how to setup .netrc file.\n""")
         stack_paths: dict = {}
         _dir_is_stack = (self.download_dir / "insarhub_config.json").exists()
         for key, results in self.active_results.items():
-            if merge:
+            if do_merge:
                 stack_path    = merged_dir
                 download_path = stack_path / "slc"
             elif _dir_is_stack:
@@ -1059,8 +1179,8 @@ Check documentation for how to setup .netrc file.\n""")
         def _download_job(args):
             key, result, download_path, position = args
             file_id   = result.properties['fileID']
-            size_b    = result.properties['bytes']
-            size_mb   = size_b / (1024 * 1024)
+            size_b    = _product_byte_size(result.properties)
+            size_mb   = (size_b / (1024 * 1024)) if size_b else 0
             filename  = result.properties.get('fileName', f"{file_id}.zip")
             file_path = download_path / filename
 
@@ -1070,7 +1190,7 @@ Check documentation for how to setup .netrc file.\n""")
                 return file_id, 'cancelled', 0, None
 
             # Skip if already complete
-            if file_path.exists() and file_path.stat().st_size == size_b:
+            if size_b and file_path.exists() and file_path.stat().st_size == size_b:
                 return file_id, 'skipped', size_mb, None
 
             # Remove incomplete file
@@ -1085,13 +1205,13 @@ Check documentation for how to setup .netrc file.\n""")
                 _stream_download_interruptible(
                     url=result.properties['url'],
                     file_path=file_path,
-                    expected_bytes=size_b,
+                    expected_bytes=size_b or 0,
                     pbar_position=position,
                     scene_name=scene_name,
                 )
 
                 actual_size = file_path.stat().st_size
-                if actual_size != size_b:
+                if size_b and actual_size != size_b:
                     raise IOError(f"Size mismatch: expected {size_b}, got {actual_size} bytes.")
 
                 elapsed = time.time() - start_time

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-ISCE_SBAS — MintPy SBAS analyzer for ISCE2 stackSentinel outputs.
+ISCE2_Mintpy_SBAS — MintPy SBAS analyzer for ISCE2 stackSentinel outputs.
 
 prep_data() auto-discovers outputs from isce/ and wires MintPy load paths.
 run() writes all MintPy results to workdir/mintpy/.
@@ -33,32 +33,33 @@ from pathlib import Path
 
 from colorama import Fore
 
-from insarhub.config.defaultconfig import ISCE_SBAS_Config
+from insarhub.config.defaultconfig import ISCE2_Mintpy_SBAS_Config
 from insarhub.config.paths import ISCEPaths
 from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
 
 
-class ISCE_SBAS(Mintpy_SBAS_Base_Analyzer):
+class ISCE2_Mintpy_SBAS(Mintpy_SBAS_Base_Analyzer):
     """SBAS time-series analysis of ISCE2 stackSentinel outputs using MintPy.
 
     Usage::
 
         from insarhub import Analyzer
 
-        az = Analyzer.create('ISCE_SBAS', workdir='/data/p64_f468')
+        az = Analyzer.create('ISCE2_Mintpy_SBAS', workdir='/data/p64_f468')
         az.prep_data()   # auto-wires MintPy paths, writes mintpy/.mintpy.cfg
         az.run()         # writes all output to workdir/mintpy/
     """
 
-    name                 = "ISCE_SBAS"
+    name                 = "ISCE2_Mintpy_SBAS"
+    aliases              = ("ISCE_SBAS", "ISCE2_TS", "ISCE2_Mintpy_TS")   # legacy names
     description          = "SBAS time-series analysis of ISCE2 stackSentinel outputs using MintPy."
     compatible_processor = "ISCE2_S1"
-    default_config       = ISCE_SBAS_Config
+    default_config       = ISCE2_Mintpy_SBAS_Config
     # own output dir (workdir/isce_mintpy/) -- separate from other MintPy
     # analyzers on the same workdir; layout via MintPyPaths (config/paths.py)
     MINTPY_SUBDIR        = "isce_mintpy"
 
-    def __init__(self, config: ISCE_SBAS_Config | None = None):
+    def __init__(self, config: ISCE2_Mintpy_SBAS_Config | None = None):
         super().__init__(config)
         self._isce_paths = ISCEPaths(self.workdir)
         self.isce_dir    = self._isce_paths.isce_dir

@@ -23,11 +23,11 @@ LocalProcessor (ABC) ──► ISCE2_Base ──► ISCE2_S1
 BaseDownloader (ABC) ──► ASF_Base_Downloader ──► S1_SLC
                                              └──► S1_Burst
 
-BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_SBAS
-                                                   ├──► ISCE_SBAS
-                                                   └──► GMTSAR_MINTPY_SBAS
+BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_Mintpy_SBAS
+                                                   ├──► ISCE2_Mintpy_SBAS
+                                                   └──► GMTSAR_Mintpy_SBAS
                     ├──► GMTSAR_SBAS   (GMTSAR's own sbas binary, no MintPy)
-                    └──► Dolphin_SBAS  (dolphin timeseries for ISCE3_Burst)
+                    └──► ISCE3_Dolphin_PL  (dolphin timeseries for ISCE3_Burst)
 ```
 
 Each mid-layer base class (`Hyp3Base`, `ISCE2_Base`, `ISCE3_Base`, `ASF_Base_Downloader`, `Mintpy_SBAS_Base_Analyzer`) implements all the shared infrastructure — auth, job tracking, HPC submission, file I/O. Concrete leaf classes only need to implement `submit()` (and `prep_data()`/`run()` for analyzers) with sensor-specific logic. `GMTSAR_S1` and `ISCE3_Burst` additionally split off large, single-processor helpers into private sibling modules (`processor/_gmtsar_esd_network.py` for GMTSAR's network-ESD misregistration, `processor/isce3_base.py` for ISCE3's stage/HPC machinery).
@@ -51,9 +51,36 @@ ISCEPaths(workdir).dem_dir          # workdir/dem
 MintPyPaths(workdir).mintpy_dir     # workdir/mintpy
 MintPyPaths(workdir).tmp_dir        # workdir/mintpy/tmp
 MintPyPaths(workdir).clip_dir       # workdir/mintpy/clip
+
+GMTSARPaths(workdir).case_dir       # workdir/gmtsar
+ISCE3Paths(workdir).cropped_gslc_dir  # workdir/cropped_gslc
+```
+
+Each processor family has its own dataclass (`Hyp3Paths`, `ISCEPaths`, `GMTSARPaths`, `ISCE3Paths`). The background-executor artifacts every local processor writes are named by shared constants and exposed per family so they land under that processor's own directory — never hardcode them:
+
+```python
+from insarhub.config.paths import EXECUTOR_LOG, EXECUTOR_PID
+
+ISCEPaths(workdir).executor_log     # workdir/isce/executor.log
+GMTSARPaths(workdir).executor_log   # workdir/gmtsar/executor.log
+ISCE3Paths(workdir).executor_log    # workdir/executor.log  (ISCE3 writes at the root)
 ```
 
 If a new processor writes to a new subdirectory, add a new dataclass to `config/paths.py`.
+
+## Container execution (`INSARHUB_CONTAINER_CHILD`)
+
+A local processor/analyzer with `config.container` set does not run the tool on the host — it **re-invokes the same `insarhub` CLI inside the image** (`_reinvoke_via_container` / `_run_via_container`), bind-mounting the workdir at the identical path. The child process is marked with the env var **`INSARHUB_CONTAINER_CHILD=1`**.
+
+Any code that decides whether to containerize, background-fork, or re-submit **must guard on both** `config.container` **and** this env var, so the host containerizes once and the child runs the work directly:
+
+```python
+if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
+    return self._reinvoke_via_container("submit")   # host: launch the container
+# ... reached on the host without a container, OR inside the container child ...
+```
+
+Forgetting the `INSARHUB_CONTAINER_CHILD` half is the classic "docker not found" bug: the child, seeing `config.container` still set (it is persisted to `insarhub_config.json` for retry), tries to launch another container — docker-in-docker — but there is no docker inside the image. The same guard also forces the child to run **synchronously** (no fork+detach) so `docker run --rm` does not tear the container down before the work finishes.
 
 ## Adding a New Processor
 

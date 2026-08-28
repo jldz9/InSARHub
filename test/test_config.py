@@ -158,18 +158,18 @@ class TestHyp3S1Config:
 
 
 # ===========================================================================
-# Hyp3_SBAS_Config
+# Hyp3_Mintpy_SBAS_Config
 # ===========================================================================
 
 class TestHyp3SBASConfig:
     def test_has_network_coherence_field(self):
-        from insarhub.config import Hyp3_SBAS_Config
-        cfg = Hyp3_SBAS_Config()
+        from insarhub.config import Hyp3_Mintpy_SBAS_Config
+        cfg = Hyp3_Mintpy_SBAS_Config()
         assert hasattr(cfg, "network_coherenceBased")
 
     def test_inherits_mintpy_base(self):
-        from insarhub.config import Hyp3_SBAS_Config, Mintpy_SBAS_Base_Config
-        cfg = Hyp3_SBAS_Config()
+        from insarhub.config import Hyp3_Mintpy_SBAS_Config, Mintpy_SBAS_Base_Config
+        cfg = Hyp3_Mintpy_SBAS_Config()
         assert isinstance(cfg, Mintpy_SBAS_Base_Config)
 
 

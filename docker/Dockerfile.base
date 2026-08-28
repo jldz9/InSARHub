@@ -1,0 +1,47 @@
+# InSARHub (local dev source) + MintPy — the lightweight base image.
+#
+# Serves the cloud HyP3 workflow: the `Hyp3_S1` processor runs on ASF's HyP3
+# service (no local SAR toolchain needed), and the `Hyp3_Mintpy_SBAS` analyzer
+# runs MintPy locally. This image is just InSARHub + MintPy, with none of the
+# heavy ISCE2 / ISCE3 / GMTSAR stacks.
+#
+# Build (from repo root):
+#   docker build -f docker/Dockerfile.base -t insarhub-base:dev .
+#
+# Use:
+#   insarhub analyzer -N Hyp3_Mintpy_SBAS -w /path/to/workdir run --container insarhub-base:dev
+#
+# Publish to GHCR (this is the :dev base image the HyP3 config container_default points at):
+#   docker tag insarhub-base:dev ghcr.io/jldz9/insarhub-base:dev
+#   docker push ghcr.io/jldz9/insarhub-base:dev
+
+FROM condaforge/miniforge3:24.9.2-0
+
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+RUN mamba create -n insarhub -c conda-forge python=3.12 -y \
+    && mamba clean -afy
+
+# insarhub alone pulls its full dependency tree -- including MintPy -- correctly
+# respecting its own declared numpy<2.0 (same recipe as the other images, minus
+# the ISCE2/GMTSAR follow-up installs).
+RUN conda install -n insarhub -c conda-forge insarhub -y \
+    && mamba clean -afy
+
+# Local source instead of PyPI/conda-forge: copy just what the build needs
+# (pyproject.toml + src/) so unrelated repo changes don't bust the layer cache.
+# --no-deps -- insarhub's own release is already fully resolved by the conda
+# install step; this just swaps in the local dev code itself.
+COPY pyproject.toml README.md /opt/insarhub-src/
+COPY src /opt/insarhub-src/src
+RUN /opt/conda/envs/insarhub/bin/pip uninstall -y insarhub
+RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir --no-deps /opt/insarhub-src
+
+ENV PATH=/opt/conda/envs/insarhub/bin:$PATH
+# Put the conda env's libstdc++ on the loader path so pandas (pulled in by
+# MintPy / dem_stitcher) finds GLIBCXX_3.4.29 -- the SYSTEM libstdc++ is too old
+# and, with LD_LIBRARY_PATH empty, would be picked instead ("GLIBCXX_3.4.29 not
+# found"). See docker/Dockerfile.gmtsar-mintpy for the full rationale.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/insarhub/lib
+
+# No custom ENTRYPOINT/CMD -- see Dockerfile for why.

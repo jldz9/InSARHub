@@ -21,10 +21,10 @@ live workdirs.
 
 Pipelines covered (auto-detected from each workdir's insarhub_config.json)
 --------------------------------------------------------------------------
-    GMTSAR_S1         ->  GMTSAR_MINTPY_SBAS / GMTSAR_SBAS
-    ISCE2_S1          ->  ISCE_SBAS
-    ISCE3_Burst       ->  Dolphin_SBAS
-    Hyp3_S1 (cloud)   ->  Hyp3_SBAS        (registry/config level only)
+    GMTSAR_S1         ->  GMTSAR_Mintpy_SBAS / GMTSAR_SBAS
+    ISCE2_S1          ->  ISCE2_Mintpy_SBAS
+    ISCE3_Burst       ->  ISCE3_Dolphin_PL
+    Hyp3_S1 (cloud)   ->  Hyp3_Mintpy_SBAS        (registry/config level only)
 
 Usage (from the repo root, any env with insarhub installed):
     python test/e2e/universal_smoke_test.py \
@@ -66,7 +66,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 
 EXPECTED_PROCESSORS = {"Hyp3_S1", "ISCE2_S1", "GMTSAR_S1", "ISCE3_Burst"}
 EXPECTED_ANALYZERS = {
-    "Hyp3_SBAS", "ISCE_SBAS", "GMTSAR_SBAS", "GMTSAR_MINTPY_SBAS", "Dolphin_SBAS",
+    "Hyp3_Mintpy_SBAS", "ISCE2_Mintpy_SBAS", "GMTSAR_SBAS", "GMTSAR_Mintpy_SBAS", "ISCE3_Dolphin_PL",
 }
 # Pipeline -> expected on-disk artifacts (relative globs). Purely informational
 # (WARN on missing) -- the tooling checks below are the hard pass/fail.
@@ -74,9 +74,9 @@ ARTIFACTS = {
     "GMTSAR_S1": ["gmtsar/gmtsar_jobs.json"],
     "ISCE2_S1": ["isce*"],
     "ISCE3_Burst": ["isce3_burst_jobs.json", "timeseries"],
-    "GMTSAR_MINTPY_SBAS": ["gmtsar_mintpy/*.h5"],
-    "ISCE_SBAS": ["mintpy"],
-    "Dolphin_SBAS": ["timeseries"],
+    "GMTSAR_Mintpy_SBAS": ["gmtsar_mintpy/*.h5"],
+    "ISCE2_Mintpy_SBAS": ["mintpy"],
+    "ISCE3_Dolphin_PL": ["timeseries"],
     "GMTSAR_SBAS": ["gmtsar_sbas"],
 }
 

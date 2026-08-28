@@ -273,7 +273,7 @@ export default function SearchFilters({ open, filters, theme: t, downloaderType,
         position: 'fixed', top: '50%', left: '50%', zIndex: 101,
         transform: 'translate(-50%, -50%)',
         background: t.bg2, border: `1px solid ${t.border}`,
-        borderRadius: 8, width: 480,
+        borderRadius: 8, width: 480, maxHeight: '90vh',
         boxShadow: '0 8px 40px rgba(0,0,0,0.45)',
         overflow: 'hidden', display: 'flex', flexDirection: 'column',
       }}>
@@ -291,6 +291,10 @@ export default function SearchFilters({ open, filters, theme: t, downloaderType,
             color: t.textMuted, cursor: 'pointer', fontSize: 20, lineHeight: 1, padding: 0,
           }}>×</button>
         </div>
+
+        {/* Scrollable body — keeps header + footer pinned so a tall filter set
+            fits on short screens (1080p) instead of overflowing off-screen. */}
+        <div style={{ overflowY: 'auto', minHeight: 0, flex: 1 }}>
 
         {/* ── Date Filters ── */}
         <div style={sectionHead}>{tr('searchFilters.dateFilters')}</div>
@@ -393,6 +397,7 @@ export default function SearchFilters({ open, filters, theme: t, downloaderType,
             </div>
           )}
         </div>
+        </div>{/* end scrollable body */}
 
         {/* Footer */}
         <div style={{

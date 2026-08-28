@@ -24,6 +24,11 @@ dependencies:
                 # libproj against conda's older proj.db and PROJ_DATA env
                 # var, causing "PROJ: ... DATABASE.LAYOUT.VERSION.MINOR"
                 # mismatches at runtime (confirmed 2026-07-23)
+    - burst2safe  # conda-forge, not pip: pulls its own gdal dep, which must
+                  # come from conda to stay on the same libgdal/proj stack as
+                  # the gdal/rasterio above (a pip gdal wheel does not exist for
+                  # most platforms and would break the build). Provides the
+                  # burst -> SAFE assembly step for the S1_Burst downloader.
     - psutil
     - networkx
     - pip

@@ -126,6 +126,27 @@ timeseries.h5                    ← 原始（无校正）
 
 ---
 
+## 原始数据与结果查看器
+
+除上面的 MintPy 查看器外，还有两个面板按钮可将地理配准的栅格叠加到地图上。
+
+### 下载器 → View Data
+
+使用每个产品自带的地理配准快视图，预览 `slc/` 下**下载的原始**场景——速度快，无需全分辨率解码：
+
+| 数据源 | 预览 |
+|--------|------|
+| Sentinel-1 SLC / burst | 将 `preview/quick-look.png` 放置在 `map-overlay.kml` 的 4 个地面角点上（跟随幅宽倾斜的旋转叠加层） |
+| NISAR GSLC | 地理编码格网的降采样幅度图，仅计算一次并缓存在 `slc/.preview_cache/` 下（首次打开需几秒钟） |
+
+### 处理器 → View Result
+
+叠加**已处理的干涉图**。适用于任何地理编码输出：HyP3（压缩包内的 GeoTIFF）、ISCE3（`unwrapped/`、`interferograms/` 的 GeoTIFF）以及 GMTSAR（`*_ll.grd`）。ISCE2 仍处于雷达几何，不在此显示——请先用分析器进行地理编码。
+
+> 地图叠加层同时支持轴对齐的边界框和显式的 4 角点四边形（`RasterOverlay.corners`），因此像 Sentinel-1 幅宽那样倾斜的预览也能正确放置。
+
+---
+
 ## 键盘与鼠标参考
 
 | 操作 | 结果 |

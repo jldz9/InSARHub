@@ -24,7 +24,7 @@ interface ComponentMeta {
   fields:               FieldMeta[]
   groups?:              Array<{ label: string; fields: string[] }>
   compatible_downloader?: string | null
-  compatible_processor?:  string | null
+  compatible_processor?:  string | string[] | null
 }
 
 interface WorkflowsData {
@@ -74,11 +74,11 @@ interface Props {
   initialAnalyzerType?:    string
 }
 
-type Tab = 'general' | 'auth' | 'downloader' | 'processor' | 'analyzer'
+type Tab = 'general' | 'auth' | 'downloader'
 
 
 
-export default function SettingsPanel({ theme: t, onClose, downloaderType, onDownloaderTypeChange,
+export default function SettingsPanel({ theme: t, onClose, downloaderType,
   startDate, endDate, aoiWkt, onDatesChange, onAoiWktChange,
   initialTab, initialAnalyzerType }: Props) {
   const [tab,         setTab]         = useState<Tab>(initialTab ?? 'general')
@@ -107,9 +107,8 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
   const [processorConfig, setProcessorConfig] = useState<Record<string, any>>({})
 
   // Analyzer — each type stores its own config independently
-  const [analyzerType,       setAnalyzerType]       = useState('Hyp3_SBAS')
+  const [analyzerType,       setAnalyzerType]       = useState('Hyp3_Mintpy_SBAS')
   const [analyzerConfig,     setAnalyzerConfig]     = useState<Record<string, any>>({})
-  const [allAnalyzerConfigs, setAllAnalyzerConfigs] = useState<Record<string, Record<string, any>>>({})
 
   // Workflow/component metadata from server
   const [meta, setMeta] = useState<WorkflowsData | null>(null)
@@ -152,7 +151,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
       setProcessorConfig(s.processor_config)
       const allCfgs = s.analyzer_configs ?? {}
       const activeType = initialAnalyzerType ?? s.analyzer
-      setAllAnalyzerConfigs(allCfgs)
       setAnalyzerType(activeType)
       setAnalyzerConfig(allCfgs[activeType] ?? {})
       setLoading(false)
@@ -164,71 +162,7 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
     return () => esRef.current?.close()
   }, [])
 
-  // ── Compatibility helpers ─────────────────────────────────────────────────
-  function isCompatible(compat: string | null | undefined, value: string) {
-    return !compat || compat === 'all' || compat === value
-  }
 
-  function filterCompatible<T extends ComponentMeta>(
-    map: Record<string, T>,
-    attr: 'compatible_downloader' | 'compatible_processor',
-    value: string,
-  ): Record<string, T> {
-    return Object.fromEntries(
-      Object.entries(map).filter(([, info]) => isCompatible(info[attr], value))
-    )
-  }
-
-  function applyDefaults(map: Record<string, ComponentMeta>, name: string): Record<string, any> {
-    const defs: Record<string, any> = {}
-    map[name]?.fields.forEach(f => { defs[f.key] = f.default })
-    return defs
-  }
-
-  // When downloader changes → cascade to compatible processor → compatible analyzer
-  function handleDownloaderTypeChange(type: string) {
-    setOpenGroups(new Set())
-    setDownloaderConfig(applyDefaults(meta?.downloaders ?? {}, type))
-    onDownloaderTypeChange(type)
-    if (!meta) return
-
-    const compatProcs = Object.keys(filterCompatible(meta.processors, 'compatible_downloader', type))
-    const nextProc = compatProcs.includes(processorType) ? processorType : (compatProcs[0] ?? processorType)
-    if (nextProc !== processorType) {
-      setProcessorType(nextProc)
-      setProcessorConfig(applyDefaults(meta.processors, nextProc))
-    }
-    const compatAnals = Object.keys(filterCompatible(meta.analyzers, 'compatible_processor', nextProc))
-    const nextAnal = compatAnals.includes(analyzerType) ? analyzerType : (compatAnals[0] ?? analyzerType)
-    if (nextAnal !== analyzerType) {
-      setAnalyzerType(nextAnal)
-      setAnalyzerConfig(applyDefaults(meta.analyzers, nextAnal))
-    }
-  }
-
-  // When processor changes → cascade to compatible analyzer
-  function handleProcessorTypeChange(type: string) {
-    setProcessorType(type)
-    setOpenGroups(new Set())
-    setProcessorConfig(applyDefaults(meta?.processors ?? {}, type))
-    if (!meta) return
-
-    const compatAnals = Object.keys(filterCompatible(meta.analyzers, 'compatible_processor', type))
-    const nextAnal = compatAnals.includes(analyzerType) ? analyzerType : (compatAnals[0] ?? analyzerType)
-    if (nextAnal !== analyzerType) {
-      setAnalyzerType(nextAnal)
-      setAnalyzerConfig(applyDefaults(meta.analyzers, nextAnal))
-    }
-  }
-
-  function handleAnalyzerTypeChange(type: string) {
-    // Persist current edits before switching
-    setAllAnalyzerConfigs(prev => ({ ...prev, [analyzerType]: analyzerConfig }))
-    setAnalyzerType(type)
-    setOpenGroups(new Set())
-    // Load saved config for this type, fall back to defaults
-    setAnalyzerConfig(allAnalyzerConfigs[type] ?? applyDefaults(meta?.analyzers ?? {}, type))
-  }
 
   async function handleSave() {
     setSaving(true); setSaveMsg(''); setSaveMsgIsError(false)
@@ -249,7 +183,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
       if (!res.ok) throw new Error(await res.text())
       const updated: ServerSettings = await res.json()
       setWorkdir(updated.workdir)
-      setAllAnalyzerConfigs(updated.analyzer_configs ?? {})
       setSaveMsg(tr('jobQueue.saved'))
       setTimeout(() => setSaveMsg(''), 2500)
     } catch (e) {
@@ -373,8 +306,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
     if (k === 'intersectsWith') { onAoiWktChange(v || null);   return }
     setDownloaderConfig(c => ({ ...c, [k]: v }))
   }
-  const setProcessorField  = (k: string, v: any) => setProcessorConfig(c => ({ ...c, [k]: v }))
-  const setAnalyzerField   = (k: string, v: any) => setAnalyzerConfig(c => ({ ...c, [k]: v }))
 
   // ── Collapsible group state ────────────────────────────────────────────────
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set())
@@ -391,10 +322,13 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
     config: Record<string, any>,
     setter: (k: string, v: any) => void,
   ) {
-    if (!compMeta.groups) {
-      return compMeta.fields.map(f => renderField(f, config, setter))
-    }
     const byKey = Object.fromEntries(compMeta.fields.map(f => [f.key, f]))
+    // No groups, or a single group (e.g. the downloader's lone "Download"
+    // section): render the fields flat, with no collapsible header.
+    if (!compMeta.groups || compMeta.groups.length <= 1) {
+      const keys = compMeta.groups?.[0]?.fields ?? compMeta.fields.map(f => f.key)
+      return keys.map(key => byKey[key] && renderField(byKey[key], config, setter))
+    }
     return compMeta.groups.map(grp => {
       const isOpen = openGroups.has(grp.label)
       return (
@@ -485,33 +419,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
   )
 
 
-  // ── Component type selector ───────────────────────────────────────────────
-  const typeSelector = (
-    current: string,
-    options: Record<string, ComponentMeta>,
-    onChange: (t: string) => void,
-  ) => (
-    <div style={{ marginBottom: 16 }}>
-      <label style={{ ...labelStyle, display: 'flex', alignItems: 'center', gap: 4 }}>
-        {tr('settings.type')}
-        {options[current]?.description && (
-          <span title={options[current].description} style={{
-            cursor: 'help', color: t.textMuted, fontSize: 10,
-            border: `1px solid ${t.divider}`, borderRadius: '50%',
-            width: 13, height: 13, lineHeight: '13px', textAlign: 'center',
-            display: 'inline-block', flexShrink: 0, userSelect: 'none',
-          }}>?</span>
-        )}
-      </label>
-      <select value={current} onChange={e => onChange(e.target.value)}
-              style={{ ...inputStyle, width: '100%', fontFamily: 'monospace' }}>
-        {Object.keys(options).map(k => (
-          <option key={k} value={k}>{k}</option>
-        ))}
-      </select>
-    </div>
-  )
-
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <>
@@ -549,8 +456,6 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
           {tabBtn('general',    tr('settings.tabGeneral'))}
           {tabBtn('auth',       tr('settings.tabAuth'))}
           {tabBtn('downloader', tr('topBar.downloader'))}
-          {tabBtn('processor',  tr('jobQueue.processor'))}
-          {tabBtn('analyzer',   tr('settings.tabAnalyzer'))}
         </div>
 
         {/* Tab content */}
@@ -685,51 +590,14 @@ export default function SettingsPanel({ theme: t, onClose, downloaderType, onDow
                 </div>
               </>
             )}
-          </>) : tab === 'processor' ? (() => {
-            const procOptions = meta
-              ? filterCompatible(meta.processors, 'compatible_downloader', downloaderType)
-              : null
-            return (<>
-              {procOptions
-                ? Object.keys(procOptions).length === 0
-                  ? <div style={{ color: t.textMuted, fontSize: 12, padding: '8px 0' }}>
-                      {tr('settings.noCompatibleProcessors')} <code>{downloaderType}</code>.
-                    </div>
-                  : typeSelector(processorType, procOptions, handleProcessorTypeChange)
-                : <div style={{ color: t.textMuted, fontSize: 12 }}>{tr('jobQueue.loading')}</div>}
-              {procOptions?.[processorType] && (
-                <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 14, marginTop: 4 }}>
-                  {renderGroupedFields(procOptions[processorType], processorConfig, setProcessorField)}
-                </div>
-              )}
-            </>)
-          })() : tab === 'analyzer' ? (() => {
-            const analOptions = meta
-              ? filterCompatible(meta.analyzers, 'compatible_processor', processorType)
-              : null
-            return (<>
-              {analOptions
-                ? Object.keys(analOptions).length === 0
-                  ? <div style={{ color: t.textMuted, fontSize: 12, padding: '8px 0' }}>
-                      {tr('settings.noCompatibleAnalyzers')} <code>{processorType}</code>.
-                    </div>
-                  : typeSelector(analyzerType, analOptions, handleAnalyzerTypeChange)
-                : <div style={{ color: t.textMuted, fontSize: 12 }}>{tr('jobQueue.loading')}</div>}
-              {analOptions?.[analyzerType] && (
-                <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 14, marginTop: 4 }}>
-                  {renderGroupedFields(analOptions[analyzerType], analyzerConfig, setAnalyzerField)}
-                </div>
-              )}
-            </>)
-          })() : tab === 'downloader' ? (<>
-            {meta?.downloaders
-              ? typeSelector(downloaderType, meta.downloaders, handleDownloaderTypeChange)
+          </>) : tab === 'downloader' ? (<>
+            {/* Universal download settings for the active downloader (its type
+                is chosen in the TopBar). No type dropdown here -- the panel only
+                holds the operational knobs; search parameters live in the
+                Search Filters panel. */}
+            {meta?.downloaders?.[downloaderType]
+              ? renderGroupedFields(meta.downloaders[downloaderType], effectiveDownloaderConfig, setDownloaderField)
               : <div style={{ color: t.textMuted, fontSize: 12 }}>{tr('jobQueue.loading')}</div>}
-            {meta?.downloaders[downloaderType] && (
-              <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 14, marginTop: 4 }}>
-                {renderGroupedFields(meta.downloaders[downloaderType], effectiveDownloaderConfig, setDownloaderField)}
-              </div>
-            )}
           </>) : null}
         </div>
 

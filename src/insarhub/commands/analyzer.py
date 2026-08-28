@@ -9,7 +9,7 @@ class PrepDataCommand(BaseCommand):
     clips rasters to common overlap, and sets MintPy load parameters.
 
     Only applies to analyzers that implement prep_data()
-    (e.g. Hyp3_SBAS). Gracefully fails for other analyzer types.
+    (e.g. Hyp3_Mintpy_SBAS). Gracefully fails for other analyzer types.
     """
 
     def __init__(self, analyzer: BaseAnalyzer, progress_callback=None):

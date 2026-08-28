@@ -6,18 +6,36 @@ Run with:  pytest test/test_insarhub.py -v
            pytest test/test_insarhub.py -v -k "downloader"
 """
 
+import shutil
 import subprocess
 import sys
+from pathlib import Path
+
 import pytest
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _insarhub_exe():
+    """Locate the `insarhub` console script.
+
+    Prefer the script installed next to the interpreter running the tests --
+    in an editable/dev env it exists there but the env's bin dir is often not
+    on the subprocess PATH -- then fall back to a PATH lookup (covers the CI
+    wheel install, incl. Windows' insarhub.exe), then to the bare name.
+    """
+    for cand in (Path(sys.executable).with_name("insarhub"),
+                 Path(sys.executable).with_name("insarhub.exe")):
+        if cand.exists():
+            return str(cand)
+    return shutil.which("insarhub") or "insarhub"
+
+
 def run_cli(*args, expect_error=False):
     """Run insarhub CLI and return (returncode, stdout, stderr)."""
     result = subprocess.run(
-        ["insarhub", *args],
+        [_insarhub_exe(), *args],
         capture_output=True, text=True
     )
     if not expect_error:
@@ -73,7 +91,7 @@ class TestRegistry:
     def test_analyzer_registry(self):
         from insarhub import Analyzer
         available = Analyzer.available()
-        assert "Hyp3_SBAS" in available
+        assert "Hyp3_Mintpy_SBAS" in available
 
     def test_create_downloader(self):
         from insarhub import Downloader
@@ -82,7 +100,7 @@ class TestRegistry:
 
     def test_create_analyzer(self):
         from insarhub import Analyzer
-        a = Analyzer.create("Hyp3_SBAS", workdir="/tmp/test_insarhub")
+        a = Analyzer.create("Hyp3_Mintpy_SBAS", workdir="/tmp/test_insarhub")
         assert a is not None
 
 
@@ -102,8 +120,8 @@ class TestConfigs:
         assert cfg.looks in ("20x4", "10x2", "5x1")
 
     def test_hyp3_sbas_config_defaults(self):
-        from insarhub.config import Hyp3_SBAS_Config
-        cfg = Hyp3_SBAS_Config()
+        from insarhub.config import Hyp3_Mintpy_SBAS_Config
+        cfg = Hyp3_Mintpy_SBAS_Config()
         assert hasattr(cfg, "network_coherenceBased")
 
     def test_mintpy_base_config_defaults(self):
@@ -160,14 +178,14 @@ class TestDownloader:
 class TestAnalyzer:
     def test_hyp3_sbas_instantiation(self):
         from insarhub import Analyzer
-        a = Analyzer.create("Hyp3_SBAS", workdir="/tmp/test_insarhub")
+        a = Analyzer.create("Hyp3_Mintpy_SBAS", workdir="/tmp/test_insarhub")
         assert hasattr(a, "prep_data")
         assert hasattr(a, "run")
         assert hasattr(a, "cleanup")
 
     def test_mintpy_base_instantiation(self):
         from insarhub import Analyzer
-        a = Analyzer.create("Hyp3_SBAS", workdir="/tmp/test_insarhub")
+        a = Analyzer.create("Hyp3_Mintpy_SBAS", workdir="/tmp/test_insarhub")
         assert a is not None
 
 
@@ -268,7 +286,7 @@ class TestCLI:
 
     def test_analyzer_list(self):
         _, out, _ = run_cli("analyzer", "--list-analyzers")
-        assert "Hyp3_SBAS" in out
+        assert "Hyp3_Mintpy_SBAS" in out
 
     def test_utils_help(self):
         rc, out, _ = run_cli("utils", "--help")
@@ -288,8 +306,15 @@ class TestCLI:
         assert rc != 0
 
     def test_insarhub_app_help(self):
+        for cand in (Path(sys.executable).with_name("insarhub-app"),
+                     Path(sys.executable).with_name("insarhub-app.exe")):
+            if cand.exists():
+                exe = str(cand)
+                break
+        else:
+            exe = shutil.which("insarhub-app") or "insarhub-app"
         result = subprocess.run(
-            ["insarhub-app", "--help"],
+            [exe, "--help"],
             capture_output=True, text=True
         )
         assert result.returncode == 0
@@ -330,7 +355,7 @@ class TestAPI:
         assert r.status_code == 200
 
     def test_analyzer_steps(self, client):
-        r = client.get("/api/analyzer-steps", params={"analyzer_type": "Hyp3_SBAS"})
+        r = client.get("/api/analyzer-steps", params={"analyzer_type": "Hyp3_Mintpy_SBAS"})
         assert r.status_code == 200
         data = r.json()
         assert "steps" in data

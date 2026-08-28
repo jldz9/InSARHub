@@ -23,11 +23,11 @@ LocalProcessor (ABC) ──► ISCE2_Base ──► ISCE2_S1
 BaseDownloader (ABC) ──► ASF_Base_Downloader ──► S1_SLC
                                              └──► S1_Burst
 
-BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_SBAS
-                                                   ├──► ISCE_SBAS
-                                                   └──► GMTSAR_MINTPY_SBAS
+BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_Mintpy_SBAS
+                                                   ├──► ISCE2_Mintpy_SBAS
+                                                   └──► GMTSAR_Mintpy_SBAS
                     ├──► GMTSAR_SBAS   （GMTSAR 自带的 sbas 二进制程序，无需 MintPy）
-                    └──► Dolphin_SBAS  （面向 ISCE3_Burst 的 dolphin timeseries）
+                    └──► ISCE3_Dolphin_PL  （面向 ISCE3_Burst 的 dolphin timeseries）
 ```
 
 每个中间基类（`Hyp3Base`、`ISCE2_Base`、`ISCE3_Base`、`ASF_Base_Downloader`、`Mintpy_SBAS_Base_Analyzer`）已实现所有共享基础设施——认证、任务跟踪、HPC 提交、文件 I/O。具体的叶子类只需实现 `submit()`（分析器还需实现 `prep_data()`/`run()`）来处理传感器特定的逻辑。`GMTSAR_S1` 和 `ISCE3_Burst` 还将大型、仅限单一处理器的辅助逻辑拆分为私有的同级模块（`processor/_gmtsar_esd_network.py` 用于 GMTSAR 的网络 ESD 配准，`processor/isce3_base.py` 用于 ISCE3 的阶段/HPC 机制）。
@@ -51,9 +51,36 @@ ISCEPaths(workdir).dem_dir          # workdir/dem
 MintPyPaths(workdir).mintpy_dir     # workdir/mintpy
 MintPyPaths(workdir).tmp_dir        # workdir/mintpy/tmp
 MintPyPaths(workdir).clip_dir       # workdir/mintpy/clip
+
+GMTSARPaths(workdir).case_dir       # workdir/gmtsar
+ISCE3Paths(workdir).cropped_gslc_dir  # workdir/cropped_gslc
+```
+
+每个处理器家族都有自己的数据类（`Hyp3Paths`、`ISCEPaths`、`GMTSARPaths`、`ISCE3Paths`）。每个本地处理器写出的后台执行器产物由共享常量命名，并按家族暴露，从而落在各自处理器的目录下——切勿硬编码：
+
+```python
+from insarhub.config.paths import EXECUTOR_LOG, EXECUTOR_PID
+
+ISCEPaths(workdir).executor_log     # workdir/isce/executor.log
+GMTSARPaths(workdir).executor_log   # workdir/gmtsar/executor.log
+ISCE3Paths(workdir).executor_log    # workdir/executor.log （ISCE3 写在根目录）
 ```
 
 如果新处理器写入新的子目录，需在 `config/paths.py` 中添加对应的数据类。
+
+## 容器执行（`INSARHUB_CONTAINER_CHILD`）
+
+设置了 `config.container` 的本地处理器/分析器不会在主机上运行工具，而是**在镜像内部重新调用同一条 `insarhub` 命令**（`_reinvoke_via_container` / `_run_via_container`），并以完全相同的路径挂载工作目录。子进程会被打上环境变量 **`INSARHUB_CONTAINER_CHILD=1`**。
+
+任何决定是否容器化、后台 fork 或重新提交的代码，都**必须同时**检查 `config.container` **和**该环境变量，从而让主机只容器化一次、子进程直接执行工作：
+
+```python
+if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
+    return self._reinvoke_via_container("submit")   # 主机：启动容器
+# ...在无容器的主机上，或在容器子进程内部才会到达这里...
+```
+
+漏掉 `INSARHUB_CONTAINER_CHILD` 这一半就是经典的 "docker not found" 报错：子进程仍能看到 `config.container`（它会被持久化到 `insarhub_config.json` 以便重试），于是试图再启动一个容器——docker-in-docker——但镜像内部没有 docker。同一处守卫还会强制子进程**同步**运行（不 fork+detach），从而避免 `docker run --rm` 在工作完成前拆掉容器。
 
 ## 添加新处理器
 

@@ -23,11 +23,15 @@ _log = logging.getLogger(__name__)
 
 # ── Trigger auto-registration of all components ──────────────────────────────
 import insarhub.downloader.s1_slc       # noqa: F401
+import insarhub.downloader.nisar_gslc   # noqa: F401
+import insarhub.downloader.nisar_rslc   # noqa: F401
+import insarhub.downloader.nisar_gunw   # noqa: F401
 import insarhub.processor.hyp3_s1    # noqa: F401
 import insarhub.processor.isce2_s1    # noqa: F401
+import insarhub.processor.isce3_nisar # noqa: F401
 import insarhub.analyzer.hyp3_sbas      # noqa: F401
 import insarhub.analyzer.mintpy_base    # noqa: F401
-import insarhub.analyzer.isce_sbas      # noqa: F401
+import insarhub.analyzer.isce2_sbas      # noqa: F401
 
 from insarhub.core.registry import Downloader, Processor, Analyzer
 
@@ -101,6 +105,10 @@ def _build_registry_meta(registry) -> dict[str, Any]:
             # for every other downloader that supports orbits -- S1_Burst does.
             # Expose the capability so the UI never needs a downloader name.
             "supports_orbit":        hasattr(cls, "download_orbit"),
+            # Per-processor/analyzer suggested container image (config default),
+            # so the UI's "run in container" checkbox pre-fills the RIGHT image
+            # instead of a hardcoded one.
+            "container_default":     _dataclass_defaults(cfg_cls).get("container_default"),
             "groups":                groups,
             "fields":                fields,
         }

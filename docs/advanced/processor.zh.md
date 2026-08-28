@@ -306,13 +306,13 @@ Processor.available()
 
     - **无需本地安装 ISCE2**
 
-        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` 都会在容器内而非宿主机上重新执行同一个 `insarhub processor ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处，ISCE2 也完全不需要在宿主机上被发现。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub`（可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/Dockerfile) 作为现成示例）。
+        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` 都会在容器内而非宿主机上重新执行同一个 `insarhub processor ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处，ISCE2 也完全不需要在宿主机上被发现。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub`（可参考 [`docker/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile.isce2-mintpy) 作为现成示例）。运行应用/CLI 的**宿主机**需要在 `PATH` 上有容器运行时（`docker`，或对 `.sif` 用 `apptainer`/`singularity`）；容器镜像**本身**不需要 — 流水线直接在镜像内运行，不会再嵌套一次 `docker run`。
 
         ```python
         cfg = ISCE2_S1_Config(
             workdir='/data/p100_f466',
             bbox=[33.0, 38.0, -120.0, -115.0],
-            container='ghcr.io/jldz9/insarhub-isce2:latest',
+            container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
         )
         processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
         processor.submit()
@@ -322,10 +322,10 @@ Processor.available()
 
         ```bash
         insarhub processor -N ISCE2_S1 -w /data/p100_f466 submit \\
-            --container ghcr.io/jldz9/insarhub-isce2:latest
+            --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
         ```
 
-        `container` 是按次调用的设置，而非持久化配置 — 之后每次调用（`retry()`、新的 `submit()` 等）若也要在容器内运行，都需要再次设置。在 HPC 模式下，只有各阶段的子作业在容器内运行，sbatch 管理器脚手架仍留在宿主机上。
+        `container` **会持久化**写入工作目录的 `insarhub_config.json`，因此之后的 `retry()`/`refresh()`/`cancel()`（以及 GUI 中的重试）会在同一镜像内重新运行，无需再次传入。后续调用若显式给出 `--container` / `container=` 会覆盖已保存的值；不带值的 `--container` 会解析为处理器的 `container_default` 镜像。`container_default` 是每个处理器固定的建议镜像（GUI “在容器中运行” 复选框会用它预填），**从不**持久化 —— 只有你实际选择的 `container` 会被保存。在 HPC 模式下，只有各阶段的子作业在容器内运行，sbatch 管理器脚手架仍留在宿主机上。
 
 === "GMTSAR_S1"
 
@@ -444,7 +444,7 @@ Processor.available()
 
     - **时序分析：请使用 MintPy，而非 GMTSAR 自带的 `sbas`**
 
-        这是选择 p2p 的直接后果。GMTSAR 自带的 `sbas` 在**雷达坐标**下运行，要求所有 SLC 都重采样到同一个公共网格 — 而 p2p 的逐对配准并不提供这一点。MintPy 的 `prep_gmtsar` 读取的是**地理编码后**的 `*_ll.grd`，所有干涉对本来就在同一地理网格上，因此无需公共配准主影像。请使用 `GMTSAR_MINTPY_SBAS` 分析器。
+        这是选择 p2p 的直接后果。GMTSAR 自带的 `sbas` 在**雷达坐标**下运行，要求所有 SLC 都重采样到同一个公共网格 — 而 p2p 的逐对配准并不提供这一点。MintPy 的 `prep_gmtsar` 读取的是**地理编码后**的 `*_ll.grd`，所有干涉对本来就在同一地理网格上，因此无需公共配准主影像。请使用 `GMTSAR_Mintpy_SBAS` 分析器。
 
 
     - **无需本地安装 GMTSAR 即可运行**
@@ -453,7 +453,7 @@ Processor.available()
 
         ```bash
         insarhub processor -N GMTSAR_S1 -w /data/stack submit \
-            --container ghcr.io/jldz9/insarhub-gmtsar:latest
+            --container ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
         ```
 
         在 HPC 模式下，只有各阶段的子作业在容器内运行，sbatch 管理器脚手架仍留在宿主机上。
@@ -500,9 +500,45 @@ Processor.available()
 
     - 各阶段针对 SLURM 做了拆分 — 参见 [HPC（SLURM）](hpc.md)。`cslc` 是每个 burst-日期一个作业，也是耗时主体；`phase_link` 下的 `ifg` 是单个作业，因为估计器没有逐干涉对的单元。
     - 干涉图网络取各 burst 日期列表的**交集**。若 ASF 在某天缺少某个 burst 的数据，该日期会被剔除并明确列出，从而保证每个干涉对在所有 burst 上都能生成。
-    - 时序分析使用 `Dolphin_SBAS` 分析器，它同时支持两种估计方式。
+    - 时序分析使用 `ISCE3_Dolphin_PL` 分析器，它同时支持两种估计方式。
 
     ::: insarhub.processor.isce3_burst.ISCE3_Burst
+        options:
+            heading_level: 0
+            members: false
+
+=== "ISCE3_NISAR"
+
+    `ISCE3_NISAR` 处理器从 **NISAR L2 GSLC** 数据构建干涉图栈，使用 [dolphin](https://github.com/isce-framework/dolphin) 完成相位链接、干涉图与解缠。请搭配 `NISAR_GSLC` 下载器；时序分析同样使用 `ISCE3_Dolphin_PL` 分析器（与 `ISCE3_Burst` 相同）。
+
+    它复用了 `ISCE3_Burst` 的 dolphin 引擎，但**跳过全部地理编码**。NISAR GSLC 本身就是已地理编码的复数 SLC —— 每个日期一帧，因此不同于 `ISCE3_Burst`，没有 COMPASS 前端：`dem`/`tec`/`cslc`/`static` 阶段被完全去掉，GSLC 栅格直接送入 dolphin。由于 NISAR 每个日期只有一帧（没有 OPERA burst 拆分），`ifg` 是对整个栈的单次 `wrapped_phase.run`，而非逐 burst 调用。
+
+    三个阶段，依次运行：
+
+    | 阶段 | 工具 | 输出 |
+    |---|---|---|
+    | `ifg` | dolphin | PS + 相位链接 + 干涉图（对整个栈一次 `wrapped_phase.run`） |
+    | `stitch` | dolphin | 相干性 + 镶嵌（每日期单帧时几乎为空操作） |
+    | `unwrap` | snaphu | 解缠相位 + 连通分量 |
+
+    ### 为什么这里需要 AOI 裁剪
+
+    一帧 NISAR GSLC 极大（如 69840 × 68688 像素），而 AOI 通常只是很小的窗口。`ISCE3_Burst` 通过 COMPASS 地理编码的 `--bbox` 免费获得 AOI 裁剪；`ISCE3_NISAR` 没有地理编码步骤，因此自行裁剪：在 `ifg` 阶段把每个 GSLC 的复数 SLC 子数据集按 `AOI` 裁成一个轻量 **VRT**（`gdal_translate -of VRT -projwin`，缓存于 `workdir/cropped_gslc/`），dolphin 只对该窗口做相位链接。
+
+    若不裁剪，dolphin 会处理整帧，`stitch` 的 `gdal_merge` 会在整帧栅格上耗尽内存（AOI 否则只会作为最后的输出裁剪，为时已晚）。在真实数据上，裁剪把每个输入从 69840 × 68688 降到约 8953 × 8728（缩小约 60×），把约 12 GB 的内存峰值降到几百 MB。勾选 `process_full_extent` 可禁用裁剪、处理整帧（需要大内存宿主机）。
+
+    ### 配置
+
+    - `nisar_frequency`（默认 `A` / `B`）与 `nisar_polarization`（默认 `HH`，`HV`、`VV`、`VH`）选择 dolphin 读取的 GSLC 网格组 —— `/science/LSAR/GSLC/grids/frequency<freq>/<pol>`。在一个栈内应保持不变。
+    - `AOI` 与 `ISCE3_Burst` 一样从下载器的 `intersectsWith` 自动填充；裁剪直接使用它。
+    - `pl_*`、`n_connections`/`max_temporal_baseline` 与 `unwrap_*` 字段对相位链接、干涉图网络与 snaphu 的调节方式与 `ISCE3_Burst` 完全相同。
+
+    ### 其他说明
+
+    - GSLC 下载得到的是整幅已地理编码的帧 —— 裁剪发生在处理时而非下载时，因此 `slc/` 中的 `.h5` 产品不会被改动，可在不同 AOI 间复用。
+    - 运行于 `insarhub-isce3-dolphin` 镜像（与 `ISCE3_Burst` / `Dolphin_SBAS` 相同）；与其他处理器一样，设置 `container` 即可在无本地 ISCE3/dolphin 安装的情况下运行。
+
+    ::: insarhub.processor.isce3_nisar.ISCE3_NISAR
         options:
             heading_level: 0
             members: false

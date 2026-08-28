@@ -85,7 +85,7 @@ InSARHub 在流程推进过程中会向磁盘写入一组一致的文件。每�
 
     | 分析器 | 输出目录 | 内容 |
     |---|---|---|
-    | `GMTSAR_MINTPY_SBAS` | `gmtsar_mintpy/` | MintPy `smallbaselineApp` 输出（`timeseries*.h5`、`velocity.h5` 等） |
+    | `GMTSAR_Mintpy_SBAS` | `gmtsar_mintpy/` | MintPy `smallbaselineApp` 输出（`timeseries*.h5`、`velocity.h5` 等） |
     | `GMTSAR_SBAS` | `gmtsar_sbas/` | 每个日期的 `disp_*.grd`、线性速度 `vel.grd` |
 
 === "ISCE3_Burst"
@@ -101,8 +101,28 @@ InSARHub 在流程推进过程中会向磁盘写入一组一致的文件。每�
     ├── cslc/                           # 每个 burst-日期的地理编码 CSLC（COMPASS）
     ├── ifgrams/                        # 干涉图（dolphin）
     ├── stitched/                       # 每对合并的 burst
-    ├── timeseries/                     # dolphin 时序输出（Dolphin_SBAS）
+    ├── timeseries/                     # dolphin 时序输出（ISCE3_Dolphin_PL）
     ├── isce3_burst_jobs.json           # 已保存任务状态（按阶段）
+    └── .stage_status/                  # 每个阶段的 .succeeded/.failed 标记
+    ```
+
+=== "ISCE3_NISAR"
+
+    NISAR GSLC 已经完成地理编码，因此没有 COMPASS 前端（`dem/`、`tec/`、`cslc/` 均不存在）。原始 GSLC 先被裁剪到 AOI，再直接送入 dolphin。
+
+    ```
+    workdir/
+    ├── insarhub_config.json
+    ├── slc/                            # NISAR L2 GSLC 数据（*.h5），每个日期一个
+    ├── cropped_gslc/                   # 按 AOI 裁剪的 GSLC VRT（`crop` 阶段）
+    ├── slc_stack.vrt                   # dolphin 在裁剪后 GSLC 上的输入堆叠
+    ├── bounds_mask.tif, combined_mask.tif
+    ├── linked_phase/                   # 相位链接 + 时间相干性（dolphin）
+    ├── PS/                             # 永久散射体幅度离差
+    ├── interferograms/                 # 地理编码干涉图 + 相关系数（dolphin）
+    ├── unwrapped/                      # 地理编码解缠相位 + 连通分量
+    ├── timeseries/                     # dolphin 时序输出（ISCE3_Dolphin_PL）
+    ├── isce3_nisar_jobs.json           # 已保存任务状态（按阶段）
     └── .stage_status/                  # 每个阶段的 .succeeded/.failed 标记
     ```
 
@@ -204,7 +224,7 @@ workdir/
       "looks": "20x4"
     }
   },
-  "analyzer": "Hyp3_SBAS"
+  "analyzer": "Hyp3_Mintpy_SBAS"
 }
 ```
 

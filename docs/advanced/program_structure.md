@@ -17,9 +17,12 @@ Each downloader feeds a set of compatible processors, and each processor a set o
 ```
 Downloader          Processor            Analyzer
 ─────────────────   ──────────────────   ─────────────────────────
-S1_SLC           →  Hyp3_S1           →  Hyp3_SBAS
-                 →  ISCE2_S1          →  ISCE_SBAS
-                 →  GMTSAR_S1         →  GMTSAR_MINTPY_SBAS
+S1_SLC           →  Hyp3_S1           →  Hyp3_Mintpy_SBAS
+                 →  ISCE2_S1          →  ISCE2_Mintpy_SBAS
+                 →  GMTSAR_S1         →  GMTSAR_Mintpy_SBAS
                                       →  GMTSAR_SBAS
-S1_Burst         →  ISCE3_Burst       →  Dolphin_SBAS
+S1_Burst         →  ISCE3_Burst       →  ISCE3_Dolphin_PL
+NISAR_GSLC       →  ISCE3_NISAR       →  ISCE3_Dolphin_PL
 ```
+
+Any local backend can run inside a container instead of on the host — see [Container Execution](container.md) for how `--container` works.

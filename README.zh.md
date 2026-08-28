@@ -64,8 +64,8 @@ insarhub-app
 在交互式地图上绘制 AOI，设置日期范围与轨道过滤条件，然后在 ASF 上检索 Sentinel-1 SLC 影像栈。InSARHub 按 track/frame 对结果分组，并自动下载场景与精密轨道文件。
 
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/search_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/search_light.png">
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/search_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/search_light.gif">
   <img alt="Search & Download" src="docs/frontend/fig/overview_light.png" width="100%">
 </picture>
 

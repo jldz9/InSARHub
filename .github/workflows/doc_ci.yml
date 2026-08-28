@@ -33,7 +33,11 @@ jobs:
           restore-keys: |
             mkdocs-material-
       - run: pip install mkdocs-material mike mkdocstrings[python] pymdown-extensions mkdocs-glightbox mkdocs-static-i18n
-      - run: pip install -e .
+      # --no-deps: mkdocstrings reads the source statically (griffe), so the docs
+      # build never imports insarhub at runtime and doesn't need the heavy geo
+      # stack. Installing deps would pull the `gdal` PyPI package, which builds
+      # from source and fails on the runner (no native gdal-config).
+      - run: pip install -e . --no-deps
       - run: git fetch origin gh-pages --depth=1 || true
       - run: |
            VERSION=${GITHUB_REF##*/}

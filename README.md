@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)"  srcset="docs/logo-dark.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/logo-light.png">
+    <source media="(prefers-color-scheme: dark)"  srcset="docs/logo-light.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/logo-dark.png">
     <img alt="InSARHub" src="docs/logo-light.png" width="320">
   </picture>
 </p>

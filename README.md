@@ -7,6 +7,10 @@
 </p>
 
 <p align="center">
+  <b>English</b> | <a href="README.zh.md">简体中文</a>
+</p>
+
+<p align="center">
   <a href="https://pypi.org/project/insarhub/"><img alt="PyPI" src="https://img.shields.io/pypi/v/insarhub"></a>
   <a href="https://anaconda.org/conda-forge/insarhub"><img alt="Conda" src="https://img.shields.io/conda/vn/conda-forge/insarhub"></a>
   <img alt="Python" src="https://img.shields.io/pypi/pyversions/insarhub">
@@ -60,8 +64,8 @@ See the [Web UI documentation](https://jldz9.github.io/InSARHub/) for a full wal
 Draw an AOI on the interactive map, set a date range and orbit filters, and search ASF for Sentinel-1 SLC stacks. InSARHub groups results by track/frame and downloads scenes and precise orbit files automatically.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/search_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/search_light.png">
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/search_dark.gif">
+  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/search_light.gif">
   <img alt="Search & Download" src="docs/frontend/fig/overview_light.png" width="100%">
 </picture>
 

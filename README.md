@@ -1,4 +1,26 @@
-# InSARHub
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"  srcset="docs/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/logo-light.png">
+    <img alt="InSARHub" src="docs/logo-light.png" width="320">
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://pypi.org/project/insarhub/"><img alt="PyPI" src="https://img.shields.io/pypi/v/insarhub"></a>
+  <a href="https://anaconda.org/conda-forge/insarhub"><img alt="Conda" src="https://img.shields.io/conda/vn/conda-forge/insarhub"></a>
+  <img alt="Python" src="https://img.shields.io/pypi/pyversions/insarhub">
+  <a href="https://github.com/jldz9/InSARHub/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/jldz9/InSARHub"></a>
+  <a href="https://jldz9.github.io/InSARHub/"><img alt="Docs" src="https://img.shields.io/badge/docs-latest-blue"></a>
+</p>
+
+<p align="center">
+  <img alt="InSAR" src="https://img.shields.io/badge/InSAR-time--series-informational">
+  <img alt="Sentinel-1" src="https://img.shields.io/badge/Sentinel--1-SLC%20%7C%20Burst-brightgreen">
+  <img alt="NISAR" src="https://img.shields.io/badge/NISAR-GSLC-orange">
+  <img alt="Engines" src="https://img.shields.io/badge/engines-HyP3%20%7C%20ISCE2%20%7C%20GMTSAR%20%7C%20dolphin-blue">
+  <img alt="MintPy" src="https://img.shields.io/badge/time--series-MintPy%20SBAS-9cf">
+</p>
 
 InSARHub is a modular Python framework for automated InSAR and time-series processing.
 

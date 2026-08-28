@@ -28,20 +28,11 @@ The primary goal of this package is to provide a streamlined and user-friendly I
 
 | Satellite | Product | Mode | Download | IFG Generation | Timeseries Analysis |
 |-----------|---------|------|----------|----------------|---------------------|
-| Sentinel-1 | SLC | Mixed¹ / Local / HPC³ / Container⁴ | ✅ | ✅ | ✅ |
-| Sentinel-1 | Burst² | Local / HPC³ / Container⁴ | ✅ | ✅ | ✅ |
-| NISAR | GSLC⁵ | Local / HPC³ / Container⁴ | ✅ | ✅ | ✅ |
+| Sentinel-1 | SLC | Mixed¹ / Local / HPC / Docker | ✅ | ✅ | ✅ |
+| Sentinel-1 | Burst | Local / HPC / Docker | ✅ | ✅ | ✅ |
+| NISAR | GSLC | Local / HPC / Docker | ✅ | ✅ | ✅ |
 
 > ¹ **Mixed** — process pipeline that mixed with cloud processing and local processing
->
-> ² **Burst** — ASF `SLC-BURST` granules assembled into `.SAFE` with `burst2safe`
->
-> ³ **HPC** — submit each processing step/stage to a SLURM scheduler (`sbatch`) for cluster-scale runs; a sliding-window manager caps concurrent jobs and chains dependent stages automatically.
->
-> ⁴ **Container** — run any local backend inside a Docker/Apptainer image with no local SAR software installed. Set `--container <image>` (or the `container` config field); the image runs the pipeline while only the host needs a container runtime. See the prebuilt `ghcr.io/jldz9/insarhub-*:dev` images.
->
-> ⁵ **GSLC** — NISAR L2 geocoded SLC; interferograms and time series are produced via ISCE3 + [dolphin](https://github.com/isce-framework/dolphin) (`ISCE3_NISAR` → `ISCE3_Dolphin_PL`). NISAR `RSLC` / `GUNW` are download-only.
-
 
 ## Table of Contents
 - [Web UI](#web-ui)
@@ -69,8 +60,8 @@ See the [Web UI documentation](https://jldz9.github.io/InSARHub/) for a full wal
 Draw an AOI on the interactive map, set a date range and orbit filters, and search ASF for Sentinel-1 SLC stacks. InSARHub groups results by track/frame and downloads scenes and precise orbit files automatically.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/overview_dark.png">
-  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/overview_light.png">
+  <source media="(prefers-color-scheme: dark)"  srcset="docs/frontend/fig/search_dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="docs/frontend/fig/search_light.png">
   <img alt="Search & Download" src="docs/frontend/fig/overview_light.png" width="100%">
 </picture>
 
@@ -86,11 +77,27 @@ Build the interferogram network interactively. Pairs are colored by score so wea
 
 ### Processor
 
-Submit the selected pairs to HyP3 (cloud, no local SAR software needed) or run ISCE2 `stackSentinel` locally or via SLURM. Monitor job status, download results, and retry failed jobs from the same panel.
+Submit the selected pairs to a cloud or local InSAR engine, run them locally or via SLURM (or inside Docker), monitor job status, download results, and retry failed jobs from the same panel.
+
+| Processor | Satellite / Product | Engine | Execution | Output |
+|-----------|--------------------|--------|-----------|--------|
+| `Hyp3_S1` | Sentinel-1 SLC | HyP3 (GAMMA, cloud) | Cloud | Geocoded interferograms |
+| `ISCE2_S1` | Sentinel-1 SLC | ISCE2 `stackSentinel` | Local / HPC / Docker | Coregistered stack + interferograms |
+| `GMTSAR_S1` | Sentinel-1 SLC | GMTSAR (`p2p_processing`) | Local / HPC / Docker | Geocoded interferograms + stack |
+| `ISCE3_Burst` | Sentinel-1 Burst | ISCE3 + COMPASS | Local / HPC / Docker | Geocoded burst SLCs + interferograms |
+| `ISCE3_NISAR` | NISAR GSLC | ISCE3 + dolphin | Local / HPC / Docker | Phase-linked interferograms |
 
 ### Analyzer
 
-Run MintPy SBAS time-series analysis step by step. Edit the network post-ingest, inspect diagnostic overview layers, and export velocity and displacement maps when done.
+Run time-series analysis step by step. Edit the network post-ingest, inspect diagnostic overview layers, and export velocity and displacement maps when done. Each analyzer is matched to the processor that generated the interferograms.
+
+| Analyzer | Compatible Processor | Method | Output |
+|----------|---------------------|--------|--------|
+| `Hyp3_Mintpy_SBAS` | `Hyp3_S1` | MintPy SBAS | Velocity + displacement time series |
+| `ISCE2_Mintpy_SBAS` | `ISCE2_S1` | MintPy SBAS | Velocity + displacement time series |
+| `GMTSAR_Mintpy_SBAS` | `GMTSAR_S1` | MintPy SBAS (`prep_gmtsar.py`) | Velocity + displacement time series |
+| `GMTSAR_SBAS` | `GMTSAR_S1` | GMTSAR-native SBAS (`sbas` binary, no MintPy) | `disp_*.grd` + `vel.grd` |
+| `ISCE3_Dolphin_PL` | `ISCE3_Burst`, `ISCE3_NISAR` | dolphin phase-linking | Cumulative displacement, velocity, residuals |
 
 ### Results Viewer
 
@@ -127,16 +134,26 @@ conda activate insarhub_dev
 pip install -e .
 ```
 
-**ISCE2 local processing** requires ISCE2 installed into the same environment. After the `environment.yml` setup above:
+The commands above install base InSARHub (HyP3 + MintPy). Local processing with **ISCE2**, **ISCE3 + dolphin**, or **GMTSAR** each needs its own toolchain added to the environment. See the [Installation guide](https://jldz9.github.io/InSARHub/quickstart/install/) for the per-processor install steps.
+
+### Run in a container
+
+Skip installing the heavy SAR toolchains locally and run each processor/analyzer inside Docker instead. Install base InSARHub (Conda/pip above), then pass `--container` to any processor or analyzer command — InSARHub pulls the matching image and runs the step inside it, mounting your workdir automatically:
 
 ```bash
-conda activate insarhub_dev
-conda install -c conda-forge "numpy<2.0" isce2
+insarhub processor -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 submit --container
 ```
 
-> The explicit `numpy<2.0` keeps conda's solver from re-resolving numpy upward when adding isce2 to an already-created environment. See the [ISCE2 installation guide](https://github.com/isce-framework/isce2) for details.
->
-> Alternatively, skip installing ISCE2 locally entirely and run ISCE2_S1 processing inside a container via `--container` — see `docker/Dockerfile` for a ready-to-build image with ISCE2 + insarhub included.
+Prebuilt images (`ghcr.io/jldz9/insarhub-*:dev`):
+
+| Image | Covers |
+|-------|--------|
+| `insarhub-base` | `Hyp3_S1` + `Hyp3_Mintpy_SBAS` (Sentinel-1 via HyP3) |
+| `insarhub-isce2-mintpy` | `ISCE2_S1` + `ISCE2_Mintpy_SBAS` |
+| `insarhub-gmtsar-mintpy` | `GMTSAR_S1` + GMTSAR analyzers |
+| `insarhub-isce3-dolphin` | `ISCE3_Burst`, `ISCE3_NISAR` + `ISCE3_Dolphin_PL` |
+
+You can also run entirely inside a container instead of installing anything locally. See the [Container Execution guide](https://jldz9.github.io/InSARHub/advanced/container/) for details, and the Dockerfiles under [`docker/`](docker/) to build your own.
 
 ## Requirements
 - Python >=3.11,<3.13
@@ -216,7 +233,7 @@ from insarhub import Processor
     Processor.available()
     ```
 
-Two processors are available:
+See the [Processor table](#processor) above for the full list. Example workflows for two engines:
 
 #### HyP3 (cloud)
 
@@ -254,7 +271,7 @@ from insarhub import Analyzer
     Analyzer.available()
     ```
 
-Two analyzers are available, matched to the processor that generated the interferograms:
+See the [Analyzer table](#analyzer) above for the full list. Example workflows:
 
 #### HyP3 outputs
 

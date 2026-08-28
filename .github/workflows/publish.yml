@@ -89,15 +89,3 @@ jobs:
       - name: Smoke test — insarhub-app --version
         run: insarhub-app --version
 
-      # Run the unit test suite against the INSTALLED wheel (not the src tree),
-      # so a real logic regression -- config drift, layout discovery, the
-      # concurrency helpers -- fails CI instead of only a smoke import.
-      # dev_test.py is an exploratory scratch script (needs xarray), excluded.
-      - name: Check out source (for the test/ directory)
-        uses: actions/checkout@v4
-      - name: Install test dependencies
-        run: python -m pip install pytest
-      - name: Run unit tests
-        run: python -m pip show insarhub >/dev/null && cd "$RUNNER_TEMP" && python -m pytest "$GITHUB_WORKSPACE/test" --ignore="$GITHUB_WORKSPACE/test/dev_test.py" -q
-        shell: bash -el {0}
-

@@ -55,6 +55,10 @@ COPY pyproject.toml README.md /opt/insarhub-src/
 COPY src /opt/insarhub-src/src
 RUN /opt/conda/envs/insarhub/bin/pip uninstall -y insarhub
 RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir --no-deps /opt/insarhub-src
+# pyaps3 (MintPy's correct_troposphere backend) imports pkg_resources, which
+# setuptools removed in v81. The --no-deps install above skips insarhub's own
+# "setuptools<81" pin, so enforce it explicitly here.
+RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir "setuptools<81"
 
 # See Dockerfile for why both of these are needed.
 ENV ISCE_HOME=/opt/conda/envs/insarhub

@@ -6,12 +6,19 @@ The primary goal of this package is to provide a streamlined and user-friendly I
 
 | Satellite | Product | Mode | Download | IFG Generation | Timeseries Analysis |
 |-----------|---------|------|----------|----------------|---------------------|
-| Sentinel-1 | SLC | Mixed¹ / Local / HPC | ✅ | ✅ | ✅ |
-| Sentinel-1 | Burst² | Local / HPC | ✅ | ✅ | ✅ |
+| Sentinel-1 | SLC | Mixed¹ / Local / HPC³ / Container⁴ | ✅ | ✅ | ✅ |
+| Sentinel-1 | Burst² | Local / HPC³ / Container⁴ | ✅ | ✅ | ✅ |
+| NISAR | GSLC⁵ | Local / HPC³ / Container⁴ | ✅ | ✅ | ✅ |
 
 > ¹ **Mixed** — process pipeline that mixed with cloud processing and local processing
 >
-> ² **Burst** — ASF `SLC-BURST` granules assembled into `.SAFE` with
+> ² **Burst** — ASF `SLC-BURST` granules assembled into `.SAFE` with `burst2safe`
+>
+> ³ **HPC** — submit each processing step/stage to a SLURM scheduler (`sbatch`) for cluster-scale runs; a sliding-window manager caps concurrent jobs and chains dependent stages automatically.
+>
+> ⁴ **Container** — run any local backend inside a Docker/Apptainer image with no local SAR software installed. Set `--container <image>` (or the `container` config field); the image runs the pipeline while only the host needs a container runtime. See the prebuilt `ghcr.io/jldz9/insarhub-*:dev` images.
+>
+> ⁵ **GSLC** — NISAR L2 geocoded SLC; interferograms and time series are produced via ISCE3 + [dolphin](https://github.com/isce-framework/dolphin) (`ISCE3_NISAR` → `ISCE3_Dolphin_PL`). NISAR `RSLC` / `GUNW` are download-only.
 
 
 ## Table of Contents

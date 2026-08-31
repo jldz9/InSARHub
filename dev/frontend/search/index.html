@@ -569,7 +569,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -890,9 +890,10 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
+    <nav class="md-nav" aria-label="Downloading">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#downloading-orbit-files" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -902,12 +903,28 @@
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#adding-a-job" class="md-nav__link">
+  <a href="#selecting-pairs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adding a Job
+        Selecting Pairs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decay-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay Maps
       
     </span>
   </a>
@@ -1215,6 +1232,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1223,6 +1268,34 @@
     
   
     Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -1529,9 +1602,10 @@
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
+    <nav class="md-nav" aria-label="Downloading">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#downloading-orbit-files" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1541,12 +1615,28 @@
   </a>
   
 </li>
+        
+      </ul>
+    </nav>
+  
+</li>
       
         <li class="md-nav__item">
-  <a href="#adding-a-job" class="md-nav__link">
+  <a href="#selecting-pairs" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Adding a Job
+        Selecting Pairs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#decay-maps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Decay Maps
       
     </span>
   </a>
@@ -1588,36 +1678,152 @@ specify the work directory under setting</p>
 <hr>
 <h2 id="searching-for-scenes">Searching for Scenes</h2>
 <ol>
+<li>Select a downloader</li>
 <li>Draw an AOI on the map</li>
-<li>Set the date range and select a downloader (default is <code>S1_SLC</code>)</li>
+<li>Set the date range (default is <code>S1_SLC</code>)</li>
 <li>Click <strong>Search</strong></li>
 </ol>
 <!-- screenshot: search panel with results -->
 <figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_light.png#only-light" data-desc-position="bottom"><img alt="Search Panel" class="doc-img" src="../fig/search_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_dark.png#only-dark" data-desc-position="bottom"><img alt="Search Panel" class="doc-img" src="../fig/search_dark.png#only-dark"></a></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_light.gif#only-light" data-desc-position="bottom"><img alt="Search Panel" class="doc-img" src="../fig/search_light.gif#only-light"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_dark.gif#only-dark" data-desc-position="bottom"><img alt="Search Panel" class="doc-img" src="../fig/search_dark.gif#only-dark"></a></p>
 <figcaption>
 <p>Search panel showing available Sentinel-1 stacks.</p>
 </figcaption>
 </figure>
 <p>Search results appear as footprints overlaid on the map. Click any footprint to open the <strong>Scene Detail</strong> panel, which displays acquisition metadata including platform, orbit, beam mode, polarization, file size, and download options for that scene.</p>
 <p>Click <strong>▸ View Detail</strong> in the Scene Detail panel to expand the job drawer showing the full list of individual scenes in the stack. Click <strong>◂ Hide Detail</strong> to collapse it.</p>
+<p>Check sigle or multiple footprints in the stack panel, click <code>+Add Job</code> to create a process directory.</p>
 <!-- screenshot: search results footprints on map -->
 <figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_results_light.png#only-light" data-desc-position="bottom"><img alt="Search Results" class="doc-img" src="../fig/search_results_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_results_dark.png#only-dark" data-desc-position="bottom"><img alt="Search Results" class="doc-img" src="../fig/search_results_dark.png#only-dark" style="width: 60%"></a></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_results_light.png#only-light" data-desc-position="bottom"><img alt="Search Results" class="doc-img" src="../fig/search_results_light.png#only-light" style="width: 100%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/search_results_dark.png#only-dark" data-desc-position="bottom"><img alt="Search Results" class="doc-img" src="../fig/search_results_dark.png#only-dark" style="width: 100%"></a></p>
 <figcaption>
 <p>Search result footprints displayed on the map. Click a footprint to view scene details.</p>
 </figcaption>
 </figure>
 <hr>
 <h2 id="downloading">Downloading</h2>
-<p>Click <strong>Download Stack</strong> to start downloading scenes for the selected stack to the work directory. Progress is shown live during the download and can be stopped at any time.</p>
+<p>After adding job into the work directory, click <code>Jobs</code> on the top panel, a job folder should present with the downloader tag. Click the tag will lead you to download options.</p>
+<!-- screenshot: search results footprints on map -->
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/new_job_light.gif#only-light" data-desc-position="bottom"><img alt="New Job" class="doc-img" src="../fig/new_job_light.gif#only-light" style="width: 100%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/new_job_dark.gif#only-dark" data-desc-position="bottom"><img alt="New Job" class="doc-img" src="../fig/new_job_dark.gif#only-dark" style="width: 100%"></a></p>
+<figcaption>
+<p>Add a new job to the work directory</p>
+</figcaption>
+</figure>
 <p>For a full description of all downloader parameters and options, see the <a href="../../advanced/downloader/">Downloader Reference</a>.</p>
-<h2 id="downloading-orbit-files">Downloading Orbit Files</h2>
+<h3 id="downloading-orbit-files">Downloading Orbit Files</h3>
 <p>Click <strong>Download Orbit Files</strong> to download the corresponding precise orbit files for the stack. Orbit files are required for accurate InSAR processing and will be saved alongside the scene data in the work directory.</p>
-<h2 id="adding-a-job">Adding a Job</h2>
-<p>Click <strong>Add Job</strong> to register the selected stack as a job in the Jobs panel. This saves the stack configuration for future downloading and processing without starting any download immediately.</p>
+<h2 id="selecting-pairs">Selecting Pairs</h2>
+<p>Constructing a well-designed interferometric pair network is a critical step in time-series InSAR analysis. </p>
+<p>In your job panel, click <strong>Edit Network</strong> to open the interactive baseline–time graph editor.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_edit_network_light.gif#only-light" data-desc-position="bottom"><img alt="Edit Network" class="doc-img" src="../fig/processor_edit_network_light.gif#only-light" style="width: 100%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_edit_network_dark.gif#only-dark" data-desc-position="bottom"><img alt="Edit Network" class="doc-img" src="../fig/processor_edit_network_dark.gif#only-dark" style="width: 100%"></a></p>
+<figcaption>
+<p>Select Edit Network to open network modification window</p>
+</figcaption>
+</figure>
+<p>The network graph is interactive. <strong>Drag</strong> from one scene node to another to create a new pair. <strong>Click</strong> an existing edge to remove it from the network. <strong>Hover</strong> over any edge to view its temporal baseline, perpendicular baseline, and quality score.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_modify_light.gif#only-light" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_modify_light.gif#only-light"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_modify_dark.gif#only-dark" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_modify_dark.gif#only-dark"></a></p>
+<figcaption>
+<p>Baseline–time graph showing the interferometric network. Click any edge to toggle it, or drag between nodes to add a new pair.</p>
+</figcaption>
+</figure>
+<p>Edge colors reflect the pre-computed pair quality score — green edges are high quality, yellow are moderate, and red are poor. 
+<strong>Hover</strong> over any edge to view its temporal baseline, perpendicular baseline, and quality score.</p>
+<p>The network editor supports two workflows:</p>
+<p><strong>Manual editing</strong> — <strong>click</strong> any edge (interferogram pair) to toggle it active or removed.  <strong>Drag</strong> from one scene node to another to create a new pair. Click <strong>Save</strong> to persist the updated pair list to the job folder.</p>
+<p><strong>Auto pair selection</strong> — click <strong>⚙ Parameters</strong> to generate the network automatically from the scene stack:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Target Temporal Baselines</strong></td>
+<td>Comma-separated target temporal separations (days) to form pairs around</td>
+</tr>
+<tr>
+<td><strong>Tolerance</strong></td>
+<td>Allowed deviation (days) from each target baseline</td>
+</tr>
+<tr>
+<td><strong>Max Temporal</strong></td>
+<td>Hard upper limit on temporal baseline (days)</td>
+</tr>
+<tr>
+<td><strong>Max Perp. Baseline</strong></td>
+<td>Hard upper limit on perpendicular baseline (m)</td>
+</tr>
+<tr>
+<td><strong>Min Connections</strong></td>
+<td>Minimum number of interferograms each scene must participate in</td>
+</tr>
+<tr>
+<td><strong>Max Connections</strong></td>
+<td>Maximum number of interferograms per scene</td>
+</tr>
+<tr>
+<td><strong>Force Connected Network</strong></td>
+<td>Add extra pairs to guarantee no isolated nodes</td>
+</tr>
+</tbody>
+</table>
+<p><strong>View Pairs</strong> — lists all selected interferometric pairs with their temporal and perpendicular baseline values.</p>
+<!-- screenshot: view pairs -->
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_pairs_light.gif#only-light" data-desc-position="bottom"><img alt="View Pairs" class="doc-img" src="../fig/view_pairs_light.gif#only-light" style="width: 100%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_pairs_dark.gif#only-dark" data-desc-position="bottom"><img alt="View Pairs" class="doc-img" src="../fig/view_pairs_dark.gif#only-dark" style="width: 100%"></a></p>
+<figcaption>
+<p>List of selected interferometric pairs with baseline information.</p>
+</figcaption>
+</figure>
+<hr>
+<h2 id="decay-maps">Decay Maps</h2>
+<p>Click <strong>Decay Maps</strong> to open the Coherence Decay Maps drawer. This overlays seasonal S1 Global Coherence maps on the main map, giving you a quick read on expected coherence at your site before submitting any jobs.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_button_light.gif#only-light" data-desc-position="bottom"><img alt="Decay Maps Button" class="doc-img" src="../fig/decay_maps_button_light.gif#only-light" style="width: 100%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_button_dark.gif#only-dark" data-desc-position="bottom"><img alt="Decay Maps Button" class="doc-img" src="../fig/decay_maps_button_dark.gif#only-dark" style="width: 100%"></a></p>
+<figcaption>
+<p>The Decay Maps button in the downloader job panel.</p>
+</figcaption>
+</figure>
+<p>Each available season and polarization is listed. Click any of the three band buttons to overlay it on the map:</p>
+<table>
+<thead>
+<tr>
+<th>Band</th>
+<th>Symbol</th>
+<th>What it shows</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>1</strong></td>
+<td>γ∞ PS floor</td>
+<td>Permanent-scatterer coherence floor — the minimum coherence that persists regardless of time gap</td>
+</tr>
+<tr>
+<td><strong>2</strong></td>
+<td>γ0 initial coh</td>
+<td>Initial coherence at acquisition — higher values indicate better short-baseline coherence</td>
+</tr>
+<tr>
+<td><strong>3</strong></td>
+<td>τ decay</td>
+<td>Decorrelation time constant (days) — larger values mean coherence persists longer</td>
+</tr>
+</tbody>
+</table>
+<hr>
 <hr>
 <p>Once your job is added, head to the Processor panel to select interferometric pairs and submit them for processing.</p>
 <p><a class="md-button" href="../processor/">Processor</a></p>
@@ -1701,7 +1907,7 @@ specify the work directory under setting</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

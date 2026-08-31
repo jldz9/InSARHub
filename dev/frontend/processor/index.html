@@ -569,7 +569,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -888,39 +888,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#selecting-pairs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Selecting Pairs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decay-maps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decay Maps
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#view-data" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        View Data
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#submitting-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -936,6 +903,17 @@
     <span class="md-ellipsis">
       
         Monitoring Jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#view-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Result
       
     </span>
   </a>
@@ -1226,6 +1204,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1234,6 +1240,34 @@
     
   
     Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -1510,39 +1544,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#selecting-pairs" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Selecting Pairs
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#decay-maps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Decay Maps
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#view-data" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        View Data
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#submitting-jobs" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1558,6 +1559,17 @@
     <span class="md-ellipsis">
       
         Monitoring Jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#view-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        View Result
       
     </span>
   </a>
@@ -1596,208 +1608,17 @@
 
 
 <h1 id="processor">Processor</h1>
-<p>Once you have added a job via <strong>Add Job</strong> in the Search panel, the job folder appears in the <strong>Jobs</strong> drawer. Click the <strong>Jobs</strong> button in the top-right corner of the toolbar to open the drawer.</p>
-<!-- screenshot: jobs button in toolbar -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/jobs_button_light.png#only-light" data-desc-position="bottom"><img alt="Jobs Button" class="doc-img" src="../fig/jobs_button_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/jobs_button_dark.png#only-dark" data-desc-position="bottom"><img alt="Jobs Button" class="doc-img" src="../fig/jobs_button_dark.png#only-dark"></a></p>
-<figcaption>
-<p>The <strong>Jobs</strong> button in the top-right toolbar opens the Job Folders drawer.</p>
-</figcaption>
-</figure>
-<hr>
-<p>Then click the downloader tag (e.g. <strong>S1_SLC</strong>) on the job folder to open its detail panel.</p>
-<!-- screenshot: clicking downloader tag on job folder -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/downloader_tag_light.png#only-light" data-desc-position="bottom"><img alt="Downloader Tag" class="doc-img" src="../fig/downloader_tag_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/downloader_tag_dark.png#only-dark" data-desc-position="bottom"><img alt="Downloader Tag" class="doc-img" src="../fig/downloader_tag_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>Click the downloader tag on a job folder to open its detail panel.</p>
-</figcaption>
-</figure>
-<h2 id="selecting-pairs">Selecting Pairs</h2>
-<p>Constructing a well-designed interferometric pair network is a critical step in time-series InSAR analysis. A carefully chosen SBAS network balances temporal and perpendicular baseline constraints to maximize coherence while ensuring full temporal connectivity across the scene stack.</p>
-<p>Click <strong>Edit Network</strong> to open the interactive baseline–time graph editor.</p>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_edit_network_light.png#only-light" data-desc-position="bottom"><img alt="Edit Network" class="doc-img" src="../fig/processor_edit_network_light.png#only-light" style="width: 50%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_edit_network_dark.png#only-dark" data-desc-position="bottom"><img alt="Edit Network" class="doc-img" src="../fig/processor_edit_network_dark.png#only-dark" style="width: 50%"></a></p>
-<figcaption>
-<p>Select Edit Network to open network modification window</p>
-</figcaption>
-</figure>
-<p>The network graph is interactive. <strong>Drag</strong> from one scene node to another to create a new pair. <strong>Click</strong> an existing edge to remove it from the network. <strong>Hover</strong> over any edge to view its temporal baseline, perpendicular baseline, and quality score.</p>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_modify_light.gif#only-light" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_modify_light.gif#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/network_modify_dark.gif#only-dark" data-desc-position="bottom"><img alt="Network Graph" class="doc-img" src="../fig/network_modify_dark.gif#only-dark"></a></p>
-<figcaption>
-<p>Baseline–time graph showing the interferometric network. Click any edge to toggle it, or drag between nodes to add a new pair.</p>
-</figcaption>
-</figure>
-<p>Edge colors reflect the pre-computed pair quality score — green edges are high quality, yellow are moderate, and red are poor. 
-<strong>Hover</strong> over any edge to view its temporal baseline, perpendicular baseline, and quality score.</p>
-<p>The network editor supports two workflows:</p>
-<p><strong>Manual editing</strong> — <strong>click</strong> any edge (interferogram pair) to toggle it active or removed.  <strong>Drag</strong> from one scene node to another to create a new pair. Click <strong>Save</strong> to persist the updated pair list to the job folder.</p>
-<p><strong>Auto pair selection</strong> — click <strong>⚙ Parameters</strong> to generate the network automatically from the scene stack:</p>
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Target Temporal Baselines</strong></td>
-<td>Comma-separated target temporal separations (days) to form pairs around</td>
-</tr>
-<tr>
-<td><strong>Tolerance</strong></td>
-<td>Allowed deviation (days) from each target baseline</td>
-</tr>
-<tr>
-<td><strong>Max Temporal</strong></td>
-<td>Hard upper limit on temporal baseline (days)</td>
-</tr>
-<tr>
-<td><strong>Max Perp. Baseline</strong></td>
-<td>Hard upper limit on perpendicular baseline (m)</td>
-</tr>
-<tr>
-<td><strong>Min Connections</strong></td>
-<td>Minimum number of interferograms each scene must participate in</td>
-</tr>
-<tr>
-<td><strong>Max Connections</strong></td>
-<td>Maximum number of interferograms per scene</td>
-</tr>
-<tr>
-<td><strong>Force Connected Network</strong></td>
-<td>Add extra pairs to guarantee no isolated nodes</td>
-</tr>
-</tbody>
-</table>
-<p><strong>View Pairs</strong> — lists all selected interferometric pairs with their temporal and perpendicular baseline values.</p>
-<!-- screenshot: view pairs -->
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_pairs_light.png#only-light" data-desc-position="bottom"><img alt="View Pairs" class="doc-img" src="../fig/view_pairs_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_pairs_dark.png#only-dark" data-desc-position="bottom"><img alt="View Pairs" class="doc-img" src="../fig/view_pairs_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>List of selected interferometric pairs with baseline information.</p>
-</figcaption>
-</figure>
-<hr>
-<h2 id="decay-maps">Decay Maps</h2>
-<p>Click <strong>Decay Maps</strong> to open the Coherence Decay Maps drawer. This overlays seasonal S1 Global Coherence maps on the main map, giving you a quick read on expected coherence at your site before submitting any jobs.</p>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_button_light.png#only-light" data-desc-position="bottom"><img alt="Decay Maps Button" class="doc-img" src="../fig/decay_maps_button_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_button_dark.png#only-dark" data-desc-position="bottom"><img alt="Decay Maps Button" class="doc-img" src="../fig/decay_maps_button_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>The Decay Maps button in the downloader job panel.</p>
-</figcaption>
-</figure>
-<p>Each available season and polarization is listed. Click any of the three band buttons to overlay it on the map:</p>
-<table>
-<thead>
-<tr>
-<th>Band</th>
-<th>Symbol</th>
-<th>What it shows</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>1</strong></td>
-<td>γ∞ PS floor</td>
-<td>Permanent-scatterer coherence floor — the minimum coherence that persists regardless of time gap</td>
-</tr>
-<tr>
-<td><strong>2</strong></td>
-<td>γ0 initial coh</td>
-<td>Initial coherence at acquisition — higher values indicate better short-baseline coherence</td>
-</tr>
-<tr>
-<td><strong>3</strong></td>
-<td>τ decay</td>
-<td>Decorrelation time constant (days) — larger values mean coherence persists longer</td>
-</tr>
-</tbody>
-</table>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_overlay_light.png#only-light" data-desc-position="bottom"><img alt="Decay Maps Overlay" class="doc-img" src="../fig/decay_maps_overlay_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/decay_maps_overlay_dark.png#only-dark" data-desc-position="bottom"><img alt="Decay Maps Overlay" class="doc-img" src="../fig/decay_maps_overlay_dark.png#only-dark"></a></p>
-<figcaption>
-<p>Coherence decay map overlaid on the basemap. Hover over the map to read pixel values.</p>
-</figcaption>
-</figure>
-<p>Click the same button again to hide the overlay. Click a different band to switch layers.</p>
-<hr>
-<h2 id="view-data">View Data</h2>
-<p>Once interferograms have been downloaded, click <strong>View Data</strong> in the Processor panel to open the data browser. This lists all HyP3 product files extracted from the downloaded <code>.zip</code> archives and lets you overlay any of them directly on the map.</p>
-<div class="admonition warning">
-<p class="admonition-title">ISCE2 not supported</p>
-<p><strong>View Data</strong> is only available for HyP3 outputs. ISCE2 interferograms are stored in radar (range/azimuth) coordinates and do not have a geographic coordinate system until geocoded by MintPy. Use the <strong>Analyzer</strong> panel to geocode and view ISCE2 results.</p>
-</div>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_button_light.png#only-light" data-desc-position="bottom"><img alt="View Data Button" class="doc-img" src="../fig/view_data_button_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_button_dark.png#only-dark" data-desc-position="bottom"><img alt="View Data Button" class="doc-img" src="../fig/view_data_button_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>The View Data button in the Processor panel.</p>
-</figcaption>
-</figure>
-<p>Each interferogram pair is listed with its available product files:</p>
-<table>
-<thead>
-<tr>
-<th>Type</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>unw_phase</code></td>
-<td>Unwrapped interferometric phase</td>
-</tr>
-<tr>
-<td><code>corr</code></td>
-<td>Interferogram coherence</td>
-</tr>
-<tr>
-<td><code>dem</code></td>
-<td>Digital elevation model used in processing</td>
-</tr>
-<tr>
-<td><code>lv_theta</code></td>
-<td>Look vector elevation angle</td>
-</tr>
-<tr>
-<td><code>lv_phi</code></td>
-<td>Look vector azimuth angle</td>
-</tr>
-<tr>
-<td><code>water_mask</code></td>
-<td>Water body mask</td>
-</tr>
-</tbody>
-</table>
-<p>Click any file to render it as a raster overlay on the map. Click again to hide it.</p>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_overlay_light.png#only-light" data-desc-position="bottom"><img alt="View Data Overlay" class="doc-img" src="../fig/view_data_overlay_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_overlay_dark.png#only-dark" data-desc-position="bottom"><img alt="View Data Overlay" class="doc-img" src="../fig/view_data_overlay_dark.png#only-dark"></a></p>
-<figcaption>
-<p>HyP3 interferogram product overlaid on the basemap.</p>
-</figcaption>
-</figure>
-<hr>
 <h2 id="submitting-jobs">Submitting Jobs</h2>
 <p>Once the pair network is reviewed and satisfactory, click <strong>Process</strong> to open the processor selection dialog.</p>
 <figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/process_button_light.png#only-light" data-desc-position="bottom"><img alt="Process Button" class="doc-img" src="../fig/process_button_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/process_button_dark.png#only-dark" data-desc-position="bottom"><img alt="Process Button" class="doc-img" src="../fig/process_button_dark.png#only-dark" style="width: 60%"></a></p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/process_button_light.gif#only-light" data-desc-position="bottom"><img alt="Process Button" class="doc-img" src="../fig/process_button_light.gif#only-light" style="width: 100%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/process_button_dark.gif#only-dark" data-desc-position="bottom"><img alt="Process Button" class="doc-img" src="../fig/process_button_dark.gif#only-dark" style="width: 100%"></a></p>
 <figcaption>
 <p>Click <strong>Process</strong> to open the processor selection dialog.</p>
 </figcaption>
 </figure>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3" name="__tabbed_1" type="radio"><input id="isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3">HyP3</label><label for="isce2">ISCE2</label></div>
+<p>According to the source data, you may choose different processors:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="hyp3" name="__tabbed_1" type="radio"><input id="isce2" name="__tabbed_1" type="radio"><input id="gmtsar" name="__tabbed_1" type="radio"><input id="isce3" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3">HyP3</label><label for="isce2">ISCE2</label><label for="gmtsar">GMTSAR</label><label for="isce3">ISCE3</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <figure>
@@ -1831,8 +1652,7 @@
 <p>Select <code>ISCE2_S1</code> for local / HPC processing via ISCE2.</p>
 </figcaption>
 </figure>
-<p>Select <code>ISCE2_S1</code> and configure the required parameters — bounding box (<code>S N W E</code>), SLC directory, and optionally HPC mode. Click <strong>Submit</strong> to start <code>stackSentinel</code> locally in the background, or submit steps to SLURM with <strong>HPC Mode</strong> enabled.</p>
-<p>In HPC mode, each step runs through a sliding-window SLURM manager that keeps at most <strong>Max Concurrent HPC</strong> (default 12) child jobs active at once. Steps are chained automatically via <code>--dependency=afterok</code>. <strong>Retry</strong> detects HPC mode from the saved job state — no reconfiguration needed after a failure.</p>
+<p>Select <code>ISCE2_S1</code> and configure the required parameters and submit for local, HPC or container processing</p>
 <div class="admonition tip">
 <p class="admonition-title">Dry run first</p>
 <p>Enable <strong>Dry Run</strong> to preview run scripts and verify paths without executing. Recommended before the first real submission.</p>
@@ -1843,12 +1663,42 @@
 </div>
 <p>Once submitted, a <strong>Processor</strong> tag appears on the job folder in the drawer.</p>
 </div>
+<div class="tabbed-block">
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_GMTSAR_light.png#only-light" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_GMTSAR_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_GMTSAR_dark.png#only-dark" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_GMTSAR_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>Select <code>GMTSAR_S1</code> for local / HPC processing via GMTSAR.</p>
+</figcaption>
+</figure>
+<p>Select <code>GMTSAR_S1</code> for local / HPC processing via <a href="https://github.com/gmtsar/gmtsar">GMTSAR</a>. Similiar to ISCE processor </p>
+<div class="admonition note">
+<p class="admonition-title">SLC files required</p>
+<p>GMTSAR processes SLC <code>.SAFE</code> files locally — make sure scenes are downloaded to the SLC directory before submitting.</p>
+</div>
+<p>Once submitted, a <strong>Processor</strong> tag appears on the job folder in the drawer.</p>
+</div>
+<div class="tabbed-block">
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_ISCE3_light.png#only-light" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_ISCE3_light.png#only-light" style="width: 60%"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/processor_dialog_ISCE3_dark.png#only-dark" data-desc-position="bottom"><img alt="Processor Selection" class="doc-img" src="../fig/processor_dialog_ISCE3_dark.png#only-dark" style="width: 60%"></a></p>
+<figcaption>
+<p>Select an ISCE3 processor (<code>ISCE3_Burst</code> or <code>ISCE3_NISAR</code>) for phase-linked processing via dolphin.</p>
+</figcaption>
+</figure>
+<p>Select an ISCE3 processor for phase-linked processing with <a href="https://github.com/isce-framework/dolphin">dolphin</a>. Which one appears depends on the source data:</p>
+<ul>
+<li><code>ISCE3_Burst</code> — from an <code>S1_Burst</code> download (Sentinel-1 bursts).</li>
+<li><code>ISCE3_NISAR</code> — from a <code>NISAR_GSLC</code> download (geocoded NISAR GSLC).</li>
+</ul>
+<p>Once submitted, a <strong>Processor</strong> tag appears on the job folder in the drawer.</p>
+</div>
 </div>
 </div>
 <p>For a full description of all parameters, see the <a href="../../advanced/processor/">Processor Reference</a>.</p>
 <hr>
 <h2 id="monitoring-jobs">Monitoring Jobs</h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="hyp3_1" name="__tabbed_2" type="radio"><input id="isce2_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="hyp3_1">HyP3</label><label for="isce2_1">ISCE2</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:4"><input checked="checked" id="hyp3_1" name="__tabbed_2" type="radio"><input id="isce2_1" name="__tabbed_2" type="radio"><input id="gmtsar_1" name="__tabbed_2" type="radio"><input id="isce3_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="hyp3_1">HyP3</label><label for="isce2_1">ISCE2</label><label for="gmtsar_1">GMTSAR</label><label for="isce3_1">ISCE3</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>A job file (<code>hyp3_jobs.json</code>) is saved to the job folder automatically. A drop-down at the top of the panel lists all job files, including retry files (e.g. <code>hyp3_retry_jobs_*.json</code>). Select a file to inspect a specific submission.</p>
@@ -1915,11 +1765,87 @@
 <p>Each step may contain multiple commands (e.g. one per SLC). Per-command status is shown when a step is expanded.</p>
 <p>If any steps show <code>FAILED</code>, click <strong>Retry</strong> to re-run them. Click <strong>Cancel</strong> to stop a running local process or scancel active SLURM jobs.</p>
 </div>
+<div class="tabbed-block">
+<p>Click <strong>Refresh</strong> to read stage/job statuses from disk. The stages are <code>unzip</code>, <code>dem</code>, <code>p2p</code> (P2P mode) or <code>align</code>, <code>topo</code>, <code>intf</code>, <code>merge</code>, <code>unwrap</code> (stack mode).</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RUNNING</code></td>
+<td>Stage is actively executing</td>
+</tr>
+<tr>
+<td><code>SUCCEEDED</code></td>
+<td>Stage completed successfully</td>
+</tr>
+<tr>
+<td><code>FAILED</code></td>
+<td>Stage failed — click <strong>Retry</strong> to re-run</td>
+</tr>
+<tr>
+<td><code>PENDING</code></td>
+<td>Stage is waiting for a prior stage to finish</td>
+</tr>
+</tbody>
+</table>
+<p>Expand a stage to see its per-job status. If any stage shows <code>FAILED</code>, click <strong>Retry</strong> to re-run it. Click <strong>Cancel</strong> to stop a running local process or scancel active SLURM jobs.</p>
+</div>
+<div class="tabbed-block">
+<p>Click <strong>Refresh</strong> to read per-stage statuses from disk (<code>crop</code>, <code>ifg</code>, <code>stitch</code>, <code>unwrap</code>).</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RUNNING</code></td>
+<td>Stage is actively executing</td>
+</tr>
+<tr>
+<td><code>SUCCEEDED</code></td>
+<td>Stage completed successfully</td>
+</tr>
+<tr>
+<td><code>FAILED</code></td>
+<td>Stage failed — click <strong>Retry</strong> to re-run</td>
+</tr>
+<tr>
+<td><code>PENDING</code></td>
+<td>Stage is waiting for a prior stage to finish</td>
+</tr>
+</tbody>
+</table>
+<p>If any stage shows <code>FAILED</code>, click <strong>Retry</strong> to re-run it. Click <strong>Cancel</strong> to stop the run.</p>
+</div>
 </div>
 </div>
 <hr>
+<h2 id="view-result">View Result</h2>
+<p>Once interferograms have been produced, click <strong>View Result</strong> in the Processor panel to open the data browser. This lists the processed product files and lets you overlay any of them directly on the map.</p>
+<div class="admonition note">
+<p class="admonition-title">Geocoded results only</p>
+<p><strong>View Result</strong> overlays geocoded products: HyP3 interferograms, ISCE3 (<code>unwrapped/</code>, <code>interferograms/</code>), and GMTSAR (<code>*_ll.grd</code>). <strong>ISCE2</strong> interferograms are stored in radar (range/azimuth) coordinates and have no geographic coordinate system until geocoded by MintPy — use the <strong>Analyzer</strong> panel to geocode and view those results.</p>
+</div>
+<p>Each interferogram pair is listed with its available product files:</p>
+<p>Click any file to render it as a raster overlay on the map. Click again to hide it.</p>
+<figure>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_overlay_light.png#only-light" data-desc-position="bottom"><img alt="View Data Overlay" class="doc-img" src="../fig/view_data_overlay_light.png#only-light"></a>
+<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/view_data_overlay_dark.png#only-dark" data-desc-position="bottom"><img alt="View Data Overlay" class="doc-img" src="../fig/view_data_overlay_dark.png#only-dark"></a></p>
+<figcaption>
+<p>HyP3 interferogram product overlaid on the basemap.</p>
+</figcaption>
+</figure>
+<hr>
 <h2 id="other-actions">Other Actions</h2>
-<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="hyp3_2" name="__tabbed_3" type="radio"><input id="isce2_2" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="hyp3_2">HyP3</label><label for="isce2_2">ISCE2</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:4"><input checked="checked" id="hyp3_2" name="__tabbed_3" type="radio"><input id="isce2_2" name="__tabbed_3" type="radio"><input id="gmtsar_2" name="__tabbed_3" type="radio"><input id="isce3_2" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="hyp3_2">HyP3</label><label for="isce2_2">ISCE2</label><label for="gmtsar_2">GMTSAR</label><label for="isce3_2">ISCE3</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <table>
@@ -1977,6 +1903,62 @@
 <tr>
 <td><strong>Watch</strong></td>
 <td>Poll step statuses until all steps complete</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tabbed-block">
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Read stage/job statuses from disk</td>
+</tr>
+<tr>
+<td><strong>Retry</strong></td>
+<td>Re-run all failed stages</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong></td>
+<td>Stop running local process or scancel SLURM jobs</td>
+</tr>
+<tr>
+<td><strong>Watch</strong></td>
+<td>Poll stage statuses until all stages complete</td>
+</tr>
+</tbody>
+</table>
+</div>
+<div class="tabbed-block">
+<table>
+<thead>
+<tr>
+<th>Button</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Refresh</strong></td>
+<td>Read per-stage statuses from disk</td>
+</tr>
+<tr>
+<td><strong>Retry</strong></td>
+<td>Re-run all failed stages</td>
+</tr>
+<tr>
+<td><strong>Cancel</strong></td>
+<td>Stop running local process or scancel SLURM jobs</td>
+</tr>
+<tr>
+<td><strong>Watch</strong></td>
+<td>Poll stage statuses until all stages complete</td>
 </tr>
 </tbody>
 </table>
@@ -2066,7 +2048,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

@@ -569,7 +569,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -1113,6 +1113,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../utilities/" class="md-nav__link">
         
   
@@ -1121,6 +1149,34 @@
     
   
     Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -1417,6 +1473,45 @@
     <span class="md-ellipsis">
       
         Pixel Time Series
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#raw-data-result-viewers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw Data &amp; Result Viewers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Raw Data &amp; Result Viewers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#downloader-view-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downloader → View Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processor-view-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processor → View Result
       
     </span>
   </a>
@@ -1855,6 +1950,45 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#raw-data-result-viewers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Raw Data &amp; Result Viewers
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Raw Data &amp; Result Viewers">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#downloader-view-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Downloader → View Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#processor-view-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processor → View Result
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#keyboard-mouse-reference" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2100,7 +2234,7 @@
 </tbody>
 </table>
 <h3 id="config-per-analyzer">Config (per-analyzer)</h3>
-<p>Each analyzer type stores its own configuration independently. Changes to <code>Hyp3_SBAS</code> config never affect <code>Mintpy_SBAS_Base</code> config and vice versa. Open via the <strong>Config</strong> button or Settings → Analyzer tab.</p>
+<p>Each analyzer type stores its own configuration independently. Changes to <code>Hyp3_Mintpy_SBAS</code> config never affect <code>Mintpy_SBAS_Base</code> config and vice versa. Open via the <strong>Config</strong> button or Settings → Analyzer tab.</p>
 <hr>
 <h2 id="mintpy-results-viewer">MintPy Results Viewer</h2>
 <p>Available after the <code>velocity</code> step completes. Click <strong>View Results</strong> in the Analyzer panel.</p>
@@ -2134,6 +2268,34 @@
 <li>Dates are shown on the X axis</li>
 <li>The chart follows the app's dark/light theme</li>
 </ul>
+<hr>
+<h2 id="raw-data-result-viewers">Raw Data &amp; Result Viewers</h2>
+<p>Two panel buttons overlay georeferenced rasters on the map, in addition to the MintPy viewer above.</p>
+<h3 id="downloader-view-data">Downloader → View Data</h3>
+<p>Previews the <strong>raw downloaded</strong> scenes under <code>slc/</code>, using each product's built-in georeferenced quicklook — fast, no full-resolution decode:</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Preview</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sentinel-1 SLC / burst</td>
+<td><code>preview/quick-look.png</code> placed at the 4 ground corners from <code>map-overlay.kml</code> (a rotated overlay following the swath)</td>
+</tr>
+<tr>
+<td>NISAR GSLC</td>
+<td>a downsampled amplitude of the geocoded grid, computed once and cached under <code>slc/.preview_cache/</code> (first open takes a few seconds)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="processor-view-result">Processor → View Result</h3>
+<p>Overlays the <strong>processed interferograms</strong>. Works for any geocoded output: HyP3 (zipped GeoTIFFs), ISCE3 (<code>unwrapped/</code>, <code>interferograms/</code> GeoTIFFs), and GMTSAR (<code>*_ll.grd</code>). ISCE2 stays in radar geometry and is not shown here — geocode it with the Analyzer first.</p>
+<blockquote>
+<p>The map overlay supports both axis-aligned bounds and an explicit 4-corner quad (<code>RasterOverlay.corners</code>), so tilted previews like a Sentinel-1 swath are placed correctly.</p>
+</blockquote>
 <hr>
 <h2 id="keyboard-mouse-reference">Keyboard &amp; Mouse Reference</h2>
 <table>
@@ -2254,7 +2416,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

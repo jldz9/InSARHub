@@ -571,7 +571,7 @@
   <span class="md-ellipsis">
     
   
-    API 配置
+    账号配置
   
 
     
@@ -1115,6 +1115,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    容器运行
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../utilities/" class="md-nav__link">
         
   
@@ -1123,6 +1151,34 @@
     
   
     工具集
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令行参考
   
 
     
@@ -1410,6 +1466,45 @@
       
         <li class="md-nav__item">
   <a href="#_14" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        原始数据与结果查看器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="原始数据与结果查看器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#view-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        下载器 → View Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        处理器 → View Result
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
     <span class="md-ellipsis">
       
         键盘与鼠标参考
@@ -1816,6 +1911,45 @@
   <a href="#_14" class="md-nav__link">
     <span class="md-ellipsis">
       
+        原始数据与结果查看器
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="原始数据与结果查看器">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#view-data" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        下载器 → View Data
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#view-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        处理器 → View Result
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#_15" class="md-nav__link">
+    <span class="md-ellipsis">
+      
         键盘与鼠标参考
       
     </span>
@@ -2085,7 +2219,35 @@
 <li>图表跟随应用的深色/浅色主题</li>
 </ul>
 <hr>
-<h2 id="_14">键盘与鼠标参考</h2>
+<h2 id="_14">原始数据与结果查看器</h2>
+<p>除上面的 MintPy 查看器外，还有两个面板按钮可将地理配准的栅格叠加到地图上。</p>
+<h3 id="view-data">下载器 → View Data</h3>
+<p>使用每个产品自带的地理配准快视图，预览 <code>slc/</code> 下<strong>下载的原始</strong>场景——速度快，无需全分辨率解码：</p>
+<table>
+<thead>
+<tr>
+<th>数据源</th>
+<th>预览</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sentinel-1 SLC / burst</td>
+<td>将 <code>preview/quick-look.png</code> 放置在 <code>map-overlay.kml</code> 的 4 个地面角点上（跟随幅宽倾斜的旋转叠加层）</td>
+</tr>
+<tr>
+<td>NISAR GSLC</td>
+<td>地理编码格网的降采样幅度图，仅计算一次并缓存在 <code>slc/.preview_cache/</code> 下（首次打开需几秒钟）</td>
+</tr>
+</tbody>
+</table>
+<h3 id="view-result">处理器 → View Result</h3>
+<p>叠加<strong>已处理的干涉图</strong>。适用于任何地理编码输出：HyP3（压缩包内的 GeoTIFF）、ISCE3（<code>unwrapped/</code>、<code>interferograms/</code> 的 GeoTIFF）以及 GMTSAR（<code>*_ll.grd</code>）。ISCE2 仍处于雷达几何，不在此显示——请先用分析器进行地理编码。</p>
+<blockquote>
+<p>地图叠加层同时支持轴对齐的边界框和显式的 4 角点四边形（<code>RasterOverlay.corners</code>），因此像 Sentinel-1 幅宽那样倾斜的预览也能正确放置。</p>
+</blockquote>
+<hr>
+<h2 id="_15">键盘与鼠标参考</h2>
 <table>
 <thead>
 <tr>
@@ -2204,7 +2366,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>

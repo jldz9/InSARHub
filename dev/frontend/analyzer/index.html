@@ -569,7 +569,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -949,17 +949,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#edit-network" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Edit Network
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1237,6 +1226,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1245,6 +1262,34 @@
     
   
     Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -1554,17 +1599,6 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#edit-network" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Edit Network
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#overview" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1620,7 +1654,7 @@
 <h1 id="analyzer">Analyzer</h1>
 <p>Once the Processor has finished processing all interferograms, the Analyzer panel runs  time-series analysis on the resulting products.</p>
 <h2 id="initializing-the-analyzer">Initializing the Analyzer</h2>
-<p>Once all submitted jobs have finished and show <code>SUCCEEDED</code> in the Processor panel, open the <strong>Run Analyzer</strong> tab within the same job folder. Select an analyzer type (e.g. <code>Hyp3_SBAS</code>) from the drop-down and click <strong>Init</strong> to initialize the analyzer workspace. This prepares the configuration and directory structure needed to run time-series analysis on the downloaded interferograms.</p>
+<p>Once all submitted jobs have finished and show <code>SUCCEEDED</code> in the Processor panel, open the <strong>Run Analyzer</strong> tab within the same job folder. Select an analyzer type (e.g. <code>Hyp3_Mintpy_SBAS</code>) from the drop-down and click <strong>Init</strong> to initialize the analyzer workspace. This prepares the configuration and directory structure needed to run time-series analysis on the downloaded interferograms. Different analyzer might have different steps. </p>
 <!-- screenshot: analyzer panel overview -->
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_light.png#only-light" data-desc-position="bottom"><img alt="Analyzer Panel" class="doc-img" src="../fig/analyzer_light.png#only-light"></a>
@@ -1629,7 +1663,7 @@
 <p>The Run Analyzer tab — select an analyzer type and click Init to get started.</p>
 </figcaption>
 </figure>
-<p>Once initialization is complete, an <strong>Analyzer</strong> tag labeled with the analyzer you chose (e.g. <code>Hyp3_SBAS</code>) will appear on the job folder. Click that tag to open the Analyzer panel and proceed with configuration and processing.</p>
+<p>Once initialization is complete, an <strong>Analyzer</strong> tag labeled with the analyzer you chose (e.g. <code>Hyp3_Mintpy_SBAS</code>) will appear on the job folder. Click that tag to open the Analyzer panel and proceed with configuration and processing.</p>
 <!-- screenshot: analyzer tag on job folder -->
 <figure>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_tag_light.png#only-light" data-desc-position="bottom"><img alt="Analyzer Tag" class="doc-img" src="../fig/analyzer_tag_light.png#only-light" style="width: 60%"></a>
@@ -1640,7 +1674,7 @@
 </figure>
 <hr>
 <h2 id="configuration">Configuration</h2>
-<p>Once you enter the Analyzer panel, you can select the steps you want to run for time-series analysis. To adjust analysis parameters, click <strong>Change Config</strong> to switch to the configuration tab, where each analyzer type (e.g. <code>Hyp3_SBAS</code>) has its own independent settings that are saved separately.</p>
+<p>Once you enter the Analyzer panel, you can select the steps you want to run for time-series analysis. To adjust analysis parameters, click <strong>Change Config</strong> to switch to the configuration tab, where each analyzer type (e.g. <code>Hyp3_Mintpy_SBAS</code>) has its own independent settings that are saved separately.</p>
 <p>For a full description of all analyzer parameters and options, see the <a href="../../advanced/analyzer/">Analyzer Reference</a>.</p>
 <!-- screenshot: analyzer config panel -->
 <figure>
@@ -1661,78 +1695,6 @@
 <p>Analyzer running all steps.</p>
 </figcaption>
 </figure>
-<h2 id="edit-network">Edit Network</h2>
-<p>After initializing the analyzer and running at least the <code>load_data</code> step, an <strong>Edit Network</strong> button appears in the Analyzer panel. Click it to open the network editor showing the interferogram network currently loaded into MintPy, with coherence values overlaid on each edge.</p>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_button_light.png#only-light" data-desc-position="bottom"><img alt="Edit Network Button" class="doc-img" src="../fig/analyzer_edit_network_button_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_button_dark.png#only-dark" data-desc-position="bottom"><img alt="Edit Network Button" class="doc-img" src="../fig/analyzer_edit_network_button_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>The Edit Network button appears in the Analyzer panel after load_data completes.</p>
-</figcaption>
-</figure>
-<p>Unlike the pair selection stage, you cannot drag to create new pairs here — the interferograms have already been processed, so only the downloaded pairs are available. What you can do:</p>
-<ul>
-<li><strong>Click an active edge</strong> to remove that pair from the network</li>
-<li><strong>Click a removed edge</strong> to re-add it</li>
-<li><strong>⚙ Parameters</strong> — configure MintPy <code>modify_network</code> constraints and click <strong>Run modify_network</strong> to let MintPy automatically filter the network</li>
-</ul>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_graph_light.png#only-light" data-desc-position="bottom"><img alt="Edit Network Graph" class="doc-img" src="../fig/analyzer_edit_network_graph_light.png#only-light"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_graph_dark.png#only-dark" data-desc-position="bottom"><img alt="Edit Network Graph" class="doc-img" src="../fig/analyzer_edit_network_graph_dark.png#only-dark"></a></p>
-<figcaption>
-<p>The network editor showing coherence values on each edge. Click an edge to remove or re-add it.</p>
-</figcaption>
-</figure>
-<table>
-<thead>
-<tr>
-<th>Parameter</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Max temporal baseline</strong></td>
-<td>Remove pairs exceeding this temporal separation (days)</td>
-</tr>
-<tr>
-<td><strong>Max ⊥ baseline</strong></td>
-<td>Remove pairs exceeding this perpendicular baseline (m)</td>
-</tr>
-<tr>
-<td><strong>Start date</strong></td>
-<td>Exclude acquisitions before this date (YYYYMMDD)</td>
-</tr>
-<tr>
-<td><strong>End date</strong></td>
-<td>Exclude acquisitions after this date (YYYYMMDD)</td>
-</tr>
-<tr>
-<td><strong>Exclude dates</strong></td>
-<td>Space-separated list of individual dates to drop (YYYYMMDD)</td>
-</tr>
-<tr>
-<td><strong>Coherence-based</strong></td>
-<td>Enable coherence-based network modification (<code>yes</code> / <code>no</code> / <code>auto</code>)</td>
-</tr>
-<tr>
-<td><strong>Min coherence</strong></td>
-<td>Minimum average coherence threshold for keeping a pair</td>
-</tr>
-<tr>
-<td><strong>Keep min span tree</strong></td>
-<td>Preserve the minimum spanning tree when removing low-coherence pairs</td>
-</tr>
-</tbody>
-</table>
-<figure>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_parameter_light.png#only-light" data-desc-position="bottom"><img alt="modify_network Parameters" class="doc-img" src="../fig/analyzer_edit_network_parameter_light.png#only-light" style="width: 60%"></a>
-<a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/analyzer_edit_network_parameter_dark.png#only-dark" data-desc-position="bottom"><img alt="modify_network Parameters" class="doc-img" src="../fig/analyzer_edit_network_parameter_dark.png#only-dark" style="width: 60%"></a></p>
-<figcaption>
-<p>The ⚙ Parameters dialog for modify_network configuration.</p>
-</figcaption>
-</figure>
-<p>After running, the graph refreshes to reflect the updated network. You can then continue running subsequent analyzer steps on the modified network.</p>
 <hr>
 <h2 id="overview">Overview</h2>
 <p>After running the <code>reference_point</code> and <code>quick_overview</code> steps, an <strong>Overview</strong> button appears in the Analyzer panel. Click it to open the Overview drawer, which lets you plot MintPy diagnostic layers directly on the map.</p>
@@ -1882,7 +1844,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

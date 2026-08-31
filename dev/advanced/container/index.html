@@ -5,15 +5,19 @@
       
       
       
-        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/gmtsar_s1_notes/OPEN_ISSUES/">
+        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/advanced/container/">
       
       
+        <link rel="prev" href="../hpc/">
+      
+      
+        <link rel="next" href="../utilities/">
       
       
         
           <link rel="alternate" href="./" hreflang="en">
         
-          <link rel="alternate" href="../../zh/gmtsar_s1_notes/OPEN_ISSUES/" hreflang="zh">
+          <link rel="alternate" href="../../zh/advanced/container/" hreflang="zh">
         
       
       
@@ -22,7 +26,7 @@
     
     
       
-        <title>GMTSAR_S1 processor — open issues found by tracing real GMTSAR source - InSARHub</title>
+        <title>Container Execution - InSARHub</title>
       
     
     
@@ -89,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#gmtsar_s1-processor-open-issues-found-by-tracing-real-gmtsar-source" class="md-skip">
+        <a href="#container-execution" class="md-skip">
           Skip to content
         </a>
       
@@ -130,7 +134,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              GMTSAR_S1 processor — open issues found by tracing real GMTSAR source
+              Container Execution
             
           </span>
         </div>
@@ -183,7 +187,7 @@
           </li>
         
           <li class="md-select__item">
-            <a href="../../zh/gmtsar_s1_notes/OPEN_ISSUES/" hreflang="zh" class="md-select__link">
+            <a href="../../zh/advanced/container/" hreflang="zh" class="md-select__link">
               中文
             </a>
           </li>
@@ -320,11 +324,13 @@
   
   
   
+    
+  
   
     
     
-      <li class="md-tabs__item">
-        <a href="../../advanced/file_structure/" class="md-tabs__link">
+      <li class="md-tabs__item md-tabs__item--active">
+        <a href="../file_structure/" class="md-tabs__link">
           
   
   
@@ -563,7 +569,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -907,28 +913,31 @@
       
   
   
+    
   
   
+  
     
     
     
     
+      
+        
+        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
         
           
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
-        
-          
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -946,7 +955,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -964,7 +973,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/file_structure/" class="md-nav__link">
+      <a href="../file_structure/" class="md-nav__link">
         
   
   
@@ -992,7 +1001,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/downloader/" class="md-nav__link">
+      <a href="../downloader/" class="md-nav__link">
         
   
   
@@ -1020,7 +1029,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/processor/" class="md-nav__link">
+      <a href="../processor/" class="md-nav__link">
         
   
   
@@ -1048,7 +1057,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/analyzer/" class="md-nav__link">
+      <a href="../analyzer/" class="md-nav__link">
         
   
   
@@ -1076,7 +1085,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/hpc/" class="md-nav__link">
+      <a href="../hpc/" class="md-nav__link">
         
   
   
@@ -1101,10 +1110,151 @@
                 
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#re-invocation-not-a-library-call" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Re-invocation, not a library call
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#why-it-never-nests-insarhub_container_child" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why it never nests (INSARHUB_CONTAINER_CHILD)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#host-vs-image-requirements" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Host vs. image requirements
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#persistence" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Persistence
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#hpc-mode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HPC mode
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/utilities/" class="md-nav__link">
+      <a href="../utilities/" class="md-nav__link">
         
   
   
@@ -1132,7 +1282,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/pair_quality/" class="md-nav__link">
+      <a href="../cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pair_quality/" class="md-nav__link">
         
   
   
@@ -1160,7 +1338,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/frontend/" class="md-nav__link">
+      <a href="../frontend/" class="md-nav__link">
         
   
   
@@ -1188,7 +1366,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/program_structure/" class="md-nav__link">
+      <a href="../program_structure/" class="md-nav__link">
         
   
   
@@ -1388,10 +1566,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#resolved-pre-processing-gap-was-biggest-open-unknown" class="md-nav__link">
+  <a href="#re-invocation-not-a-library-call" class="md-nav__link">
     <span class="md-ellipsis">
       
-        RESOLVED: pre-processing gap (was "biggest open unknown")
+        Re-invocation, not a library call
       
     </span>
   </a>
@@ -1399,10 +1577,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#resolved-pairsref-sec-signature-was-wrong-for-s1_tops" class="md-nav__link">
+  <a href="#why-it-never-nests-insarhub_container_child" class="md-nav__link">
     <span class="md-ellipsis">
       
-        RESOLVED: pairs=[(ref, sec), ...] signature was wrong for S1_TOPS
+        Why it never nests (INSARHUB_CONTAINER_CHILD)
       
     </span>
   </a>
@@ -1410,10 +1588,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#resolved-real-end-to-end-run-revealed-a-genuine-environment-bug-not-a-logic-bug" class="md-nav__link">
+  <a href="#host-vs-image-requirements" class="md-nav__link">
     <span class="md-ellipsis">
       
-        RESOLVED: real end-to-end run revealed a genuine environment bug (not a logic bug)
+        Host vs. image requirements
       
     </span>
   </a>
@@ -1421,10 +1599,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#resolved-single-subswath-mode-frame_modefalse-fixed-and-validated" class="md-nav__link">
+  <a href="#persistence" class="md-nav__link">
     <span class="md-ellipsis">
       
-        RESOLVED: single-subswath mode (frame_mode=False) fixed and validated
+        Persistence
       
     </span>
   </a>
@@ -1432,10 +1610,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#known-gap-not-yet-tested" class="md-nav__link">
+  <a href="#usage" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Known gap: not yet tested
+        Usage
       
     </span>
   </a>
@@ -1443,21 +1621,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#resolved-frame_modefalse-output-directory-naming-was-wrong" class="md-nav__link">
+  <a href="#hpc-mode" class="md-nav__link">
     <span class="md-ellipsis">
       
-        RESOLVED: frame_mode=False output directory naming was wrong
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#mintpy-prep_gmtsarpy-partial-real-progress-then-a-real-scope-wall" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        MintPy prep_gmtsar.py — partial real progress, then a real scope wall
+        HPC mode
       
     </span>
   </a>
@@ -1484,215 +1651,81 @@
   
 
 
-<h1 id="gmtsar_s1-processor-open-issues-found-by-tracing-real-gmtsar-source">GMTSAR_S1 processor — open issues found by tracing real GMTSAR source</h1>
-<p>Tracked separately from code comments so they're easy to scan before the
-next work session. Update/remove entries as they're resolved.</p>
-<h2 id="resolved-pre-processing-gap-was-biggest-open-unknown">RESOLVED: pre-processing gap (was "biggest open unknown")</h2>
-<p>Traced <code>p2p_stages.py::P2P1Preprocess</code> in the GMTSAR repo directly. It
-calls <code>pre_proc SAT master aligned</code> internally on files in <code>raw/</code> before
-any interferometry step runs. So <code>p2p_processing</code> DOES handle raw input
--&gt; focused SLC/PRM preprocessing itself -- <code>_stage_case()</code>'s assumption
-(stage raw files into <code>raw/</code>, don't pre-focus them) is correct as
-written. No fix needed for this one.</p>
-<h2 id="resolved-pairsref-sec-signature-was-wrong-for-s1_tops">RESOLVED: <code>pairs=[(ref, sec), ...]</code> signature was wrong for S1_TOPS</h2>
-<p>Fixed 2026-07-21. <code>GMTSAR_S1</code> now supports BOTH real GMTSAR entry points,
-selected via <code>config.frame_mode</code>:</p>
+<h1 id="container-execution">Container Execution</h1>
+<p>The local processors and analyzers (ISCE2, GMTSAR, ISCE3, MintPy) each need heavy SAR software installed. Rather than requiring that on the host, set <code>container</code> (CLI <code>--container</code>, or the config field / GUI "Run in Container" checkbox) to a <code>.sif</code>/Apptainer image or a Docker image reference, and InSARHub runs the pipeline <strong>inside</strong> that image instead.</p>
+<h2 id="re-invocation-not-a-library-call">Re-invocation, not a library call</h2>
+<p>The host process does <em>not</em> import ISCE2/GMTSAR/dolphin. When <code>container</code> is set it re-invokes <strong>the same <code>insarhub</code> command</strong> inside the image (<code>_reinvoke_via_container</code> for processors, <code>_run_via_container</code> for analyzers): roughly</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>docker run --rm -e INSARHUB_CONTAINER_CHILD=1 -v &lt;workdir&gt;:&lt;workdir&gt; &lt;image&gt; \
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>    insarhub &lt;processor|analyzer&gt; ... &lt;same args&gt;
+</span></code></pre></div>
+<p>The workdir is <strong>bind-mounted at the identical path</strong>, so every output the child writes lands on the host exactly where a native run would put it — the host and the container agree on all paths.</p>
+<h2 id="why-it-never-nests-insarhub_container_child">Why it never nests (<code>INSARHUB_CONTAINER_CHILD</code>)</h2>
+<p>The child is stamped with the env var <code>INSARHUB_CONTAINER_CHILD=1</code>. Every place that decides whether to containerize checks <em>both</em> <code>config.container</code> <strong>and</strong> the absence of that var, so:</p>
 <ul>
-<li><code>frame_mode=False</code> (default): single-subswath <code>p2p_processing</code>, pairs =
-  <code>[(ref_stem, sec_stem), ...]</code> -- raw per-subswath product basename
-  stems (Sentinel-1's own naming:
-  <code>s1a-iw&lt;N&gt;-slc-&lt;pol&gt;-&lt;start&gt;-&lt;end&gt;-&lt;orbit&gt;-&lt;mission&gt;-&lt;swath&gt;</code>), NOT
-  plain <code>YYYYMMDD</code> dates.</li>
-<li><code>frame_mode=True</code>: multi-subswath <code>p2p_S1_TOPS_Frame</code>, pairs =
-  <code>[(ref_safe, ref_eof, sec_safe, sec_eof), ...]</code> -- .SAFE directory
-  names + matching .EOF orbit filenames.</li>
+<li><strong>host</strong> (<code>container</code> set, var unset) → launch the container (once), and</li>
+<li><strong>child</strong> (var set) → run the actual work <strong>directly</strong>, even though <code>container</code> is still set in its config.</li>
 </ul>
-<p>Verified: <code>proc._build_cmd(pair)</code> for both modes produces a command
-<strong>identical</strong> to the real recipe lines in
-<code>gmtsar/python/tests/recipes/README_S1_Ridgecrest_EQ.txt</code>, confirmed by
-direct comparison, not just code review.</p>
-<p>Frame mode uses a per-pair case subdirectory (<code>case_dir/&lt;ref&gt;_&lt;sec&gt;/</code>),
-not one shared case_dir, because <code>p2p_S1_TOPS_Frame</code>'s output
-(<code>F1/F2/F3/merge/</code>) is not itself pair-namespaced -- confirmed by
-tracing the script (no per-pair subdirectory logic exists in it).</p>
-<h2 id="resolved-real-end-to-end-run-revealed-a-genuine-environment-bug-not-a-logic-bug">RESOLVED: real end-to-end run revealed a genuine environment bug (not a logic bug)</h2>
-<p>Ran <code>GMTSAR_S1</code> for real (both modes) against real cached S1_Ridgecrest_EQ
-data on 2026-07-21. Both runs got well past staging into actual multi-stage
-GMTSAR processing (single-subswath mode ran preprocessing/alignment
-successfully before failing; Frame mode successfully processed all three
-subswaths' SLC/topo stages before failing) -- proving the pairs-signature
-fix and staging logic are structurally correct.</p>
-<p>The actual failure: GMTSAR's own Python stages (e.g. <code>dem2topo_ra</code>) shell
-out to the standalone <code>gmt</code> binary, which is NOT provided by GMTSAR's own
-<code>bin/</code> -- it comes from the specific conda environment GMTSAR was
-installed into. InSARHub runs in its own separate conda env (different
-numpy/GDAL stack, deliberately), which doesn't have <code>gmt</code> on PATH at all.
-Confirmed directly (<code>which gmt</code> inside the InSARHub env: not found), and
-confirmed the fix works (re-running <code>dem2topo_ra</code> manually with the
-correct env active: it actually computes, instead of failing in ~1s).</p>
-<p><strong>Fixed</strong>: <code>GMTSAR_S1_Config</code> gained <code>gmtsar_root</code> and <code>gmtsar_env_bin</code>
-fields. <code>_subprocess_env()</code> builds an explicit environment for every
-GMTSAR subprocess call (both <code>pop_config</code> and the real <code>p2p_*</code> calls),
-prepending both paths to PATH regardless of what environment the calling
-InSARHub process itself is running under. This is NOT optional
-configuration -- without it, every GMTSAR subprocess call fails near
-instantly with no useful error surfaced to the caller (just a nonzero
-GMTSAR-internal exit code buried in a per-pair log file).</p>
-<p><strong>Real end-to-end validation: CONFIRMED SUCCEEDED (2026-07-21).</strong> A
-freshly-launched real run (Frame mode, with the environment fix, against
-real S1_Ridgecrest_EQ data: <code>S1A_IW_SLC__1SDV_20190704T135158_...SAFE</code> x
-<code>S1A_IW_SLC__1SDV_20190716T135159_...SAFE</code>) ran to completion via
-<code>proc.submit()</code> / <code>proc.watch()</code>: <code>p2p_S1_TOPS_Frame</code> exited rc=0 after
-processing all three subswaths (F1/F2/F3: SLC focusing, alignment, topo,
-interferogram, filtering all succeeded per-subswath), then merged,
-unwrapped, and geocoded, writing a <code>.succeeded</code> marker under <code>merge/</code> and
-real output products -- <code>phasefilt.grd</code>, <code>phasefilt_ll.grd</code>, <code>corr.grd</code>,
-<code>corr_ll.grd</code> plus PNG/KML previews, all non-empty, real byte sizes
-(<code>phasefilt_ll.grd</code> ~55MB, <code>corr_ll.grd</code> ~53MB). <code>proc.jobs[...]['status']</code>
-reported <code>SUCCEEDED</code>.</p>
-<p>This is genuine, not structural-only: the full real GMTSAR C/Python
-pipeline ran end-to-end inside InSARHub's process/env model, on real
-Sentinel-1 SAFE data, producing real geocoded interferometric products.</p>
-<h2 id="resolved-single-subswath-mode-frame_modefalse-fixed-and-validated">RESOLVED: single-subswath mode (<code>frame_mode=False</code>) fixed and validated</h2>
-<p>The real recipe (<code>README_S1_Ridgecrest_EQ.txt</code>) runs <code>p2p_processing</code> from
-a special <code>H_res/</code> subdirectory that the reference test tarball
-pre-populates with correctly per-subswath-extracted <code>.xml</code>/<code>.tiff</code> files
-(stems like <code>s1a-iw2-slc-vv-&lt;start&gt;-&lt;end&gt;-&lt;orbit&gt;-&lt;mission&gt;-&lt;swath&gt;</code>).
-Inspecting <code>H_res/raw/</code> directly showed these per-stem files are plain
-symlinks into the equivalent Frame-mode <code>F&lt;N&gt;/raw/</code> subswath files pulled
-from the same <code>.SAFE</code>, and the <code>.EOF</code> is the same scene-level orbit file,
-just symlinked under the per-subswath stem name -- i.e. the "extraction"
-GMTSAR itself needs is mechanical, not a real preprocessing step.</p>
-<p><strong>Fixed</strong>: <code>GMTSAR_S1._extract_subswath_stem()</code> reproduces this directly --
-given a <code>.SAFE</code> name, <code>config.subswath</code> (IW1/2/3), and <code>config.polarization</code>,
-it globs <code>measurement/</code>+<code>annotation/</code> for the matching <code>.tiff</code>/<code>.xml</code>,
-symlinks them plus the <code>.EOF</code> into <code>raw/</code> under GMTSAR's required
-same-stem naming. Both <code>frame_mode</code> settings now take the SAME pairs
-shape -- <code>[(ref_safe, ref_eof, sec_safe, sec_eof), ...]</code> -- callers never
-hand-derive per-subswath stems themselves.</p>
-<p><strong>Real end-to-end validation: CONFIRMED SUCCEEDED (2026-07-21).</strong> A real
-run (<code>frame_mode=False</code>, IW2/vv, same S1_Ridgecrest_EQ pair as the Frame
-run above) ran to completion via <code>proc.submit()</code>/<code>proc.watch()</code>:
-<code>align_tops.csh</code> preprocessing succeeded (172s), <code>p2p_processing</code> exited
-rc=0, wrote a <code>.succeeded</code> marker under
-<code>intf/&lt;ref_stem&gt;_&lt;sec_stem&gt;/</code>, and produced real output products
-(<code>phasefilt.grd</code>, <code>phasefilt_ll.grd</code>, <code>corr.grd</code>, <code>corr_ll.grd</code> plus
-PNG/KML previews). <code>proc.jobs[...]['status']</code> reported <code>SUCCEEDED</code>.</p>
-<p>Both <code>frame_mode</code> settings are now genuinely end-to-end validated against
-real Sentinel-1 data.</p>
-<h2 id="known-gap-not-yet-tested">Known gap: not yet tested</h2>
-<ul>
-<li><strong>Full pipeline chain</strong>: InSARHub's <code>S1_SLC</code> downloader -&gt; <code>GMTSAR_S1</code>
-  -&gt; a MintPy analyzer run, chained continuously. Both real runs above fed
-  pre-staged <code>.SAFE</code>/<code>.EOF</code>/DEM files directly; the downloader itself was
-  never exercised. Next up.</li>
-</ul>
-<h2 id="resolved-frame_modefalse-output-directory-naming-was-wrong">RESOLVED: frame_mode=False output directory naming was wrong</h2>
-<p>Found while starting real <code>prep_gmtsar.py</code> testing (2026-07-21): GMTSAR's
-real <code>p2p_processing</code> output directory is named by its own Julian-date
-pair (e.g. <code>intf/2019184_2019196/</code>, derived from each SLC's
-<code>SC_clock_start</code>), NOT <code>intf/&lt;ref_stem&gt;_&lt;sec_stem&gt;/</code> as the code and docs
-previously claimed. The wrong assumption was masked because <code>_write_status()</code>
-<code>mkdir</code>s its own status directory regardless of whether GMTSAR actually
-wrote output there -- so <code>SUCCEEDED</code> was still reported correctly, but
-downstream consumers (MintPy) pointed at that path would find nothing.
-<code>prep_gmtsar.py</code> itself relies on this exact naming: it derives <code>DATE12</code>
-by parsing the interferogram directory's basename as a Julian-date pair.</p>
-<p><strong>Fixed</strong>: <code>_run_one_pair()</code> now diffs <code>intf/</code>'s contents before/after
-each real run and records whichever new directory matches GMTSAR's real
-<code>\d{7}_\d{7}</code> naming; <code>_status_dir()</code> uses that discovered directory
-once known, instead of assuming a name. Real MintPy run against this
-fixed path is the next validation step.
-- <strong>CLI partially generalized for GMTSAR_S1</strong> (2026-07-21 -&gt; 2026-07-23):
-  dispatch in <code>cli/main.py</code> is generic
-  (<code>issubclass(processor_cls, LocalProcessor)</code>), so <code>GMTSAR_S1</code> is
-  <em>routed</em> to the local-processor code path -- but that path had real
-  ISCE_S1-specific assumptions. <strong>Fixed and confirmed via a real CLI
-  <code>refresh</code> run against GMTSAR_S1's actual saved <code>gmtsar_jobs.json</code></strong>:
-  - <code>_proc_local_submit</code> used to hardcode 2-tuple pairs, truncating
-    GMTSAR_S1's required 4-tuples. Now preserves full arity.
-  - <code>refresh</code>/<code>retry</code>/<code>watch</code>/<code>cancel</code> used to look for <code>isce_jobs*.json</code>
-    specifically. Added <code>JOBS_FILE</code>/<code>JOBS_SUBDIR</code> class attributes to
-    <code>LocalProcessor</code> (set per-processor) + a generic <code>_jobs_glob()</code>
-    helper -- now finds <code>gmtsar_jobs.json</code> under <code>gmtsar_case/</code>.
-  - <code>_load_local_processor</code> (saved-job reload) assumed ISCE's
-    <code>{"jobs": {...}}</code> wrapper and step-based pairs. GMTSAR_S1.save()
-    writes the jobs dict directly at the top level and stores the real
-    pair under <code>"pair"</code> -- reload now handles both shapes.
-  <strong>Method-signature mismatch: FIXED.</strong> <code>refresh(ls=...)</code> /
-  <code>watch(refresh_interval=...)</code> crashed on <code>GMTSAR_S1</code> (different
-  signatures than <code>ISCE_Base</code>). Added <code>_call_if_supported()</code> in
-  cli/main.py -- calls each processor's method with only the kwargs its
-  real signature accepts (via <code>inspect.signature</code>), instead of assuming
-  every local processor shares ISCE's exact shape. <code>cancel</code> (no
-  <code>GMTSAR_S1</code> equivalent at all -- <code>ISCE_Base.cancel()</code> does a real
-  <code>scancel</code>/kill-background-process, nothing analogous exists yet):
-  now a clean <code>[ERROR] 'GMTSAR_S1' does not support cancel()</code> instead of
-  an <code>AttributeError</code> crash.</p>
-<p><strong>Also found and fixed, real and deeper</strong>: a freshly CLI-reconstructed
-  <code>GMTSAR_S1</code> (submit() ran in a DIFFERENT process than refresh/watch/
-  cancel, the normal CLI usage pattern) had <code>self.jobs</code> permanently empty
-  -- <code>refresh()</code> only updates entries already in <code>self.jobs</code>, so a
-  reloaded processor printed nothing, ever, regardless of real on-disk
-  status. Root cause went deeper for <code>frame_mode=False</code>: <code>self._stems</code>
-  and <code>self._real_intf_dirs</code> are populated only in-memory during
-  <code>_stage_case()</code>/<code>_run_one_pair()</code> in the ORIGINAL submitting process,
-  never persisted -- so even fixing <code>self.jobs</code> init couldn't find the
-  real Julian-date <code>intf/</code> directory. Fixed with two read-only rediscovery
-  methods run at construction time: <code>_rediscover_stem()</code> (matches
-  already-extracted <code>raw/*.tiff</code> symlinks against a pair's real <code>.SAFE</code>
-  name, no need for the original <code>.SAFE</code> source again) and
-  <code>_rediscover_real_intf_dir()</code> (recomputes the Julian-date pair name from
-  real <code>SC_clock_start</code> in the already-present <code>.PRM</code> files, same formula
-  <code>_run_one_pair()</code> uses live). <code>frame_mode=True</code> needed none of this --
-  its <code>_status_dir()</code> is purely path-based, no <code>_stems</code> dependency.</p>
-<p><strong>Confirmed via a real CLI run against the actual completed
-  single-subswath job</strong> (fresh process, no submit() call in this
-  process): <code>refresh</code> and <code>watch --interval 3</code> both correctly printed
-  <code>SUCCEEDED</code>, matching the real on-disk <code>.succeeded</code> marker.
-  <code>cancel</code> correctly refused instead of crashing.</p>
-<p>GUI: no frontend dialog integration exists either.
-- <strong>DEM auto-download</strong> from <code>bbox</code> (matching <code>ISCE_S1</code>'s GLO-30
-  auto-fetch): not implemented -- <code>dem_path</code> must be supplied explicitly
-  (now validated at construction time, fails fast if missing).
-- <strong>Processor-level edge cases</strong>: <code>retry()</code> on a real failure, reloading
-  a saved <code>gmtsar_jobs.json</code> into a fresh process, concurrent multi-pair
-  submission against real GMTSAR subprocesses (<code>max_workers</code>&gt;1),
-  <code>skip_existing</code> re-submit against a real completed case, and sensors
-  other than <code>S1_TOPS</code> (13 other GMTSAR-supported families listed in
-  <code>SUPPORTED_SATS</code>, none exercised) -- all only covered by mocked unit
-  tests, not real runs.</p>
-<h2 id="mintpy-prep_gmtsarpy-partial-real-progress-then-a-real-scope-wall">MintPy <code>prep_gmtsar.py</code> — partial real progress, then a real scope wall</h2>
-<p>Ran <code>prep_gmtsar.py</code> for real against our real single-subswath
-(<code>frame_mode=False</code>, unwrapping enabled, <code>threshold_snaphu=0.1</code>) output.
-Confirmed working, in order, each fixed for real as it was hit:</p>
-<ul>
-<li><code>ALOOKS</code>/<code>RLOOKS</code>: no <code>config.&lt;SAT&gt;.txt</code> exists (<code>GMTSAR_S1</code> only
-  writes <code>config.py</code>) -- prep_gmtsar.py needs these supplied directly in
-  its own template (bare <code>ALOOKS</code>/<code>RLOOKS</code> keys, not <code>mintpy.load.*</code>).
-  Computed from real PRM <code>AZIMUTH_PIXEL_SIZE</code>/<code>RANGE_PIXEL_SIZE</code> using
-  prep_gmtsar.py's own formula.</li>
-<li><code>HEADING</code>: not derivable from GMTSAR's PRM (<code>orbdir=D</code>, <code>lookdir=R</code>
-  only, no angle). Used MintPy's own documented canonical value for
-  descending IW Sentinel-1 (-168 deg, <code>mintpy/utils/utils0.py:706</code>) --
-  a standard reference value, not a per-track precision derivation.</li>
-<li>GDAL netCDF driver missing in <code>insarhub_test</code> (pip-installed GDAL) --
-  <code>gdal.Open()</code> on GMTSAR's <code>.grd</code> returned None. Fixed by installing
-  <code>libgdal-netcdf</code> (now pinned in <code>environment.yml</code>).</li>
-</ul>
-<p>With those three fixed, prep_gmtsar.py got past metadata extraction,
-LAT/LON_REF, and X/Y_FIRST/STEP -- real progress, <code>data.rsc</code> was
-written successfully.</p>
-<p><strong>Real wall hit</strong>: <code>read_baseline_table()</code> requires a
-<code>baseline_table.dat</code> file (<code>file_ID yyyyddd.fraction day_cnt b_para
-b_perp</code> per line, one row per SLC date) -- a <strong>stack-level</strong> artifact
-GMTSAR generates across multiple dates, not something a single
-interferogram run produces. Our validation used exactly one real pair
-(two dates), so no real baseline table exists. Confirming full MintPy
-load requires either a real multi-pair stack (significant more compute
--- snaphu alone took ~3h for the one pair we ran) or accepting a
-synthetic stand-in, which was NOT built (declined, rather than guess) --
-this is a genuine open item, not a "should work" claim.</p>
+<p>Without that check the child — which still sees <code>container</code> in the persisted config — would try to launch another <code>docker run</code> (docker-in-docker), but the image has no docker; that was the classic <em>"docker not found"</em> failure. The same guard also makes the child run <strong>synchronously</strong> in-process (no fork+detach), so <code>docker run --rm</code> doesn't tear the container down before the pipeline finishes.</p>
+<h2 id="host-vs-image-requirements">Host vs. image requirements</h2>
+<p>The <strong>host</strong> running the CLI/app needs a container runtime (<code>docker</code>, or <code>apptainer</code>/<code>singularity</code> for a <code>.sif</code>) on its <code>PATH</code>. The <strong>image</strong> does not — it only needs <code>insarhub</code> installed alongside the SAR stack. The <code>docker/Dockerfile.*</code> files build the official images:</p>
+<table>
+<thead>
+<tr>
+<th>Image</th>
+<th>Stack</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>insarhub-isce2-mintpy</code></td>
+<td>ISCE2 <code>stackSentinel</code> + MintPy</td>
+</tr>
+<tr>
+<td><code>insarhub-gmtsar-mintpy</code></td>
+<td>GMTSAR + MintPy</td>
+</tr>
+<tr>
+<td><code>insarhub-isce3-dolphin</code></td>
+<td>ISCE3 / COMPASS + dolphin</td>
+</tr>
+<tr>
+<td><code>insarhub-base</code></td>
+<td>InSARHub + MintPy (HyP3 analyzer)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="persistence">Persistence</h2>
+<p>A <code>container</code> you choose <strong>is</strong> written to the workdir's <code>insarhub_config.json</code>, so a later <code>retry</code>/<code>refresh</code>/<code>cancel</code> re-enters the same image without re-passing it. A bare <code>--container</code> (no value) resolves to the processor/analyzer's <code>container_default</code> — a fixed per-backend suggestion (the image the GUI's "Run in Container" checkbox pre-fills) that is itself <strong>never</strong> persisted; only your actual <code>container</code> choice is.</p>
+<h2 id="usage">Usage</h2>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="cli" name="__tabbed_1" type="radio"><input id="python-api" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="cli">CLI</label><label for="python-api">Python API</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Pass <code>--container &lt;path-or-image&gt;</code> on each call. It is a per-invocation flag on the CLI (like <code>--dry-run</code>), so repeat it on <code>submit</code>/<code>refresh</code>/<code>retry</code>/<code>watch</code>/<code>cancel</code>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w">  </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">    </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+</span></code></pre></div>
+<p>Analyzers take <code>--container</code> <strong>after</strong> the <code>run</code> action; a bare <code>--container</code> uses the default image:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE2_Mintpy_SBAS<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>run<span class="w"> </span>--container
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Set <code>container</code> on the config; <code>submit()</code> / <code>run()</code> re-invoke inside it:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE2_S1_Config</span><span class="p">(</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>    <span class="n">workdir</span><span class="o">=</span><span class="s1">'/data/p100_f466'</span><span class="p">,</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>    <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">37.74</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">],</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    <span class="n">container</span><span class="o">=</span><span class="s1">'ghcr.io/jldz9/insarhub-isce2-mintpy:dev'</span><span class="p">,</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="p">)</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>   <span class="c1"># runs inside the container</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<h2 id="hpc-mode">HPC mode</h2>
+<p>When both <code>container</code> and <code>hpc_mode</code> are set, only each <strong>stage's child jobs</strong> run inside the container; the sbatch manager scaffolding (submit/poll loop, chain-submission) stays on the host. See <a href="../hpc/">HPC (SLURM)</a>.</p>
 
 
 
@@ -1773,7 +1806,7 @@ this is a genuine open item, not a "should work" claim.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

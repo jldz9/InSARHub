@@ -574,7 +574,7 @@
   <span class="md-ellipsis">
     
   
-    API 配置
+    账号配置
   
 
     
@@ -1294,6 +1294,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    容器运行
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1302,6 +1330,34 @@
     
   
     工具集
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令行参考
   
 
     
@@ -1817,7 +1873,7 @@
 </span></code></pre></div><p></p>
 <h3 id="_7">干涉图</h3>
 <p>定位 SAR 场景堆叠后，下一步是生成解缠干涉图以准备时序分析。选择处理后端：</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="sentinel-1-hyp3" name="__tabbed_1" type="radio"><input id="sentinel-1-isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="sentinel-1-hyp3">Sentinel-1 HyP3</label><label for="sentinel-1-isce2">Sentinel-1 ISCE2</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="sentinel-1-hyp3" name="__tabbed_1" type="radio"><input id="sentinel-1-isce2" name="__tabbed_1" type="radio"><input id="在容器中处理" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="sentinel-1-hyp3">Sentinel-1 HyP3</label><label for="sentinel-1-isce2">Sentinel-1 ISCE2</label><label for="在容器中处理">在容器中处理</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>基于云端的处理，通过 <a href="https://hyp3-docs.asf.alaska.edu/"><abbr title="Alaska Satellite Facility">ASF</abbr> HyP3</a> 进行，无需本地安装 ISCE2。</p>
@@ -1890,6 +1946,25 @@
 </details>
 <p>所有步骤显示 <code>SUCCEEDED</code> 后，干涉图位于 <code>workdir/isce/merged/interferograms/</code>。</p>
 </div>
+<div class="tabbed-block">
+<p>在预构建的镜像内运行处理流程——主机上只需 Docker（或 Apptainer），无需本地安装 ISCE2。将 <code>container</code> 设为镜像名称（可用镜像见<a href="../install/">安装</a>）；InSARHub 会在容器内部重新调用自身，并挂载工作目录。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE2_S1_Config</span>
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE2_S1_Config</span><span class="p">(</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>        <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a>        <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">37.74</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">],</span>   <span class="c1"># [S, N, W, E]</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>        <span class="n">slc_dir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">/slc'</span><span class="p">,</span>
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>        <span class="n">container</span><span class="o">=</span><span class="s1">'ghcr.io/jldz9/insarhub-isce2-mintpy:dev'</span><span class="p">,</span>
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>    <span class="p">)</span>
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>   <span class="c1"># 在容器内部运行</span>
+</span></code></pre></div>
+<p>状态会写入挂载的工作目录，因此 <code>refresh()</code> 可照常在主机上使用：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>                      <span class="c1"># 打印步骤表</span>
+</span></code></pre></div>
+</div>
 </div>
 </div>
 <h3 id="_8">时序分析</h3>
@@ -1897,21 +1972,48 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="sentinel-1-hyp3_1" name="__tabbed_2" type="radio"><input id="sentinel-1-isce2_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="sentinel-1-hyp3_1">Sentinel-1 HyP3</label><label for="sentinel-1-isce2_1">Sentinel-1 ISCE2</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
-</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>
-</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>
-</span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
-</span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
-</span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>   <span class="c1"># 自动发现 ISCE2 输出，写入 mintpy/.mintpy.cfg</span>
-</span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>         <span class="c1"># 所有 MintPy 输出写入 workdir/mintpy/</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
+</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
+</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
+</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>   <span class="c1"># 自动发现 ISCE2 输出，写入 mintpy/.mintpy.cfg</span>
+</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>         <span class="c1"># 所有 MintPy 输出写入 workdir/mintpy/</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<p>分析器默认在本地主机上运行。它接受与处理器相同的<strong>容器</strong>和 <strong>HPC</strong> 选项——既可通过 Python API，也可通过命令行（任意 <code>*_Mintpy_SBAS</code> 分析器）：</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="在容器中运行" name="__tabbed_3" type="radio"><input id="在-hpc-上运行slurm" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="在容器中运行">在容器中运行</label><label for="在-hpc-上运行slurm">在 HPC 上运行（SLURM）</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>在预构建的镜像内运行 MintPy——无需本地安装 MintPy（镜像见<a href="../install/">安装</a>）。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Python API —— 在 create() 上设置 container；run() 会在其内部重新调用。</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>                           <span class="n">container</span><span class="o">=</span><span class="s1">'ghcr.io/jldz9/insarhub-isce2-mintpy:dev'</span><span class="p">)</span>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</span></code></pre></div>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># 命令行 —— --container 放在 run 动作之后（不带取值即使用分析器默认镜像）</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE2_Mintpy_SBAS<span class="w"> </span>-w<span class="w"> </span>your/directory/p100_f466<span class="w"> </span>run<span class="w"> </span>--container
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>将整个分析（prep_data → <abbr title="小基线集">SBAS</abbr> → plot）作为单个 sbatch 作业提交。</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="c1"># Python API —— hpc_mode 会将 run() 路由到 SLURM</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">hpc_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="n">job_id</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>   <span class="c1"># 首次调用会写出 sbatch_options.json 供你审阅；</span>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a>                          <span class="c1"># 再次调用 run() 即可提交。</span>
+</span></code></pre></div>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># 命令行 —— --hpc-mode 放在 run 动作之前</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>insarhub<span class="w"> </span>analyzer<span class="w"> </span>-N<span class="w"> </span>ISCE2_Mintpy_SBAS<span class="w"> </span>-w<span class="w"> </span>your/directory/p100_f466<span class="w"> </span>--hpc-mode<span class="w"> </span>run
 </span></code></pre></div>
 </div>
 </div>
@@ -1998,7 +2100,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>

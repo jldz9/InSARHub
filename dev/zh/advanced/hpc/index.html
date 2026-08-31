@@ -11,7 +11,7 @@
         <link rel="prev" href="../analyzer/">
       
       
-        <link rel="next" href="../utilities/">
+        <link rel="next" href="../container/">
       
       
         
@@ -571,7 +571,7 @@
   <span class="md-ellipsis">
     
   
-    API 配置
+    账号配置
   
 
     
@@ -1252,6 +1252,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    容器运行
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../utilities/" class="md-nav__link">
         
   
@@ -1260,6 +1288,34 @@
     
   
     工具集
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令行参考
   
 
     
@@ -1695,7 +1751,7 @@
 <p>以 <code>_</code> 开头的键是文档，会被忽略。任何不属于已识别 SLURM 字段的键会被静默丢弃、不会传给 <code>sbatch</code>，因此拼写错误不会报错 — 可接受的键请查阅 <code>_options</code>。</p>
 <h2 id="_2">各处理器的拆分粒度</h2>
 <p>拆分粒度取决于一个单元是否是<strong>独立进程</strong>。在单进程内已经多线程并行的工作，只会得到一个按线程数配置资源的作业。</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:3"><input checked="checked" id="isce3_burst" name="__tabbed_1" type="radio"><input id="gmtsar_s1" name="__tabbed_1" type="radio"><input id="isce2_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="isce3_burst">ISCE3_Burst</label><label for="gmtsar_s1">GMTSAR_S1</label><label for="isce2_s1">ISCE2_S1</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="isce3_burst" name="__tabbed_1" type="radio"><input id="isce3_nisar" name="__tabbed_1" type="radio"><input id="gmtsar_s1" name="__tabbed_1" type="radio"><input id="isce2_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="isce3_burst">ISCE3_Burst</label><label for="isce3_nisar">ISCE3_NISAR</label><label for="gmtsar_s1">GMTSAR_S1</label><label for="isce2_s1">ISCE2_S1</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <table>
@@ -1745,6 +1801,41 @@
 </tbody>
 </table>
 <p>作业清单来自 <code>ifg_manifest.json</code> 的阶段，在 <code>ifg</code> 运行前无法枚举。整条链一起提交没有问题 — 这些阶段会被标记为"推迟"，并给出条件满足后应执行的确切命令。</p>
+</div>
+<div class="tabbed-block">
+<p>NISAR GSLC 已经完成地理编码，因此 COMPASS 阶段（<code>dem</code>、<code>tec</code>、<code>cslc</code>、<code>static</code>）被跳过——只运行三个阶段：</p>
+<table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>作业数</th>
+<th>单元</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>crop</code></td>
+<td><strong>每个 GSLC 日期一个</strong></td>
+<td>将每帧裁剪到 AOI（一次廉价的 VRT <code>gdal_translate</code>）</td>
+</tr>
+<tr>
+<td><code>ifg</code></td>
+<td><strong>1</strong></td>
+<td>相位链接需要整个协方差，没有逐对单元（对整个堆叠的单次 <code>wrapped_phase.run</code>）</td>
+</tr>
+<tr>
+<td><code>stitch</code></td>
+<td><strong>每个干涉对一个</strong></td>
+<td></td>
+</tr>
+<tr>
+<td><code>unwrap</code></td>
+<td>1 个准备 + <strong>每个干涉对一个</strong></td>
+<td>准备阶段先生成水体掩膜，避免 N 个作业同时读写</td>
+</tr>
+</tbody>
+</table>
+<p>与 <code>ISCE3_Burst</code> 相同的推迟规则：逐对阶段的清单来自 <code>ifg_manifest.json</code>，在 <code>ifg</code> 运行前会被标记为推迟。</p>
 </div>
 <div class="tabbed-block">
 <p><strong>p2p 模式</strong>（<code>stack_mode=False</code>，默认）是每个干涉对一个作业。干涉对之间完全独立 — 多子条带模式下各自拥有独立的 case 目录，单子条带模式的输出以 <code>intf/&lt;julian_pair&gt;/</code> 命名隔离 — 因此由单个管理器展开全部干涉对，完全不需要链式提交。</p>
@@ -1859,7 +1950,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>

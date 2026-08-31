@@ -665,7 +665,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -1206,6 +1206,34 @@
   
   
     <li class="md-nav__item">
+      <a href="advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="advanced/utilities/" class="md-nav__link">
         
   
@@ -1214,6 +1242,34 @@
     
   
     Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -1595,6 +1651,20 @@ The primary goal of this package is to provide a streamlined and user-friendly I
 <td>✅</td>
 <td>✅</td>
 </tr>
+<tr>
+<td>Sentinel-1 Burst</td>
+<td>Local / HPC</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>NISAR GSLC</td>
+<td>Local / HPC</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
 </tbody>
 </table>
 <p>This document will assume you have fundamental understanding of:</p>
@@ -1604,10 +1674,9 @@ The primary goal of this package is to provide a streamlined and user-friendly I
 <li><a href="https://docs.conda.io/projects/conda/en/4.6.0/_downloads/52a95608c49671267e40c689e0bc00ca/conda-cheatsheet.pdf">Conda</a></li>
 </ul>
 <h2 id="system-requirement">System Requirement</h2>
-<p>InSARHub is designed to run on Unix-based systems. Internet connection is required.
-Windows users can run InSARHub via <abbr title="Windows Subsystem for Linux 2">WSL2</abbr> (Windows Subsystem for Linux 2), though compatibility is still under testing and may not function reliably in all cases.</p>
-<p>The package has been tested under Ubuntu 22.04.4 LTS.</p>
-<p>Test environment:</p>
+<p>InSARHub is recommend to run on Unix-based systems. Windows users may use <a href="https://learn.microsoft.com/en-us/windows/wsl/install"><abbr title="Windows Subsystem for Linux 2">WSL2</abbr></a>. </p>
+<p>Compatibility of native Windows environment is not garunteed.</p>
+<p>InSARHub developement environment:</p>
 <table>
 <thead>
 <tr>
@@ -1720,7 +1789,7 @@ or send me <a href="mailto:jiaweiliwork@outlook.com"><img alt="Email" src="https
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="assets/javascripts/bundle.d7400e89.min.js"></script>

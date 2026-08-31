@@ -572,7 +572,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -808,6 +808,34 @@
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="Interferogram">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#select-pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Select pairs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#process-interferogram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Process Interferogram
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
         
@@ -1281,6 +1309,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1289,6 +1345,34 @@
     
   
     Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -1666,6 +1750,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Interferogram">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#select-pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Select pairs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#process-interferogram" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Process Interferogram
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
         
           <li class="md-nav__item">
@@ -1706,7 +1818,7 @@
 
   <h1>API</h1>
 
-<p>This section provides an overview of the complete InSAR time-series processing workflow using Python API, guiding you through each stage of the analysis pipeline.</p>
+<p>This section provides an overview of the complete InSAR time-series processing workflow using the Python API, guiding you through each stage of the analysis pipeline.</p>
 <p><a href="https://colab.research.google.com/github/jldz9/InSARHub/blob/tutorial/insarhub_tutorial_v0.3.0.ipynb"><img alt="Try Live Demo" src="https://colab.research.google.com/assets/colab-badge.svg"></a></p>
 <h2 id="modules">Modules</h2>
 <p>The InSAR script is designed with three config-based main modules to cover the entire InSAR processing workflow:</p>
@@ -1732,7 +1844,7 @@
 </div>
 
 <h3 id="set-aoi">Set <abbr title="Area of interest">AOI</abbr></h3>
-<p>InSARHub allows to define the <abbr title="Area of interest">AOI</abbr> using <strong>bounding box</strong>, <strong>shapefiles</strong>, or <strong><abbr title="Well-known text representation of geometry">WKT</abbr></strong>:</p>
+<p>InSARHub allows you to define the <abbr title="Area of interest">AOI</abbr> using a <strong>bounding box</strong>, <strong>shapefiles</strong>, or <strong><abbr title="Well-known text representation of geometry">WKT</abbr></strong>:</p>
 <h4 id="bounding-box">Bounding box</h4>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">AOI</span> <span class="o">=</span> <span class="p">[</span><span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="mf">37.74</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">]</span>
 </span></code></pre></div>
@@ -1766,7 +1878,7 @@
 <p>Your <abbr title="Area of interest">AOI</abbr> probably spans multiple scenes. To view the search result footprints, you can use:
 </p><div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">footprint</span><span class="p">()</span>
 </span></code></pre></div>
-This will display a footprint map of the available Sentinel-1 scenes that covers the <abbr title="Area of interest">AOI</abbr>. The stack indicates the number of SAR scenes in that footprint. Because we have multiple stacks the graph will be a bit messy:<p></p>
+This will display a footprint map of the available Sentinel-1 scenes that cover the <abbr title="Area of interest">AOI</abbr>. The stack indicates the number of SAR scenes in that footprint. Because we have multiple stacks the graph will be a bit messy:<p></p>
 <p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/footprint.png" data-desc-position="bottom"><img alt="footprint" src="../fig/footprint.png" style="width:500px; display: block; margin: auto;"></a></p>
 <p>Let's check details of our SAR scene stacks and figure out which stack(s) we want to keep:
 </p><div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">s1</span><span class="o">.</span><span class="n">summary</span><span class="p">()</span>
@@ -1797,7 +1909,7 @@ This will output the summary of available Sentinel-1 scenes that cover the <abbr
 </span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>relativeOrbit<span class="w"> </span><span class="m">100</span><span class="w"> </span>frame<span class="w"> </span><span class="m">469</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>Count:<span class="w"> </span><span class="m">119</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="m">2015</span>-11-24<span class="w"> </span>--&gt;<span class="w"> </span><span class="m">2026</span>-02-23
 </span></code></pre></div>
 </details>
-<p>The program identified 18 potential stacks (14 ascending, 4 descending). We can narrowed the dataset to the descending track Path 100, Frame 466 in year 2020 by:</p>
+<p>The program identified 18 potential stacks (14 ascending, 4 descending). We can narrow the dataset to the descending track Path 100, Frame 466 in year 2020 by:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="n">filter_results</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">path_frame</span><span class="o">=</span><span class="p">(</span><span class="mi">100</span><span class="p">,</span><span class="mi">466</span><span class="p">),</span> <span class="n">start</span><span class="o">=</span><span class="s1">'2020-01-01'</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s1">'2020-12-31'</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Check back the footprint and summary:
@@ -1816,21 +1928,18 @@ would return: <p></p>
 </p><div class="language-text highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>s1.reset()
 </span></code></pre></div><p></p>
 <h3 id="interferogram">Interferogram</h3>
-<p>After locating SAR scene stack(s), generate unwrapped interferograms for time-series analysis. InSARHub supports two processing backends — select one below:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="sentinel-1-hyp3" name="__tabbed_1" type="radio"><input id="sentinel-1-isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="sentinel-1-hyp3">Sentinel-1 HyP3</label><label for="sentinel-1-isce2">Sentinel-1 ISCE2</label></div>
+<h4 id="select-pairs">Select pairs</h4>
+<p>After locating SAR scene stack(s), pair selection is required to generate unwrapped interferograms for time-series analysis. 
+</p><div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">scene_bperp</span><span class="p">,</span> <span class="n">prefetch</span><span class="p">,</span> <span class="n">quality_scores</span><span class="p">,</span> <span class="n">quality_factors</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">select_pairs</span><span class="p">(</span><span class="n">max_degree</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span></code></pre></div><p></p>
+<p>If the network looks healthy, continue to process interferogram:</p>
+<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/ifgs_network.png" data-desc-position="bottom"><img alt="networks" src="../fig/ifgs_network.png" style="display: block; margin: auto;"></a></p>
+<h4 id="process-interferogram">Process Interferogram</h4>
+<p>InSARHub supports various processing methods:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="process-remotely-via-hyp3" name="__tabbed_1" type="radio"><input id="process-locally-via-isce2" name="__tabbed_1" type="radio"><input id="process-on-hpc-via-isce2" name="__tabbed_1" type="radio"><input id="process-in-container-via-isce2" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="process-remotely-via-hyp3">Process Remotely Via Hyp3</label><label for="process-locally-via-isce2">Process Locally Via ISCE2</label><label for="process-on-hpc-via-isce2">Process on HPC Via ISCE2</label><label for="process-in-container-via-isce2">Process in Container Via ISCE2</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Cloud-based processing via <a href="https://hyp3-docs.asf.alaska.edu/"><abbr title="Alaska Satellite Facility">ASF</abbr> HyP3</a> — no local ISCE2 required.</p>
-<p>Select interferogram pairs and submit to HyP3:</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">plot_pair_network</span>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">scene_bperp</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">s1</span><span class="o">.</span><span class="n">select_pairs</span><span class="p">(</span><span class="n">max_degree</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="n">fig</span> <span class="o">=</span> <span class="n">plot_pair_network</span><span class="p">(</span><span class="n">pair_stacks</span><span class="p">,</span> <span class="n">B</span><span class="p">,</span> <span class="n">scene_bperp</span><span class="p">)</span>
-</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="n">fig</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
-</span></code></pre></div>
-<p>If the network looks healthy, submit the pairs:</p>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../fig/ifgs_network.png" data-desc-position="bottom"><img alt="networks" auto_="auto;&quot;" margin:="margin:" src="../fig/ifgs_network.png"></a></p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
 </span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">)</span>
 </span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>
@@ -1839,7 +1948,7 @@ would return: <p></p>
 <p>This generates <code>hyp3_jobs.json</code> in the work directory. Processing takes ~30 minutes per 100 interferograms.</p>
 <p>To check status and download results:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">processor_reload</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_S1'</span><span class="p">,</span> <span class="n">saved_job_path</span><span class="o">=</span><span class="s1">'your/directory/p100_f466/hyp3_jobs.json'</span><span class="p">)</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">processor_reload</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="n">batch</span><span class="o">=</span><span class="n">processor_reload</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>
 </span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="n">processor_reload</span><span class="o">.</span><span class="n">download</span><span class="p">()</span>
 </span></code></pre></div>
 <details class="output">
@@ -1871,9 +1980,8 @@ would return: <p></p>
 <p class="admonition-title">Dry run first</p>
 <p>Add <code>dry_run=True</code> to <code>ISCE2_S1_Config</code> to preview run scripts without executing.</p>
 </div>
-<p>Monitor progress and wait for completion:</p>
+<p>Refresh the processing status:</p>
 <div class="language-python highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>                      <span class="c1"># prints step table</span>
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">processor</span><span class="o">.</span><span class="n">watch</span><span class="p">(</span><span class="n">refresh_interval</span><span class="o">=</span><span class="mi">120</span><span class="p">)</span>    <span class="c1"># blocks until all steps finish</span>
 </span></code></pre></div>
 <details class="output">
 <summary>Output</summary>
@@ -1890,28 +1998,91 @@ would return: <p></p>
 </details>
 <p>Once all steps show <code>SUCCEEDED</code>, interferograms are in <code>workdir/isce/merged/interferograms/</code>.</p>
 </div>
+<div class="tabbed-block">
+<p>Submits each step to a SLURM scheduler (<code>sbatch</code>) instead of running on the local machine.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
+</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE2_S1_Config</span>
+</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.processor.isce2_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">load_or_init_sbatch_options</span>
+</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>
+</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE2_S1_Config</span><span class="p">(</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>        <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span>
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>        <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">37.74</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">],</span>   <span class="c1"># [S, N, W, E]</span>
+</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a>        <span class="n">slc_dir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">/slc'</span><span class="p">,</span>
+</span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a>        <span class="n">hpc_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> 
+</span><span id="__span-20-11"><a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a>        <span class="n">max_concurrent_hpc</span><span class="o">=</span><span class="mi">7</span><span class="p">,</span>
+</span><span id="__span-20-12"><a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a>        <span class="n">sbatch_options_per_step</span><span class="o">=</span><span class="n">load_or_init_sbatch_options</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-20-13"><a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a>    <span class="p">)</span>
+</span><span id="__span-20-14"><a id="__codelineno-20-14" name="__codelineno-20-14" href="#__codelineno-20-14"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-20-15"><a id="__codelineno-20-15" name="__codelineno-20-15" href="#__codelineno-20-15"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>   <span class="c1"># starts processing in the background</span>
+</span></code></pre></div>
+<p>Refresh the processing status:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>                      <span class="c1"># prints step table</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Runs the processing pipeline inside a prebuilt image via Docker — no local ISCE2 install needed.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Processor</span>
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE2_S1_Config</span>
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="k">for</span> <span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">frame</span><span class="p">),</span> <span class="n">pairs</span> <span class="ow">in</span> <span class="n">pair_stacks</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>    <span class="n">cfg</span> <span class="o">=</span> <span class="n">ISCE2_S1_Config</span><span class="p">(</span>
+</span><span id="__span-22-6"><a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a>        <span class="n">workdir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">'</span><span class="p">,</span>
+</span><span id="__span-22-7"><a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>        <span class="n">bbox</span><span class="o">=</span><span class="p">[</span><span class="mf">37.74</span><span class="p">,</span> <span class="mf">38.00</span><span class="p">,</span> <span class="o">-</span><span class="mf">113.05</span><span class="p">,</span> <span class="o">-</span><span class="mf">112.68</span><span class="p">],</span>   <span class="c1"># [S, N, W, E]</span>
+</span><span id="__span-22-8"><a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a>        <span class="n">slc_dir</span><span class="o">=</span><span class="sa">f</span><span class="s1">'your/directory/p</span><span class="si">{</span><span class="n">path</span><span class="si">}</span><span class="s1">_f</span><span class="si">{</span><span class="n">frame</span><span class="si">}</span><span class="s1">/slc'</span><span class="p">,</span>
+</span><span id="__span-22-9"><a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a>        <span class="n">container</span><span class="o">=</span><span class="s1">'ghcr.io/jldz9/insarhub-isce2-mintpy:dev'</span><span class="p">,</span>
+</span><span id="__span-22-10"><a id="__codelineno-22-10" name="__codelineno-22-10" href="#__codelineno-22-10"></a>    <span class="p">)</span>
+</span><span id="__span-22-11"><a id="__codelineno-22-11" name="__codelineno-22-11" href="#__codelineno-22-11"></a>    <span class="n">processor</span> <span class="o">=</span> <span class="n">Processor</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_S1'</span><span class="p">,</span> <span class="n">pairs</span><span class="o">=</span><span class="n">pairs</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">cfg</span><span class="p">)</span>
+</span><span id="__span-22-12"><a id="__codelineno-22-12" name="__codelineno-22-12" href="#__codelineno-22-12"></a>    <span class="n">processor</span><span class="o">.</span><span class="n">submit</span><span class="p">()</span>   <span class="c1"># runs inside the container</span>
+</span></code></pre></div>
+<p>Status is written to the bind-mounted workdir, so <code>refresh()</code> works from the host as usual:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="n">processor</span><span class="o">.</span><span class="n">refresh</span><span class="p">()</span>                      <span class="c1"># prints step table</span>
+</span></code></pre></div>
+</div>
 </div>
 </div>
 <h3 id="time-series-analysis">Time-series Analysis</h3>
 <p>After generating interferograms, run MintPy <abbr title="Small Baseline Subset">SBAS</abbr> time-series analysis using the matching analyzer:</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="sentinel-1-hyp3_1" name="__tabbed_2" type="radio"><input id="sentinel-1-isce2_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="sentinel-1-hyp3_1">Sentinel-1 HyP3</label><label for="sentinel-1-isce2_1">Sentinel-1 ISCE2</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="hyp3-analyzer" name="__tabbed_2" type="radio"><input id="isce2-analyzer" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="hyp3-analyzer">HyP3 Analyzer</label><label for="isce2-analyzer">ISCE2 Analyzer</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-20-1"><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
-</span><span id="__span-20-2"><a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>
-</span><span id="__span-20-3"><a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
-</span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
-</span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>
-</span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
+</span><span id="__span-24-2"><a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a>
+</span><span id="__span-24-3"><a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
+</span><span id="__span-24-4"><a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'Hyp3_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-24-5"><a id="__codelineno-24-5" name="__codelineno-24-5" href="#__codelineno-24-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>
+</span><span id="__span-24-6"><a id="__codelineno-24-6" name="__codelineno-24-6" href="#__codelineno-24-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
-</span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>
-</span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
-</span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
-</span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>   <span class="c1"># auto-discovers ISCE2 outputs, writes mintpy/.mintpy.cfg</span>
-</span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>         <span class="c1"># all MintPy outputs written to workdir/mintpy/</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub</span><span class="w"> </span><span class="kn">import</span> <span class="n">Analyzer</span>
+</span><span id="__span-25-2"><a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>
+</span><span id="__span-25-3"><a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="n">workdir</span> <span class="o">=</span> <span class="s1">'your/directory/p100_f466'</span>
+</span><span id="__span-25-4"><a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">)</span>
+</span><span id="__span-25-5"><a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>  
+</span><span id="__span-25-6"><a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>         
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<p>The analyzer runs on the local host by default. It accepts the same <strong>container</strong> and <strong>HPC</strong> options as the processors — from either the Python API or the CLI (any <code>*_Mintpy_SBAS</code> analyzer):</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="run-in-a-container" name="__tabbed_3" type="radio"><input id="run-on-hpc-slurm" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="run-in-a-container">Run in a Container</label><label for="run-on-hpc-slurm">Run on HPC (SLURM)</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Runs MintPy inside a prebuilt image — no local MintPy install needed (see <a href="../install/">Installation</a> for the images).</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="c1"># Python API — set container on create(); run() re-invokes inside it.</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>                           <span class="n">container</span><span class="o">=</span><span class="s1">'ghcr.io/jldz9/insarhub-isce2-mintpy:dev'</span><span class="p">)</span>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Submits the whole analysis (prep_data → <abbr title="Small Baseline Subset">SBAS</abbr> → plot) as a single sbatch job.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="c1"># Python API</span>
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="n">analyzer</span> <span class="o">=</span> <span class="n">Analyzer</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="s1">'ISCE2_Mintpy_SBAS'</span><span class="p">,</span> <span class="n">workdir</span><span class="o">=</span><span class="n">workdir</span><span class="p">,</span> <span class="n">hpc_mode</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="n">job_id</span> <span class="o">=</span> <span class="n">analyzer</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>   <span class="c1"># hpc_mode routes run() to SLURM. The first call</span>
+</span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a>                          <span class="c1"># writes sbatch_options.json for you to review;</span>
+</span><span id="__span-27-5"><a id="__codelineno-27-5" name="__codelineno-27-5" href="#__codelineno-27-5"></a>                          <span class="c1"># call run() again to submit.</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -1996,7 +2167,7 @@ would return: <p></p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

@@ -93,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#development-setup" class="md-skip">
+        <a href="#install-locally" class="md-skip">
           Skip to content
         </a>
       
@@ -593,6 +593,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
+  <a href="#install-locally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install Locally
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Container
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#development-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -626,7 +648,7 @@
   <span class="md-ellipsis">
     
   
-    API Setup
+    Account Setup
   
 
     
@@ -1170,6 +1192,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Container Execution
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1178,6 +1228,34 @@
     
   
     Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CLI Reference
   
 
     
@@ -1452,6 +1530,28 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
+  <a href="#install-locally" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Install Locally
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#use-container" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Use Container
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#development-setup" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1484,56 +1584,139 @@
 
   <h1>Installation</h1>
 
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="default" name="__tabbed_1" type="radio"><input id="isce2-processor" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="default">Default</label><label for="isce2-processor">ISCE2 Processor</label></div>
+<div class="admonition warning">
+<p class="admonition-title">Pre-release (0.4.0rc1)</p>
+<p>This is a <strong>release candidate</strong>. conda has no <code>--pre</code> flag, so you must <strong>pin the exact version</strong> to install it:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"insarhub=0.4.0rc1"</span>
+</span></code></pre></div>
+<p>Plain <code>conda install insarhub</code> pulls the latest <strong>stable</strong> release, not this pre-release. To get the release candidate in any of the commands below, append <code>=0.4.0rc1</code> to <code>insarhub</code> (e.g. <code>conda install -c conda-forge "insarhub=0.4.0rc1" isce2</code>).</p>
+</div>
+<h3 id="install-locally">Install Locally</h3>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:4"><input checked="checked" id="minimal" name="__tabbed_1" type="radio"><input id="isce2-processor" name="__tabbed_1" type="radio"><input id="isce3--dolphin-processor" name="__tabbed_1" type="radio"><input id="gmtsar-processor" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="minimal">Minimal</label><label for="isce2-processor">ISCE2 Processor</label><label for="isce3--dolphin-processor">ISCE3 + Dolphin Processor</label><label for="gmtsar-processor">GMTSAR Processor</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <details class="note">
-<summary>Create a fresh environment (recommended)</summary>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>insarhub<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
+<summary>Install InSARHub in a fresh environment </summary>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>insarhub<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
 </span></code></pre></div>
 </details>
-<div class="admonition note">
-<p class="admonition-title">Windows: use Python 3.11</p>
-<p>On Windows, only Python 3.11 is currently supported — use <code>python=3.11</code> when creating the environment above. Linux and macOS support both 3.11 and 3.12.</p>
-</div>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
+<details class="note">
+<summary>Limit Windows support</summary>
+<p>Currently InSARHub only test running under Python version 3.11 in Windows environment </p>
+</details>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span></code></pre></div>
 <p>Or from pip (GDAL must be installed via conda first):</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <p>Adds local interferogram processing via ISCE2 <code>stackSentinel</code>.</p>
-<div class="admonition note">
-<p class="admonition-title">Platform availability</p>
-<p>ISCE2 is only available on Linux and macOS (x86_64). Not available for Windows or Apple Silicon natively — use WSL2 or a Linux HPC cluster.</p>
-</div>
+<details class="note">
+<summary>No Windows Support</summary>
+<p>ISCE2 is only available on Linux and macOS (x86_64). Not available for Windows or Apple Silicon natively — use WSL2 or a Linux virtual machine.</p>
+</details>
+<details class="note">
+<summary>Restricted numpy version</summary>
+<p>ISCE2 currently pins <code>numpy&lt;2</code></p>
+</details>
 <p>Install InSARHub first, then add ISCE2 into the same environment:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>conda<span class="w"> </span>install<span class="w"> </span>isce2<span class="w"> </span>-c<span class="w"> </span>conda-forge
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>conda<span class="w"> </span>install<span class="w"> </span>isce2<span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span></code></pre></div>
 <p>Via pip:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal<span class="w"> </span>isce2
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal<span class="w"> </span>isce2
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
 </span></code></pre></div>
 <p>Verify ISCE2 installed correctly:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce; print(isce.__version__)"</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce; print(isce.__version__)"</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Adds local burst processing via ISCE3 / COMPASS (geocoded CSLCs) and dolphin (phase linking + time series)</p>
+<details class="note">
+<summary>No Windows Support</summary>
+<p>The ISCE3 / COMPASS / dolphin stack is Linux and macOS (x86_64) only — use WSL2 or a Linux virtual machine on other platforms.</p>
+</details>
+<details class="note">
+<summary>Restricted numpy version</summary>
+<p>COMPASS currently pins <code>numpy&lt;2</code></p>
+</details>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
+</span></code></pre></div>
+<p>Verify the stack imports:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce3, compass, dolphin; print('ok')"</span>
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Adds local interferogram processing via GMTSAR plus MintPy time-series.</p>
+<details class="note">
+<summary>No Windows Support</summary>
+<p><code>--system conda-linux-full</code> is <strong>Linux x86_64 only</strong>, use WSL2 or a Linux virtual environment on other platforms.</p>
+</details>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># 1. Clone the full GMTSAR repo and build it (creates a conda env named "gmtsar")</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gmtsar/gmtsar.git
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="nb">cd</span><span class="w"> </span>gmtsar
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>python3<span class="w"> </span>gmtsar/python/install.py<span class="w"> </span>--system<span class="w"> </span>conda-linux-full
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c1"># 2. Add InSARHub + MintPy into that same env</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>conda<span class="w"> </span>activate<span class="w"> </span>gmtsar
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span>mintpy
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c1"># 3. Put GMTSAR's binaries on PATH (add to your shell profile to persist)</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GMTSAR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$GMTSAR</span>/bin:<span class="nv">$PATH</span>
+</span></code></pre></div>
+<p>Verify:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>which<span class="w"> </span>p2p_processing<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>gmt<span class="w"> </span>--version
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import insarhub, mintpy; print('ok')"</span>
+</span></code></pre></div>
+</div>
+</div>
+</div>
+<hr>
+<h3 id="use-container">Use Container</h3>
+<p>InSARHub support container via <strong>Docker</strong>,  check the <a href="https://docs.docker.com/get-started/get-docker/">official guide</a> to install Docker on you machine. </p>
+<p>User may choose to run inside container or install base <code>InSARHub</code> locally and run each processor/analyzer via <code>--container</code> </p>
+<p>Currently InSARHub support:</p>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:4"><input checked="checked" id="hyp3--mintpy" name="__tabbed_2" type="radio"><input id="isce2--mintpy" name="__tabbed_2" type="radio"><input id="isce3--dolphin" name="__tabbed_2" type="radio"><input id="gmtsar--mintpy" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="hyp3--mintpy">Hyp3 + Mintpy</label><label for="isce2--mintpy">ISCE2 + MintPy</label><label for="isce3--dolphin">ISCE3 + Dolphin</label><label for="gmtsar--mintpy">GMTSAR + Mintpy</label></div>
+<div class="tabbed-content">
+<div class="tabbed-block">
+<p>Default InSARHub container that support sentinel-1 processing via Hyp3 and time-series analysis via Mintpy</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a>ghcr.io/jldz9/insarhub-base:dev
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Covers the <code>ISCE2_S1</code> processor and <code>ISCE2_Mintpy_SBAS</code> analyzer </p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Covers <code>ISCE3_Burst</code> (Sentinel-1 bursts) and <code>ISCE3_NISAR</code> (NISAR GSLC), plus the <code>ISCE3_Dolphin_PL</code> analyzer </p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>ghcr.io/jldz9/insarhub-isce3-dolphin:dev
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<p>Covers the <code>GMTSAR_S1</code> processor and GMTSAR analyzers </p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
 </span></code></pre></div>
 </div>
 </div>
 </div>
 <hr>
 <h3 id="development-setup">Development Setup</h3>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="default_1" name="__tabbed_2" type="radio"><input id="isce2-processor_1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="default_1">Default</label><label for="isce2-processor_1">ISCE2 Processor</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:4"><input checked="checked" id="default" name="__tabbed_3" type="radio"><input id="isce2-processor_1" name="__tabbed_3" type="radio"><input id="isce3--dolphin-processor_1" name="__tabbed_3" type="radio"><input id="gmtsar-processor_1" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="default">Default</label><label for="isce2-processor_1">ISCE2 Processor</label><label for="isce3--dolphin-processor_1">ISCE3 + Dolphin Processor</label><label for="gmtsar-processor_1">GMTSAR Processor</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
 <div class="admonition note">
 <p class="admonition-title">Windows: use Python 3.11</p>
@@ -1541,12 +1724,36 @@
 </div>
 </div>
 <div class="tabbed-block">
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"numpy&lt;2.0"</span><span class="w"> </span>isce2
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml<span class="w"> </span>-n<span class="w"> </span>insar_dev
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insar_dev
+</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"numpy&lt;2.0"</span><span class="w"> </span>isce2
+</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
+</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
+</span><span id="__span-17-4"><a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
+</span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
+</span><span id="__span-17-6"><a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</span></code></pre></div>
+</div>
+<div class="tabbed-block">
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Build GMTSAR from source into a conda env named "gmtsar"</span>
+</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/gmtsar/gmtsar.git
+</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="nb">cd</span><span class="w"> </span>gmtsar
+</span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>python3<span class="w"> </span>gmtsar/python/install.py<span class="w"> </span>--system<span class="w"> </span>conda-linux-full
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GMTSAR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">export</span><span class="w"> </span><span class="nv">PATH</span><span class="o">=</span><span class="nv">$GMTSAR</span>/bin:<span class="nv">$PATH</span>
+</span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="c1"># Add MintPy + InSARHub (editable) into that env</span>
+</span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a>conda<span class="w"> </span>activate<span class="w"> </span>gmtsar
+</span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>mintpy
+</span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/jldz9/InSARHub.git
+</span><span id="__span-18-11"><a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-18-12"><a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
 </div>
 </div>
@@ -1635,7 +1842,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>

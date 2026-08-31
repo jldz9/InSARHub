@@ -571,7 +571,7 @@
   <span class="md-ellipsis">
     
   
-    API 配置
+    账号配置
   
 
     
@@ -1112,6 +1112,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../advanced/container/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    容器运行
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../advanced/utilities/" class="md-nav__link">
         
   
@@ -1120,6 +1148,34 @@
     
   
     工具集
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../advanced/cli_reference/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    命令行参考
   
 
     
@@ -1402,6 +1458,17 @@
     <span class="md-ellipsis">
       
         路径规范
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#insarhub_container_child" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        容器执行（INSARHUB_CONTAINER_CHILD）
       
     </span>
   </a>
@@ -1701,6 +1768,17 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#insarhub_container_child" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        容器执行（INSARHUB_CONTAINER_CHILD）
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#_5" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1926,11 +2004,11 @@
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>BaseDownloader (ABC) ──► ASF_Base_Downloader ──► S1_SLC
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>                                             └──► S1_Burst
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_SBAS
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>                                                   ├──► ISCE_SBAS
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>                                                   └──► GMTSAR_MINTPY_SBAS
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_Mintpy_SBAS
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>                                                   ├──► ISCE2_Mintpy_SBAS
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>                                                   └──► GMTSAR_Mintpy_SBAS
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>                    ├──► GMTSAR_SBAS   （GMTSAR 自带的 sbas 二进制程序，无需 MintPy）
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                    └──► Dolphin_SBAS  （面向 ISCE3_Burst 的 dolphin timeseries）
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                    └──► ISCE3_Dolphin_PL  （面向 ISCE3_Burst 的 dolphin timeseries）
 </span></code></pre></div>
 <p>每个中间基类（<code>Hyp3Base</code>、<code>ISCE2_Base</code>、<code>ISCE3_Base</code>、<code>ASF_Base_Downloader</code>、<code>Mintpy_SBAS_Base_Analyzer</code>）已实现所有共享基础设施——认证、任务跟踪、HPC 提交、文件 I/O。具体的叶子类只需实现 <code>submit()</code>（分析器还需实现 <code>prep_data()</code>/<code>run()</code>）来处理传感器特定的逻辑。<code>GMTSAR_S1</code> 和 <code>ISCE3_Burst</code> 还将大型、仅限单一处理器的辅助逻辑拆分为私有的同级模块（<code>processor/_gmtsar_esd_network.py</code> 用于 GMTSAR 的网络 ESD 配准，<code>processor/isce3_base.py</code> 用于 ISCE3 的阶段/HPC 机制）。</p>
 <p>CLI（<code>cli/main.py</code>）和 GUI 路由（<code>app/routes/</code>）都是对同一套 Python API 的薄封装——任何在 CLI 中可运行的工作流，在浏览器中同样可以运行。它们共享的已保存任务发现/处理器重载逻辑位于 <code>utils/local_processor_reload.py</code>（而非 <code>core/</code>），从而使两个界面保持一致，避免逐渐偏离。</p>
@@ -1948,8 +2026,26 @@
 </span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">MintPyPaths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">mintpy_dir</span>     <span class="c1"># workdir/mintpy</span>
 </span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">MintPyPaths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">tmp_dir</span>        <span class="c1"># workdir/mintpy/tmp</span>
 </span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">MintPyPaths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">clip_dir</span>       <span class="c1"># workdir/mintpy/clip</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="n">GMTSARPaths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">case_dir</span>       <span class="c1"># workdir/gmtsar</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">ISCE3Paths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">cropped_gslc_dir</span>  <span class="c1"># workdir/cropped_gslc</span>
+</span></code></pre></div>
+<p>每个处理器家族都有自己的数据类（<code>Hyp3Paths</code>、<code>ISCEPaths</code>、<code>GMTSARPaths</code>、<code>ISCE3Paths</code>）。每个本地处理器写出的后台执行器产物由共享常量命名，并按家族暴露，从而落在各自处理器的目录下——切勿硬编码：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config.paths</span><span class="w"> </span><span class="kn">import</span> <span class="n">EXECUTOR_LOG</span><span class="p">,</span> <span class="n">EXECUTOR_PID</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="n">ISCEPaths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">executor_log</span>     <span class="c1"># workdir/isce/executor.log</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">GMTSARPaths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">executor_log</span>   <span class="c1"># workdir/gmtsar/executor.log</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">ISCE3Paths</span><span class="p">(</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">executor_log</span>    <span class="c1"># workdir/executor.log （ISCE3 写在根目录）</span>
 </span></code></pre></div>
 <p>如果新处理器写入新的子目录，需在 <code>config/paths.py</code> 中添加对应的数据类。</p>
+<h2 id="insarhub_container_child">容器执行（<code>INSARHUB_CONTAINER_CHILD</code>）</h2>
+<p>设置了 <code>config.container</code> 的本地处理器/分析器不会在主机上运行工具，而是<strong>在镜像内部重新调用同一条 <code>insarhub</code> 命令</strong>（<code>_reinvoke_via_container</code> / <code>_run_via_container</code>），并以完全相同的路径挂载工作目录。子进程会被打上环境变量 <strong><code>INSARHUB_CONTAINER_CHILD=1</code></strong>。</p>
+<p>任何决定是否容器化、后台 fork 或重新提交的代码，都<strong>必须同时</strong>检查 <code>config.container</code> <strong>和</strong>该环境变量，从而让主机只容器化一次、子进程直接执行工作：</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">container</span> <span class="ow">and</span> <span class="ow">not</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"INSARHUB_CONTAINER_CHILD"</span><span class="p">):</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_reinvoke_via_container</span><span class="p">(</span><span class="s2">"submit"</span><span class="p">)</span>   <span class="c1"># 主机：启动容器</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># ...在无容器的主机上，或在容器子进程内部才会到达这里...</span>
+</span></code></pre></div>
+<p>漏掉 <code>INSARHUB_CONTAINER_CHILD</code> 这一半就是经典的 "docker not found" 报错：子进程仍能看到 <code>config.container</code>（它会被持久化到 <code>insarhub_config.json</code> 以便重试），于是试图再启动一个容器——docker-in-docker——但镜像内部没有 docker。同一处守卫还会强制子进程<strong>同步</strong>运行（不 fork+detach），从而避免 <code>docker run --rm</code> 在工作完成前拆掉容器。</p>
 <h2 id="_5">添加新处理器</h2>
 <p>创建 <code>src/insarhub/processor/myprocessor.py</code>，设置 <code>name</code>，在 <code>config/defaultconfig.py</code> 中添加配置数据类。继承对应基类——各基类已处理所有共享基础设施，子类只需实现 <code>submit()</code>：</p>
 <h3 id="_6">添加新基础处理器</h3>
@@ -1962,44 +2058,44 @@
 <div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="cloudprocessor" name="__tabbed_1" type="radio"><input id="localprocessor" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="cloudprocessor">CloudProcessor</label><label for="localprocessor">LocalProcessor</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># src/insarhub/processor/mycloud_base.py</span>
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">CloudProcessor</span>
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyCloud_Base_Config</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyCloud_Base</span><span class="p">(</span><span class="n">CloudProcessor</span><span class="p">):</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyCloud_Base_Config</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">MyCloudAPIClient</span><span class="p">(</span>
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>            <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>            <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>        <span class="p">)</span>
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">retry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">watch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
-</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> <span class="o">...</span>
-</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">check_credits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># src/insarhub/processor/mycloud_base.py</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">CloudProcessor</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyCloud_Base_Config</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyCloud_Base</span><span class="p">(</span><span class="n">CloudProcessor</span><span class="p">):</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyCloud_Base_Config</span>
+</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">client</span> <span class="o">=</span> <span class="n">MyCloudAPIClient</span><span class="p">(</span>
+</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>            <span class="n">username</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">username</span><span class="p">,</span>
+</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>            <span class="n">password</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">password</span><span class="p">,</span>
+</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>        <span class="p">)</span>
+</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>
+</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>
+</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">retry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">watch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
+</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> <span class="o">...</span>
+</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">check_credits</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># src/insarhub/processor/mylocal_base.py</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalProcessor</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyLocal_Base_Config</span>
-</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
-</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyLocal_Base</span><span class="p">(</span><span class="n">LocalProcessor</span><span class="p">):</span>
-</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
-</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyLocal_Base_Config</span>
-</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>
-</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># 生成运行脚本，暂存输入</span>
-</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># 重新扫描 .done / .fail 步骤标记</span>
-</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">retry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>    <span class="c1"># 清除 .fail 标记并重新运行</span>
-</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">watch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>    <span class="c1"># 阻塞直到所有步骤完成</span>
-</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> <span class="o">...</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># src/insarhub/processor/mylocal_base.py</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">LocalProcessor</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyLocal_Base_Config</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyLocal_Base</span><span class="p">(</span><span class="n">LocalProcessor</span><span class="p">):</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyLocal_Base_Config</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># 生成运行脚本，暂存输入</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">refresh</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># 重新扫描 .done / .fail 步骤标记</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">retry</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>    <span class="c1"># 清除 .fail 标记并重新运行</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">watch</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>    <span class="c1"># 阻塞直到所有步骤完成</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">path</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span> <span class="o">...</span>
 </span></code></pre></div>
 </div>
 </div>
@@ -2009,65 +2105,65 @@
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p><code>Hyp3Base</code> 已处理 Earthdata 认证、多用户积分池轮换、任务提交队列、<code>refresh()</code>、<code>download()</code>、<code>retry()</code>、<code>watch()</code> 和 <code>save()</code>。子类只需实现 <code>submit()</code>——准备任务载荷并调用 <code>_submit_job_queue</code>。</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># src/insarhub/processor/hyp3_mysensor.py</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.processor.hyp3_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Hyp3Base</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyHyp3Config</span>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">Hyp3_MySensor</span><span class="p">(</span><span class="n">Hyp3Base</span><span class="p">):</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"Hyp3_MySensor"</span>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"MySensor 的 HyP3 处理。"</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>    <span class="n">compatible_downloader</span> <span class="o">=</span> <span class="s2">"MySensor_SLC"</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyHyp3Config</span>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
-</span><span id="__span-5-11"><a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">MyHyp3Config</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
-</span><span id="__span-5-12"><a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
-</span><span id="__span-5-13"><a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">costs</span><span class="p">()[</span><span class="s2">"MY_JOB_TYPE"</span><span class="p">][</span><span class="s2">"cost_table"</span><span class="p">][</span><span class="s2">"default"</span><span class="p">]</span>
-</span><span id="__span-5-14"><a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>
-</span><span id="__span-5-15"><a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="__span-5-16"><a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a>        <span class="n">job_queue</span> <span class="o">=</span> <span class="p">[</span>
-</span><span id="__span-5-17"><a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>            <span class="p">{</span>
-</span><span id="__span-5-18"><a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a>                <span class="s2">"job_type"</span><span class="p">:</span> <span class="s2">"MY_JOB_TYPE"</span><span class="p">,</span>
-</span><span id="__span-5-19"><a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>                <span class="s2">"job_parameters"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"granules"</span><span class="p">:</span> <span class="p">[</span><span class="n">ref</span><span class="p">,</span> <span class="n">sec</span><span class="p">],</span> <span class="s2">"looks"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">looks</span><span class="p">},</span>
-</span><span id="__span-5-20"><a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>                <span class="s2">"name"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">name_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">ref</span><span class="p">[:</span><span class="mi">15</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
-</span><span id="__span-5-21"><a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a>            <span class="p">}</span>
-</span><span id="__span-5-22"><a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a>            <span class="k">for</span> <span class="n">ref</span><span class="p">,</span> <span class="n">sec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">pairs</span>
-</span><span id="__span-5-23"><a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>        <span class="p">]</span>
-</span><span id="__span-5-24"><a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_job_queue</span><span class="p">(</span><span class="n">job_queue</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># src/insarhub/processor/hyp3_mysensor.py</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.processor.hyp3_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Hyp3Base</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyHyp3Config</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">Hyp3_MySensor</span><span class="p">(</span><span class="n">Hyp3Base</span><span class="p">):</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"Hyp3_MySensor"</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"MySensor 的 HyP3 处理。"</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">compatible_downloader</span> <span class="o">=</span> <span class="s2">"MySensor_SLC"</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyHyp3Config</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="n">MyHyp3Config</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">cost</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">client</span><span class="o">.</span><span class="n">costs</span><span class="p">()[</span><span class="s2">"MY_JOB_TYPE"</span><span class="p">][</span><span class="s2">"cost_table"</span><span class="p">][</span><span class="s2">"default"</span><span class="p">]</span>
+</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
+</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>        <span class="n">job_queue</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>            <span class="p">{</span>
+</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>                <span class="s2">"job_type"</span><span class="p">:</span> <span class="s2">"MY_JOB_TYPE"</span><span class="p">,</span>
+</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>                <span class="s2">"job_parameters"</span><span class="p">:</span> <span class="p">{</span><span class="s2">"granules"</span><span class="p">:</span> <span class="p">[</span><span class="n">ref</span><span class="p">,</span> <span class="n">sec</span><span class="p">],</span> <span class="s2">"looks"</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">looks</span><span class="p">},</span>
+</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>                <span class="s2">"name"</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">name_prefix</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">ref</span><span class="p">[:</span><span class="mi">15</span><span class="p">]</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+</span><span id="__span-7-21"><a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>            <span class="p">}</span>
+</span><span id="__span-7-22"><a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a>            <span class="k">for</span> <span class="n">ref</span><span class="p">,</span> <span class="n">sec</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">pairs</span>
+</span><span id="__span-7-23"><a id="__codelineno-7-23" name="__codelineno-7-23" href="#__codelineno-7-23"></a>        <span class="p">]</span>
+</span><span id="__span-7-24"><a id="__codelineno-7-24" name="__codelineno-7-24" href="#__codelineno-7-24"></a>        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_submit_job_queue</span><span class="p">(</span><span class="n">job_queue</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Config — 在 <code>config/defaultconfig.py</code> 中继承 <code>Hyp3_Base_Config</code>：</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nd">@dataclass</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyHyp3Config</span><span class="p">(</span><span class="n">Hyp3_Base_Config</span><span class="p">):</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>    <span class="n">looks</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"20x4"</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>    <span class="n">_ui_groups</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"id"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"任务"</span><span class="p">}]</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>    <span class="n">_ui_fields</span>  <span class="o">=</span> <span class="p">[</span>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>        <span class="p">{</span><span class="s2">"group"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"key"</span><span class="p">:</span> <span class="s2">"looks"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"视数"</span><span class="p">,</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>         <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"select"</span><span class="p">,</span> <span class="s2">"options"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"20x4"</span><span class="p">,</span> <span class="s2">"10x2"</span><span class="p">]},</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>    <span class="p">]</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nd">@dataclass</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyHyp3Config</span><span class="p">(</span><span class="n">Hyp3_Base_Config</span><span class="p">):</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>    <span class="n">looks</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"20x4"</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="n">_ui_groups</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"id"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"任务"</span><span class="p">}]</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="n">_ui_fields</span>  <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="p">{</span><span class="s2">"group"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"key"</span><span class="p">:</span> <span class="s2">"looks"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"视数"</span><span class="p">,</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>         <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"select"</span><span class="p">,</span> <span class="s2">"options"</span><span class="p">:</span> <span class="p">[</span><span class="s2">"20x4"</span><span class="p">,</span> <span class="s2">"10x2"</span><span class="p">]},</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="p">]</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
 <p><code>ISCE2_Base</code> 处理所有运行文件执行、逐步状态跟踪（<code>.done</code>/<code>.fail</code> 标记）、通过 SLURM 的滑动窗口 HPC 提交、<code>refresh()</code>、<code>retry()</code>、<code>watch()</code> 和 <code>save()</code>。子类只需实现 <code>submit()</code>——设置 ISCE2 输入命名空间并生成运行脚本，再调用 <code>_step_executor</code>。</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># src/insarhub/processor/isce_mysensor.py</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.processor.isce2_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE2_Base</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE_MySensor_Config</span>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config.paths</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCEPaths</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="k">class</span><span class="w"> </span><span class="nc">ISCE_MySensor</span><span class="p">(</span><span class="n">ISCE2_Base</span><span class="p">):</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"ISCE_MySensor"</span>
-</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"MySensor 的 ISCE2 处理。"</span>
-</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>    <span class="n">compatible_downloader</span> <span class="o">=</span> <span class="s2">"MySensor_SLC"</span>
-</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">ISCE_MySensor_Config</span>
-</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a>
-</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>        <span class="n">ISCEPaths</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">isce_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span id="__span-7-14"><a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a>
-</span><span id="__span-7-15"><a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a>        <span class="c1"># 为传感器构建 ISCE2 输入命名空间，生成 run_files/</span>
-</span><span id="__span-7-16"><a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a>        <span class="n">inps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_inps_namespace</span><span class="p">()</span>
-</span><span id="__span-7-17"><a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_run_stack_tool</span><span class="p">(</span><span class="n">inps</span><span class="p">)</span>
-</span><span id="__span-7-18"><a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a>
-</span><span id="__span-7-19"><a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a>        <span class="c1"># 交给基类——它会发现 run_files/ 并逐步执行</span>
-</span><span id="__span-7-20"><a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_step_executor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># src/insarhub/processor/isce_mysensor.py</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.processor.isce2_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE2_Base</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCE_MySensor_Config</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config.paths</span><span class="w"> </span><span class="kn">import</span> <span class="n">ISCEPaths</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="k">class</span><span class="w"> </span><span class="nc">ISCE_MySensor</span><span class="p">(</span><span class="n">ISCE2_Base</span><span class="p">):</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"ISCE_MySensor"</span>
+</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"MySensor 的 ISCE2 处理。"</span>
+</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>    <span class="n">compatible_downloader</span> <span class="o">=</span> <span class="s2">"MySensor_SLC"</span>
+</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">ISCE_MySensor_Config</span>
+</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>
+</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">submit</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>        <span class="n">ISCEPaths</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">workdir</span><span class="p">)</span><span class="o">.</span><span class="n">isce_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>
+</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>        <span class="c1"># 为传感器构建 ISCE2 输入命名空间，生成 run_files/</span>
+</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>        <span class="n">inps</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_build_inps_namespace</span><span class="p">()</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_run_stack_tool</span><span class="p">(</span><span class="n">inps</span><span class="p">)</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>
+</span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a>        <span class="c1"># 交给基类——它会发现 run_files/ 并逐步执行</span>
+</span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_step_executor</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">steps</span><span class="p">)</span>
 </span></code></pre></div>
 <p>Config — 继承 <code>ISCE2_Base_Config</code>，为新字段添加 <code>_ui_groups</code> / <code>_ui_fields</code>。</p>
 </div>
@@ -2077,43 +2173,43 @@
 <p>创建 <code>src/insarhub/downloader/mysensor_slc.py</code>。继承 <code>ASF_Base_Downloader</code>，它已处理 ASF 认证、场景搜索、覆盖范围绘制、含质量评分的配对选择和并行文件下载。只有需要额外后处理步骤时才覆盖 <code>download()</code>。</p>
 <h3 id="_9">添加新基础下载器</h3>
 <p>如需支持 ASF 以外的数据存档，直接继承 <code>insarhub/core/base.py</code> 中的 <code>BaseDownloader</code>。实现所有抽象方法，再为每种产品类型子类化新基类。</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># src/insarhub/downloader/myarchive_base.py</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDownloader</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyArchive_Base_Config</span>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyArchive_Base</span><span class="p">(</span><span class="n">BaseDownloader</span><span class="p">):</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
-</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyArchive_Base_Config</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># 查询存档，填充 self.active_results</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span> <span class="c1"># 下载文件到工作目录</span>
-</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># 按用户条件筛选 active_results</span>
-</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">footprint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span><span class="c1"># 返回 GeoJSON 覆盖范围（用于地图显示）</span>
-</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># 返回人类可读的结果摘要</span>
-</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>    <span class="c1"># 清除搜索状态</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># src/insarhub/downloader/myarchive_base.py</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseDownloader</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyArchive_Base_Config</span>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyArchive_Base</span><span class="p">(</span><span class="n">BaseDownloader</span><span class="p">):</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyArchive_Base_Config</span>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">search</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># 查询存档，填充 self.active_results</span>
+</span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span> <span class="c1"># 下载文件到工作目录</span>
+</span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">filter</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>   <span class="c1"># 按用户条件筛选 active_results</span>
+</span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">footprint</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span><span class="c1"># 返回 GeoJSON 覆盖范围（用于地图显示）</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">summary</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># 返回人类可读的结果摘要</span>
+</span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span> <span class="o">...</span>    <span class="c1"># 清除搜索状态</span>
 </span></code></pre></div>
 <h3 id="_10">扩展现有基础下载器</h3>
 <div class="tabbed-set tabbed-alternate" data-tabs="3:1"><input checked="checked" id="asf_base_downloader" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="asf_base_downloader">ASF_Base_Downloader</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1"># src/insarhub/downloader/mysensor_slc.py</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.downloader.asf_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">ASF_Base_Downloader</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MySensor_SLC_Config</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MySensor_SLC</span><span class="p">(</span><span class="n">ASF_Base_Downloader</span><span class="p">):</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"MySensor_SLC"</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"MySensor SLC 通过 ASF 搜索和下载。"</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MySensor_SLC_Config</span>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
-</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a>                 <span class="n">download_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stop_event</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_progress</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">save_path</span><span class="o">=</span><span class="n">save_path</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
-</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>                         <span class="n">stop_event</span><span class="o">=</span><span class="n">stop_event</span><span class="p">,</span> <span class="n">on_progress</span><span class="o">=</span><span class="n">on_progress</span><span class="p">)</span>
-</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a>        <span class="k">if</span> <span class="n">download_aux</span><span class="p">:</span>
-</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_download_aux_files</span><span class="p">()</span>
-</span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>
-</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">_download_aux_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a>        <span class="o">...</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># src/insarhub/downloader/mysensor_slc.py</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.downloader.asf_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">ASF_Base_Downloader</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MySensor_SLC_Config</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MySensor_SLC</span><span class="p">(</span><span class="n">ASF_Base_Downloader</span><span class="p">):</span>
+</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"MySensor_SLC"</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"MySensor SLC 通过 ASF 搜索和下载。"</span>
+</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MySensor_SLC_Config</span>
+</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>
+</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">download</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">save_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>                 <span class="n">download_aux</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stop_event</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">on_progress</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">download</span><span class="p">(</span><span class="n">save_path</span><span class="o">=</span><span class="n">save_path</span><span class="p">,</span> <span class="n">max_workers</span><span class="o">=</span><span class="n">max_workers</span><span class="p">,</span>
+</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>                         <span class="n">stop_event</span><span class="o">=</span><span class="n">stop_event</span><span class="p">,</span> <span class="n">on_progress</span><span class="o">=</span><span class="n">on_progress</span><span class="p">)</span>
+</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>        <span class="k">if</span> <span class="n">download_aux</span><span class="p">:</span>
+</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>            <span class="bp">self</span><span class="o">.</span><span class="n">_download_aux_files</span><span class="p">()</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">_download_aux_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>        <span class="o">...</span>
 </span></code></pre></div>
 <p><code>search()</code> 调用后，<code>self.active_results</code> 持有 ASF 搜索结果列表，<code>self.config.workdir</code> 为已解析的工作目录。</p>
 </div>
@@ -2123,42 +2219,42 @@
 <p>创建 <code>src/insarhub/analyzer/mysensor_sbas.py</code>。继承 <code>Mintpy_SBAS_Base_Analyzer</code>，它处理 MintPy 配置文件写入、<code>run()</code>（将输出写入 <code>mintpy_dir</code>）、诊断地理编码和 <code>cleanup()</code>。只需实现 <code>prep_data()</code>——暂存输入文件并连接 <code>load_*</code> 配置字段。</p>
 <h3 id="_12">添加新基础分析器</h3>
 <p>如需支持 MintPy 以外的时序分析包，直接继承 <code>insarhub/core/base.py</code> 中的 <code>BaseAnalyzer</code>。实现所有抽象方法，再为每种输入数据格式子类化新基类。</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># src/insarhub/analyzer/myts_base.py</span>
-</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseAnalyzer</span>
-</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyTS_Base_Config</span>
-</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>
-</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyTS_Base</span><span class="p">(</span><span class="n">BaseAnalyzer</span><span class="p">):</span>
-</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
-</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyTS_Base_Config</span>
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>
-</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># 执行时序分析</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># src/insarhub/analyzer/myts_base.py</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.core.base</span><span class="w"> </span><span class="kn">import</span> <span class="n">BaseAnalyzer</span>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MyTS_Base_Config</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyTS_Base</span><span class="p">(</span><span class="n">BaseAnalyzer</span><span class="p">):</span>
+</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="c1"># 不设置 `name`——基类不应自动注册</span>
+</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MyTS_Base_Config</span>
+</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>
+</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span> <span class="o">...</span>  <span class="c1"># 执行时序分析</span>
 </span></code></pre></div>
 <h3 id="_13">扩展现有基础分析器</h3>
 <div class="tabbed-set tabbed-alternate" data-tabs="4:1"><input checked="checked" id="mintpy_sbas_base_analyzer" name="__tabbed_4" type="radio"><div class="tabbed-labels"><label for="mintpy_sbas_base_analyzer">Mintpy_SBAS_Base_Analyzer</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
-<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># src/insarhub/analyzer/mysensor_sbas.py</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.analyzer.mintpy_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mintpy_SBAS_Base_Analyzer</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MySensor_SBAS_Config</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MySensor_SBAS</span><span class="p">(</span><span class="n">Mintpy_SBAS_Base_Analyzer</span><span class="p">):</span>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"MySensor_SBAS"</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"使用 MintPy 对 MySensor 产品进行 SBAS 时序分析。"</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>    <span class="n">compatible_processor</span> <span class="o">=</span> <span class="s2">"MySensor_Processor"</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MySensor_SBAS_Config</span>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">prep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_collect_and_stage_files</span><span class="p">()</span>   <span class="c1"># 解包/收集到 self.tmp_dir</span>
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>
-</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a>        <span class="c1"># 连接 MintPy load_* 字段</span>
-</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">load_unwFile</span>      <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmp_dir</span> <span class="o">/</span> <span class="s2">"*"</span> <span class="o">/</span> <span class="s2">"unw_phase.tif"</span><span class="p">)</span>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">load_corFile</span>      <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmp_dir</span> <span class="o">/</span> <span class="s2">"*"</span> <span class="o">/</span> <span class="s2">"corr.tif"</span><span class="p">)</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">load_demFile</span>      <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmp_dir</span> <span class="o">/</span> <span class="s2">"*"</span> <span class="o">/</span> <span class="s2">"dem.tif"</span><span class="p">)</span>
-</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>
-</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>   <span class="c1"># 写入 .mintpy.cfg</span>
-</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>
-</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">_collect_and_stage_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-</span><span id="__span-11-22"><a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a>        <span class="o">...</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># src/insarhub/analyzer/mysensor_sbas.py</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.analyzer.mintpy_base</span><span class="w"> </span><span class="kn">import</span> <span class="n">Mintpy_SBAS_Base_Analyzer</span>
+</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="kn">from</span><span class="w"> </span><span class="nn">insarhub.config</span><span class="w"> </span><span class="kn">import</span> <span class="n">MySensor_SBAS_Config</span>
+</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
+</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MySensor_SBAS</span><span class="p">(</span><span class="n">Mintpy_SBAS_Base_Analyzer</span><span class="p">):</span>
+</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"MySensor_SBAS"</span>
+</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>    <span class="n">description</span> <span class="o">=</span> <span class="s2">"使用 MintPy 对 MySensor 产品进行 SBAS 时序分析。"</span>
+</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="n">compatible_processor</span> <span class="o">=</span> <span class="s2">"MySensor_Processor"</span>
+</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">MySensor_SBAS_Config</span>
+</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>
+</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">prep_data</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">_collect_and_stage_files</span><span class="p">()</span>   <span class="c1"># 解包/收集到 self.tmp_dir</span>
+</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>
+</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>        <span class="c1"># 连接 MintPy load_* 字段</span>
+</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">load_unwFile</span>      <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmp_dir</span> <span class="o">/</span> <span class="s2">"*"</span> <span class="o">/</span> <span class="s2">"unw_phase.tif"</span><span class="p">)</span>
+</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">load_corFile</span>      <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmp_dir</span> <span class="o">/</span> <span class="s2">"*"</span> <span class="o">/</span> <span class="s2">"corr.tif"</span><span class="p">)</span>
+</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a>        <span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="o">.</span><span class="n">load_demFile</span>      <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">tmp_dir</span> <span class="o">/</span> <span class="s2">"*"</span> <span class="o">/</span> <span class="s2">"dem.tif"</span><span class="p">)</span>
+</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>
+</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a>        <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="n">prep_data</span><span class="p">()</span>   <span class="c1"># 写入 .mintpy.cfg</span>
+</span><span id="__span-13-20"><a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a>
+</span><span id="__span-13-21"><a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">_collect_and_stage_files</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+</span><span id="__span-13-22"><a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a>        <span class="o">...</span>
 </span></code></pre></div>
 <p><code>run()</code> 继承自基类，将所有 MintPy 输出写入 <code>self.mintpy_dir</code>（<code>workdir/mintpy/</code>）。</p>
 </div>
@@ -2166,35 +2262,35 @@
 </div>
 <h2 id="gui">在 GUI 中暴露设置项</h2>
 <p>配置字段通过配置数据类上的 <code>_ui_groups</code> 和 <code>_ui_fields</code> 自动显示在 Web UI 设置面板中，无需修改 React 代码：</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nd">@dataclass</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyProcessorConfig</span><span class="p">:</span>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>    <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a>    <span class="n">_ui_groups</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"id"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"任务"</span><span class="p">}]</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a>    <span class="n">_ui_fields</span> <span class="o">=</span> <span class="p">[</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>        <span class="p">{</span><span class="s2">"group"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"key"</span><span class="p">:</span> <span class="s2">"max_workers"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"最大并发数"</span><span class="p">,</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a>         <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">32</span><span class="p">},</span>
-</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a>    <span class="p">]</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nd">@dataclass</span>
+</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyProcessorConfig</span><span class="p">:</span>
+</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a>    <span class="n">max_workers</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">4</span>
+</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a>
+</span><span id="__span-14-5"><a id="__codelineno-14-5" name="__codelineno-14-5" href="#__codelineno-14-5"></a>    <span class="n">_ui_groups</span> <span class="o">=</span> <span class="p">[{</span><span class="s2">"id"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"任务"</span><span class="p">}]</span>
+</span><span id="__span-14-6"><a id="__codelineno-14-6" name="__codelineno-14-6" href="#__codelineno-14-6"></a>    <span class="n">_ui_fields</span> <span class="o">=</span> <span class="p">[</span>
+</span><span id="__span-14-7"><a id="__codelineno-14-7" name="__codelineno-14-7" href="#__codelineno-14-7"></a>        <span class="p">{</span><span class="s2">"group"</span><span class="p">:</span> <span class="s2">"job"</span><span class="p">,</span> <span class="s2">"key"</span><span class="p">:</span> <span class="s2">"max_workers"</span><span class="p">,</span> <span class="s2">"label"</span><span class="p">:</span> <span class="s2">"最大并发数"</span><span class="p">,</span>
+</span><span id="__span-14-8"><a id="__codelineno-14-8" name="__codelineno-14-8" href="#__codelineno-14-8"></a>         <span class="s2">"type"</span><span class="p">:</span> <span class="s2">"number"</span><span class="p">,</span> <span class="s2">"min"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span> <span class="s2">"max"</span><span class="p">:</span> <span class="mi">32</span><span class="p">},</span>
+</span><span id="__span-14-9"><a id="__codelineno-14-9" name="__codelineno-14-9" href="#__codelineno-14-9"></a>    <span class="p">]</span>
 </span></code></pre></div>
 <p>支持的字段类型：<code>"number"</code>、<code>"text"</code>、<code>"boolean"</code>、<code>"select"</code>（需添加 <code>"options": [...]</code>）。</p>
 <h2 id="fastapi">添加 FastAPI 路由</h2>
 <p>路由位于 <code>app/routes/</code> 目录下。长时间运行的操作通过 <code>asyncio.to_thread</code> 在后台线程中执行，通过 <code>state._jobs[job_id]</code> 传递进度：</p>
-<div class="language-python highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/api/my-action"</span><span class="p">)</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_action</span><span class="p">(</span><span class="n">req</span><span class="p">:</span> <span class="n">MyRequest</span><span class="p">,</span> <span class="n">background_tasks</span><span class="p">:</span> <span class="n">BackgroundTasks</span><span class="p">):</span>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>    <span class="n">job_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_new_job</span><span class="p">(</span><span class="s2">"Starting…"</span><span class="p">)</span>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>    <span class="n">background_tasks</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="n">_run_my_action</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">req</span><span class="p">)</span>
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">"job_id"</span><span class="p">:</span> <span class="n">job_id</span><span class="p">}</span>
-</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
-</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_run_my_action</span><span class="p">(</span><span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">req</span><span class="p">:</span> <span class="n">MyRequest</span><span class="p">):</span>
-</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">():</span>
-</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>        <span class="k">try</span><span class="p">:</span>
-</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>            <span class="c1"># ... 执行工作 ...</span>
-</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>            <span class="n">state</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">50</span>
-</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>            <span class="n">_finish_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">"done"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">"完成。"</span><span class="p">)</span>
-</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>            <span class="n">state</span><span class="o">.</span><span class="n">_stop_events</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
-</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>            <span class="n">_finish_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">"error"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
-</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a>    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">run</span><span class="p">)</span>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">"/api/my-action"</span><span class="p">)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">my_action</span><span class="p">(</span><span class="n">req</span><span class="p">:</span> <span class="n">MyRequest</span><span class="p">,</span> <span class="n">background_tasks</span><span class="p">:</span> <span class="n">BackgroundTasks</span><span class="p">):</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>    <span class="n">job_id</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">_new_job</span><span class="p">(</span><span class="s2">"Starting…"</span><span class="p">)</span>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a>    <span class="n">background_tasks</span><span class="o">.</span><span class="n">add_task</span><span class="p">(</span><span class="n">_run_my_action</span><span class="p">,</span> <span class="n">job_id</span><span class="p">,</span> <span class="n">req</span><span class="p">)</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>    <span class="k">return</span> <span class="p">{</span><span class="s2">"job_id"</span><span class="p">:</span> <span class="n">job_id</span><span class="p">}</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_run_my_action</span><span class="p">(</span><span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">req</span><span class="p">:</span> <span class="n">MyRequest</span><span class="p">):</span>
+</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">():</span>
+</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a>        <span class="k">try</span><span class="p">:</span>
+</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>            <span class="c1"># ... 执行工作 ...</span>
+</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a>            <span class="n">state</span><span class="o">.</span><span class="n">_jobs</span><span class="p">[</span><span class="n">job_id</span><span class="p">][</span><span class="s2">"progress"</span><span class="p">]</span> <span class="o">=</span> <span class="mi">50</span>
+</span><span id="__span-15-12"><a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a>            <span class="n">_finish_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">"done"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="s2">"完成。"</span><span class="p">)</span>
+</span><span id="__span-15-13"><a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>        <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-15-14"><a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a>            <span class="n">state</span><span class="o">.</span><span class="n">_stop_events</span><span class="o">.</span><span class="n">pop</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
+</span><span id="__span-15-15"><a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a>            <span class="n">_finish_job</span><span class="p">(</span><span class="n">job_id</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">"error"</span><span class="p">,</span> <span class="n">message</span><span class="o">=</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
+</span><span id="__span-15-16"><a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>    <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">to_thread</span><span class="p">(</span><span class="n">run</span><span class="p">)</span>
 </span></code></pre></div>
 <p>在成功和错误路径中都必须 pop <code>state._stop_events[job_id]</code>。</p>
 <h2 id="_14">测试</h2>
@@ -2206,10 +2302,10 @@
 <li><strong>API</strong> — 启动一个临时 <code>uvicorn</code> 服务器，用 <code>requests</code> 通过 HTTP 访问（无需 <code>httpx</code>）：<code>/api/health</code>、<code>/api/folder-local-jobs</code>、<code>/api/folder-local-action</code> refresh、<code>/api/analyzer-steps</code>。</li>
 </ol>
 <p>它会从每个工作目录的 <code>insarhub_config.json</code> 自动识别处理器/分析器，因此无需逐条流水线配置即可覆盖 <code>GMTSAR_S1</code>、<code>ISCE2_S1</code>、<code>ISCE3_Burst</code> 及其分析器。缺失的可选依赖（isce2、gmt/gmtsar、dolphin/compass、slurm）会将相应检查标记为 <code>SKIP</code> 而非 <code>FAIL</code>。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>python<span class="w"> </span>test/e2e/universal_smoke_test.py<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">    </span>--scan-dir<span class="w"> </span>/path/to/real/workdirs<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-3"><a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">    </span>--workdir<span class="w"> </span>/path/to/p56<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-14-4"><a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">    </span>--mode<span class="w"> </span>both<span class="w">          </span><span class="c1"># cli | api | both</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>python<span class="w"> </span>test/e2e/universal_smoke_test.py<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span>--scan-dir<span class="w"> </span>/path/to/real/workdirs<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span>--workdir<span class="w"> </span>/path/to/p56<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span>--mode<span class="w"> </span>both<span class="w">          </span><span class="c1"># cli | api | both</span>
 </span></code></pre></div>
 <p>任一检查 <code>FAIL</code> 时退出码非零。使用 <code>--json</code> 获取机器可读输出，或设置 <code>INSARHUB_TEST_SCAN_DIRS</code> 指向你的工作目录，以替代 <code>--scan-dir</code> 参数。</p>
 <h3 id="_16">单元测试</h3>
@@ -2301,7 +2397,7 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "navigation.instant", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
     
     
       <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>

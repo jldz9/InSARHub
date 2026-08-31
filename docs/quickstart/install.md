@@ -1,3 +1,12 @@
+!!! warning "Pre-release (0.4.0rc1)"
+    This is a **release candidate**. conda has no `--pre` flag, so you must **pin the exact version** to install it:
+
+    ```bash
+    conda install -c conda-forge "insarhub=0.4.0rc1"
+    ```
+
+    Plain `conda install insarhub` pulls the latest **stable** release, not this pre-release. To get the release candidate in any of the commands below, append `=0.4.0rc1` to `insarhub` (e.g. `conda install -c conda-forge "insarhub=0.4.0rc1" isce2`).
+
 ### Install Locally
 
 === "Minimal"

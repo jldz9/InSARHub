@@ -1,3 +1,12 @@
+!!! warning "预发布版本（0.4.0rc1）"
+    这是一个**候选发布版**。conda 没有 `--pre` 选项，因此必须**指定精确版本**才能安装：
+
+    ```bash
+    conda install -c conda-forge "insarhub=0.4.0rc1"
+    ```
+
+    直接 `conda install insarhub` 安装的是最新的**稳定版**，而非此预发布版。要在下面任意命令中获取候选发布版，请在 `insarhub` 后追加 `=0.4.0rc1`（例如 `conda install -c conda-forge "insarhub=0.4.0rc1" isce2`）。
+
 === "默认"
 
     ??? note "创建新环境（推荐）"

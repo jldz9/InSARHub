@@ -32,7 +32,7 @@ jobs:
           path: .cache
           restore-keys: |
             mkdocs-material-
-      - run: pip install mkdocs-material mike mkdocstrings[python] pymdown-extensions mkdocs-glightbox mkdocs-static-i18n
+      - run: pip install jieba mkdocs-material mike mkdocstrings[python] pymdown-extensions mkdocs-glightbox mkdocs-static-i18n
       # --no-deps: mkdocstrings reads the source statically (griffe), so the docs
       # build never imports insarhub at runtime and doesn't need the heavy geo
       # stack. Installing deps would pull the `gdal` PyPI package, which builds

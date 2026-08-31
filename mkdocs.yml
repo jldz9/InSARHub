@@ -14,7 +14,6 @@ theme:
     - navigation.tabs.sticky
     - navigation.sections
     - navigation.expand
-    - navigation.instant
     - toc.follow
     - navigation.top
     - search.suggest
@@ -114,6 +113,7 @@ extra_css:
 plugins:
   - search
   - i18n:
+      reconfigure_search: false
       docs_structure: suffix
       languages:
         - locale: en

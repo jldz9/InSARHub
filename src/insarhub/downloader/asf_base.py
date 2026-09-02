@@ -121,6 +121,19 @@ class ASF_Base_Downloader(BaseDownloader):
     # it. Subclasses extend this set rather than overriding search().
     _NON_SEARCH_FIELDS: frozenset = frozenset(
         {"workdir", "name", "bbox", "granule_names", "ssl_verify", "max_workers"})
+
+    #: What the second half of a stack key IS, for user-facing output. Frame-based
+    #: datasets key on frameNumber; SLC-BURST has no frameNumber at all and keys on
+    #: fullBurstID, so printing "frame 124_264305_IW2" misnames the value and
+    #: implies a number the user could pass to --frame. Subclasses override.
+    stack_key_label: str = "frame"
+
+    #: Plural noun for what this downloader searches, used in progress output.
+    #: The base class is dataset-agnostic, so it stays generic; every subclass
+    #: names its own product ("bursts", "GUNWs") rather than reporting the
+    #: S1_SLC wording for everything.
+    product_label: str = "products"
+
     _DATASET_GROUP_KEYS = {
         'SENTINEL-1': ('pathNumber', 'frameNumber'),
         'ALOS':       ('pathNumber', 'frameNumber'),
@@ -212,6 +225,27 @@ Check documentation for how to setup .netrc file.\n""")
                     return False
                 
     
+    def _stack_key_label_title(self) -> str:
+        """:attr:`stack_key_label` with only its first character upper-cased.
+
+        ``str.capitalize()`` would lower-case the rest and turn ``"Burst_ID"``
+        into ``"Burst_id"``.
+        """
+        label = self.stack_key_label
+        return label[:1].upper() + label[1:]
+
+    def _stack_key_matches(self, key: tuple, target: tuple) -> bool:
+        """Does stack ``key`` satisfy a user-supplied ``(path, selector)`` target?
+
+        The hook behind :meth:`filter`'s ``path_frame`` argument (and so behind
+        the CLI's ``--stacks``). The base rule is plain equality, which is right
+        wherever both halves of the key are numbers. Subclasses whose second half
+        is not a frame number -- :class:`~insarhub.downloader.s1_burst.S1_Burst`
+        keys on ``fullBurstID`` -- override this to define what a selector means
+        for them, rather than every caller having to know the key shape.
+        """
+        return tuple(key) == tuple(target)
+
     def _get_group_key(self, result) -> tuple:
         """Derive grouping key based on available properties, with fallback.
         
@@ -400,7 +434,7 @@ Check documentation for how to setup .netrc file.\n""")
                     names.append(item)
             return self._search_by_name(names)
 
-        print(f"Searching for SLCs....")
+        print(f"Searching for {self.product_label}....")
         search_opts = {k: v for k, v in asdict(self.config).items()
                        if v is not None and k not in self._NON_SEARCH_FIELDS}
         if 'end' in search_opts and isinstance(search_opts['end'], str):
@@ -533,7 +567,7 @@ Check documentation for how to setup .netrc file.\n""")
                     start_date = min(dates).date()
                     end_date = max(dates).date()
                     
-                    print(f"relativeOrbit {key[0]} frame {key[1]} | Count: {count} | {start_date} --> {end_date}")
+                    print(f"relativeOrbit {key[0]} {self.stack_key_label} {key[1]} | Count: {count} | {start_date} --> {end_date}")
                     
                     if ls:
                         # Sort scenes by date
@@ -593,7 +627,7 @@ Check documentation for how to setup .netrc file.\n""")
             label_y = maxy - 0.01 * (maxy - miny)
 
             plt.text(label_x, label_y,
-             f"Path: {key[0]}\nFrame: {key[1]}\nStack: {len(results)}",
+             f"Path: {key[0]}\n{self._stack_key_label_title()}: {key[1]}\nStack: {len(results)}",
              horizontalalignment='right', verticalalignment='top',
              fontsize=12, color=cmap(i), fontweight='bold',
              bbox=dict(facecolor='white', alpha=0.7, edgecolor='none', boxstyle='round,pad=0.3'))
@@ -698,7 +732,7 @@ Check documentation for how to setup .netrc file.\n""")
             aoi_geom = wkt.loads(self.config.intersectsWith)
         
         for key, items in source.items():
-            if targets is not None and key not in targets:
+            if targets is not None and not any(self._stack_key_matches(key, t) for t in targets):
                 continue
 
             if flightDirection:
@@ -781,15 +815,22 @@ Check documentation for how to setup .netrc file.\n""")
                 filtered_items = filtered_items[:max_count]
             
             if min_count is not None and len(filtered_items) < min_count:
-                print(f"{Fore.YELLOW}Stack Path {key[0]} Frame {key[1]} dropped: only {len(filtered_items)} scenes (min_count={min_count}).")
+                print(f"{Fore.YELLOW}Stack Path {key[0]} {self._stack_key_label_title()} {key[1]} dropped: only {len(filtered_items)} scenes (min_count={min_count}).")
                 continue
 
             filtered[key] = filtered_items
 
+        # Commit the subset even when it is EMPTY. Leaving _subset as None on a
+        # total miss made active_results silently fall back to the unfiltered
+        # search (see the property above), so a filter that matched nothing read
+        # downstream as a filter that was never asked for -- callers then
+        # summarised, paired and downloaded every stack the user had just
+        # excluded, behind one yellow warning line.
+        self._subset = dict(filtered)
+
         if not filtered:
             print(f"{Fore.YELLOW}Warning: No results matched the given filters.")
         else:
-            self._subset = filtered
             total_scenes = sum(len(v) for v in filtered.values())
             print(f"{Fore.GREEN}Filter applied. {len(filtered)} stacks, {total_scenes} total scenes remaining.")
 

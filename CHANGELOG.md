@@ -4,7 +4,14 @@
 
 ### Bug Fixes
 
+* Fixed CLI `--stacks PATH:FRAME` selecting nothing for `S1_Burst`. ASF returns no `frameNumber` on `SLC-BURST` products, so burst stacks key on `fullBurstID` (`124_264305_IW2`) — but the CLI coerced both halves of a token to `int`, producing a target that could never equal a burst key. Selectors are now kept as strings when they are not numeric and matched through a new `_stack_key_matches()` hook on the downloader, so `S1_Burst` accepts the full burst ID (`124:124_264305_IW2`), the burst index with subswath (`124:264305_IW2`), or a bare burst index (`124:264305`, which matches that index in every subswath, since ASF reuses an index across subswaths). Path zero-padding is ignored, so `87:87_185682_IW2` and `87:087_185682_IW2` select the same stack. `frame` is now forwarded to the ASF query only when every selector really is a frame number *and* the downloader queries on frame at all, keeping burst IDs out of `asf_search`'s int-range validator.
+* Fixed `filter()` silently falling back to the unfiltered search when no stack matched. `_subset` was assigned only in the non-empty branch, so `active_results` returned every stack the user had just excluded and downstream summary, pair selection and download all ran on the wrong set behind a single warning line. The subset is now committed even when empty.
+* Fixed CLI `--stacks` exiting `0` after matching no stacks. An explicit stack selection that matches nothing is a typo or a stale config, so it now exits non-zero and prints both the requested and the available stack keys.
 * Fixed empty downloader search results with `asf_search` 13.0.0. Its `should_use_asf_frame()` no longer detects a generic `platform=SENTINEL-1` query (it checks for a `shortName[]` CMR key while the query emits `shortName`, and its `platform[]` fallback only lists `SENTINEL-1A/-1B/-1C/-1D`), so `frame` silently queried the ESA frame and matched nothing. Sentinel-1 / ALOS / NISAR frame filters (including CLI `--stacks PATH:FRAME`) are now routed to `asfFrame` (`FRAME_NUMBER`), which works on both `asf_search` 12.x and 13.x.
+
+### Downloader Output
+
+* Downloader progress and stack listings now describe the product actually being searched instead of reusing the `S1_SLC` wording for every dataset. Two new overridable class attributes drive this: `product_label` (`Searching for bursts....`, `GSLCs`, `RSLCs`, `GUNWs`, `SLCs`) and `stack_key_label`, which names the second half of a stack key. Burst stacks key on a burst ID rather than a frame number, so `S1_Burst` now prints `relativeOrbit 124 Burst_ID 124_264305_IW2` — previously it printed `frame 124_264305_IW2`, which misnamed the value and implied a number that could be passed to `--frame`. The label is applied consistently across `summary()`, the `footprint()` map annotation, the `min_count` drop message, and the `--stacks` token error text.
 
 ## [0.4.0rc1]
 

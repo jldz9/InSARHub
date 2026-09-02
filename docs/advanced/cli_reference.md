@@ -75,6 +75,33 @@ insarhub downloader --AOI -113.05 37.74 -112.68 38.00
 insarhub downloader --stacks 100:466 20:118
 ```
 
+`--stacks` exits non-zero if no stack in the search results matches, listing what
+was available — an explicit selection that matches nothing is a typo or a stale
+config, not a reason to fall back to every stack.
+
+#### Selecting burst stacks (`S1_Burst`)
+
+ASF returns no frame number on `SLC-BURST` products, so burst stacks are keyed by
+OPERA burst ID instead and `summary()` prints them as `Burst_ID`:
+
+```
+relativeOrbit 124 Burst_ID 124_264305_IW2 | Count: 5 | 2024-01-07 --> 2024-02-24
+```
+
+The second half of a `--stacks` token is that burst ID. Three spellings work,
+widest last:
+
+```bash
+insarhub downloader -N S1_Burst --stacks 124:124_264305_IW2   # full burst ID, as printed
+insarhub downloader -N S1_Burst --stacks 124:264305_IW2       # burst index + subswath
+insarhub downloader -N S1_Burst --stacks 124:264305           # that index in EVERY subswath
+```
+
+The bare index is deliberately one-to-many: ASF reuses an index across subswaths
+(`124_266256_IW2` and `124_266256_IW3` both exist), so it selects both. Name the
+subswath to pin exactly one. Path zero-padding is ignored, so `87:87_185682_IW2`
+and `87:087_185682_IW2` are the same stack.
+
 ### Pair selection
 
 Add `--select-pairs` to run interferogram pair selection after search. Results are saved as `stack_p<path>_f<frame>.json` inside a `p<path>_f<frame>/` subfolder under `workdir`, alongside an `insarhub_config.json` with the downloader settings. One file per track/frame group. Pass `--merge` (see [Merging multiple frames](#merging-multiple-frames)) to combine same-path frames into one pairing network instead.

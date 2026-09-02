@@ -15,6 +15,7 @@ class NISAR_GUNW(ASF_Base_Downloader):
     name = "NISAR_GUNW"
     description = "NISAR L2 GUNW (geocoded unwrapped interferograms) via ASF -> MintPy."
     default_config = NISAR_GUNW_Config
+    product_label = "GUNWs"
 
     search_filter_schema = [
         {"name": "flightDirection", "label": "Flight Direction", "kind": "select",

@@ -14,6 +14,7 @@ class NISAR_GSLC(ASF_Base_Downloader):
     name = "NISAR_GSLC"
     description = "NISAR L2 GSLC (geocoded SLC) search and download via ASF."
     default_config = NISAR_GSLC_Config
+    product_label = "GSLCs"
 
     search_filter_schema = [
         {"name": "flightDirection", "label": "Flight Direction", "kind": "select",

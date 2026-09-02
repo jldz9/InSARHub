@@ -15,6 +15,7 @@ class NISAR_RSLC(ASF_Base_Downloader):
     name = "NISAR_RSLC"
     description = "NISAR L1 RSLC (radar SLC) search and download via ASF."
     default_config = NISAR_RSLC_Config
+    product_label = "RSLCs"
 
     search_filter_schema = [
         {"name": "flightDirection", "label": "Flight Direction", "kind": "select",

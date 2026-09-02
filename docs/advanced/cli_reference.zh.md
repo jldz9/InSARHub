@@ -75,6 +75,31 @@ insarhub downloader --AOI -113.05 37.74 -112.68 38.00
 insarhub downloader --stacks 100:466 20:118
 ```
 
+若搜索结果中没有任何堆叠与 `--stacks` 匹配，命令将以非零状态退出并列出可用的堆叠：
+显式指定却匹配不到，说明是拼写错误或配置过期，而不应回退到全部堆叠。
+
+#### 选择 burst 堆叠（`S1_Burst`）
+
+ASF 不为 `SLC-BURST` 产品返回帧号，因此 burst 堆叠改用 OPERA burst ID 作为键，
+`summary()` 将其显示为 `Burst_ID`：
+
+```
+relativeOrbit 124 Burst_ID 124_264305_IW2 | Count: 5 | 2024-01-07 --> 2024-02-24
+```
+
+此时 `--stacks` 令牌的后半部分即为该 burst ID。支持三种写法，范围由窄到宽：
+
+```bash
+insarhub downloader -N S1_Burst --stacks 124:124_264305_IW2   # 完整 burst ID，与打印一致
+insarhub downloader -N S1_Burst --stacks 124:264305_IW2       # burst 序号 + 子条带
+insarhub downloader -N S1_Burst --stacks 124:264305           # 所有子条带中的该序号
+```
+
+仅给出序号是有意的一对多匹配：ASF 会在不同子条带间复用同一序号
+（`124_266256_IW2` 与 `124_266256_IW3` 同时存在），因此两者都会被选中。
+要精确锁定一个堆叠，请写明子条带。路径的前导零会被忽略，
+故 `87:87_185682_IW2` 与 `87:087_185682_IW2` 指向同一堆叠。
+
 ### 干涉对选择
 
 添加 `--select-pairs` 可在搜索后运行干涉图对选择。结果以 `stack_p<path>_f<frame>.json` 的形式保存在 `workdir` 下 `p<path>_f<frame>/` 子文件夹中，同时保存包含下载器设置的 `insarhub_config.json`。每个轨道/帧组对应一个文件。传入 `--merge`（见下方[合并多个帧](#merging-multiple-frames)）可将同一轨道的多个帧合并为一个配对网络。

@@ -132,7 +132,10 @@ def create_parser() -> argparse.ArgumentParser:
         "--stacks", nargs="+", metavar="PATH:FRAME",
         help="Select specific track/frame stacks as PATH:FRAME tokens, "
              "e.g. --stacks 100:466 20:118 20:123. "
-             "Sets relativeOrbit and frame; takes precedence over --relativeOrbit/--frame.",
+             "Sets relativeOrbit and frame; takes precedence over --relativeOrbit/--frame. "
+             "For S1_Burst (no frame number exists on SLC-BURST) the second half is a "
+             "burst ID instead: 124:124_264305_IW2, 124:264305_IW2, or 124:264305 "
+             "(that index in every subswath). Exits non-zero if nothing matches.",
     )
 
     g_pairs = p_search.add_argument_group("pair selection  (requires --select-pairs)")
@@ -1322,22 +1325,37 @@ def cmd_downloader(args, extra_args: list[str]):
             aoi_input = aoi_input[0]
         overrides["intersectsWith"] = _to_wkt(aoi_input)
 
+    # The second half of a --stacks token is a FRAME NUMBER only for frame-based
+    # datasets. SLC-BURST products carry no frameNumber at all, so burst stacks key
+    # on fullBurstID ("124_264305_IW2") and the selector is a string. Keep
+    # non-numeric selectors as strings and let the downloader say what they mean
+    # (_stack_key_matches); coercing both halves to int here silently matched
+    # nothing for every burst search.
+    _non_search = getattr(downloader_cls, "_NON_SEARCH_FIELDS", frozenset())
+    _sel_label  = getattr(downloader_cls, "stack_key_label", "frame").upper()
+
     stacks_filter: list[tuple] | None = None
     if args.stacks:
-        parsed = []
+        parsed: list[tuple] = []
         for token in args.stacks:
-            parts = token.split(":")
-            if len(parts) != 2:
-                print(f"[ERROR] Invalid --stacks token '{token}' — expected PATH:FRAME", file=sys.stderr)
+            parts = [p.strip() for p in token.split(":")]
+            if len(parts) != 2 or not parts[0] or not parts[1]:
+                print(f"[ERROR] Invalid --stacks token '{token}' — expected PATH:{_sel_label}",
+                      file=sys.stderr)
                 sys.exit(1)
-            try:
-                parsed.append((int(parts[0]), int(parts[1])))
-            except ValueError:
-                print(f"[ERROR] PATH and FRAME must be integers, got '{token}'", file=sys.stderr)
+            path_tok, sel_tok = parts
+            if not path_tok.isdigit():
+                print(f"[ERROR] --stacks PATH must be an integer, got '{token}'", file=sys.stderr)
                 sys.exit(1)
+            parsed.append((int(path_tok), int(sel_tok) if sel_tok.isdigit() else sel_tok))
         # Broad search to reduce API response; exact-pair filter applied after search
         overrides["relativeOrbit"] = list(dict.fromkeys(p for p, _ in parsed))
-        overrides["frame"]         = list(dict.fromkeys(f for _, f in parsed))
+        # Narrow the query by frame only when every selector really is a frame number
+        # AND this downloader queries on frame at all -- a burst ID reaching
+        # asf.search(frame=...) dies in its int-range validator.
+        _frames = [f for _, f in parsed if isinstance(f, int)]
+        if "frame" not in _non_search and len(_frames) == len(parsed):
+            overrides["frame"] = list(dict.fromkeys(_frames))
         stacks_filter = parsed
     else:
         # Reconstruct stacks_filter from saved config lists so the exact-pair filter
@@ -1346,7 +1364,19 @@ def cmd_downloader(args, extra_args: list[str]):
         _fr = overrides.get("frame")
         if (isinstance(_ro, list) and isinstance(_fr, list)
                 and len(_ro) == len(_fr) and len(_ro) > 0):
-            stacks_filter = list(zip([int(x) for x in _ro], [int(x) for x in _fr]))
+            def _as_selector(x):
+                """Saved frames are ints for frame datasets, burst-ID strings otherwise."""
+                try:
+                    return int(x)
+                except (TypeError, ValueError):
+                    return str(x)
+            try:
+                stacks_filter = list(zip([int(x) for x in _ro],
+                                         [_as_selector(x) for x in _fr]))
+            except (TypeError, ValueError):
+                # A config we cannot read as path/selector pairs is not worth
+                # crashing over -- fall through to an unfiltered search.
+                stacks_filter = None
 
     overrides["workdir"] = workdir
     if getattr(args, "no_verify_ssl", False):
@@ -1363,7 +1393,17 @@ def cmd_downloader(args, extra_args: list[str]):
 
     if stacks_filter:
         from insarhub.commands import FilterCommand
+        available = list((result.data or {}).keys())
         _fail(FilterCommand(downloader, {"path_frame": stacks_filter}).run(), "filter")
+        if not downloader.active_results:
+            # An explicit stack selection that matches nothing is a typo or a stale
+            # config, not a reason to carry on with every stack the search returned.
+            print("[ERROR] --stacks matched no stacks in the search results.", file=sys.stderr)
+            print("        requested: "
+                  + " ".join(f"{p}:{s}" for p, s in stacks_filter), file=sys.stderr)
+            print("        available: "
+                  + (" ".join(f"{k[0]}:{k[1]}" for k in available) or "(none)"), file=sys.stderr)
+            sys.exit(1)
 
     SummaryCommand(downloader).run()
 

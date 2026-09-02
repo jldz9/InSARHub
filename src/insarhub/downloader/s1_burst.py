@@ -68,6 +68,12 @@ class S1_Burst(ASF_Base_Downloader):
         "swaths", "mode", "min_bursts", "all_anns", "keep_files",
         "frame", "asfFrame"}
 
+    # A burst stack key's second half is a fullBurstID, never a frame number --
+    # calling it "frame" in the summary both misnames it and invites the user to
+    # feed it back to --frame, which is exactly the int-parse crash described above.
+    stack_key_label = "Burst_ID"
+    product_label = "bursts"
+
     search_filter_schema = [
         {"name": "flightDirection", "label": "Flight Direction", "kind": "select",
          "group": "Additional Filters", "choices": ["ASCENDING", "DESCENDING"]},
@@ -179,6 +185,68 @@ class S1_Burst(ASF_Base_Downloader):
             logger.warning("S1_Burst: result carries no burst ID; grouping by "
                            "granule name %r instead", full)
         return (path, full)
+
+    @staticmethod
+    def _burst_id_parts(text) -> tuple[int, int, str] | None:
+        """``"087_185682_IW2"`` -> ``(87, 185682, "IW2")``; None if not that shape.
+
+        Path and index come back as ints so the zero-padded form ASF prints
+        (``087_...``) and the bare form a user types (``87_...``) compare equal.
+        """
+        parts = str(text).strip().upper().split("_")
+        if len(parts) != 3:
+            return None
+        path, index, swath = parts
+        if not (path.isdigit() and index.isdigit()):
+            return None
+        return int(path), int(index), swath
+
+    def _stack_key_matches(self, key: tuple, target: tuple) -> bool:
+        """Match a burst stack against a user ``PATH:SELECTOR`` token.
+
+        Burst stacks key on ``fullBurstID`` (see :meth:`_get_group_key`), so the
+        second half of a ``--stacks`` token is not a number and the base class's
+        plain-equality rule can never match it. Three spellings of one stack are
+        accepted, widest last::
+
+            124:124_264305_IW2   full burst ID, exactly as summary() prints it
+            124:264305_IW2       burst index + subswath
+            124:264305           bare burst index -- EVERY subswath at that index
+
+        The bare index is deliberately one-to-many: ASF reuses an index across
+        subswaths (``124_266256_IW2`` and ``124_266256_IW3`` both exist), so it
+        selects both. Name the subswath to pin exactly one.
+
+        A stack that fell back to grouping by granule name (no burst ID on the
+        product at all) matches only on a verbatim string, since it has no index
+        or subswath to compare against.
+        """
+        try:
+            if int(key[0]) != int(target[0]):
+                return False
+        except (TypeError, ValueError):
+            return False   # a stack with no path can only be reached by AOI, not by token
+
+        selector = str(target[1]).strip().upper()
+        full     = str(key[1]).strip().upper()
+        if not selector:
+            return False
+        if selector == full:
+            return True
+
+        key_parts = self._burst_id_parts(full)
+        if key_parts is None:
+            return False            # granule-name fallback key: verbatim match only
+        _, index, swath = key_parts
+
+        sel_parts = self._burst_id_parts(selector)
+        if sel_parts is not None:
+            return sel_parts == key_parts
+
+        bits = selector.split("_")
+        if len(bits) == 2 and bits[0].isdigit():
+            return int(bits[0]) == index and bits[1] == swath
+        return selector.isdigit() and int(selector) == index
 
     @staticmethod
     def folder_name(path: int, subswath: str | None = None,

@@ -1589,7 +1589,7 @@
 <p>This is a <strong>release candidate</strong>. conda has no <code>--pre</code> flag, so you must <strong>pin the exact version</strong> to install it:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"insarhub=0.4.0rc1"</span>
 </span></code></pre></div>
-<p>Plain <code>conda install insarhub</code> pulls the latest <strong>stable</strong> release, not this pre-release. To get the release candidate in any of the commands below, append <code>=0.4.0rc1</code> to <code>insarhub</code> (e.g. <code>conda install -c conda-forge "insarhub=0.4.0rc1" isce2</code>).</p>
+<p>Plain <code>conda install insarhub</code> pulls the latest <strong>stable</strong> release, not this pre-release. Every command below already pins <code>"insarhub=0.4.0rc1"</code> (pip: <code>"insarhub==0.4.0rc1"</code>) — drop the pin once 0.4.0 is out.</p>
 </div>
 <div class="admonition danger">
 <p class="admonition-title">Known issue: <code>asf_search</code> 13.0.0 breaks the downloader</p>
@@ -1615,11 +1615,11 @@ update InSARHub accordingly.</p>
 <summary>Limit Windows support</summary>
 <p>Currently InSARHub only test running under Python version 3.11 in Windows environment </p>
 </details>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>install<span class="w"> </span><span class="s2">"insarhub=0.4.0rc1"</span><span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span></code></pre></div>
 <p>Or from pip (GDAL must be installed via conda first):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"insarhub==0.4.0rc1"</span>
 </span></code></pre></div>
 </div>
 <div class="tabbed-block">
@@ -1633,12 +1633,12 @@ update InSARHub accordingly.</p>
 <p>ISCE2 currently pins <code>numpy&lt;2</code></p>
 </details>
 <p>Install InSARHub first, then add ISCE2 into the same environment:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>conda<span class="w"> </span>install<span class="w"> </span>insarhub<span class="w"> </span>-c<span class="w"> </span>conda-forge
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>conda<span class="w"> </span>install<span class="w"> </span><span class="s2">"insarhub=0.4.0rc1"</span><span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>conda<span class="w"> </span>install<span class="w"> </span>isce2<span class="w"> </span>-c<span class="w"> </span>conda-forge
 </span></code></pre></div>
 <p>Via pip:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>conda<span class="w"> </span>install<span class="w"> </span>gdal<span class="w"> </span>isce2
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>pip<span class="w"> </span>install<span class="w"> </span>insarhub
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"insarhub==0.4.0rc1"</span>
 </span></code></pre></div>
 <p>Verify ISCE2 installed correctly:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce; print(isce.__version__)"</span>
@@ -1656,7 +1656,7 @@ update InSARHub accordingly.</p>
 </details>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"insarhub=0.4.0rc1"</span><span class="w"> </span>isce3<span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
 </span></code></pre></div>
 <p>Verify the stack imports:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">"import isce3, compass, dolphin; print('ok')"</span>
@@ -1675,7 +1675,7 @@ update InSARHub accordingly.</p>
 </span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>
 </span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="c1"># 2. Add InSARHub + MintPy into that same env</span>
 </span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>conda<span class="w"> </span>activate<span class="w"> </span>gmtsar
-</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub<span class="w"> </span>mintpy
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"insarhub=0.4.0rc1"</span><span class="w"> </span>mintpy
 </span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>
 </span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="c1"># 3. Put GMTSAR's binaries on PATH (add to your shell profile to persist)</span>
 </span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GMTSAR</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>
@@ -1747,7 +1747,7 @@ update InSARHub accordingly.</p>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>conda<span class="w"> </span>create<span class="w"> </span>-n<span class="w"> </span>isce3_dolphin<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.12
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>isce3_dolphin
-</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span><span class="s2">"isce3=*=*cpu*"</span><span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
+</span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>isce3<span class="w"> </span>compass<span class="w"> </span>sardem<span class="w"> </span>dolphin<span class="w"> </span>snaphu<span class="w"> </span>burst2safe<span class="w"> </span>gdal
 </span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
 </div>

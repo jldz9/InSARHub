@@ -5,7 +5,7 @@
     conda install -c conda-forge "insarhub=0.4.0rc1"
     ```
 
-    直接 `conda install insarhub` 安装的是最新的**稳定版**，而非此预发布版。要在下面任意命令中获取候选发布版，请在 `insarhub` 后追加 `=0.4.0rc1`（例如 `conda install -c conda-forge "insarhub=0.4.0rc1" isce2`）。
+    直接 `conda install insarhub` 安装的是最新的**稳定版**，而非此预发布版。下面所有命令都已固定 `"insarhub=0.4.0rc1"`（pip 为 `"insarhub==0.4.0rc1"`）—— 待 0.4.0 正式发布后即可去掉该版本约束。
 
 !!! danger "已知问题：`asf_search` 13.0.0 会导致下载器失效"
     `asf_search` **13.0.0** 引入了破坏性改动，会导致 `S1_SLC` 下载器检索不到任何结果
@@ -31,14 +31,14 @@
         在 Windows 上目前仅支持 Python 3.11 —— 创建上面的环境时请使用 `python=3.11`。Linux 和 macOS 同时支持 3.11 和 3.12。
 
     ```bash
-    conda install insarhub -c conda-forge
+    conda install "insarhub=0.4.0rc1" -c conda-forge
     ```
 
     或使用 pip（需先通过 conda 安装 GDAL）：
 
     ```bash
     conda install gdal
-    pip install insarhub
+    pip install "insarhub==0.4.0rc1"
     ```
 
 === "ISCE2 处理器"
@@ -51,7 +51,7 @@
     先安装 InSARHub，再将 ISCE2 添加到同一环境：
 
     ```bash
-    conda install insarhub -c conda-forge
+    conda install "insarhub=0.4.0rc1" -c conda-forge
     conda install isce2 -c conda-forge
     ```
 
@@ -60,7 +60,7 @@
     ```bash
 
     conda install gdal isce2
-    pip install insarhub
+    pip install "insarhub==0.4.0rc1"
     ```
 
     验证 ISCE2 是否安装正确：
@@ -77,12 +77,12 @@
         ISCE3 / COMPASS / dolphin 工具链仅支持 Linux 和 macOS（x86_64）—— 其他平台请使用 WSL2 或 Linux HPC 集群。
 
     !!! note "受限的 numpy 版本"
-        COMPASS 锁定 `numpy<2`，因此整个工具链可在一次 conda 求解中解析完成（isce3、dolphin、gdal 都保持在 numpy 1.26）。`isce3` 固定为 CPU 版本，InSARHub 将来会测试 GPU 功能并支持 GPU 处理。
+        COMPASS 锁定 `numpy<2`，因此整个工具链可在一次 conda 求解中解析完成（isce3、dolphin、gdal 都保持在 numpy 1.26）。conda 默认解析出的是 `isce3` 的 CPU 版本，InSARHub 将来会测试 GPU 功能并支持 GPU 处理。
 
     ```bash
     conda create -n isce3_dolphin python=3.12
     conda activate isce3_dolphin
-    conda install -c conda-forge insarhub "isce3=*=*cpu*" compass sardem dolphin snaphu burst2safe gdal
+    conda install -c conda-forge "insarhub=0.4.0rc1" isce3 compass sardem dolphin snaphu burst2safe gdal
     ```
 
     验证工具链可正常导入：
@@ -105,7 +105,7 @@
 
     # 2. 将 InSARHub + MintPy 添加到同一环境
     conda activate gmtsar
-    conda install -c conda-forge insarhub mintpy
+    conda install -c conda-forge "insarhub=0.4.0rc1" mintpy
 
     # 3. 将 GMTSAR 的可执行文件加入 PATH（写入 shell 配置以持久化）
     export GMTSAR=$(pwd)
@@ -196,7 +196,7 @@ InSARHub 目前支持：
     cd InSARHub
     conda create -n isce3_dolphin python=3.12
     conda activate isce3_dolphin
-    conda install -c conda-forge "isce3=*=*cpu*" compass sardem dolphin snaphu burst2safe gdal
+    conda install -c conda-forge isce3 compass sardem dolphin snaphu burst2safe gdal
     pip install -e .
     ```
 

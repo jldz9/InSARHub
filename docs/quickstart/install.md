@@ -5,7 +5,7 @@
     conda install -c conda-forge "insarhub=0.4.0rc1"
     ```
 
-    Plain `conda install insarhub` pulls the latest **stable** release, not this pre-release. To get the release candidate in any of the commands below, append `=0.4.0rc1` to `insarhub` (e.g. `conda install -c conda-forge "insarhub=0.4.0rc1" isce2`).
+    Plain `conda install insarhub` pulls the latest **stable** release, not this pre-release. Every command below already pins `"insarhub=0.4.0rc1"` (pip: `"insarhub==0.4.0rc1"`) — drop the pin once 0.4.0 is out.
 
 !!! danger "Known issue: `asf_search` 13.0.0 breaks the downloader"
     `asf_search` **13.0.0** introduced a breaking change that makes the `S1_SLC` downloader return
@@ -34,14 +34,14 @@
         Currently InSARHub only test running under Python version 3.11 in Windows environment 
 
     ```bash
-    conda install insarhub -c conda-forge
+    conda install "insarhub=0.4.0rc1" -c conda-forge
     ```
 
     Or from pip (GDAL must be installed via conda first):
 
     ```bash
     conda install gdal
-    pip install insarhub
+    pip install "insarhub==0.4.0rc1"
     ```
 
 === "ISCE2 Processor"
@@ -56,7 +56,7 @@
     Install InSARHub first, then add ISCE2 into the same environment:
 
     ```bash
-    conda install insarhub -c conda-forge
+    conda install "insarhub=0.4.0rc1" -c conda-forge
     conda install isce2 -c conda-forge
     ```
 
@@ -65,7 +65,7 @@
     ```bash
     
     conda install gdal isce2
-    pip install insarhub
+    pip install "insarhub==0.4.0rc1"
     ```
 
     Verify ISCE2 installed correctly:
@@ -87,7 +87,7 @@
     ```bash
     conda create -n isce3_dolphin python=3.12
     conda activate isce3_dolphin
-    conda install -c conda-forge insarhub "isce3=*=*cpu*" compass sardem dolphin snaphu burst2safe gdal
+    conda install -c conda-forge "insarhub=0.4.0rc1" isce3 compass sardem dolphin snaphu burst2safe gdal
     ```
 
     Verify the stack imports:
@@ -110,7 +110,7 @@
 
     # 2. Add InSARHub + MintPy into that same env
     conda activate gmtsar
-    conda install -c conda-forge insarhub mintpy
+    conda install -c conda-forge "insarhub=0.4.0rc1" mintpy
 
     # 3. Put GMTSAR's binaries on PATH (add to your shell profile to persist)
     export GMTSAR=$(pwd)
@@ -201,7 +201,7 @@ Currently InSARHub support:
     cd InSARHub
     conda create -n isce3_dolphin python=3.12
     conda activate isce3_dolphin
-    conda install -c conda-forge "isce3=*=*cpu*" compass sardem dolphin snaphu burst2safe gdal
+    conda install -c conda-forge isce3 compass sardem dolphin snaphu burst2safe gdal
     pip install -e .
     ```
 

@@ -261,6 +261,58 @@ Check documentation for how to setup .netrc file.\n""")
         # last resort — group everything under the platform name
         return (props.get('pathNumber'), props.get('frameNumber'))
     
+    # Platforms whose user-facing frame is the ASF frame (CMR FRAME_NUMBER == the
+    # 'frameNumber' property we group by), rather than the ESA frame. See
+    # _uses_asf_frame() / the asf_search 13.0.0 compatibility note in search().
+    _ASF_FRAME_TOKENS = ('SENTINEL-1', 'SENTINEL1', 'ALOS', 'NISAR', 'SEASAT')
+
+    def _uses_asf_frame(self) -> bool:
+        """True when this dataset/platform numbers frames by the ASF frame.
+
+        For Sentinel-1 / ALOS / NISAR / SEASAT the frame a user specifies is the ASF
+        frame (the ``frameNumber`` property InSARHub groups by), which asf_search
+        queries via ``asfFrame`` (CMR ``FRAME_NUMBER``) -- not ``frame`` (CMR
+        ``CENTER_ESA_FRAME``). See :meth:`_apply_asf_frame_compat`.
+        """
+        vals: list = []
+        for attr in ('dataset', 'platform'):
+            v = getattr(self.config, attr, None)
+            if v is None:
+                continue
+            vals.extend(v if isinstance(v, (list, tuple)) else [v])
+        blob = ' '.join(str(x).upper() for x in vals)
+        return any(tok in blob for tok in self._ASF_FRAME_TOKENS)
+
+    def _apply_asf_frame_compat(self, search_opts: dict) -> dict:
+        """Route ``frame`` -> ``asfFrame`` for ASF-frame platforms (asf_search 13.0.0).
+
+        For Sentinel-1 / ALOS / NISAR the frame a user gives is the ASF frame (== the
+        ``frameNumber`` InSARHub groups by). asf_search maps ``frame`` to CMR
+        ``CENTER_ESA_FRAME`` and only rewrote it to ``FRAME_NUMBER`` for these platforms
+        via ``should_use_asf_frame()``. asf_search **13.0.0** broke that check for a
+        generic ``platform=SENTINEL-1`` query: it now tests for a ``shortName[]`` CMR key,
+        but the query emits ``shortName`` (no brackets), and its ``platform[]`` fallback
+        only lists the per-satellite names (``SENTINEL-1A/-1B/-1C/-1D``), not generic
+        ``SENTINEL-1`` -- so neither branch matches, the ``CENTER_ESA_FRAME`` ->
+        ``FRAME_NUMBER`` rewrite never fires, and ``frame=`` silently matches nothing.
+        ``asfFrame`` maps straight to ``FRAME_NUMBER`` (bypassing that broken check) and
+        works on both 12.x and 13.x, so route the frame filter there. We keep this
+        workaround inside InSARHub rather than depend on an upstream asf_search fix.
+        Mutates and returns ``search_opts``.
+        """
+        if search_opts.get('frame') is not None and self._uses_asf_frame():
+            if search_opts.get('asfFrame') is None:
+                search_opts['asfFrame'] = search_opts.pop('frame')
+                print(f"{Fore.YELLOW}Note: querying ASF frame via 'asfFrame' for "
+                      f"asf_search {getattr(asf, '__version__', '?')} compatibility "
+                      f"('frame' targets the ESA frame and no longer matches for this "
+                      f"platform).{Fore.RESET}")
+            else:
+                # Both set: asfFrame is authoritative for these platforms; drop the
+                # ambiguous ESA-frame filter so it can't zero out the query.
+                search_opts.pop('frame')
+        return search_opts
+
     def _get_property_keys(self) -> dict:
         """Return the correct result.properties key mapping based on config.
         
@@ -353,6 +405,9 @@ Check documentation for how to setup .netrc file.\n""")
                        if v is not None and k not in self._NON_SEARCH_FIELDS}
         if 'end' in search_opts and isinstance(search_opts['end'], str):
             search_opts['end'] = _end_of_day(search_opts['end'])
+
+        search_opts = self._apply_asf_frame_compat(search_opts)
+
         if os.environ.get("INSARHUB_DEBUG_SEARCH"):
             print(f"[debug] asf.search opts: {search_opts}")
 

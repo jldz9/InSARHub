@@ -7,6 +7,18 @@
 
     Plain `conda install insarhub` pulls the latest **stable** release, not this pre-release. To get the release candidate in any of the commands below, append `=0.4.0rc1` to `insarhub` (e.g. `conda install -c conda-forge "insarhub=0.4.0rc1" isce2`).
 
+!!! danger "Known issue: `asf_search` 13.0.0 breaks the downloader"
+    `asf_search` **13.0.0** introduced a breaking change that makes the `S1_SLC` downloader return
+    no results (`Search does not return any result, please check input parameters or Internet
+    connection`). Until we ship a fix, **pin the previous version**:
+
+    ```bash
+    conda install "asf_search=12.3.2"
+    ```
+
+    (pip: `pip install "asf_search==12.3.2"`.) We are currently investigating the change and will
+    update InSARHub accordingly.
+
 ### Install Locally
 
 === "Minimal"

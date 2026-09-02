@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0]
+
+### Bug Fixes
+
+* Fixed empty downloader search results with `asf_search` 13.0.0. Its `should_use_asf_frame()` no longer detects a generic `platform=SENTINEL-1` query (it checks for a `shortName[]` CMR key while the query emits `shortName`, and its `platform[]` fallback only lists `SENTINEL-1A/-1B/-1C/-1D`), so `frame` silently queried the ESA frame and matched nothing. Sentinel-1 / ALOS / NISAR frame filters (including CLI `--stacks PATH:FRAME`) are now routed to `asfFrame` (`FRAME_NUMBER`), which works on both `asf_search` 12.x and 13.x.
+
 ## [0.4.0rc1]
 
 ## New Features

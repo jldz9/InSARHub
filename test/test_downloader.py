@@ -189,6 +189,52 @@ class TestDatasetGroupKeyMapping:
 
 
 # ===========================================================================
+# asf_search 13.0.0 frame/asfFrame compatibility
+# (frame -> asfFrame routing for Sentinel-1 / ALOS / NISAR)
+# ===========================================================================
+
+class TestAsfFrameCompat:
+    def _stub(self, cfg):
+        # _uses_asf_frame / _apply_asf_frame_compat only read self.config, so bind
+        # them onto a lightweight stub — no netrc / network / full init needed.
+        from insarhub.downloader.asf_base import ASF_Base_Downloader
+        stub = types.SimpleNamespace(config=cfg)
+        stub._ASF_FRAME_TOKENS = ASF_Base_Downloader._ASF_FRAME_TOKENS
+        stub._uses_asf_frame = lambda: ASF_Base_Downloader._uses_asf_frame(stub)
+        stub._apply_asf_frame_compat = (
+            lambda opts: ASF_Base_Downloader._apply_asf_frame_compat(stub, opts))
+        return stub
+
+    def test_s1_uses_asf_frame(self):
+        from insarhub.config import S1_SLC_Config
+        assert self._stub(S1_SLC_Config())._uses_asf_frame() is True
+
+    def test_generic_base_config_does_not_use_asf_frame(self):
+        from insarhub.config import ASF_Base_Config
+        assert self._stub(ASF_Base_Config())._uses_asf_frame() is False
+
+    def test_frame_routed_to_asfframe_for_s1(self):
+        from insarhub.config import S1_SLC_Config
+        opts = self._stub(S1_SLC_Config())._apply_asf_frame_compat(
+            {"relativeOrbit": 100, "frame": 466})
+        assert opts.get("asfFrame") == 466
+        assert "frame" not in opts
+
+    def test_asfframe_wins_when_both_set(self):
+        from insarhub.config import S1_SLC_Config
+        opts = self._stub(S1_SLC_Config())._apply_asf_frame_compat(
+            {"asfFrame": 466, "frame": 999})
+        assert opts.get("asfFrame") == 466
+        assert "frame" not in opts
+
+    def test_frame_kept_for_non_asf_frame_platform(self):
+        from insarhub.config import ASF_Base_Config
+        opts = self._stub(ASF_Base_Config())._apply_asf_frame_compat({"frame": 466})
+        assert opts.get("frame") == 466
+        assert "asfFrame" not in opts
+
+
+# ===========================================================================
 # Orbit file validity window (regression: EOF skip logic)
 # ===========================================================================
 

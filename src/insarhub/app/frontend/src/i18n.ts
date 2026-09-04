@@ -13,7 +13,7 @@ i18n
       en: { translation: en },
       zh: { translation: zh },
     },
-    lng: saved === 'zh' || saved === 'en' ? saved : 'en',
+    lng: saved === 'zh' || saved === 'en' ? saved : 'zh',
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
   })

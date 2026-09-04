@@ -11,7 +11,7 @@ import StackSummaryDrawer from './StackSummaryDrawer'
 import SceneDetailPanel from './SceneDetailPanel'
 import SettingsPanel from './SettingsPanel'
 import JobQueueDrawer, { type RasterOverlay } from './JobQueueDrawer'
-import { bboxToWkt, geometryToWkt, getGeometryBbox, type Bbox } from './geoUtils'
+import { bboxToWkt, geometryToWkt, getGeometryBbox, wktToGeometry,type Bbox } from './geoUtils'
 import { DARK, LIGHT } from './theme'
 import shpjs from 'shpjs'
 import { API } from './api'
@@ -199,7 +199,7 @@ export default function App() {
 
   // AOI state
   const [aoi,        setAoi]        = useState<Bbox>([-180, -90, 180, 90])
-  const [aoiWkt,     setAoiWkt]     = useState<string | null>(null)
+  const [aoiWkt,     setAoiWkt]     = useState<string | null>('POINT (116.27 37.46)')
   const [aoiGeoJson, setAoiGeoJson] = useState<GeoJSON.Feature | null>(null)
 
   // Map UI state
@@ -388,8 +388,61 @@ export default function App() {
   }
 
   function handleAoiWktChange(wkt: string | null) {
-    setAoiWkt(wkt)
+    if (!wkt || !wkt.trim()) {
+    setAoiWkt(null)
     setAoiGeoJson(null)
+    setAoi([-180, -90, 180, 90])
+    return
+  }
+
+  try {
+    const cleanWkt = wkt.trim()
+
+    // WKT → GeoJSON geometry
+    const geometry = wktToGeometry(cleanWkt)
+
+    const feature: GeoJSON.Feature = {
+      type: 'Feature',
+      properties: {},
+      geometry,
+    }
+
+    let bbox: Bbox
+
+    if (geometry.type === 'Point') {
+      const [lng, lat] = geometry.coordinates as number[]
+
+      // Point 本身没有面积，保持和地图 pin 功能一致
+      bbox = [
+        lng - 0.1,
+        lat - 0.1,
+        lng + 0.1,
+        lat + 0.1,
+      ]
+    } else {
+      bbox = getGeometryBbox(geometry)
+    }
+
+    // 三个状态必须同时更新
+    setAoiWkt(cleanWkt)
+    setAoi(bbox)
+    setAoiGeoJson(feature)
+
+    // 如果当前处于绘制状态，退出
+    setDrawMode(null)
+
+    console.log('[AOI] WKT -> Map:', {
+      wkt: cleanWkt,
+      bbox,
+      geometry,
+    })
+
+  } catch (err) {
+    console.error('[AOI] Invalid WKT:', err)
+
+    // 输入错误时不要删除地图上原来的 AOI
+    setResultCount(`WKT 格式错误: ${String(err)}`)
+  }
   }
 
   function handleClearAoi() {

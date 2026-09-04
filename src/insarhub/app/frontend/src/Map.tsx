@@ -101,8 +101,8 @@ export default function Map({
         layers:  [{ id: 'basemap', type: 'raster', source: 'basemap',
           paint: { 'raster-brightness-max': 0.88 } }],
       },
-      center: [-105, 39],
-      zoom: 4,
+      center: [116.27, 37.46],
+      zoom: 6,
       doubleClickZoom: false,
     })
 

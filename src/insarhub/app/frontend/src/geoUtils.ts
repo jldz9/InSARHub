@@ -40,3 +40,76 @@ export function getGeometryBbox(geometry: GeoJSON.Geometry): Bbox {
   const lats  = coords.map(c => c[1])
   return [Math.min(...lngs), Math.min(...lats), Math.max(...lngs), Math.max(...lats)]
 }
+
+export function wktToGeometry(wkt: string): GeoJSON.Geometry {
+  const text = wkt.trim()
+
+  // ── POINT ─────────────────────────────────────────────
+  const pointMatch = text.match(
+    /^POINT\s*\(\s*([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s+([-+]?\d*\.?\d+(?:[eE][-+]?\d+)?)\s*\)$/i
+  )
+  if (pointMatch) {
+    const lng = Number(pointMatch[1])
+    const lat = Number(pointMatch[2])
+
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+      throw new Error('Invalid POINT coordinates')
+    }
+
+    if (lng < -180 || lng > 180) {
+      throw new Error('Longitude must be between -180 and 180')
+    }
+
+    if (lat < -90 || lat > 90) {
+      throw new Error('Latitude must be between -90 and 90')
+    }
+
+    return {
+      type: 'Point',
+      coordinates: [lng, lat],
+    }
+  }
+
+  // ── POLYGON ───────────────────────────────────────────
+  const polygonMatch = text.match(
+    /^POLYGON\s*\(\((.*)\)\)$/is
+  )
+
+  if (polygonMatch) {
+    const ringTexts = polygonMatch[1].split(/\)\s*,\s*\(/)
+
+    const rings = ringTexts.map(ringText => {
+      const coords = ringText.split(',').map(pair => {
+        const parts = pair.trim().split(/\s+/)
+
+        if (parts.length < 2) {
+          throw new Error('Invalid POLYGON coordinate')
+        }
+
+        const lng = Number(parts[0])
+        const lat = Number(parts[1])
+
+        if (!Number.isFinite(lng) || !Number.isFinite(lat)) {
+          throw new Error('Invalid POLYGON coordinate')
+        }
+
+        return [lng, lat]
+      })
+
+      if (coords.length < 4) {
+        throw new Error('POLYGON requires at least 4 coordinates')
+      }
+
+      return coords
+    })
+
+    return {
+      type: 'Polygon',
+      coordinates: rings,
+    }
+  }
+
+  throw new Error(
+    'Unsupported WKT. Currently supports POINT and POLYGON.'
+  )
+}

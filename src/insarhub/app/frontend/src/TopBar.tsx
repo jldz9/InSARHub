@@ -198,9 +198,12 @@ export default function TopBar({
         value={wktInput}
         onChange={e => setWktInput(e.target.value)}
         onBlur={handleWktBlur}
+        onKeyDown={e => {if (e.key === 'Enter')
+        {const value = wktInput.trim()
+            if (value) {onAoiWktChange(value)}e.currentTarget.blur()}}
+      }
         title={wktInput}
       />
-
       <div style={dividerStyle} />
 
       {/* Dates — shared with Filters panel */}

@@ -2238,6 +2238,25 @@ def cmd_analyzer(args, extra_args: list[str]):
               file=sys.stderr)
         sys.exit(1)
 
+    # A pre-split dolphin name ("ISCE3_Dolphin_PL" and friends) does not say
+    # which sensor it meant, and its registry alias points at the Sentinel-1
+    # analyzer -- correct for an ISCE3_Burst workdir, C-band-on-L-band for a
+    # NISAR one. The workdir's saved processor settles it, so an old command
+    # line re-run verbatim lands on the right analyzer instead of silently
+    # inverting with the wrong wavelength.
+    from insarhub.utils.config_io import resolve_legacy_analyzer_name
+    try:
+        _resolved = resolve_legacy_analyzer_name(
+            analyzer_name, _resolve_workdir(args.workdir))
+    except Exception:                                            # noqa: BLE001
+        _resolved = analyzer_name
+    if _resolved != analyzer_name:
+        print(f"[INFO] '{analyzer_name}' is a pre-split name; this workdir's "
+              f"processor makes it '{_resolved}'. Use that name directly to "
+              f"silence this notice.")
+        analyzer_name = _resolved
+        args.analyzer_name = _resolved
+
     action = getattr(args, "az_action", None)
 
     if getattr(args, "list_options", False):
@@ -2281,7 +2300,7 @@ def _az_run(args, extra_args: list[str]):
         if getattr(args, "container", None) is not None:
             overrides["container"] = _resolve_container_arg(args.analyzer_name, args.container)
 
-    # Self-contained analyzers (GMTSAR_SBAS, ISCE3_Dolphin_PL) run their whole
+    # Self-contained analyzers (GMTSAR_SBAS, the dolphin PL analyzers) run their whole
     # pipeline inside analyzer.run(), which itself re-invokes into --container
     # when set. They have no .mintpy.cfg and no prep_data/--step/plot
     # orchestration, so route them straight to run() instead of the MintPy step

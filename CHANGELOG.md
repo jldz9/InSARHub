@@ -2,12 +2,28 @@
 
 ## [0.4.0]
 
+### Analyzer Restructuring
+
+* Split `ISCE3_Dolphin_PL` into **`ISCE3_Dolphin_S1_PL`** (`ISCE3_Burst`) and **`ISCE3_Dolphin_NISAR_PL`** (`ISCE3_NISAR`), sharing a new `Dolphin_PL_Base_Analyzer`. One config per sensor fixes NISAR stacks silently inheriting the Sentinel-1 C-band wavelength — NISAR now reads it from the GSLC metadata. Supersedes the 0.4.0rc1 entry extending `ISCE3_Dolphin_PL` to both processors.
+* Renamed the analyzer modules onto one convention: `<backend>_base.py` for a base, `<processor>_<backend>_<sensor>_<method>.py` for a concrete analyzer. Class and registry names are unchanged; only deep module-path imports move.
+* Renamed the dolphin configs to `ISCE3_Dolphin_S1_PL_Config` / `ISCE3_Dolphin_NISAR_PL_Config`, keeping the old names as aliases.
+* Legacy analyzer names (`ISCE3_Dolphin_PL`, `Dolphin_SBAS`, `ISCE3_Dolphin_PL_NISAR`, …) still resolve, and are hidden from the analyzer list.
+* Pre-split saved configs are retargeted to the right sensor on read, using the processor recorded alongside them; the CLI does the same for a legacy `-N` name.
+
 ### Bug Fixes
 
 * Fixed CLI `--stacks PATH:FRAME` selecting nothing for `S1_Burst`. ASF returns no `frameNumber` on `SLC-BURST` products, so burst stacks key on `fullBurstID` (`124_264305_IW2`) — but the CLI coerced both halves of a token to `int`, producing a target that could never equal a burst key. Selectors are now kept as strings when they are not numeric and matched through a new `_stack_key_matches()` hook on the downloader, so `S1_Burst` accepts the full burst ID (`124:124_264305_IW2`), the burst index with subswath (`124:264305_IW2`), or a bare burst index (`124:264305`, which matches that index in every subswath, since ASF reuses an index across subswaths). Path zero-padding is ignored, so `87:87_185682_IW2` and `87:087_185682_IW2` select the same stack. `frame` is now forwarded to the ASF query only when every selector really is a frame number *and* the downloader queries on frame at all, keeping burst IDs out of `asf_search`'s int-range validator.
 * Fixed `filter()` silently falling back to the unfiltered search when no stack matched. `_subset` was assigned only in the non-empty branch, so `active_results` returned every stack the user had just excluded and downstream summary, pair selection and download all ran on the wrong set behind a single warning line. The subset is now committed even when empty.
 * Fixed CLI `--stacks` exiting `0` after matching no stacks. An explicit stack selection that matches nothing is a typo or a stale config, so it now exits non-zero and prints both the requested and the available stack keys.
 * Fixed empty downloader search results with `asf_search` 13.0.0. Its `should_use_asf_frame()` no longer detects a generic `platform=SENTINEL-1` query (it checks for a `shortName[]` CMR key while the query emits `shortName`, and its `platform[]` fallback only lists `SENTINEL-1A/-1B/-1C/-1D`), so `frame` silently queried the ESA frame and matched nothing. Sentinel-1 / ALOS / NISAR frame filters (including CLI `--stacks PATH:FRAME`) are now routed to `asfFrame` (`FRAME_NUMBER`), which works on both `asf_search` 12.x and 13.x.
+* Fixed `NameError: Fore` aborting the dolphin analyzer's empty-stack warning.
+* Fixed dolphin log lines, error messages and SLURM labels hardcoding `ISCE3_Dolphin_PL`.
+* Fixed `ISCE3_NISAR.compatible_analyzer` resolving to the Sentinel-1 analyzer.
+* Fixed `GMTSAR_SBAS` labelling its own workdir `GMTSAR_Mintpy_SBAS`, via the helper it builds in `prep_data()`.
+* Fixed `GMTSAR_SBAS` and both dolphin analyzers never recording themselves in `insarhub_config.json`, so a CLI run left the folder with no analyzer badge in the GUI.
+* Fixed the job-folder listing tagging every analyzer `MintPy`; tags now follow the actual engine, and `GMTSAR_S1` is tagged.
+* Fixed `S1_Burst` leaving an annotation-less `.SAFE` when `properties["bytes"]` came back as a string, which `s1reader` later rejected.
+* Fixed `ISCE3_Burst` SLURM job names colliding across workdirs, so one site's jobs blocked or cancelled another's.
 
 ### Downloader Output
 

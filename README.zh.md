@@ -101,7 +101,8 @@ insarhub-app
 | `ISCE2_Mintpy_SBAS` | `ISCE2_S1` | MintPy SBAS | 速度场 + 形变时序 |
 | `GMTSAR_Mintpy_SBAS` | `GMTSAR_S1` | MintPy SBAS（`prep_gmtsar.py`） | 速度场 + 形变时序 |
 | `GMTSAR_SBAS` | `GMTSAR_S1` | GMTSAR 原生 SBAS（`sbas` 二进制，无需 MintPy） | `disp_*.grd` + `vel.grd` |
-| `ISCE3_Dolphin_PL` | `ISCE3_Burst`、`ISCE3_NISAR` | dolphin 相位链接 | 累积形变、速度场、残差 |
+| `ISCE3_Dolphin_S1_PL` | `ISCE3_Burst` | dolphin 相位链接 | 累积形变、速度场、残差 |
+| `ISCE3_Dolphin_NISAR_PL` | `ISCE3_NISAR` | dolphin 相位链接（L 波段波长取自 GSLC 元数据） | 累积形变、速度场、残差 |
 
 ### 结果查看器
 
@@ -155,7 +156,7 @@ insarhub processor -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0
 | `insarhub-base` | `Hyp3_S1` + `Hyp3_Mintpy_SBAS`（通过 HyP3 处理 Sentinel-1） |
 | `insarhub-isce2-mintpy` | `ISCE2_S1` + `ISCE2_Mintpy_SBAS` |
 | `insarhub-gmtsar-mintpy` | `GMTSAR_S1` + GMTSAR 分析器 |
-| `insarhub-isce3-dolphin` | `ISCE3_Burst`、`ISCE3_NISAR` + `ISCE3_Dolphin_PL` |
+| `insarhub-isce3-dolphin` | `ISCE3_Burst`、`ISCE3_NISAR` + `ISCE3_Dolphin_S1_PL`、`ISCE3_Dolphin_NISAR_PL` |
 
 你也可以完全在容器中运行，而无需在本地安装任何东西。详情请参阅[容器运行指南](https://jldz9.github.io/InSARHub/advanced/container/)，若需自行构建镜像，请查看 [`docker/`](docker/) 下的 Dockerfile。
 

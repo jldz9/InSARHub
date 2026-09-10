@@ -1534,15 +1534,17 @@ function ProcessorPanel({ theme: t, folderPath, processorType, aoiWkt: _aoiWkt, 
       fetch(`${API}/api/workflows`).then(r => r.json()),
     ]).then(([settings, workflows]) => {
       // Only show analyzers CHAINED to this folder's processor -- an analyzer
-      // declares its upstream via compatible_processor (e.g. ISCE3_Dolphin_PL ->
-      // ISCE3_Burst). Showing every analyzer let the user pick one that cannot
-      // read this processor's output. Analyzers with no declared processor stay
-      // visible as a catch-all.
+      // declares its upstream via compatible_processor (e.g.
+      // ISCE3_Dolphin_S1_PL -> ISCE3_Burst). Showing every analyzer let the
+      // user pick one that cannot read this processor's output. Analyzers with
+      // no declared processor stay visible as a catch-all.
       const all = workflows.analyzers ?? {}
       const names: string[] = Object.keys(all).filter((n: string) => {
         // compatible_processor may be null/'all' (catch-all), a single name, or
-        // an array of names (an analyzer serving several upstreams, e.g.
-        // ISCE3_Dolphin_PL -> ["ISCE3_Burst","ISCE3_NISAR"]).
+        // an array of names (an analyzer serving several upstreams). The dolphin
+        // analyzers used to be the array case -- one class for both ISCE3
+        // upstreams -- and are now one per sensor, each a single name; the array
+        // branch stays for any analyzer that still declares several.
         const cp = all[n]?.compatible_processor
         if (!cp || cp === 'all') return true
         if (Array.isArray(cp)) return cp.includes(processorType) || cp.includes('all')
@@ -2595,7 +2597,7 @@ function JobRoleDrawer({ theme: t, job, role, cls, hidden, mapClickSignal, aoiWk
         />
       )}
 
-      {/* L3 Dolphin (ISCE3_Dolphin_PL) results viewer */}
+      {/* L3 Dolphin (ISCE3_Dolphin_S1_PL / ISCE3_Dolphin_NISAR_PL) results viewer */}
       {!hidden && dolphinViewerOpen && (
         <DolphinViewerDrawer
           theme={t}

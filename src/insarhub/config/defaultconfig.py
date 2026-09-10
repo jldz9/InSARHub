@@ -2328,14 +2328,23 @@ class GMTSAR_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
 
 
 @dataclass
-class ISCE3_Dolphin_PL_Config:
-    """Config for the dolphin time-series inversion (ISCE3_Dolphin_PL).
+class ISCE3_Dolphin_PL_Base_Config:
+    """Sensor-neutral base config for the dolphin time-series inversion.
 
-    Consumes an ISCE3_Burst stack: unwrapped interferograms plus their
-    connected-component labels. The wrapped-phase estimator is always dolphin's
+    Consumes an ISCE3 stack -- unwrapped interferograms plus their
+    connected-component labels -- from either ISCE3_Burst (Sentinel-1) or
+    ISCE3_NISAR (NISAR GSLC). The wrapped-phase estimator is always dolphin's
     phase linking (the processor delegates to dolphin's ``displacement.run``),
     so there is no "SBAS vs phase linking" switch here -- a config field would
     just be a second, silently-divergent source of truth.
+
+    NOT USED DIRECTLY: pick the child that matches the upstream --
+    ``ISCE3_Dolphin_S1_PL_Config`` or ``ISCE3_Dolphin_NISAR_PL_Config``.
+    Everything sensor-specific lives in those: ``wavelength`` above all, but
+    also whether ``los_projection`` and ``apply_water_mask`` mean anything
+    (both need processor stages -- ``static`` and ``dem`` -- that the NISAR
+    path does not run). This mirrors Mintpy_SBAS_Base_Config and its
+    per-upstream children.
 
     The quality raster used to pick the reference point is dolphin's stitched
     temporal coherence (``interferograms/temporal_coherence_*.tif``).
@@ -2346,8 +2355,10 @@ class ISCE3_Dolphin_PL_Config:
         method: L1 is robust to unwrapping errors and is the default; L2 is
             plain least squares and is faster but trusts every pair equally.
         wavelength: Radar wavelength in metres; converts radians to displacement.
-            Sentinel-1 C-band = 0.055465764662349676 (matches dolphin's
-            OPERA/DISP-S1 value exactly).
+            No default here on purpose -- it is the one field where a wrong
+            value produces plausible numbers instead of an error, so each child
+            supplies its own (S1 C-band constant; NISAR reads it from the GSLC
+            metadata). Setting it explicitly overrides both.
         run_velocity: Also fit a linear velocity over the stack.
         correlation_threshold: Drop pixels below this quality before inverting.
         reference_point: (row, col) to hold fixed. Auto-selected from the
@@ -2400,7 +2411,7 @@ class ISCE3_Dolphin_PL_Config:
         "output_dir": {"type": "text", "hint": "Where the time series is written. Defaults to workdir/timeseries."},
         "num_threads": {"type": "number", "step": 1, "hint": "Threads for the block-wise inversion."},
         "hpc_mode": {"type": "bool",
-                     "hint": "Submit the ISCE3_Dolphin_PL run as a single sbatch job. "
+                     "hint": "Submit the dolphin PL analyzer run as a single sbatch job. "
                              "SLURM resources come from sbatch_options.json (step \"sbas\") "
                              "in the workdir, generated automatically on first use. "
                              "num_threads is auto-derived from cpus_per_task."},
@@ -2408,7 +2419,7 @@ class ISCE3_Dolphin_PL_Config:
                       "hint": "Path to a .sif/Apptainer image or a Docker image reference with insarhub + dolphin installed — re-runs this analyzer inside the container instead of on the host. Not remembered between runs; set again for subsequent runs."},
     }
 
-    name: str                         = "ISCE3_Dolphin_PL_Config"
+    name: str                         = "ISCE3_Dolphin_PL_Base_Config"
     workdir: str | None               = None
     debug: bool                       = False
     unwrap_dir: str | None            = None
@@ -2416,7 +2427,10 @@ class ISCE3_Dolphin_PL_Config:
     output_dir: str | None            = None
 
     method: str                       = "L1"
-    wavelength: float                 = 0.055465764662349676
+    # None = "the child decides": the S1 child pins the C-band constant, the
+    # NISAR child derives it from the GSLC metadata. A wrong wavelength scales
+    # every displacement silently, so there is deliberately no fallback here.
+    wavelength: float | None          = None
     run_velocity: bool                = True
     correlation_threshold: float      = 0.2
     reference_point: str | None       = None
@@ -2441,3 +2455,102 @@ class ISCE3_Dolphin_PL_Config:
     container: str | None             = None
     # Default container image used when `--container` is passed with no value.
     container_default: str            = "ghcr.io/jldz9/insarhub-isce3-dolphin:dev"
+
+
+@dataclass
+class ISCE3_Dolphin_S1_PL_Config(ISCE3_Dolphin_PL_Base_Config):
+    """Dolphin time-series over a Sentinel-1 burst stack (ISCE3_Burst).
+
+    The historical defaults: C-band wavelength, and both ``apply_water_mask``
+    and ``los_projection`` available because ISCE3_Burst runs the ``dem`` and
+    ``static`` stages those read. Behaviour is identical to what
+    the single ``ISCE3_Dolphin_PL_Config`` used to do before it was split into
+    a base plus per-sensor children, so existing S1 configs keep working
+    unchanged.
+    """
+    name: str                         = "ISCE3_Dolphin_S1_PL_Config"
+
+    #: Sentinel-1 C-band, matching dolphin's OPERA/DISP-S1 value exactly.
+    wavelength: float | None          = 0.055465764662349676
+
+
+@dataclass
+class ISCE3_Dolphin_NISAR_PL_Config(ISCE3_Dolphin_PL_Base_Config):
+    """Dolphin time-series over a NISAR GSLC stack (ISCE3_NISAR).
+
+    Differs from the S1 child in three ways, each forced by what ISCE3_NISAR
+    actually produces:
+
+    - ``wavelength`` stays None and is read from the GSLC metadata at run time.
+      NISAR is L-band (~0.24 m, against C-band's 0.055 m), so inheriting the S1
+      constant would scale every displacement by ~4.3x with no error raised.
+      Frequency A and B differ, which is why this is derived per stack rather
+      than pinned to a second constant.
+    - ``apply_water_mask`` defaults False: it reads the processor's
+      ``dem/water_mask.tif`` and ISCE3_NISAR drops the ``dem`` stage entirely
+      (GSLC is already geocoded), so there is no mask to apply.
+    - ``los_projection`` is dropped from the UI: 'vertical' needs the
+      processor's ``static`` stage, and ISCE3_NISAR's STAGES are
+      (crop, ifg, stitch, unwrap). The field is inherited and still defaults to
+      'none' so nothing breaks, it is just not offered.
+
+    nisar_frequency/nisar_polarization mirror ISCE3_NISAR_Config and are used
+    to locate the centre frequency inside the GSLC .h5.
+    """
+    _ui_groups: ClassVar[list] = [
+        {"label": "Inversion",
+         "fields": ["method", "wavelength", "run_velocity",
+                    "correlation_threshold", "reference_point"]},
+        {"label": "NISAR GSLC",
+         "fields": ["nisar_frequency", "nisar_polarization"]},
+        {"label": "Stack input",
+         "fields": ["workdir", "unwrap_dir", "quality_file", "output_dir"]},
+        {"label": "Execution",
+         "fields": ["num_threads"]},
+        {"label": "HPC (SLURM)",
+         "fields": ["hpc_mode"]},
+        {"label": "Container",
+         "fields": ["container"]},
+    ]
+    _ui_fields: ClassVar[dict] = {
+        **ISCE3_Dolphin_PL_Base_Config._ui_fields,
+        "wavelength": {"type": "number", "step": 0.001,
+                       "hint": "Radar wavelength in m. Left empty it is read from the "
+                               "GSLC metadata (NISAR L-band is ~0.24 m). Set it only to "
+                               "override."},
+        "nisar_frequency": {"type": "select", "options": ["A", "B"],
+                            "hint": "GSLC frequency band group; must match the one the "
+                                    "ISCE3_NISAR processor phase-linked."},
+        "nisar_polarization": {"type": "select", "options": ["HH", "HV", "VV", "VH"],
+                               "hint": "Co-pol that was phase-linked. Must match the "
+                                       "ISCE3_NISAR processor setting."},
+    }
+
+    name: str                         = "ISCE3_Dolphin_NISAR_PL_Config"
+
+    #: None = derive from the GSLC metadata; see the class docstring.
+    wavelength: float | None          = None
+
+    # No dem stage upstream, so no dem/water_mask.tif exists to mask with.
+    apply_water_mask: bool            = False
+
+    nisar_frequency: str              = "A"
+    nisar_polarization: str           = "HH"
+
+
+#: Deprecated aliases for the pre-split / pre-rename names, so existing imports
+#: and saved configs keep resolving. Prefer the explicit current names.
+#:
+#: ``ISCE3_Dolphin_PL_Config`` aliases the S1 child rather than the base: until
+#: this config was split, it WAS the concrete Sentinel-1 config, so code doing
+#: ``ISCE3_Dolphin_PL_Config(workdir=...)`` keeps the C-band wavelength it has
+#: always had. Pointing it at the base instead would hand back
+#: ``wavelength=None`` and fail at inversion time.
+#:
+#: ``*_PL_S1_Config`` / ``*_PL_NISAR_Config`` are the token order used before
+#: these were aligned with their analyzers (ISCE3_Dolphin_S1_PL /
+#: ISCE3_Dolphin_NISAR_PL), which read sensor-then-method.
+ISCE3_Dolphin_PL_Config = ISCE3_Dolphin_S1_PL_Config
+ISCE3_Dolphin_PL_S1_Config = ISCE3_Dolphin_S1_PL_Config
+ISCE3_Dolphin_PL_NISAR_Config = ISCE3_Dolphin_NISAR_PL_Config
+

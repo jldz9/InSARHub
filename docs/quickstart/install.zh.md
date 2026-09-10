@@ -147,7 +147,7 @@ InSARHub 目前支持：
 
 === "ISCE3 + Dolphin"
 
-    涵盖 `ISCE3_Burst`（Sentinel-1 burst）与 `ISCE3_NISAR`（NISAR GSLC），以及 `ISCE3_Dolphin_PL` 分析器。
+    涵盖 `ISCE3_Burst`（Sentinel-1 burst）与 `ISCE3_NISAR`（NISAR GSLC），以及 `ISCE3_Dolphin_S1_PL`、`ISCE3_Dolphin_NISAR_PL` 分析器。
 
     ```bash
     ghcr.io/jldz9/insarhub-isce3-dolphin:dev

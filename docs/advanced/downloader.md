@@ -364,7 +364,7 @@ Downloader.available()
 
 === "S1_Burst"
 
-    `S1_Burst` is a specialized downloader that extends `ASF_Base_Downloader` for ASF's **SLC-BURST** dataset. A burst is roughly 1/9th of a full IW slice, so an AOI-limited burst stack pulls far less data than an equivalent `S1_SLC` search — the whole point of burst-based processing, and what makes the `ISCE3_Burst` / COMPASS workflow practical over a small target. Pair it with the `ISCE3_Burst` processor and the `ISCE3_Dolphin_PL` analyzer.
+    `S1_Burst` is a specialized downloader that extends `ASF_Base_Downloader` for ASF's **SLC-BURST** dataset. A burst is roughly 1/9th of a full IW slice, so an AOI-limited burst stack pulls far less data than an equivalent `S1_SLC` search — the whole point of burst-based processing, and what makes the `ISCE3_Burst` / COMPASS workflow practical over a small target. Pair it with the `ISCE3_Burst` processor and the `ISCE3_Dolphin_S1_PL` analyzer.
 
     Search, filter, summary, footprint and pair selection behave exactly as for `S1_SLC` (they reuse `ASF_Base_Downloader`); only `download()` differs — it hands the selected burst granules to `burst2safe`, which assembles them into valid `.SAFE` directories by merging the annotation/calibration/noise XML and writing a manifest.
 
@@ -451,7 +451,7 @@ Downloader.available()
 
 === "NISAR_GSLC"
 
-    `NISAR_GSLC` searches and downloads NISAR **L2 GSLC** (geocoded SLC) products via ASF. A GSLC is one already-geocoded complex SLC frame per date, so it feeds the `ISCE3_NISAR` processor directly (no coregistration, no geocoding) and on to the `ISCE3_Dolphin_PL` analyzer. Search, filter, footprint and pair selection reuse `ASF_Base_Downloader`; there is **no orbit download** — NISAR products carry their own state vectors.
+    `NISAR_GSLC` searches and downloads NISAR **L2 GSLC** (geocoded SLC) products via ASF. A GSLC is one already-geocoded complex SLC frame per date, so it feeds the `ISCE3_NISAR` processor directly (no coregistration, no geocoding) and on to the `ISCE3_Dolphin_NISAR_PL` analyzer. Search, filter, footprint and pair selection reuse `ASF_Base_Downloader`; there is **no orbit download** — NISAR products carry their own state vectors.
 
     !!! note "NISAR facets differ from Sentinel-1"
         NISAR carries polarization **per frequency band**, not in a single `polarization` field (which ASF leaves null): filter on `mainBandPolarization` (frequency A, the wide high-resolution band used for InSAR) and, where needed, `sideBandPolarization` (frequency B, the 5 MHz band for ionosphere). `rangeBandwidth` (e.g. `40+5`) is the acquisition mode — keep it constant across a stack so every date has the same resolution. `frameCoverage` (`FULL`/`PARTIAL`), `relativeOrbit` (path) and `frame` complete the facets. NISAR products also report no `beamMode`/`centerLat`/`centerLon`/`granuleType`/`md5sum`, and their `bytes` is a per-file map rather than a single number.

@@ -172,6 +172,38 @@ async def pick_folder():
     return {"path": None}
 
 
+def _analyzer_engine_tag(az_type: str) -> str | None:
+    """Short label for the ENGINE an analyzer inverts with, or None if unknown.
+
+    This used to be ``if az_type: tags.append("MintPy")`` -- every configured
+    analyzer was tagged "MintPy" regardless of what it actually runs, so a
+    dolphin stack and a GMTSAR-native one both showed a MintPy badge in the
+    folder list.
+
+    The family is read from the class rather than matched on the name: the two
+    base classes already ARE the "which engine" distinction (that is why the
+    CLI and /api/analyzer-steps branch on them too), so a new analyzer inherits
+    the right tag instead of needing another name added to a prefix list.
+    Registry lookup also means a legacy/aliased name still resolves.
+    """
+    if not az_type:
+        return None
+    from insarhub.analyzer.dolphin_base import Dolphin_PL_Base_Analyzer
+    from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer
+    from insarhub.core.registry import Analyzer
+
+    cls = Analyzer._registry.get(az_type)
+    if cls is None:
+        return None
+    if issubclass(cls, Mintpy_SBAS_Base_Analyzer):
+        return "MintPy"
+    if issubclass(cls, Dolphin_PL_Base_Analyzer):
+        return "dolphin"
+    if az_type.startswith("GMTSAR"):
+        return "GMTSAR"
+    return None
+
+
 def _scan_folder_jobs(scan_dir: Path) -> list[dict]:
     """Return folder dicts for direct children of scan_dir.
 
@@ -189,13 +221,22 @@ def _scan_folder_jobs(scan_dir: Path) -> list[dict]:
         cfg = read_insarhub_config(child)
         proc_type = cfg.get("processor", {}).get("type", "")
         az_type   = cfg.get("analyzer",  {}).get("type", "")
+        # NOTE: `tags` is API-only -- the GUI renders the `workflow` names below
+        # as its badges and never reads this field. Kept accurate anyway so any
+        # consumer of the endpoint gets the truth.
         tags: list[str] = []
         if proc_type.startswith("Hyp3"):
             tags.append("HyP3")
         if proc_type.startswith("ISCE"):
             tags.append("ISCE")
-        if az_type:
-            tags.append("MintPy")
+        if proc_type.startswith("GMTSAR"):
+            tags.append("GMTSAR")
+        az_tag = _analyzer_engine_tag(az_type)
+        if az_tag:
+            tags.append(az_tag)
+        # A GMTSAR stack analysed by GMTSAR's own sbas binary yields "GMTSAR"
+        # from BOTH the processor and the analyzer; de-dup, preserving order.
+        tags = list(dict.fromkeys(tags))
         workflow = {
             "downloader": cfg.get("downloader", {}).get("type", ""),
             "processor":  cfg.get("processor",  {}).get("type", ""),

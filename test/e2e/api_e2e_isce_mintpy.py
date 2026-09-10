@@ -74,7 +74,7 @@ def run_pipeline(workdir: Path) -> None:
     from insarhub.config import S1_SLC_Config, ISCE2_S1_Config, ISCE2_Mintpy_SBAS_Config
     from insarhub.downloader.s1_slc import S1_SLC
     from insarhub.processor.isce2_s1 import ISCE2_S1
-    from insarhub.analyzer.isce2_sbas import ISCE2_Mintpy_SBAS
+    from insarhub.analyzer.isce2_mintpy_s1_sbas import ISCE2_Mintpy_SBAS
 
     workdir.mkdir(parents=True, exist_ok=True)
 

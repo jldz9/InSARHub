@@ -245,7 +245,7 @@ Analyzer.available()
 
     The `ISCE2_Mintpy_SBAS` analyzer extends `Mintpy_SBAS_Base_Analyzer` and is preconfigured for ISCE2 `stackSentinel` outputs. `prep_data()` auto-discovers interferograms and geometry from the `isce/` directory and writes the MintPy config to `mintpy/.mintpy.cfg`. All MintPy outputs are written to `workdir/mintpy/`.
 
-    ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS
+    ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -283,7 +283,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.prep_data
+        ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -297,7 +297,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.run
+        ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -320,7 +320,7 @@ Analyzer.available()
         analyzer.cleanup()
         ```
 
-        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.cleanup
+        ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS.cleanup
             options:
                 members: false
                 show_source: false
@@ -330,7 +330,7 @@ Analyzer.available()
 
     The `GMTSAR_Mintpy_SBAS` analyzer runs MintPy SBAS time-series on the coherent stack produced by the `GMTSAR_S1` processor. It hands GMTSAR's geocoded `*_ll.grd` products and `baseline_table.dat` to MintPy's own `prep_gmtsar.py` loader (via the `mintpy.load.*` keys), so it works without any common alignment reference — every pair already shares a geographic grid. It is the MintPy analogue of `ISCE2_Mintpy_SBAS`, differing only in how it wires the `load_*` paths. Output is written to `workdir/gmtsar_mintpy/` (a dedicated directory, so it never collides with a Hyp3/ISCE MintPy run in the same workdir).
 
-    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS
+    ::: insarhub.analyzer.gmtsar_mintpy_s1_sbas.GMTSAR_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -368,7 +368,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.prep_data
+        ::: insarhub.analyzer.gmtsar_mintpy_s1_sbas.GMTSAR_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -382,7 +382,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.run
+        ::: insarhub.analyzer.gmtsar_mintpy_s1_sbas.GMTSAR_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -414,7 +414,7 @@ Analyzer.available()
 
     Because the inversion is a GMTSAR C binary, both `gmtsar_root` and `gmtsar_env_bin` are **required** in the config — the `sbas` binary and `gmt` come from GMTSAR's own install/conda env, not InSARHub's.
 
-    ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS
+    ::: insarhub.analyzer.gmtsar_s1_sbas.GMTSAR_SBAS
         options:
             members: false
             heading_level: 0
@@ -458,7 +458,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.prep_data
+        ::: insarhub.analyzer.gmtsar_s1_sbas.GMTSAR_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -472,19 +472,26 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.run
+        ::: insarhub.analyzer.gmtsar_s1_sbas.GMTSAR_SBAS.run
             options:
                 members: false
                 show_source: false
                 heading_level: 5
 
-=== "ISCE3_Dolphin_PL"
+=== "ISCE3_Dolphin_S1_PL"
 
-    The `ISCE3_Dolphin_PL` analyzer runs dolphin's `timeseries.run` on the unwrapped interferogram stack produced by **either** ISCE3 processor — `ISCE3_Burst` (Sentinel-1 bursts) or `ISCE3_NISAR` (NISAR GSLC). Both write the same `unwrapped/` + `interferograms/` layout, so one analyzer serves both; it appears in the GUI's analyzer dropdown for a workdir from either processor (its `compatible_processor` lists both). One analyzer also serves **both** of the processor's wrapped-phase estimators (`ifg_mode="network"` and `ifg_mode="phase_link"`) — the linear inversion is identical for both; only the quality raster used to pick the reference point and mask low-quality pixels differs (temporal coherence for `phase_link`, a temporal average of pairwise correlations for `network`). The estimator choice is read from the stack's `ifg_manifest.json`, never re-specified here. Output is written under `workdir/timeseries/`.
+    The `ISCE3_Dolphin_S1_PL` analyzer runs dolphin's `timeseries.run` on the unwrapped interferogram stack produced by the `ISCE3_Burst` processor (Sentinel-1 bursts). Output is written under `workdir/timeseries/`.
+
+    There is **one analyzer per upstream**: this one for `ISCE3_Burst`, and [`ISCE3_Dolphin_NISAR_PL`](#) for `ISCE3_NISAR`. The two share their entire inversion through `Dolphin_PL_Base_Analyzer` (`analyzer/dolphin_base.py`) and differ only in the config bound to them and in how the radar wavelength is obtained. This used to be a single analyzer whose `compatible_processor` listed both upstreams, but `default_config` is a per-class binding and nothing dispatched on the actual upstream, so a NISAR stack silently inherited the Sentinel-1 C-band wavelength — scaling every displacement by roughly 4.3x with no error raised anywhere.
+
+    The wrapped-phase estimator is always dolphin's phase linking (the processor's engine is a thin wrapper over dolphin's `displacement.run`), so there is no estimator switch here. The quality raster used to pick the reference point and mask low-quality pixels is dolphin's stitched temporal coherence (`interferograms/temporal_coherence_*.tif`).
 
     Water is masked out of the inversion by default (`apply_water_mask=True`), using the processor's `dem/water_mask.tif` exactly the way dolphin's own `displacement.run` does. With this on, the analyzer's velocity/displacement outputs are byte-identical to a native `dolphin run`; turn it off to invert every pixel (leaving open water in the outputs).
 
-    ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL
+    !!! note "Legacy names"
+        `ISCE3_Dolphin_PL`, `ISCE3_Dolphin_TS`, `Dolphin_TS` and `Dolphin_SBAS` all still resolve to this analyzer, so saved `insarhub_config.json` files and older CLI commands keep working. They are hidden from the analyzer list. The same applies to the config class: `ISCE3_Dolphin_PL_Config` and `ISCE3_Dolphin_PL_S1_Config` are aliases of `ISCE3_Dolphin_S1_PL_Config`.
+
+    ::: insarhub.analyzer.isce3_dolphin_s1_pl.ISCE3_Dolphin_S1_PL
         options:
             members: false
             heading_level: 0
@@ -496,19 +503,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('ISCE3_Dolphin_PL', workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_S1_PL', workdir='/your/work/dir')
         ```
 
         OR with explicit config:
 
         ```python
-        from insarhub.config.defaultconfig import ISCE3_Dolphin_PL_Config
+        from insarhub.config.defaultconfig import ISCE3_Dolphin_S1_PL_Config
 
-        cfg = ISCE3_Dolphin_PL_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('ISCE3_Dolphin_PL', config=cfg)
+        cfg = ISCE3_Dolphin_S1_PL_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_S1_PL', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_PL_Config
+        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_S1_PL_Config
             options:
                 members: false
                 show_source: false
@@ -522,7 +529,66 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL.run
+        ::: insarhub.analyzer.dolphin_base.Dolphin_PL_Base_Analyzer.run
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+=== "ISCE3_Dolphin_NISAR_PL"
+
+    The `ISCE3_Dolphin_NISAR_PL` analyzer is the NISAR counterpart of `ISCE3_Dolphin_S1_PL`: same dolphin `timeseries.run`, same products, same `workdir/timeseries/` output. It consumes the stack produced by the `ISCE3_NISAR` processor (NISAR GSLC) and inherits the whole inversion from `Dolphin_PL_Base_Analyzer`.
+
+    Three things differ, each forced by what `ISCE3_NISAR` actually produces:
+
+    - **Wavelength is read from the GSLC metadata**, not pinned to a constant. NISAR is L-band (~0.24 m against C-band's 0.055 m), and its frequency A and B groups have different centre frequencies, so the value is looked up in the granule (`centerFrequency` under `/science/LSAR/...`) and converted with `c / f`. Set `wavelength` explicitly to override.
+    - **`apply_water_mask` defaults to `False`.** It reads the processor's `dem/water_mask.tif`, and `ISCE3_NISAR` drops the `dem` stage entirely (GSLC is already geocoded), so there is no mask to apply.
+    - **`los_projection` is not offered.** `'vertical'` needs the processor's `static` stage, and `ISCE3_NISAR`'s stages are (crop, ifg, stitch, unwrap). The field is still inherited and still defaults to `'none'`, it is just hidden from the UI.
+
+    `nisar_frequency` / `nisar_polarization` mirror `ISCE3_NISAR_Config` and must match what the processor phase-linked — they are what locates the centre frequency inside the GSLC `.h5`.
+
+    !!! note "Legacy name"
+        `ISCE3_Dolphin_PL_NISAR` still resolves to this analyzer, and `ISCE3_Dolphin_PL_NISAR_Config` is an alias of `ISCE3_Dolphin_NISAR_PL_Config`.
+
+    ::: insarhub.analyzer.isce3_dolphin_nisar_pl.ISCE3_Dolphin_NISAR_PL
+        options:
+            members: false
+            heading_level: 0
+
+    ### Usage
+
+    - **Create Analyzer**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('ISCE3_Dolphin_NISAR_PL', workdir='/your/work/dir')
+        ```
+
+        OR with explicit config:
+
+        ```python
+        from insarhub.config.defaultconfig import ISCE3_Dolphin_NISAR_PL_Config
+
+        cfg = ISCE3_Dolphin_NISAR_PL_Config(workdir='/your/work/dir', nisar_frequency='A')
+        analyzer = Analyzer.create('ISCE3_Dolphin_NISAR_PL', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_NISAR_PL_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **Run**
+
+        Run the dolphin time-series inversion (cumulative displacement, velocity, residuals) for the stack in this workdir.
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.dolphin_base.Dolphin_PL_Base_Analyzer.run
             options:
                 members: false
                 show_source: false

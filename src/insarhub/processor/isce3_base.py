@@ -24,6 +24,7 @@ conda env, not necessarily the one InSARHub runs from -- so this module (and
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import os
 import shutil
@@ -228,6 +229,27 @@ class ISCE3_Base(LocalProcessor):
             f"  Re-run submit from an environment that has {tag}'s processing "
             f"stack installed.")
 
+    def _job_prefix(self, stage: str | None = None) -> str:
+        """SLURM job-name stem for this WORKDIR, optionally narrowed to a stage.
+
+        The site tag is what makes the name specific to one run. Without it a
+        campaign driving N sites under one user shares a single namespace: every
+        site's dem manager is `b_dem_mgr`, so _check_no_live_jobs() reads
+        another site's live jobs as this site's and refuses to submit, cancel()
+        scancels all N sites, and refresh() reports RUNNING for a stage that is
+        not running here. The tag hashes the workdir rather than using
+        config.name_prefix because the prefix is user-settable, is truncated by
+        callers, and carries no uniqueness guarantee -- the workdir is the thing
+        that actually defines a site.
+
+        The tag sits BEFORE the stage so every consumer stays a single
+        startswith(): stage names are prefixes, not fixed-width fields (a phase
+        is `<stage>__<phase>`), and a trailing tag would sit at an unknown
+        offset and be the first thing lost to the length cap.
+        """
+        tag = hashlib.sha1(str(self.workdir).encode()).hexdigest()[:4]
+        return f"b_{tag}_{stage}" if stage else f"b_{tag}_"
+
     def _check_no_live_jobs(self, tag: str, stages: list[str], force: bool) -> None:
         """Refuse to submit a stage that already has jobs in the queue.
 
@@ -255,9 +277,10 @@ class ISCE3_Base(LocalProcessor):
         busy: dict[str, list[str]] = {}
         for jid, name in live.items():
             for s in stages:
-                # children are b_<stage>_<idx>, managers b_<stage>_mgr; a phase
-                # of a stage is b_<stage>__<phase>_*, so prefix-match the stage.
-                if name.startswith(f"b_{s}"):
+                # children are b_<tag>_<stage>_<idx>, managers
+                # b_<tag>_<stage>_mgr; a phase of a stage is
+                # b_<tag>_<stage>__<phase>_*, so prefix-match the stage.
+                if name.startswith(self._job_prefix(s)):
                     busy.setdefault(s, []).append(jid)
         if not busy or force:
             if busy and force:
@@ -448,7 +471,7 @@ class ISCE3_Base(LocalProcessor):
                         for c in cmds]
 
             scripts.append(build_sliding_window_manager(
-                job_name_base=f"b_{key}"[:24],
+                job_name_base=self._job_prefix(key)[:32],
                 commands=cmds,
                 log_dir=d / "logs",
                 sbatch_dir=d / "sbatch",
@@ -630,7 +653,7 @@ class ISCE3_Base(LocalProcessor):
         # Children are submitted by the manager at run time, so their ids are
         # only discoverable from the queue -- match on the job-name stem.
         for jid, name in self._live_job_names().items():
-            if name.startswith("b_"):
+            if name.startswith(self._job_prefix()):
                 ids.add(str(jid))
         if ids:
             subprocess.run(["scancel", *sorted(ids)], text=True)
@@ -951,7 +974,8 @@ class ISCE3_Base(LocalProcessor):
             # FAILED marker left by a manager that died is stale the moment a
             # new one is resubmitted for the same stage. Believing the marker
             # there reports FAILED over a run that is actively progressing.
-            live = any(n.startswith(f"b_{s}") for n in active.values())
+            live = any(n.startswith(self._job_prefix(s))
+                       for n in active.values())
             if status == _SUCCEEDED:
                 # Sticky. A stage that produced everything it owes stays
                 # SUCCEEDED -- a later partial resubmission, or leftover .fail
@@ -1017,7 +1041,8 @@ class ISCE3_Base(LocalProcessor):
         print("  " + "-" * 62)
         print(f"  {summary}")
         if active:
-            mine = [j for j, n in active.items() if n.startswith("b_")]
+            mine = [j for j, n in active.items()
+                    if n.startswith(self._job_prefix())]
             if mine:
                 print(f"  {len(mine)} job(s) live in SLURM")
         return self.jobs

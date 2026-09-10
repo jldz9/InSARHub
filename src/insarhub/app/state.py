@@ -29,9 +29,9 @@ import insarhub.downloader.nisar_gunw   # noqa: F401
 import insarhub.processor.hyp3_s1    # noqa: F401
 import insarhub.processor.isce2_s1    # noqa: F401
 import insarhub.processor.isce3_nisar # noqa: F401
-import insarhub.analyzer.hyp3_sbas      # noqa: F401
+import insarhub.analyzer.hyp3_mintpy_s1_sbas      # noqa: F401
 import insarhub.analyzer.mintpy_base    # noqa: F401
-import insarhub.analyzer.isce2_sbas      # noqa: F401
+import insarhub.analyzer.isce2_mintpy_s1_sbas      # noqa: F401
 
 from insarhub.core.registry import Downloader, Processor, Analyzer
 

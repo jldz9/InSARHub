@@ -1,4 +1,4 @@
-"""Time-series inversion for ISCE3_Burst stacks, via dolphin.
+"""Sensor-neutral base for the dolphin time-series (phase-linking) analyzers.
 
 The processor's engine is a thin wrapper over dolphin's ``displacement.run``, so
 the wrapped-phase estimator is always dolphin's phase linking. What reaches this
@@ -15,6 +15,20 @@ is dolphin's stitched temporal coherence (``interferograms/temporal_coherence_*.
 ``timeseries.run`` refuses to run without one (``Must provide quality_file if
 not reference_point given``), since it has no other way to choose a stable
 reference pixel.
+
+NOT REGISTERED and not used directly: this class deliberately defines no
+``name``, so ``BaseAnalyzer.__init_subclass__`` skips it and it never appears in
+the Analyzer registry or the GUI dropdown. Pick the concrete analyzer that
+matches the upstream instead -- :class:`~insarhub.analyzer.isce3_dolphin_s1_pl.ISCE3_Dolphin_S1_PL`
+(ISCE3_Burst / Sentinel-1) or
+:class:`~insarhub.analyzer.isce3_dolphin_nisar_pl.ISCE3_Dolphin_NISAR_PL`
+(ISCE3_NISAR / NISAR GSLC). This mirrors the MintPy family's
+``mintpy_base.Mintpy_SBAS_Base_Analyzer`` and its per-upstream children.
+
+Everything here is sensor-neutral. The one genuinely sensor-specific quantity is
+the radar wavelength, which :meth:`Dolphin_PL_Base_Analyzer._wavelength` leaves
+without a fallback on purpose: a wrong wavelength produces plausible-looking
+displacement instead of an error, so each child supplies its own.
 """
 
 from __future__ import annotations
@@ -25,22 +39,25 @@ import os
 from pathlib import Path
 from typing import Any
 
-from insarhub.config import ISCE3_Dolphin_PL_Config
+# Module-level, not inside a method: prep_data() below prints a Fore.YELLOW
+# warning on the empty-stack path. colorama used to be imported only inside
+# submit_hpc(), so that warning raised NameError instead of printing.
+from colorama import Fore, Style
+
 from insarhub.core.base import BaseAnalyzer
+from insarhub.utils.tool import write_workflow_marker
 
 logger = logging.getLogger(__name__)
 
 
-class ISCE3_Dolphin_PL(BaseAnalyzer):
-    name = "ISCE3_Dolphin_PL"
-    aliases = ("Dolphin_SBAS", "Dolphin_TS", "ISCE3_Dolphin_TS")   # legacy names
-    description = ("Time-series inversion of an ISCE3 (burst or NISAR GSLC) stack "
-                   "with dolphin: cumulative displacement per date, velocity, residuals.")
-    # Dolphin drives the time-series for both ISCE3 processors: the Sentinel-1
-    # burst stack (ISCE3_Burst) and the NISAR GSLC stack (ISCE3_NISAR). A tuple
-    # matches either upstream -- see core.base._compatible_processor.
-    compatible_processor = ("ISCE3_Burst", "ISCE3_NISAR")
-    default_config = ISCE3_Dolphin_PL_Config
+class Dolphin_PL_Base_Analyzer(BaseAnalyzer):
+    """Shared dolphin ``timeseries.run`` inversion, upstream-agnostic.
+
+    Subclasses supply the registry identity (``name``, ``aliases``,
+    ``description``), the upstream they read (``compatible_processor``), the
+    config bound to them (``default_config``), and -- where the sensor demands
+    it -- their own :meth:`_wavelength`.
+    """
 
     def __init__(self, config=None):
         super().__init__(config=config)
@@ -74,6 +91,22 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
     def _footprint_path(self) -> Path:
         """Boolean interferogram-footprint mask written by prep_data()."""
         return self.unwrap_dir.parent / "footprint_mask.tif"
+
+    def _wavelength(self) -> float:
+        """Radar wavelength in metres, or raise saying how to supply it.
+
+        Deliberately has no fallback constant. The previous code defaulted to
+        C-band here AND in the config, so a stack from any other sensor was
+        scaled by the wrong wavelength and produced plausible-looking
+        displacement with no error anywhere. A missing wavelength is a stop.
+        """
+        w = getattr(self.config, "wavelength", None)
+        if w:
+            return float(w)
+        raise ValueError(
+            f"{self.name}: no radar wavelength. Set `wavelength` (metres) on "
+            f"{type(self.config).__name__}; Sentinel-1 C-band is "
+            f"0.055465764662349676.")
 
     def water_mask_path(self) -> Path | None:
         """The processor's water mask (dem/water_mask.tif), or None if absent.
@@ -158,7 +191,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
         import rasterio
         mask, prof = self._compute_footprint()
         if mask is None:
-            print(f"{Fore.YELLOW}[ISCE3_Dolphin_PL] prep_data: no unwrapped "
+            print(f"{Fore.YELLOW}[{self.name}] prep_data: no unwrapped "
                   f"interferograms in {self.unwrap_dir}{Fore.RESET}")
             return
         self._footprint_path.parent.mkdir(parents=True, exist_ok=True)
@@ -166,7 +199,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
                 "compress": "deflate"}
         with rasterio.open(self._footprint_path, "w", **prof) as dst:
             dst.write(mask.astype("uint8"), 1)
-        print(f"[ISCE3_Dolphin_PL] prep_data: footprint mask "
+        print(f"[{self.name}] prep_data: footprint mask "
               f"({int(mask.sum())} valid px, {100*mask.mean():.0f}% of grid) "
               f"-> {self._footprint_path}")
 
@@ -205,7 +238,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
             with rasterio.open(tif, "w", **prof) as dst:
                 dst.write(a, 1)
             n += 1
-        print(f"[ISCE3_Dolphin_PL] masked {n} output raster(s) to the scene "
+        print(f"[{self.name}] masked {n} output raster(s) to the scene "
               f"footprint (NaN outside)")
 
     def inputs(self) -> tuple[list[Path], list[Path]]:
@@ -214,7 +247,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
                      if "conncomp" not in p.name)
         if not unw:
             raise FileNotFoundError(
-                f"ISCE3_Dolphin_PL: no unwrapped interferograms in {self.unwrap_dir}; "
+                f"{self.name}: no unwrapped interferograms in {self.unwrap_dir}; "
                 "run the processor's 'unwrap' stage first")
         ccl, missing = [], []
         for u in unw:
@@ -223,9 +256,9 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
         if missing:
             # Not fatal, but worth saying plainly: without them the inversion
             # cannot tell an unwrapping jump from real displacement.
-            logger.warning("ISCE3_Dolphin_PL: %d interferogram(s) have no conncomp; "
+            logger.warning("%s: %d interferogram(s) have no conncomp; "
                            "inverting without connected-component masking",
-                           len(missing))
+                           self.name, len(missing))
             return unw, []
         return unw, ccl
 
@@ -264,7 +297,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
         stitched = self.workdir / "interferograms"
         cors = sorted(stitched.glob("*.int.cor.tif"))
         if not cors:
-            logger.warning("ISCE3_Dolphin_PL: no correlation rasters in %s", stitched)
+            logger.warning("%s: no correlation rasters in %s", self.name, stitched)
             return None
         from dolphin import timeseries
 
@@ -274,8 +307,8 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
                 file_list=cors, output_file=out,
                 block_shape=tuple(getattr(self.config, "block_shape", (256, 256))),
                 num_threads=int(getattr(self.config, "num_threads", 4)))
-            logger.info("ISCE3_Dolphin_PL: built %s from %d correlation rasters",
-                        out.name, len(cors))
+            logger.info("%s: built %s from %d correlation rasters",
+                        self.name, out.name, len(cors))
         return out
 
     # ------------------------------------------------------------------
@@ -313,10 +346,11 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
 
         los_up = self.workdir / "geometry" / "los_up.tif"
         if not los_up.exists():
-            logger.error("ISCE3_Dolphin_PL: los_projection='vertical' needs %s -- "
+            logger.error("%s: los_projection='vertical' needs %s -- "
                          "run the processor's 'los' stage (it mosaics COMPASS's "
                          "per-burst static layers onto the interferogram grid, "
-                         "so it runs after 'stitch', not inside 'static')", los_up)
+                         "so it runs after 'stitch', not inside 'static')",
+                         self.name, los_up)
             return 0
         dest = self.out_dir / "vertical"
         dest.mkdir(parents=True, exist_ok=True)
@@ -337,8 +371,9 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
                     inv = np.where(uu > 1e-6, 1.0 / uu, np.nan)
                 ref_shape = a.shape
                 if inv.shape != a.shape:
-                    logger.error("ISCE3_Dolphin_PL: could not match los_up to %s "
-                                 "(%s vs %s); skipping", f.name, inv.shape, a.shape)
+                    logger.error("%s: could not match los_up to %s "
+                                 "(%s vs %s); skipping",
+                                 self.name, f.name, inv.shape, a.shape)
                     continue
             io.write_arr(arr=(a * inv).astype("float32"),
                          output_name=dest / f.name, like_filename=f,
@@ -369,12 +404,9 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
         job was allocated instead of the config default.
         """
         import dataclasses
-        import os
         import shutil
         import subprocess
         import sys as _sys
-
-        from colorama import Fore, Style
 
         from insarhub.processor.isce2_base import (
             _merge_sbatch_opts, load_or_init_sbatch_options,
@@ -401,7 +433,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
             "sbas": {},
         }
         per_step = load_or_init_sbatch_options(
-            Path(self.workdir), "sbas", "ISCE3_Dolphin_PL",
+            Path(self.workdir), "sbas", type(self).name,
             default_template=default_template)
         if per_step is None:
             return None
@@ -460,7 +492,8 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
             "log":     str(self.out_dir / f"dolphin_slurm_{job_id}.out"),
         }, indent=2))
 
-        print(f"{Fore.GREEN}ISCE3_Dolphin_PL job submitted: {job_id}{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}{type(self).name} job submitted: {job_id}"
+              f"{Style.RESET_ALL}")
         print(f"  script : {sbatch_script}")
         print(f"  log    : {self.out_dir}/dolphin_slurm_{job_id}.out")
         return job_id
@@ -496,6 +529,13 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
     # ------------------------------------------------------------------
 
     def run(self, steps=None) -> Any:
+        # Stamp the folder with THIS analyzer, the way
+        # Mintpy_SBAS_Base_Analyzer does for the MintPy family -- without it a
+        # CLI-driven dolphin run leaves no `analyzer` section in
+        # insarhub_config.json, so the GUI shows no analyzer badge for the
+        # folder. Done at run() rather than __init__ so merely constructing the
+        # analyzer (schema probes, --list-options) writes nothing.
+        write_workflow_marker(self.workdir, analyzer=type(self).name)
         if getattr(self.config, "container", None) and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             return self._run_via_container(steps)
         from dolphin import timeseries
@@ -512,20 +552,20 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
                 r, c = (int(x) for x in str(rp).replace(" ", "").split(","))
                 ref = (r, c)
             except Exception:                                    # noqa: BLE001
-                raise ValueError(f"ISCE3_Dolphin_PL: reference_point must be "
+                raise ValueError(f"{self.name}: reference_point must be "
                                  f"'row,col', got {rp!r}") from None
         if q is None and ref is None:
             raise FileNotFoundError(
-                "ISCE3_Dolphin_PL: need a quality raster to choose a reference "
+                f"{self.name}: need a quality raster to choose a reference "
                 "point, and none was found. Either run the processor's 'ifg' "
                 "stage in phase_link mode (which writes temporal coherence), "
                 "or set config.reference_point='row,col'.")
 
         self.out_dir.mkdir(parents=True, exist_ok=True)
-        print(f"[ISCE3_Dolphin_PL] stack mode   : {mode}")
-        print(f"[ISCE3_Dolphin_PL] interferograms: {len(unw)}  conncomp: {len(ccl)}")
-        print(f"[ISCE3_Dolphin_PL] quality file : {q.name if q else '(reference_point given)'}")
-        print(f"[ISCE3_Dolphin_PL] method       : {getattr(self.config,'method','L1')}")
+        print(f"[{self.name}] stack mode   : {mode}")
+        print(f"[{self.name}] interferograms: {len(unw)}  conncomp: {len(ccl)}")
+        print(f"[{self.name}] quality file : {q.name if q else '(reference_point given)'}")
+        print(f"[{self.name}] method       : {getattr(self.config,'method','L1')}")
 
         method = timeseries.InversionMethod(str(
             getattr(self.config, "method", "L1")).upper())
@@ -533,7 +573,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
         # (apply_mask_to_timeseries=True -> mask_path=water mask). On by default.
         wmask = (self.water_mask_path()
                  if bool(getattr(self.config, "apply_water_mask", True)) else None)
-        print(f"[ISCE3_Dolphin_PL] water mask   : {wmask.name if wmask else '(none)'}")
+        print(f"[{self.name}] water mask   : {wmask.name if wmask else '(none)'}")
         res = timeseries.run(
             unwrapped_paths=unw,
             conncomp_paths=ccl or None,
@@ -542,7 +582,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
             method=method,
             reference_point=ref,
             run_velocity=bool(getattr(self.config, "run_velocity", True)),
-            wavelength=float(getattr(self.config, "wavelength", 0.055465764662349676)),
+            wavelength=self._wavelength(),
             correlation_threshold=float(
                 getattr(self.config, "correlation_threshold", 0.0)),
             mask_path=str(wmask) if wmask else None,
@@ -553,9 +593,9 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
         disp = sorted(p for p in self.out_dir.glob("*.tif")
                       if p.name[0].isdigit())
         vel = self.out_dir / "velocity.tif"
-        print(f"[ISCE3_Dolphin_PL] displacement rasters: {len(disp)}")
+        print(f"[{self.name}] displacement rasters: {len(disp)}")
         if vel.exists():
-            print(f"[ISCE3_Dolphin_PL] velocity            : {vel}")
+            print(f"[{self.name}] velocity            : {vel}")
 
         # Optional insarhub-specific cleanup (off by default): trim the outputs
         # to the interferogram footprint. dolphin fills the whole padded grid; by
@@ -569,6 +609,7 @@ class ISCE3_Dolphin_PL(BaseAnalyzer):
 
         if str(getattr(self.config, "los_projection", "none")).lower() == "vertical":
             n = self._project_to_vertical(disp + ([vel] if vel.exists() else []))
-            print(f"[ISCE3_Dolphin_PL] projected to vertical: {n} raster(s) "
+            print(f"[{self.name}] projected to vertical: {n} raster(s) "
                   f"-> {self.out_dir / 'vertical'}")
         return res
+

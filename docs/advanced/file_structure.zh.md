@@ -101,7 +101,7 @@ InSARHub 在流程推进过程中会向磁盘写入一组一致的文件。每�
     ├── cslc/                           # 每个 burst-日期的地理编码 CSLC（COMPASS）
     ├── ifgrams/                        # 干涉图（dolphin）
     ├── stitched/                       # 每对合并的 burst
-    ├── timeseries/                     # dolphin 时序输出（ISCE3_Dolphin_PL）
+    ├── timeseries/                     # dolphin 时序输出（ISCE3_Dolphin_S1_PL）
     ├── isce3_burst_jobs.json           # 已保存任务状态（按阶段）
     └── .stage_status/                  # 每个阶段的 .succeeded/.failed 标记
     ```
@@ -121,7 +121,7 @@ InSARHub 在流程推进过程中会向磁盘写入一组一致的文件。每�
     ├── PS/                             # 永久散射体幅度离差
     ├── interferograms/                 # 地理编码干涉图 + 相关系数（dolphin）
     ├── unwrapped/                      # 地理编码解缠相位 + 连通分量
-    ├── timeseries/                     # dolphin 时序输出（ISCE3_Dolphin_PL）
+    ├── timeseries/                     # dolphin 时序输出（ISCE3_Dolphin_NISAR_PL）
     ├── isce3_nisar_jobs.json           # 已保存任务状态（按阶段）
     └── .stage_status/                  # 每个阶段的 .succeeded/.failed 标记
     ```

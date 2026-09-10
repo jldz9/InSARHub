@@ -16,7 +16,13 @@ from .defaultconfig import (
     Hyp3_Mintpy_SBAS_Config,
     ISCE2_Mintpy_SBAS_Config,
     GMTSAR_SBAS_Config,
+    ISCE3_Dolphin_PL_Base_Config,
+    ISCE3_Dolphin_S1_PL_Config,
+    ISCE3_Dolphin_NISAR_PL_Config,
+    # deprecated aliases: pre-split name, and the pre-rename token order
     ISCE3_Dolphin_PL_Config,
+    ISCE3_Dolphin_PL_S1_Config,
+    ISCE3_Dolphin_PL_NISAR_Config,
     GMTSAR_Mintpy_SBAS_Config,
 )
 from .paths import Hyp3Paths, ISCEPaths, MintPyPaths, StackPaths
@@ -39,7 +45,12 @@ all = [
     "Hyp3_Mintpy_SBAS_Config",
     "ISCE2_Mintpy_SBAS_Config",
     "GMTSAR_SBAS_Config",
+    "ISCE3_Dolphin_PL_Base_Config",
+    "ISCE3_Dolphin_S1_PL_Config",
+    "ISCE3_Dolphin_NISAR_PL_Config",
     "ISCE3_Dolphin_PL_Config",
+    "ISCE3_Dolphin_PL_S1_Config",
+    "ISCE3_Dolphin_PL_NISAR_Config",
     "GMTSAR_Mintpy_SBAS_Config",
     "Hyp3Paths",
     "ISCEPaths",

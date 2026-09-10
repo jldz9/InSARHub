@@ -210,7 +210,7 @@ class TestMintpyAnalyzerContainerMode(unittest.TestCase):
         # inherits run()/submit_hpc()/_run_via_container() from the base class
         # unchanged, and has its own prep_data() override with the same
         # container short-circuit added at the top.
-        from insarhub.analyzer.hyp3_sbas import Hyp3_Mintpy_SBAS
+        from insarhub.analyzer.hyp3_mintpy_s1_sbas import Hyp3_Mintpy_SBAS
         from insarhub.config.defaultconfig import Hyp3_Mintpy_SBAS_Config
 
         cfg = Hyp3_Mintpy_SBAS_Config(workdir=str(self.workdir), container=container)

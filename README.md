@@ -101,7 +101,8 @@ Run time-series analysis step by step. Edit the network post-ingest, inspect dia
 | `ISCE2_Mintpy_SBAS` | `ISCE2_S1` | MintPy SBAS | Velocity + displacement time series |
 | `GMTSAR_Mintpy_SBAS` | `GMTSAR_S1` | MintPy SBAS (`prep_gmtsar.py`) | Velocity + displacement time series |
 | `GMTSAR_SBAS` | `GMTSAR_S1` | GMTSAR-native SBAS (`sbas` binary, no MintPy) | `disp_*.grd` + `vel.grd` |
-| `ISCE3_Dolphin_PL` | `ISCE3_Burst`, `ISCE3_NISAR` | dolphin phase-linking | Cumulative displacement, velocity, residuals |
+| `ISCE3_Dolphin_S1_PL` | `ISCE3_Burst` | dolphin phase-linking | Cumulative displacement, velocity, residuals |
+| `ISCE3_Dolphin_NISAR_PL` | `ISCE3_NISAR` | dolphin phase-linking (L-band wavelength from GSLC metadata) | Cumulative displacement, velocity, residuals |
 
 ### Results Viewer
 
@@ -155,7 +156,7 @@ Prebuilt images (`ghcr.io/jldz9/insarhub-*:dev`):
 | `insarhub-base` | `Hyp3_S1` + `Hyp3_Mintpy_SBAS` (Sentinel-1 via HyP3) |
 | `insarhub-isce2-mintpy` | `ISCE2_S1` + `ISCE2_Mintpy_SBAS` |
 | `insarhub-gmtsar-mintpy` | `GMTSAR_S1` + GMTSAR analyzers |
-| `insarhub-isce3-dolphin` | `ISCE3_Burst`, `ISCE3_NISAR` + `ISCE3_Dolphin_PL` |
+| `insarhub-isce3-dolphin` | `ISCE3_Burst`, `ISCE3_NISAR` + `ISCE3_Dolphin_S1_PL`, `ISCE3_Dolphin_NISAR_PL` |
 
 You can also run entirely inside a container instead of installing anything locally. See the [Container Execution guide](https://jldz9.github.io/InSARHub/advanced/container/) for details, and the Dockerfiles under [`docker/`](docker/) to build your own.
 

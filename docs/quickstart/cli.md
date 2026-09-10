@@ -155,7 +155,7 @@ Run the burst pipeline (dem, tec, cslc, static, ifg, stitch, unwrap, los), then 
     ```bash
     insarhub processor -N ISCE3_Burst -w /data/p56 submit  
     insarhub processor -N ISCE3_Burst -w /data/p56 refresh 
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p56 run
+    insarhub analyzer  -N ISCE3_Dolphin_S1_PL -w /data/p56 run
     ```
 
 === "Local (container)"
@@ -163,7 +163,7 @@ Run the burst pipeline (dem, tec, cslc, static, ifg, stitch, unwrap, los), then 
     ```bash
     insarhub processor -N ISCE3_Burst -w /data/p56 submit   --container
     insarhub processor -N ISCE3_Burst -w /data/p56 refresh  --container
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p56 run --container
+    insarhub analyzer  -N ISCE3_Dolphin_S1_PL -w /data/p56 run --container
     ```
 
 === "HPC (SLURM)"
@@ -171,7 +171,7 @@ Run the burst pipeline (dem, tec, cslc, static, ifg, stitch, unwrap, los), then 
     ```bash
     insarhub processor -N ISCE3_Burst -w /data/p56 submit   --hpc_mode
     insarhub processor -N ISCE3_Burst -w /data/p56 refresh 
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p56 run --hpc_mode
+    insarhub analyzer  -N ISCE3_Dolphin_S1_PL -w /data/p56 run --hpc_mode
     ```
 
 The velocity lands at `/data/p56/timeseries/velocity.tif` (already GeoTIFF — no `h5-to-raster` needed).
@@ -195,7 +195,7 @@ Run the dolphin pipeline (ifg, stitch, unwrap), then the Dolphin time-series:
     ```bash
     insarhub processor -N ISCE3_NISAR -w /data/p77 submit  
     insarhub processor -N ISCE3_NISAR -w /data/p77 refresh 
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p77 run
+    insarhub analyzer  -N ISCE3_Dolphin_NISAR_PL -w /data/p77 run
     ```
 
 === "Local (container)"
@@ -203,7 +203,7 @@ Run the dolphin pipeline (ifg, stitch, unwrap), then the Dolphin time-series:
     ```bash
     insarhub processor -N ISCE3_NISAR -w /data/p77 submit   --container
     insarhub processor -N ISCE3_NISAR -w /data/p77 refresh  --container
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p77 run --container
+    insarhub analyzer  -N ISCE3_Dolphin_NISAR_PL -w /data/p77 run --container
     ```
 
 === "HPC (SLURM)"
@@ -211,7 +211,7 @@ Run the dolphin pipeline (ifg, stitch, unwrap), then the Dolphin time-series:
     ```bash
     insarhub processor -N ISCE3_NISAR -w /data/p77 submit  --hpc_mode
     insarhub processor -N ISCE3_NISAR -w /data/p77 refresh 
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p77 run --hpc_mode
+    insarhub analyzer  -N ISCE3_Dolphin_NISAR_PL -w /data/p77 run --hpc_mode
     ```
 
 The velocity lands at `/data/p77/timeseries/velocity.tif`. To process the whole geocoded frame instead of the AOI window, add `--process_full_extent` (needs a large-memory host).

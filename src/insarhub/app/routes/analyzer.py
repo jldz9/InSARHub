@@ -97,7 +97,7 @@ async def folder_init_analyzer(req: InitAnalyzerRequest):
 
     # Populate network_aoiLALO from the folder's downloader AOI if still default.
     # Only MintPy-based analyzers carry this field; adding it to a standalone
-    # config (ISCE3_Dolphin_PL, GMTSAR_SBAS) would write a key their __init__ later
+    # config (the dolphin PL analyzers, GMTSAR_SBAS) would write a key their __init__ later
     # rejects on load.
     if "network_aoiLALO" in az_defaults and \
             az_defaults.get("network_aoiLALO", "auto") in ("auto", "", None):
@@ -121,7 +121,7 @@ async def get_analyzer_steps(analyzer_type: str):
 
     MintPy-family analyzers expose their per-step workflow (prep_data + named
     MintPy steps + plot). Self-contained analyzers (GMTSAR_SBAS,
-    ISCE3_Dolphin_PL) invert in one shot via run(), so they expose a single
+    the dolphin PL analyzers) invert in one shot via run(), so they expose a single
     'sbas' step.
     """
     cls = Analyzer._registry.get(analyzer_type)
@@ -181,7 +181,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
             # Auto-bind AOI from insarhub_config.json downloader section →
             # network_aoiLALO. Only for MintPy-based analyzers: network_aoiLALO
             # lives on Mintpy_SBAS_Base_Config, so standalone configs
-            # (ISCE3_Dolphin_PL, GMTSAR_SBAS) don't have the field and passing it
+            # (the dolphin PL analyzers, GMTSAR_SBAS) don't have the field and passing it
             # to their __init__ would raise.
             if "network_aoiLALO" in valid_keys and \
                     init_kwargs.get("network_aoiLALO", "auto") in ("auto", "", None):
@@ -211,7 +211,7 @@ async def _run_analyzer(job_id: str, req: RunAnalyzerRequest):
                 cfg_path.parent.mkdir(parents=True, exist_ok=True)
                 cfg.write_mintpy_config(cfg_path)
 
-            # Self-contained analyzers (GMTSAR_SBAS, ISCE3_Dolphin_PL): run() is
+            # Self-contained analyzers (GMTSAR_SBAS, the dolphin PL analyzers): run() is
             # the whole pipeline -- it handles prep + --container re-invocation
             # internally. No per-step loop, no .mintpy.cfg, no plot().
             from insarhub.analyzer.mintpy_base import Mintpy_SBAS_Base_Analyzer

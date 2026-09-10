@@ -101,7 +101,7 @@ Single-stack layout — when only one track/frame is found, all files are writte
     ├── cslc/                           # geocoded CSLC per burst-date (COMPASS)
     ├── ifgrams/                        # interferograms (dolphin)
     ├── stitched/                       # per-pair merged bursts
-    ├── timeseries/                     # dolphin timeseries output (ISCE3_Dolphin_PL)
+    ├── timeseries/                     # dolphin timeseries output (ISCE3_Dolphin_S1_PL)
     ├── isce3_burst_jobs.json           # saved job state (per stage)
     └── .stage_status/                  # per-stage .succeeded/.failed markers
     ```
@@ -119,7 +119,7 @@ Single-stack layout — when only one track/frame is found, all files are writte
     ├── PS/                             # persistent-scatterer amplitude dispersion
     ├── interferograms/                 # geocoded interferograms + correlation (dolphin)
     ├── unwrapped/                      # geocoded unwrapped phase + connected components
-    ├── timeseries/                     # dolphin timeseries output (ISCE3_Dolphin_PL)
+    ├── timeseries/                     # dolphin timeseries output (ISCE3_Dolphin_NISAR_PL)
     ├── isce3_nisar_jobs.json           # saved job state (per stage)
     └── .stage_status/                  # per-stage .succeeded/.failed markers
     ```

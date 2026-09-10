@@ -546,7 +546,7 @@ Processor.available()
 
     - Stages are decomposed for SLURM — see [HPC (SLURM)](hpc.md). `cslc` is one job per burst-date and dominates runtime; `ifg` under `phase_link` is a single job, because the estimator has no per-pair unit.
     - The interferogram network is the **intersection** of dates across bursts. Where ASF has no coverage for one burst on one day, that date is excluded and named, so every pair stays formable on every burst.
-    - Time series is via the `ISCE3_Dolphin_PL` analyzer, which serves both estimator modes.
+    - Time series is via the `ISCE3_Dolphin_S1_PL` analyzer, which serves both estimator modes.
 
     ::: insarhub.processor.isce3_burst.ISCE3_Burst
         options:
@@ -555,7 +555,7 @@ Processor.available()
 
 === "ISCE3_NISAR"
 
-    The `ISCE3_NISAR` processor builds an interferogram stack from **NISAR L2 GSLC** granules using [dolphin](https://github.com/isce-framework/dolphin) for phase-linking, interferograms, and unwrapping. Pair it with the `NISAR_GSLC` downloader; the time series is via the `ISCE3_Dolphin_PL` analyzer (the same one `ISCE3_Burst` uses).
+    The `ISCE3_NISAR` processor builds an interferogram stack from **NISAR L2 GSLC** granules using [dolphin](https://github.com/isce-framework/dolphin) for phase-linking, interferograms, and unwrapping. Pair it with the `NISAR_GSLC` downloader; the time series is via the `ISCE3_Dolphin_NISAR_PL` analyzer (the same one `ISCE3_Burst` uses).
 
     It shares `ISCE3_Burst`'s dolphin engine but **skips all geocoding**. A NISAR GSLC is already a geocoded complex SLC — one frame per date — so unlike `ISCE3_Burst` there is no COMPASS front-end: the `dem`/`tec`/`cslc`/`static` stages are dropped entirely, and the GSLC grid feeds dolphin directly. Because NISAR is one frame per date (no OPERA burst split), `ifg` is a single `wrapped_phase.run` over the whole stack rather than one call per burst.
 

@@ -17,7 +17,7 @@ class InSAREngine:
 
         from insarhub.downloader.s1_slc import S1_SLC
         from insarhub.processor.hyp3_s1 import Hyp3_S1
-        from insarhub.analyzer.hyp3_sbas import Hyp3_Mintpy_SBAS
+        from insarhub.analyzer.hyp3_mintpy_s1_sbas import Hyp3_Mintpy_SBAS
         from insarhub.config import S1_SLC_Config, Hyp3_S1_Config, Hyp3_Mintpy_SBAS_Config
 
         engine = InSAREngine(

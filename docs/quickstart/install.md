@@ -152,7 +152,7 @@ Currently InSARHub support:
 
 === "ISCE3 + Dolphin"
 
-    Covers `ISCE3_Burst` (Sentinel-1 bursts) and `ISCE3_NISAR` (NISAR GSLC), plus the `ISCE3_Dolphin_PL` analyzer 
+    Covers `ISCE3_Burst` (Sentinel-1 bursts) and `ISCE3_NISAR` (NISAR GSLC), plus the `ISCE3_Dolphin_S1_PL` and `ISCE3_Dolphin_NISAR_PL` analyzers 
     
     ```bash
     ghcr.io/jldz9/insarhub-isce3-dolphin:dev

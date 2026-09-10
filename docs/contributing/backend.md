@@ -27,7 +27,8 @@ BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_Mintpy_SBA
                                                    ├──► ISCE2_Mintpy_SBAS
                                                    └──► GMTSAR_Mintpy_SBAS
                     ├──► GMTSAR_SBAS   (GMTSAR's own sbas binary, no MintPy)
-                    └──► ISCE3_Dolphin_PL  (dolphin timeseries for ISCE3_Burst)
+                    └──► Dolphin_PL_Base_Analyzer ──► ISCE3_Dolphin_S1_PL     (ISCE3_Burst)
+                                                    └──► ISCE3_Dolphin_NISAR_PL  (ISCE3_NISAR)
 ```
 
 Each mid-layer base class (`Hyp3Base`, `ISCE2_Base`, `ISCE3_Base`, `ASF_Base_Downloader`, `Mintpy_SBAS_Base_Analyzer`) implements all the shared infrastructure — auth, job tracking, HPC submission, file I/O. Concrete leaf classes only need to implement `submit()` (and `prep_data()`/`run()` for analyzers) with sensor-specific logic. `GMTSAR_S1` and `ISCE3_Burst` additionally split off large, single-processor helpers into private sibling modules (`processor/_gmtsar_esd_network.py` for GMTSAR's network-ESD misregistration, `processor/isce3_base.py` for ISCE3's stage/HPC machinery).

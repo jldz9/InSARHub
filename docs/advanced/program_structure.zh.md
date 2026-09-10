@@ -21,8 +21,8 @@ S1_SLC           →  Hyp3_S1           →  Hyp3_Mintpy_SBAS
                  →  ISCE2_S1          →  ISCE2_Mintpy_SBAS
                  →  GMTSAR_S1         →  GMTSAR_Mintpy_SBAS
                                       →  GMTSAR_SBAS
-S1_Burst         →  ISCE3_Burst       →  ISCE3_Dolphin_PL
-NISAR_GSLC       →  ISCE3_NISAR       →  ISCE3_Dolphin_PL
+S1_Burst         →  ISCE3_Burst       →  ISCE3_Dolphin_S1_PL
+NISAR_GSLC       →  ISCE3_NISAR       →  ISCE3_Dolphin_NISAR_PL
 ```
 
 任何本地后端都可以在容器内运行，而非在主机上——`--container` 的工作原理参见[容器运行](container.md)。

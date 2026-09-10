@@ -11,7 +11,7 @@ the GSLC HDF5 via a subdataset path and phase-links the stack::
     unwrap  snaphu + connected components       dolphin unwrapping.run
 
 Output lands in dolphin's native layout (``interferograms/``, ``unwrapped/``),
-which the ISCE3_Dolphin_PL analyzer inverts to a time series. Because NISAR is
+which the ISCE3_Dolphin_NISAR_PL analyzer inverts to a time series. Because NISAR is
 one frame per date (no OPERA bursts), ``ifg`` is a SINGLE ``wrapped_phase.run``
 over the whole stack rather than one call per burst.
 
@@ -37,10 +37,10 @@ class ISCE3_NISAR(ISCE3_Burst):
     name = "ISCE3_NISAR"
     description = (
         "NISAR L2 GSLC -> dolphin phase-linking + interferograms (no geocoding; "
-        "GSLC is already geocoded). Feeds the ISCE3_Dolphin_PL analyzer."
+        "GSLC is already geocoded). Feeds the ISCE3_Dolphin_NISAR_PL analyzer."
     )
     compatible_downloader = "NISAR_GSLC"
-    compatible_analyzer = "ISCE3_Dolphin_PL"
+    compatible_analyzer = "ISCE3_Dolphin_NISAR_PL"
     default_config = ISCE3_NISAR_Config
     JOBS_FILE = "isce3_nisar_jobs.json"
 

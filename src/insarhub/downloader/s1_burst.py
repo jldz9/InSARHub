@@ -31,6 +31,7 @@ from __future__ import annotations
 import io
 import logging
 import re
+import shutil
 from collections import defaultdict
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -703,6 +704,20 @@ class S1_Burst(ASF_Base_Downloader):
         from asf_search.download.download import _try_get_response
         import asf_search as asf
 
+        # asf_search reports properties["bytes"] as an int for most granules and
+        # as a str for some, so the resume check below raised TypeError ('>=' not
+        # supported between 'int' and 'str') for whichever dates happened to
+        # carry the str form. That escaped to the caller's outer handler, which
+        # abandoned the date AFTER burst2safe had copied the measurement tiff
+        # but before it wrote the annotation XMLs -- leaving an annotation-less
+        # <granule>_0000.SAFE on disk that s1reader later rejects with
+        # "burst <id> not in SAFE". Coerce, and treat an unusable value as
+        # unknown rather than fatal.
+        try:
+            expected_bytes = int(expected_bytes) if expected_bytes else None
+        except (TypeError, ValueError):
+            expected_bytes = None
+
         if dst.exists() and expected_bytes and dst.stat().st_size >= expected_bytes:
             return True
         thread_session = asf.ASFSession()
@@ -818,7 +833,16 @@ class S1_Burst(ASF_Base_Downloader):
                 on_progress(f"assembly failed {date_str}", 0)
             return None
         except Exception as exc:                                # noqa: BLE001
+            # Clean up here too, not just on the handled burst2safe failure
+            # above: an unexpected raise can land mid-assembly, and a partial
+            # .SAFE (measurement written, annotation/ empty) is worse than no
+            # .SAFE -- the date silently poisons cslc instead of being absent.
             logger.error("S1_Burst: date %s raised: %s", date_str, exc)
+            try:
+                self._cleanup_failed_date(date_str, granules, prods, out_dir, cfg)
+                self._remove_partial_safe(date_str, out_dir)
+            except Exception:                                   # noqa: BLE001
+                logger.exception("S1_Burst: cleanup after %s failed", date_str)
             return None
 
     def _warn_failed_date(self, date_str: str, granules: list[str],
@@ -859,6 +883,23 @@ class S1_Burst(ASF_Base_Downloader):
                 "was already attempted and also failed.", date_str)
         else:
             logger.warning("S1_Burst: %s skipped: %s", date_str, msg.splitlines()[0])
+
+    @staticmethod
+    def _remove_partial_safe(date_str: str, out_dir: Path) -> None:
+        """Delete a .SAFE for ``date_str`` that has no annotation XMLs.
+
+        burst2safe writes measurement/ before annotation/, so a run that dies
+        in between leaves a directory that looks like a product and is not one.
+        Nothing downstream detects it: the campaign counts *.SAFE and calls the
+        download satisfied, then cslc fails the whole site on the one bad date.
+        Only annotation-less directories are removed -- a complete .SAFE for the
+        same date is left alone.
+        """
+        for safe in out_dir.glob(f"*_{date_str}T*.SAFE"):
+            if any((safe / "annotation").glob("*.xml")):
+                continue
+            shutil.rmtree(safe, ignore_errors=True)
+            logger.warning("S1_Burst: removed partial .SAFE %s", safe.name)
 
     def _cleanup_failed_date(self, date_str: str, granules: list[str],
                              prods, out_dir: Path, cfg) -> None:

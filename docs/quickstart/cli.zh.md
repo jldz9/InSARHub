@@ -157,7 +157,7 @@ insarhub downloader -N S1_Burst \
     ```bash
     insarhub processor submit  -N ISCE3_Burst -w /data/p56
     insarhub processor refresh -N ISCE3_Burst -w /data/p56
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p56 run
+    insarhub analyzer  -N ISCE3_Dolphin_S1_PL -w /data/p56 run
     ```
 
 === "本地（容器）"
@@ -165,7 +165,7 @@ insarhub downloader -N S1_Burst \
     ```bash
     insarhub processor submit  -N ISCE3_Burst -w /data/p56 --container
     insarhub processor refresh -N ISCE3_Burst -w /data/p56 --container
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p56 run --container
+    insarhub analyzer  -N ISCE3_Dolphin_S1_PL -w /data/p56 run --container
     ```
 
 === "HPC (SLURM)"
@@ -173,7 +173,7 @@ insarhub downloader -N S1_Burst \
     ```bash
     insarhub processor submit  -N ISCE3_Burst -w /data/p56 --hpc_mode
     insarhub processor refresh -N ISCE3_Burst -w /data/p56
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p56 run --hpc_mode
+    insarhub analyzer  -N ISCE3_Dolphin_S1_PL -w /data/p56 run --hpc_mode
     ```
 
 速度场输出为 `/data/p56/timeseries/velocity.tif`（已是 GeoTIFF —— 无需 `h5-to-raster`）。
@@ -197,7 +197,7 @@ insarhub downloader -N NISAR_GSLC \
     ```bash
     insarhub processor submit  -N ISCE3_NISAR -w /data/p77
     insarhub processor refresh -N ISCE3_NISAR -w /data/p77
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p77 run
+    insarhub analyzer  -N ISCE3_Dolphin_NISAR_PL -w /data/p77 run
     ```
 
 === "本地（容器）"
@@ -205,7 +205,7 @@ insarhub downloader -N NISAR_GSLC \
     ```bash
     insarhub processor submit  -N ISCE3_NISAR -w /data/p77 --container
     insarhub processor refresh -N ISCE3_NISAR -w /data/p77 --container
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p77 run --container
+    insarhub analyzer  -N ISCE3_Dolphin_NISAR_PL -w /data/p77 run --container
     ```
 
 === "HPC（SLURM）"
@@ -213,7 +213,7 @@ insarhub downloader -N NISAR_GSLC \
     ```bash
     insarhub processor submit  -N ISCE3_NISAR -w /data/p77 --hpc_mode
     insarhub processor refresh -N ISCE3_NISAR -w /data/p77
-    insarhub analyzer  -N ISCE3_Dolphin_PL -w /data/p77 run --hpc_mode
+    insarhub analyzer  -N ISCE3_Dolphin_NISAR_PL -w /data/p77 run --hpc_mode
     ```
 
 速度场输出为 `/data/p77/timeseries/velocity.tif`。若要处理整幅已地理编码的帧而非 AOI 窗口，加上 `--process_full_extent`（需要大内存宿主机）。

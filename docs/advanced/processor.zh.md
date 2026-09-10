@@ -500,7 +500,7 @@ Processor.available()
 
     - 各阶段针对 SLURM 做了拆分 — 参见 [HPC（SLURM）](hpc.md)。`cslc` 是每个 burst-日期一个作业，也是耗时主体；`phase_link` 下的 `ifg` 是单个作业，因为估计器没有逐干涉对的单元。
     - 干涉图网络取各 burst 日期列表的**交集**。若 ASF 在某天缺少某个 burst 的数据，该日期会被剔除并明确列出，从而保证每个干涉对在所有 burst 上都能生成。
-    - 时序分析使用 `ISCE3_Dolphin_PL` 分析器，它同时支持两种估计方式。
+    - 时序分析使用 `ISCE3_Dolphin_S1_PL` 分析器，它同时支持两种估计方式。
 
     ::: insarhub.processor.isce3_burst.ISCE3_Burst
         options:
@@ -509,7 +509,7 @@ Processor.available()
 
 === "ISCE3_NISAR"
 
-    `ISCE3_NISAR` 处理器从 **NISAR L2 GSLC** 数据构建干涉图栈，使用 [dolphin](https://github.com/isce-framework/dolphin) 完成相位链接、干涉图与解缠。请搭配 `NISAR_GSLC` 下载器；时序分析同样使用 `ISCE3_Dolphin_PL` 分析器（与 `ISCE3_Burst` 相同）。
+    `ISCE3_NISAR` 处理器从 **NISAR L2 GSLC** 数据构建干涉图栈，使用 [dolphin](https://github.com/isce-framework/dolphin) 完成相位链接、干涉图与解缠。请搭配 `NISAR_GSLC` 下载器；时序分析同样使用 `ISCE3_Dolphin_NISAR_PL` 分析器（与 `ISCE3_Burst` 相同）。
 
     它复用了 `ISCE3_Burst` 的 dolphin 引擎，但**跳过全部地理编码**。NISAR GSLC 本身就是已地理编码的复数 SLC —— 每个日期一帧，因此不同于 `ISCE3_Burst`，没有 COMPASS 前端：`dem`/`tec`/`cslc`/`static` 阶段被完全去掉，GSLC 栅格直接送入 dolphin。由于 NISAR 每个日期只有一帧（没有 OPERA burst 拆分），`ifg` 是对整个栈的单次 `wrapped_phase.run`，而非逐 burst 调用。
 

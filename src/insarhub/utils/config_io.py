@@ -90,7 +90,117 @@ def read_insarhub_config(folder: Path) -> dict:
         if isinstance(section, dict) and section.get("type") in _RENAMES:
             section["type"] = _RENAMES[section["type"]]
 
+    _migrate_dolphin_analyzer(data)
+
     return data
+
+
+# ── dolphin PL: pre-split configs need the upstream to disambiguate ──────────
+# Until the dolphin analyzer was split per sensor, ONE analyzer
+# ("ISCE3_Dolphin_PL") served both ISCE3_Burst and ISCE3_NISAR, carrying one
+# config whose wavelength was the Sentinel-1 C-band constant. A NISAR workdir
+# configured back then therefore has BOTH a sensor-ambiguous analyzer type AND a
+# persisted C-band wavelength -- L-band is ~0.24 m, so that value scales every
+# displacement by roughly 4.3x and nothing downstream flags it.
+#
+# The registry alias for the old name resolves to the Sentinel-1 analyzer (it
+# has to: for an ISCE3_Burst workdir that IS the correct target). The alias
+# alone cannot tell the two apart, because the sensor is not in the name -- but
+# the saved processor sitting next to it in the same file says exactly which
+# upstream this workdir is, so the migration happens here where both are in hand.
+
+#: Pre-split analyzer names that do not say which sensor they meant.
+_AMBIGUOUS_DOLPHIN = frozenset({
+    "ISCE3_Dolphin_PL", "ISCE3_Dolphin_TS", "Dolphin_TS", "Dolphin_SBAS",
+})
+
+#: The Sentinel-1 C-band wavelength the pre-split config persisted as its
+#: default. Only THIS exact value is dropped when retargeting to NISAR: any
+#: other number was typed by the user and is left alone.
+_S1_C_BAND = 0.055465764662349676
+
+#: Old config-class labels -> current ones (the ``name`` field is a label only,
+#: but a stale one is actively misleading once the class beside it changed).
+_DOLPHIN_CONFIG_NAMES = {
+    "ISCE3_Dolphin_PL_Config":       "ISCE3_Dolphin_S1_PL_Config",
+    "ISCE3_Dolphin_PL_S1_Config":    "ISCE3_Dolphin_S1_PL_Config",
+    "ISCE3_Dolphin_PL_NISAR_Config": "ISCE3_Dolphin_NISAR_PL_Config",
+}
+
+
+def _migrate_dolphin_analyzer(data: dict) -> None:
+    """Retarget a pre-split dolphin analyzer section in place, using the saved
+    processor to decide which sensor it meant.
+
+    Idempotent, and a no-op for every non-dolphin config. Nothing is written
+    back to disk -- like ``_RENAMES`` above, this runs on each read so a workdir
+    is migrated wherever it is opened, without rewriting files the user may be
+    sharing with an older InSARHub.
+    """
+    az = data.get("analyzer")
+    if not isinstance(az, dict):
+        return
+    cfg = az.get("config")
+    cfg = cfg if isinstance(cfg, dict) else None
+
+    if az.get("type") in _AMBIGUOUS_DOLPHIN:
+        proc = data.get("processor")
+        upstream = proc.get("type") if isinstance(proc, dict) else None
+
+        if upstream == "ISCE3_NISAR":
+            az["type"] = "ISCE3_Dolphin_NISAR_PL"
+            if cfg is not None:
+                # The persisted C-band default would survive as an explicit
+                # override (_apply_config_from_dict sets every matching field),
+                # pinning the wrong wavelength on an L-band stack. Dropping the
+                # key restores "derive it from the GSLC metadata".
+                if cfg.get("wavelength") == _S1_C_BAND:
+                    cfg.pop("wavelength", None)
+        elif upstream == "ISCE3_Burst":
+            # Same class the alias would have reached; naming it explicitly
+            # stops the file from staying ambiguous forever.
+            az["type"] = "ISCE3_Dolphin_S1_PL"
+        # Upstream unknown/absent: leave it to the registry alias, which keeps
+        # the historical Sentinel-1 behaviour rather than guessing.
+
+    if cfg is not None and cfg.get("name") in _DOLPHIN_CONFIG_NAMES:
+        cfg["name"] = _DOLPHIN_CONFIG_NAMES[cfg["name"]]
+
+    # A NISAR analyzer must never carry the S1 config label, however it got here.
+    if cfg is not None and az.get("type") == "ISCE3_Dolphin_NISAR_PL" \
+            and cfg.get("name") == "ISCE3_Dolphin_S1_PL_Config":
+        cfg["name"] = "ISCE3_Dolphin_NISAR_PL_Config"
+
+
+def resolve_legacy_analyzer_name(name: str, folder) -> str:
+    """Map a pre-split dolphin analyzer name onto the per-sensor one for *folder*.
+
+    The registry resolves ``ISCE3_Dolphin_PL`` through an alias, but an alias is
+    a fixed mapping and the old name does not say which sensor it meant -- so it
+    lands on the Sentinel-1 analyzer even for a NISAR workdir, which is how a
+    C-band wavelength ends up on an L-band stack.
+
+    :func:`read_insarhub_config` already fixes that for a SAVED analyzer section,
+    but the CLI never reads one: ``insarhub analyzer -N <name>`` builds the
+    config from the class default plus command-line flags. So an old command line
+    re-run verbatim needs the same disambiguation, which is what this gives it.
+
+    Returns *name* unchanged for anything that is not an ambiguous dolphin name,
+    and whenever the workdir does not say which processor produced it.
+    """
+    if name not in _AMBIGUOUS_DOLPHIN:
+        return name
+    try:
+        data = read_insarhub_config(Path(folder))
+    except Exception:                                            # noqa: BLE001
+        return name          # unreadable/malformed: leave it to the alias
+    proc = data.get("processor")
+    upstream = proc.get("type") if isinstance(proc, dict) else None
+    if upstream == "ISCE3_NISAR":
+        return "ISCE3_Dolphin_NISAR_PL"
+    if upstream == "ISCE3_Burst":
+        return "ISCE3_Dolphin_S1_PL"
+    return name
 
 
 def _atomic_write_json(path: Path, data: dict) -> None:

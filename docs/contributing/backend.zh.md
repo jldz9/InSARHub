@@ -27,7 +27,8 @@ BaseAnalyzer (ABC) ──► Mintpy_SBAS_Base_Analyzer ──► Hyp3_Mintpy_SBA
                                                    ├──► ISCE2_Mintpy_SBAS
                                                    └──► GMTSAR_Mintpy_SBAS
                     ├──► GMTSAR_SBAS   （GMTSAR 自带的 sbas 二进制程序，无需 MintPy）
-                    └──► ISCE3_Dolphin_PL  （面向 ISCE3_Burst 的 dolphin timeseries）
+                    └──► Dolphin_PL_Base_Analyzer ──► ISCE3_Dolphin_S1_PL     （ISCE3_Burst）
+                                                    └──► ISCE3_Dolphin_NISAR_PL  （ISCE3_NISAR）
 ```
 
 每个中间基类（`Hyp3Base`、`ISCE2_Base`、`ISCE3_Base`、`ASF_Base_Downloader`、`Mintpy_SBAS_Base_Analyzer`）已实现所有共享基础设施——认证、任务跟踪、HPC 提交、文件 I/O。具体的叶子类只需实现 `submit()`（分析器还需实现 `prep_data()`/`run()`）来处理传感器特定的逻辑。`GMTSAR_S1` 和 `ISCE3_Burst` 还将大型、仅限单一处理器的辅助逻辑拆分为私有的同级模块（`processor/_gmtsar_esd_network.py` 用于 GMTSAR 的网络 ESD 配准，`processor/isce3_base.py` 用于 ISCE3 的阶段/HPC 机制）。

@@ -7,8 +7,11 @@ def _compatible_processor(cp, pname: str) -> bool:
     output of processor ``pname``.
 
     ``cp`` may be ``None`` / ``'all'`` (catch-all), a single processor name, or
-    a tuple/list of names (an analyzer that serves several upstreams, e.g.
-    ISCE3_Dolphin_PL -> ("ISCE3_Burst", "ISCE3_NISAR")).
+    a tuple/list of names (an analyzer that serves several upstreams). The
+    dolphin analyzers used to be the tuple case -- one class for both ISCE3
+    upstreams -- until that silently gave NISAR stacks the S1 wavelength; they
+    are now one class per upstream (ISCE3_Dolphin_S1_PL / ISCE3_Dolphin_NISAR_PL),
+    each with a single name. The tuple form is still supported.
     """
     if cp in (None, 'all', pname):
         return True
@@ -295,7 +298,7 @@ class BaseAnalyzer(ABC):
 
         ``steps`` carries named MintPy steps for the MintPy-family analyzers
         (``Mintpy_SBAS_Base_Analyzer`` subclasses). Self-contained analyzers
-        (GMTSAR_SBAS, ISCE3_Dolphin_PL) ignore it and run their whole pipeline
+        (GMTSAR_SBAS, the dolphin PL analyzers) ignore it and run their whole pipeline
         in one call.
         """
         pass

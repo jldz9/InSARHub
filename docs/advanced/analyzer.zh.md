@@ -245,7 +245,7 @@ Analyzer.available()
 
     `ISCE2_Mintpy_SBAS` 分析器扩展自 `Mintpy_SBAS_Base_Analyzer`，专为 ISCE2 `stackSentinel` 输出预配置。`prep_data()` 自动发现 `isce/` 目录中的干涉图和几何数据，并将 MintPy 配置写入 `mintpy/.mintpy.cfg`。所有 MintPy 输出写入 `workdir/mintpy/`。
 
-    ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS
+    ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -283,7 +283,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.prep_data
+        ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -297,7 +297,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.run
+        ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -320,7 +320,7 @@ Analyzer.available()
         analyzer.cleanup()
         ```
 
-        ::: insarhub.analyzer.isce2_sbas.ISCE2_Mintpy_SBAS.cleanup
+        ::: insarhub.analyzer.isce2_mintpy_s1_sbas.ISCE2_Mintpy_SBAS.cleanup
             options:
                 members: false
                 show_source: false
@@ -330,7 +330,7 @@ Analyzer.available()
 
     `GMTSAR_Mintpy_SBAS` 分析器对 `GMTSAR_S1` 处理器生成的相干堆叠运行 MintPy SBAS 时序分析。它将 GMTSAR 的地理编码 `*_ll.grd` 产品和 `baseline_table.dat` 交给 MintPy 自带的 `prep_gmtsar.py` 加载器（通过 `mintpy.load.*` 键），因此无需任何公共配准参考即可工作——每对干涉图已经共享同一地理网格。它是 `ISCE2_Mintpy_SBAS` 的 MintPy 对应物，唯一区别在于如何配置 `load_*` 路径。输出写入 `workdir/gmtsar_mintpy/`（独立目录，不会与同一工作目录中的 Hyp3/ISCE MintPy 运行相互覆盖）。
 
-    ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS
+    ::: insarhub.analyzer.gmtsar_mintpy_s1_sbas.GMTSAR_Mintpy_SBAS
         options:
             members: false
             heading_level: 0
@@ -368,7 +368,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.prep_data
+        ::: insarhub.analyzer.gmtsar_mintpy_s1_sbas.GMTSAR_Mintpy_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -382,7 +382,7 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.gmtsar_mintpy_sbas.GMTSAR_Mintpy_SBAS.run
+        ::: insarhub.analyzer.gmtsar_mintpy_s1_sbas.GMTSAR_Mintpy_SBAS.run
             options:
                 members: false
                 show_source: false
@@ -414,7 +414,7 @@ Analyzer.available()
 
     由于反演是 GMTSAR 的 C 二进制程序，配置中的 `gmtsar_root` 和 `gmtsar_env_bin` **均为必需项**——`sbas` 二进制程序和 `gmt` 来自 GMTSAR 自身的安装/conda 环境，而非 InSARHub。
 
-    ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS
+    ::: insarhub.analyzer.gmtsar_s1_sbas.GMTSAR_SBAS
         options:
             members: false
             heading_level: 0
@@ -458,7 +458,7 @@ Analyzer.available()
         analyzer.prep_data()
         ```
 
-        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.prep_data
+        ::: insarhub.analyzer.gmtsar_s1_sbas.GMTSAR_SBAS.prep_data
             options:
                 members: false
                 show_source: false
@@ -472,19 +472,26 @@ Analyzer.available()
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.gmtsar_sbas.GMTSAR_SBAS.run
+        ::: insarhub.analyzer.gmtsar_s1_sbas.GMTSAR_SBAS.run
             options:
                 members: false
                 show_source: false
                 heading_level: 5
 
-=== "ISCE3_Dolphin_PL"
+=== "ISCE3_Dolphin_S1_PL"
 
-    `ISCE3_Dolphin_PL` 分析器对**任一** ISCE3 处理器生成的解缠干涉图堆叠运行 dolphin 的 `timeseries.run`——`ISCE3_Burst`（Sentinel-1 burst）或 `ISCE3_NISAR`（NISAR GSLC）。两者都写出相同的 `unwrapped/` + `interferograms/` 布局，因此同一个分析器同时服务于二者；在来自任一处理器的工作目录中，它都会出现在 GUI 的分析器下拉框里（其 `compatible_processor` 同时列出了两者）。同一分析器还同时服务于该处理器的**两种**缠绕相位估计器（`ifg_mode="network"` 与 `ifg_mode="phase_link"`）——两者的线性反演完全相同；区别仅在于用于选择参考点和掩膜低质量像素的质量栅格（`phase_link` 用时序相干性，`network` 用逐对相关性的时间平均）。估计器选择从堆叠的 `ifg_manifest.json` 读取，绝不会在此处重复指定。输出写入 `workdir/timeseries/`。
+    `ISCE3_Dolphin_S1_PL` 分析器在 `ISCE3_Burst` 处理器（Sentinel-1 burst）生成的解缠干涉图堆叠上运行 dolphin 的 `timeseries.run`，输出写入 `workdir/timeseries/`。
 
-    默认情况下（`apply_water_mask=True`）会在反演中掩膜掉水体，使用处理器的 `dem/water_mask.tif`，与 dolphin 自身的 `displacement.run` 行为完全一致。开启此项时，分析器的速度/位移输出与原生 `dolphin run` 逐字节一致；关闭它则会反演每一个像素（在输出中保留开阔水域）。
+    **每个上游对应一个分析器**：本分析器对应 `ISCE3_Burst`，`ISCE3_Dolphin_NISAR_PL` 对应 `ISCE3_NISAR`。两者通过 `Dolphin_PL_Base_Analyzer`（`analyzer/dolphin_base.py`）共享全部反演逻辑，差异仅在于绑定的配置类，以及雷达波长的获取方式。此前二者是同一个分析器、其 `compatible_processor` 同时列出两个上游，但 `default_config` 是按类绑定的，且没有任何代码依据实际上游进行分派——于是 NISAR 堆叠会静默地沿用 Sentinel-1 的 C 波段波长，使所有位移被放大约 4.3 倍，且不会在任何环节报错。
 
-    ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL
+    缠绕相位估计器恒为 dolphin 的相位链接（处理器引擎是 dolphin `displacement.run` 的薄封装），因此这里没有估计器开关。用于选取参考点并掩膜低质量像元的质量栅格是 dolphin 拼接后的时间相干性（`interferograms/temporal_coherence_*.tif`）。
+
+    默认会将水体排除在反演之外（`apply_water_mask=True`），使用处理器的 `dem/water_mask.tif`，与 dolphin 自身 `displacement.run` 的做法完全一致。开启时，本分析器的速度/位移输出与原生 `dolphin run` 逐字节一致；关闭则对每个像元都进行反演（输出中会保留开阔水域）。
+
+    !!! note "旧名称"
+        `ISCE3_Dolphin_PL`、`ISCE3_Dolphin_TS`、`Dolphin_TS` 与 `Dolphin_SBAS` 均仍解析到本分析器，因此已保存的 `insarhub_config.json` 和旧的 CLI 命令继续可用；它们不会出现在分析器列表中。配置类同理：`ISCE3_Dolphin_PL_Config` 与 `ISCE3_Dolphin_PL_S1_Config` 是 `ISCE3_Dolphin_S1_PL_Config` 的别名。
+
+    ::: insarhub.analyzer.isce3_dolphin_s1_pl.ISCE3_Dolphin_S1_PL
         options:
             members: false
             heading_level: 0
@@ -496,19 +503,19 @@ Analyzer.available()
         ```python
         from insarhub import Analyzer
 
-        analyzer = Analyzer.create('ISCE3_Dolphin_PL', workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_S1_PL', workdir='/your/work/dir')
         ```
 
         或使用显式配置：
 
         ```python
-        from insarhub.config.defaultconfig import ISCE3_Dolphin_PL_Config
+        from insarhub.config.defaultconfig import ISCE3_Dolphin_S1_PL_Config
 
-        cfg = ISCE3_Dolphin_PL_Config(workdir='/your/work/dir')
-        analyzer = Analyzer.create('ISCE3_Dolphin_PL', config=cfg)
+        cfg = ISCE3_Dolphin_S1_PL_Config(workdir='/your/work/dir')
+        analyzer = Analyzer.create('ISCE3_Dolphin_S1_PL', config=cfg)
         ```
 
-        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_PL_Config
+        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_S1_PL_Config
             options:
                 members: false
                 show_source: false
@@ -516,13 +523,72 @@ Analyzer.available()
 
     - **运行**
 
-        对当前工作目录中的堆叠运行 dolphin 时序反演（累计位移、速度、残差）。
+        对该 workdir 中的堆叠运行 dolphin 时间序列反演（每个日期的累计位移、速度、残差）。
 
         ```python
         analyzer.run()
         ```
 
-        ::: insarhub.analyzer.dolphin_sbas.ISCE3_Dolphin_PL.run
+        ::: insarhub.analyzer.dolphin_base.Dolphin_PL_Base_Analyzer.run
+            options:
+                members: false
+                show_source: false
+                heading_level: 5
+
+=== "ISCE3_Dolphin_NISAR_PL"
+
+    `ISCE3_Dolphin_NISAR_PL` 是 `ISCE3_Dolphin_S1_PL` 的 NISAR 对应版本：相同的 dolphin `timeseries.run`、相同的产品、相同的 `workdir/timeseries/` 输出。它消费 `ISCE3_NISAR` 处理器（NISAR GSLC）生成的堆叠，并从 `Dolphin_PL_Base_Analyzer` 继承全部反演逻辑。
+
+    三处差异，均由 `ISCE3_NISAR` 的实际产出决定：
+
+    - **波长从 GSLC 元数据读取**，而非固定常量。NISAR 为 L 波段（约 0.24 m，而 C 波段为 0.055 m），且其 frequency A 与 B 两个分组的中心频率不同，因此该值从数据本身查找（`/science/LSAR/...` 下的 `centerFrequency`）并按 `c / f` 换算。显式设置 `wavelength` 可覆盖。
+    - **`apply_water_mask` 默认为 `False`。** 它读取处理器的 `dem/water_mask.tif`，而 `ISCE3_NISAR` 完全不执行 `dem` 阶段（GSLC 已完成地理编码），因此没有可用的掩膜。
+    - **不提供 `los_projection`。** `'vertical'` 需要处理器的 `static` 阶段，而 `ISCE3_NISAR` 的阶段为 (crop, ifg, stitch, unwrap)。该字段仍被继承且默认为 `'none'`，只是不在界面中提供。
+
+    `nisar_frequency` / `nisar_polarization` 与 `ISCE3_NISAR_Config` 保持一致，且必须与处理器进行相位链接时所用的设置相同——它们决定了在 GSLC `.h5` 中定位中心频率的路径。
+
+    !!! note "旧名称"
+        `ISCE3_Dolphin_PL_NISAR` 仍解析到本分析器；`ISCE3_Dolphin_PL_NISAR_Config` 是 `ISCE3_Dolphin_NISAR_PL_Config` 的别名。
+
+    ::: insarhub.analyzer.isce3_dolphin_nisar_pl.ISCE3_Dolphin_NISAR_PL
+        options:
+            members: false
+            heading_level: 0
+
+    ### 使用方法
+
+    - **创建分析器**
+
+        ```python
+        from insarhub import Analyzer
+
+        analyzer = Analyzer.create('ISCE3_Dolphin_NISAR_PL', workdir='/your/work/dir')
+        ```
+
+        或使用显式配置：
+
+        ```python
+        from insarhub.config.defaultconfig import ISCE3_Dolphin_NISAR_PL_Config
+
+        cfg = ISCE3_Dolphin_NISAR_PL_Config(workdir='/your/work/dir', nisar_frequency='A')
+        analyzer = Analyzer.create('ISCE3_Dolphin_NISAR_PL', config=cfg)
+        ```
+
+        ::: insarhub.config.defaultconfig.ISCE3_Dolphin_NISAR_PL_Config
+            options:
+                members: false
+                show_source: false
+                heading_level: 0
+
+    - **运行**
+
+        对该 workdir 中的堆叠运行 dolphin 时间序列反演（每个日期的累计位移、速度、残差）。
+
+        ```python
+        analyzer.run()
+        ```
+
+        ::: insarhub.analyzer.dolphin_base.Dolphin_PL_Base_Analyzer.run
             options:
                 members: false
                 show_source: false

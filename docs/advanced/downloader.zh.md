@@ -364,7 +364,7 @@ Downloader.available()
 
 === "S1_Burst"
 
-    `S1_Burst` 是一个专用下载器，扩展自 `ASF_Base_Downloader`，用于 ASF 的 **SLC-BURST** 数据集。一个 burst 大约是完整 IW 切片（slice）的 1/9，因此面向 AOI 的 burst 堆叠比等效的 `S1_SLC` 搜索拉取的数据少得多——这正是 burst 处理的意义所在，也使 `ISCE3_Burst` / COMPASS 工作流在小目标区域上切实可行。请与 `ISCE3_Burst` 处理器和 `ISCE3_Dolphin_PL` 分析器配合使用。
+    `S1_Burst` 是一个专用下载器，扩展自 `ASF_Base_Downloader`，用于 ASF 的 **SLC-BURST** 数据集。一个 burst 大约是完整 IW 切片（slice）的 1/9，因此面向 AOI 的 burst 堆叠比等效的 `S1_SLC` 搜索拉取的数据少得多——这正是 burst 处理的意义所在，也使 `ISCE3_Burst` / COMPASS 工作流在小目标区域上切实可行。请与 `ISCE3_Burst` 处理器和 `ISCE3_Dolphin_S1_PL` 分析器配合使用。
 
     搜索、过滤、摘要、足迹和配对选择与 `S1_SLC` 完全一致（它们复用 `ASF_Base_Downloader`）；只有 `download()` 不同——它将选中的 burst 颗粒交给 `burst2safe`，由后者合并注释/定标/噪声 XML 并写入清单，从而组装成合法的 `.SAFE` 目录。
 
@@ -451,7 +451,7 @@ Downloader.available()
 
 === "NISAR_GSLC"
 
-    `NISAR_GSLC` 通过 ASF 搜索并下载 NISAR **L2 GSLC**（已地理编码的 SLC）产品。GSLC 是每个日期一帧的已地理编码复数 SLC，因此可直接送入 `ISCE3_NISAR` 处理器（无需配准、无需地理编码），再进入 `ISCE3_Dolphin_PL` 分析器。搜索、筛选、足迹与配对选择均复用 `ASF_Base_Downloader`；**不下载轨道** —— NISAR 产品自带状态矢量。
+    `NISAR_GSLC` 通过 ASF 搜索并下载 NISAR **L2 GSLC**（已地理编码的 SLC）产品。GSLC 是每个日期一帧的已地理编码复数 SLC，因此可直接送入 `ISCE3_NISAR` 处理器（无需配准、无需地理编码），再进入 `ISCE3_Dolphin_NISAR_PL` 分析器。搜索、筛选、足迹与配对选择均复用 `ASF_Base_Downloader`；**不下载轨道** —— NISAR 产品自带状态矢量。
 
     !!! note "NISAR 的检索维度不同于 Sentinel-1"
         NISAR 的极化按**频段**记录，而非单一的 `polarization` 字段（ASF 将其留空）：请按 `mainBandPolarization`（频段 A，即用于 InSAR 的宽高分辨率主带）筛选，必要时用 `sideBandPolarization`（频段 B，5 MHz 电离层带）。`rangeBandwidth`（如 `40+5`）是采集模式 —— 在一个栈内应保持不变，以保证每个日期分辨率一致。`frameCoverage`（`FULL`/`PARTIAL`）、`relativeOrbit`（path）与 `frame` 组成其余维度。NISAR 产品还不返回 `beamMode`/`centerLat`/`centerLon`/`granuleType`/`md5sum`，其 `bytes` 是按文件的映射而非单个数字。

@@ -1047,7 +1047,7 @@ async def timeseries_pixel(path: str, lat: float, lon: float, ts_file: str | Non
     return {'dates': iso_dates, 'values': values, 'file': ts_name, 'unit': unit}
 
 
-# ── ISCE3_Dolphin_PL products (plain GeoTIFFs, not MintPy .h5) ───────────────
+# ── dolphin PL products (plain GeoTIFFs, not MintPy .h5) ────────────────────
 # Dolphin writes workdir/timeseries/{velocity.tif, <ref>_<date>.tif ...}. The
 # MintPy viewer above only reads .h5, so these endpoints render the GeoTIFFs the
 # same way (reproject to Web Mercator + colormap) and sample the epoch stack for
@@ -1074,7 +1074,7 @@ def _dolphin_epochs(ts_dir: Path) -> list[dict]:
 
 @router.get("/api/dolphin-check")
 async def dolphin_check(path: str):
-    """Whether an ISCE3_Dolphin_PL run produced viewable products."""
+    """Whether a dolphin PL analyzer run produced viewable products."""
     ts = _dolphin_ts_dir(path)
     epochs = _dolphin_epochs(ts)
     return {"exists": bool(epochs) or (ts / "velocity.tif").exists(),

@@ -222,7 +222,7 @@ def run_tests():
         print("\n── STAGE 5: ISCE2_Mintpy_SBAS prep_data ────────────────────────────")
 
         from insarhub.config import ISCE2_Mintpy_SBAS_Config
-        from insarhub.analyzer.isce2_sbas import ISCE2_Mintpy_SBAS
+        from insarhub.analyzer.isce2_mintpy_s1_sbas import ISCE2_Mintpy_SBAS
 
         cfg_sbas = ISCE2_Mintpy_SBAS_Config(workdir=str(workdir))
         analyzer = ISCE2_Mintpy_SBAS(cfg_sbas)

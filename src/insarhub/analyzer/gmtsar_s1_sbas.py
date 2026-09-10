@@ -287,7 +287,7 @@ class GMTSAR_SBAS(BaseAnalyzer):
         then writes intf.in in prep_sbas's `ref_stem:rep_stem` form from the
         baseline table (prep_sbas keys the pair dir off int(col2)=Julian, which
         is exactly how the staged dirs are named)."""
-        from insarhub.analyzer.gmtsar_mintpy_sbas import GMTSAR_Mintpy_SBAS
+        from insarhub.analyzer.gmtsar_mintpy_s1_sbas import GMTSAR_Mintpy_SBAS
         from insarhub.config.defaultconfig import GMTSAR_Mintpy_SBAS_Config
 
         helper = GMTSAR_Mintpy_SBAS(GMTSAR_Mintpy_SBAS_Config(workdir=str(self.workdir)))
@@ -488,6 +488,13 @@ class GMTSAR_SBAS(BaseAnalyzer):
         if self.config.container and not os.environ.get("INSARHUB_CONTAINER_CHILD"):
             return self._run_via_container()
         sbas_base = self.prep_data()   # "sbas intf.tab scene.tab N S xdim ydim"
+        # Stamp the folder AFTER prep_data(), not before: prep_data() builds a
+        # GMTSAR_Mintpy_SBAS helper on this same workdir to reuse its p2p
+        # staging, and that helper's __init__ stamps the folder as
+        # "GMTSAR_Mintpy_SBAS". Marking here overwrites it back to the analyzer
+        # the user actually ran, so the GUI badge names the right one.
+        from insarhub.utils.tool import write_workflow_marker
+        write_workflow_marker(self.workdir, analyzer=type(self).name)
         print(f"prep_sbas OK -> {sbas_base}")
         cfg = self.config
         cmd = sbas_base.split()

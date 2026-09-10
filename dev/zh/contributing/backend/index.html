@@ -2008,7 +2008,8 @@
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>                                                   ├──► ISCE2_Mintpy_SBAS
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>                                                   └──► GMTSAR_Mintpy_SBAS
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>                    ├──► GMTSAR_SBAS   （GMTSAR 自带的 sbas 二进制程序，无需 MintPy）
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                    └──► ISCE3_Dolphin_PL  （面向 ISCE3_Burst 的 dolphin timeseries）
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>                    └──► Dolphin_PL_Base_Analyzer ──► ISCE3_Dolphin_S1_PL     （ISCE3_Burst）
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>                                                    └──► ISCE3_Dolphin_NISAR_PL  （ISCE3_NISAR）
 </span></code></pre></div>
 <p>每个中间基类（<code>Hyp3Base</code>、<code>ISCE2_Base</code>、<code>ISCE3_Base</code>、<code>ASF_Base_Downloader</code>、<code>Mintpy_SBAS_Base_Analyzer</code>）已实现所有共享基础设施——认证、任务跟踪、HPC 提交、文件 I/O。具体的叶子类只需实现 <code>submit()</code>（分析器还需实现 <code>prep_data()</code>/<code>run()</code>）来处理传感器特定的逻辑。<code>GMTSAR_S1</code> 和 <code>ISCE3_Burst</code> 还将大型、仅限单一处理器的辅助逻辑拆分为私有的同级模块（<code>processor/_gmtsar_esd_network.py</code> 用于 GMTSAR 的网络 ESD 配准，<code>processor/isce3_base.py</code> 用于 ISCE3 的阶段/HPC 机制）。</p>
 <p>CLI（<code>cli/main.py</code>）和 GUI 路由（<code>app/routes/</code>）都是对同一套 Python API 的薄封装——任何在 CLI 中可运行的工作流，在浏览器中同样可以运行。它们共享的已保存任务发现/处理器重载逻辑位于 <code>utils/local_processor_reload.py</code>（而非 <code>core/</code>），从而使两个界面保持一致，避免逐渐偏离。</p>

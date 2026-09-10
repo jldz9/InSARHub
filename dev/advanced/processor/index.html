@@ -3949,7 +3949,7 @@ _subprocess_env() docstring for the full writeup.</p>
 <ul>
 <li>Stages are decomposed for SLURM — see <a href="../hpc/">HPC (SLURM)</a>. <code>cslc</code> is one job per burst-date and dominates runtime; <code>ifg</code> under <code>phase_link</code> is a single job, because the estimator has no per-pair unit.</li>
 <li>The interferogram network is the <strong>intersection</strong> of dates across bursts. Where ASF has no coverage for one burst on one day, that date is excluded and named, so every pair stays formable on every burst.</li>
-<li>Time series is via the <code>ISCE3_Dolphin_PL</code> analyzer, which serves both estimator modes.</li>
+<li>Time series is via the <code>ISCE3_Dolphin_S1_PL</code> analyzer, which serves both estimator modes.</li>
 </ul>
 
 
@@ -6530,7 +6530,7 @@ _subprocess_env() docstring for the full writeup.</p>
 
 </div></div>
 <div class="tabbed-block">
-<p>The <code>ISCE3_NISAR</code> processor builds an interferogram stack from <strong>NISAR L2 GSLC</strong> granules using <a href="https://github.com/isce-framework/dolphin">dolphin</a> for phase-linking, interferograms, and unwrapping. Pair it with the <code>NISAR_GSLC</code> downloader; the time series is via the <code>ISCE3_Dolphin_PL</code> analyzer (the same one <code>ISCE3_Burst</code> uses).</p>
+<p>The <code>ISCE3_NISAR</code> processor builds an interferogram stack from <strong>NISAR L2 GSLC</strong> granules using <a href="https://github.com/isce-framework/dolphin">dolphin</a> for phase-linking, interferograms, and unwrapping. Pair it with the <code>NISAR_GSLC</code> downloader; the time series is via the <code>ISCE3_Dolphin_NISAR_PL</code> analyzer (the same one <code>ISCE3_Burst</code> uses).</p>
 <p>It shares <code>ISCE3_Burst</code>'s dolphin engine but <strong>skips all geocoding</strong>. A NISAR GSLC is already a geocoded complex SLC — one frame per date — so unlike <code>ISCE3_Burst</code> there is no COMPASS front-end: the <code>dem</code>/<code>tec</code>/<code>cslc</code>/<code>static</code> stages are dropped entirely, and the GSLC grid feeds dolphin directly. Because NISAR is one frame per date (no OPERA burst split), <code>ifg</code> is a single <code>wrapped_phase.run</code> over the whole stack rather than one call per burst.</p>
 <p>Three stages, run in order:</p>
 <table>
@@ -6771,10 +6771,10 @@ _subprocess_env() docstring for the full writeup.</p>
 </span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"ISCE3_NISAR"</span>
 </span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">description</span> <span class="o">=</span> <span class="p">(</span>
 </span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="s2">"NISAR L2 GSLC -&gt; dolphin phase-linking + interferograms (no geocoding; "</span>
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="s2">"GSLC is already geocoded). Feeds the ISCE3_Dolphin_PL analyzer."</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="s2">"GSLC is already geocoded). Feeds the ISCE3_Dolphin_NISAR_PL analyzer."</span>
 </span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="p">)</span>
 </span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="n">compatible_downloader</span> <span class="o">=</span> <span class="s2">"NISAR_GSLC"</span>
-</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">compatible_analyzer</span> <span class="o">=</span> <span class="s2">"ISCE3_Dolphin_PL"</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">compatible_analyzer</span> <span class="o">=</span> <span class="s2">"ISCE3_Dolphin_NISAR_PL"</span>
 </span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">ISCE3_NISAR_Config</span>
 </span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="n">JOBS_FILE</span> <span class="o">=</span> <span class="s2">"isce3_nisar_jobs.json"</span>
 </span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>

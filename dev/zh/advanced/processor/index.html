@@ -3734,7 +3734,7 @@ _subprocess_env() docstring for the full writeup.</p>
 <ul>
 <li>各阶段针对 SLURM 做了拆分 — 参见 <a href="../hpc/">HPC（SLURM）</a>。<code>cslc</code> 是每个 burst-日期一个作业，也是耗时主体；<code>phase_link</code> 下的 <code>ifg</code> 是单个作业，因为估计器没有逐干涉对的单元。</li>
 <li>干涉图网络取各 burst 日期列表的<strong>交集</strong>。若 ASF 在某天缺少某个 burst 的数据，该日期会被剔除并明确列出，从而保证每个干涉对在所有 burst 上都能生成。</li>
-<li>时序分析使用 <code>ISCE3_Dolphin_PL</code> 分析器，它同时支持两种估计方式。</li>
+<li>时序分析使用 <code>ISCE3_Dolphin_S1_PL</code> 分析器，它同时支持两种估计方式。</li>
 </ul>
 
 
@@ -6315,7 +6315,7 @@ _subprocess_env() docstring for the full writeup.</p>
 
 </div></div>
 <div class="tabbed-block">
-<p><code>ISCE3_NISAR</code> 处理器从 <strong>NISAR L2 GSLC</strong> 数据构建干涉图栈，使用 <a href="https://github.com/isce-framework/dolphin">dolphin</a> 完成相位链接、干涉图与解缠。请搭配 <code>NISAR_GSLC</code> 下载器；时序分析同样使用 <code>ISCE3_Dolphin_PL</code> 分析器（与 <code>ISCE3_Burst</code> 相同）。</p>
+<p><code>ISCE3_NISAR</code> 处理器从 <strong>NISAR L2 GSLC</strong> 数据构建干涉图栈，使用 <a href="https://github.com/isce-framework/dolphin">dolphin</a> 完成相位链接、干涉图与解缠。请搭配 <code>NISAR_GSLC</code> 下载器；时序分析同样使用 <code>ISCE3_Dolphin_NISAR_PL</code> 分析器（与 <code>ISCE3_Burst</code> 相同）。</p>
 <p>它复用了 <code>ISCE3_Burst</code> 的 dolphin 引擎，但<strong>跳过全部地理编码</strong>。NISAR GSLC 本身就是已地理编码的复数 SLC —— 每个日期一帧，因此不同于 <code>ISCE3_Burst</code>，没有 COMPASS 前端：<code>dem</code>/<code>tec</code>/<code>cslc</code>/<code>static</code> 阶段被完全去掉，GSLC 栅格直接送入 dolphin。由于 NISAR 每个日期只有一帧（没有 OPERA burst 拆分），<code>ifg</code> 是对整个栈的单次 <code>wrapped_phase.run</code>，而非逐 burst 调用。</p>
 <p>三个阶段，依次运行：</p>
 <table>
@@ -6556,10 +6556,10 @@ _subprocess_env() docstring for the full writeup.</p>
 </span><span id="__span-0-37"><a id="__codelineno-0-37" name="__codelineno-0-37"></a>    <span class="n">name</span> <span class="o">=</span> <span class="s2">"ISCE3_NISAR"</span>
 </span><span id="__span-0-38"><a id="__codelineno-0-38" name="__codelineno-0-38"></a>    <span class="n">description</span> <span class="o">=</span> <span class="p">(</span>
 </span><span id="__span-0-39"><a id="__codelineno-0-39" name="__codelineno-0-39"></a>        <span class="s2">"NISAR L2 GSLC -&gt; dolphin phase-linking + interferograms (no geocoding; "</span>
-</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="s2">"GSLC is already geocoded). Feeds the ISCE3_Dolphin_PL analyzer."</span>
+</span><span id="__span-0-40"><a id="__codelineno-0-40" name="__codelineno-0-40"></a>        <span class="s2">"GSLC is already geocoded). Feeds the ISCE3_Dolphin_NISAR_PL analyzer."</span>
 </span><span id="__span-0-41"><a id="__codelineno-0-41" name="__codelineno-0-41"></a>    <span class="p">)</span>
 </span><span id="__span-0-42"><a id="__codelineno-0-42" name="__codelineno-0-42"></a>    <span class="n">compatible_downloader</span> <span class="o">=</span> <span class="s2">"NISAR_GSLC"</span>
-</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">compatible_analyzer</span> <span class="o">=</span> <span class="s2">"ISCE3_Dolphin_PL"</span>
+</span><span id="__span-0-43"><a id="__codelineno-0-43" name="__codelineno-0-43"></a>    <span class="n">compatible_analyzer</span> <span class="o">=</span> <span class="s2">"ISCE3_Dolphin_NISAR_PL"</span>
 </span><span id="__span-0-44"><a id="__codelineno-0-44" name="__codelineno-0-44"></a>    <span class="n">default_config</span> <span class="o">=</span> <span class="n">ISCE3_NISAR_Config</span>
 </span><span id="__span-0-45"><a id="__codelineno-0-45" name="__codelineno-0-45"></a>    <span class="n">JOBS_FILE</span> <span class="o">=</span> <span class="s2">"isce3_nisar_jobs.json"</span>
 </span><span id="__span-0-46"><a id="__codelineno-0-46" name="__codelineno-0-46"></a>

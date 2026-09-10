@@ -24,6 +24,11 @@
 * Fixed the job-folder listing tagging every analyzer `MintPy`; tags now follow the actual engine, and `GMTSAR_S1` is tagged.
 * Fixed `S1_Burst` leaving an annotation-less `.SAFE` when `properties["bytes"]` came back as a string, which `s1reader` later rejected.
 * Fixed `ISCE3_Burst` SLURM job names colliding across workdirs, so one site's jobs blocked or cancelled another's.
+* Fixed the GUI map not zooming to a polygon or box AOI — only a point did. `fitBounds` sat behind a `map.isStyleLoaded()` check that MapLibre 5 reports false right after a `setData()`, so it never ran.
+
+### GUI
+
+* Renamed the top-bar AOI field to **Area of Interest · WKT** (**目标区域 · WKT**) to name the format it accepts; the map toolbar label below it is now **AOI** in both languages.
 
 ### Downloader Output
 

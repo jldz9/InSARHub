@@ -329,14 +329,14 @@ Processor.available()
 
 === "GMTSAR_S1"
 
-    `GMTSAR_S1` 处理器在本地运行 [GMTSAR](https://github.com/gmtsar/gmtsar) 的 Python 流程，从已下载的 SLC `.SAFE` 文件生成 Sentinel-1 干涉图。两个 GMTSAR 入口都支持，根据 `subswath` 指定的是一个还是多个 IW 自动选择：
+    在本地运行 [GMTSAR](https://github.com/gmtsar/gmtsar) 的 Python 流程，从 `.SAFE` SLC 生成 Sentinel-1 干涉图。入口由 `subswath` 决定：
 
-    - `subswath` 只指定一个 IW（例如 `2`）— 单子条带，走 `p2p_processing`。`GMTSAR_S1` 会自行从每景 `.SAFE` 中提取所配置的 IW 子条带与极化方式，因此调用方始终只需传入原始的 `.SAFE`/`.EOF` 名称，与多子条带模式一致。
-    - `subswath` 指定多个 IW（例如默认的 `"1 2 3"`）— 多子条带，走 `p2p_S1_TOPS_Frame`，生成跨所有指定子条带的合并干涉图。
+    - 单个 IW（例如 `2`）——单子条带，走 `p2p_processing`
+    - 多个 IW（例如默认的 `"1 2 3"`）——多子条带合并，走 `p2p_S1_TOPS_Frame`
 
-    需要说明的是，`p2p_S1_TOPS_Frame` 并不会取代 `p2p_processing` — 它是建立在后者之上的编排层：内部按子条带循环调用 `p2p_processing S1_TOPS`，再执行合并。`p2p_processing` 本身是通用的逐对处理引擎，支持 ERS、ENVI、ALOS、TSX、RS2 等十余种传感器，`S1_TOPS` 只是其中之一。
+    两种模式下调用方都只需传入原始的 `.SAFE`/`.EOF` 名称，子条带与极化方式由内部提取。
 
-    GMTSAR 运行在自己的 conda 环境中，与 InSARHub 的环境相互独立（numpy/GDAL 版本不同）— `gmtsar_root` 与 `gmtsar_env_bin` 分别告诉 `GMTSAR_S1` 到哪里找 GMTSAR 的脚本，以及它会调用的 `gmt` 可执行文件。两者在未设置时都会自动探测（`gmtsar_root`：`$GMTSAR` → `$PATH` 上的已知 GMTSAR 脚本 → 常见安装位置扫描；`gmtsar_env_bin`：带 `gmt` 的相邻 conda 环境 → `$PATH` 上的 `gmt`），因此实际使用中通常无需设置 — 只有在自动探测选错或找不到时才需要显式指定。
+    GMTSAR 运行在自己的 conda 环境中。`gmtsar_root` 与 `gmtsar_env_bin` 用于定位它，两者均可自动探测，仅在探测失败时才需显式指定。也可将 `container` 设为包含 `insarhub`+GMTSAR 的 `.sif`/Docker 镜像，从而跳过本地探测。
 
     - **导入处理器**
 
@@ -460,9 +460,9 @@ Processor.available()
 
 === "ISCE3_Burst"
 
-    `ISCE3_Burst` 处理器从 ASF `SLC-BURST` 数据构建干涉图栈，使用 [ISCE3](https://github.com/isce-framework/isce3)/[COMPASS](https://github.com/opera-adt/COMPASS) 进行地理编码，其后的所有环节由 [dolphin](https://github.com/isce-framework/dolphin) 完成。请与 `S1_Burst` 下载器配合使用。
+    从 ASF `SLC-BURST` 数据构建干涉图栈，使用 [ISCE3](https://github.com/isce-framework/isce3)/[COMPASS](https://github.com/opera-adt/COMPASS) 进行地理编码，其后环节由 [dolphin](https://github.com/isce-framework/dolphin) 完成。请与 `S1_Burst` 下载器配合使用。
 
-    它最本质的特点是**不做配准**。COMPASS 把每一景独立地理编码到绝对 UTM 坐标，因此同一个 burst 的任意两个日期在构造上就是逐像元对齐的 — 逐对配准可能引入的错配伪影在这里根本不会出现。
+    **不做配准**：COMPASS 把每一景独立地理编码到绝对 UTM 坐标，因此同一 burst 的任意两个日期在构造上即逐像元对齐。
 
     共九个阶段，按顺序执行：
 
@@ -509,9 +509,9 @@ Processor.available()
 
 === "ISCE3_NISAR"
 
-    `ISCE3_NISAR` 处理器从 **NISAR L2 GSLC** 数据构建干涉图栈，使用 [dolphin](https://github.com/isce-framework/dolphin) 完成相位链接、干涉图与解缠。请搭配 `NISAR_GSLC` 下载器；时序分析同样使用 `ISCE3_Dolphin_NISAR_PL` 分析器（与 `ISCE3_Burst` 相同）。
+    从 **NISAR L2 GSLC** 数据构建干涉图栈，使用 [dolphin](https://github.com/isce-framework/dolphin) 完成相位链接、干涉图与解缠。请搭配 `NISAR_GSLC` 下载器与 `ISCE3_Dolphin_NISAR_PL` 分析器。
 
-    它复用了 `ISCE3_Burst` 的 dolphin 引擎，但**跳过全部地理编码**。NISAR GSLC 本身就是已地理编码的复数 SLC —— 每个日期一帧，因此不同于 `ISCE3_Burst`，没有 COMPASS 前端：`dem`/`tec`/`cslc`/`static` 阶段被完全去掉，GSLC 栅格直接送入 dolphin。由于 NISAR 每个日期只有一帧（没有 OPERA burst 拆分），`ifg` 是对整个栈的单次 `wrapped_phase.run`，而非逐 burst 调用。
+    与 `ISCE3_Burst` 使用相同的 dolphin 引擎，但**不做地理编码**——GSLC 本身已完成地理编码且每个日期一帧，因此 `dem`/`tec`/`cslc`/`static` 阶段被去掉，`ifg` 是对整个栈的单次 `wrapped_phase.run`。
 
     三个阶段，依次运行：
 

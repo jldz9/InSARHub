@@ -198,6 +198,7 @@ export default function TopBar({
         value={wktInput}
         onChange={e => setWktInput(e.target.value)}
         onBlur={handleWktBlur}
+        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur() }}
         title={wktInput}
       />
 

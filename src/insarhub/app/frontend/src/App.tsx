@@ -10,8 +10,9 @@ import StackSceneList from './StackSceneList'
 import StackSummaryDrawer from './StackSummaryDrawer'
 import SceneDetailPanel from './SceneDetailPanel'
 import SettingsPanel from './SettingsPanel'
+import StatusBar, { type Status } from './StatusBar'
 import JobQueueDrawer, { type RasterOverlay } from './JobQueueDrawer'
-import { bboxToWkt, geometryToWkt, getGeometryBbox, type Bbox } from './geoUtils'
+import { bboxToWkt, geometryToWkt, getGeometryBbox, wktToGeometry, type Bbox } from './geoUtils'
 import { DARK, LIGHT } from './theme'
 import shpjs from 'shpjs'
 import { API } from './api'
@@ -192,7 +193,14 @@ export default function App() {
 
   // Search state
   const [searching,   setSearching]   = useState(false)
-  const [_resultCount, setResultCount] = useState('')
+  // Status line shown over the map (StatusBar). Errors are the ones that
+  // matter -- before this they were written to state that nothing rendered.
+  const [status, setStatus] = useState<Status>(null)
+  // Each message carries its own id so repeating one still replays the
+  // animation and restarts StatusBar's fade timer.
+  const statusId  = useRef(0)
+  const showInfo  = (text: string) => setStatus(text ? { id: ++statusId.current, text, kind: 'info'  } : null)
+  const showError = (text: string) => setStatus({ id: ++statusId.current, text, kind: 'error' })
   const [footprints,       setFootprints]       = useState<GeoJSON.FeatureCollection | null>(null)
   const [stackDrawerOpen,  setStackDrawerOpen]  = useState(true)
   const [_sessionId,       setSessionId]        = useState<string | null>(null)
@@ -297,7 +305,7 @@ export default function App() {
         clearInterval(pollRef.current!)
         setSearching(false)
         if (job.status === 'done') onDone(job.data)
-        else setResultCount(tr('app.errorPrefix', { message: job.message }))
+        else showError(tr('app.errorPrefix', { message: job.message }))
       }
     }, 1500)
   }, [tr])
@@ -343,13 +351,13 @@ export default function App() {
   async function handleSearch() {
     const byName = filters.granuleNames && filters.granuleNames.length > 0
     if (!byName && (!filters.startDate || !filters.endDate)) {
-      setResultCount(tr('app.setDatesInFilters'))
+      showError(tr('app.setDatesInFilters'))
       setFiltersOpen(true)
       return
     }
     setSearching(true)
     setDrawMode(null)
-    setResultCount(tr('topBar.searching'))
+    showInfo(tr('topBar.searching'))
     // Clear the previous search's results up front so a new search always
     // refreshes the map/panel -- otherwise a search that returns nothing left
     // the last search's footprints on screen.
@@ -372,7 +380,7 @@ export default function App() {
     })
     const { job_id } = await res.json()
     pollJob(job_id, (data) => {
-      setResultCount(data.summary)
+      showInfo(data.summary)
       setFootprints(data.geojson)
       setStackDrawerOpen(true)
       setSessionId(data.session_id)
@@ -388,8 +396,42 @@ export default function App() {
   }
 
   function handleAoiWktChange(wkt: string | null) {
-    setAoiWkt(wkt)
-    setAoiGeoJson(null)
+    if (!wkt || !wkt.trim()) {
+      setAoiWkt(null)
+      setAoiGeoJson(null)
+      setAoi([-180, -90, 180, 90])
+      return
+    }
+
+    const cleanWkt = wkt.trim()
+
+    try {
+      const geometry = wktToGeometry(cleanWkt)
+      const feature: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry }
+
+      // A bare point has no area. Give it the same 0.1-degree box a map pin
+      // gets (see Map.tsx), so a typed coordinate and a clicked one search
+      // the same footprint.
+      let bbox: Bbox
+      if (geometry.type === 'Point') {
+        const [lng, lat] = geometry.coordinates as number[]
+        bbox = [lng - 0.1, lat - 0.1, lng + 0.1, lat + 0.1]
+      } else {
+        bbox = getGeometryBbox(geometry)
+      }
+
+      // All three move together: the WKT drives the search, the bbox drives
+      // the map view, the feature draws the AOI outline.
+      setAoiWkt(cleanWkt)
+      setAoi(bbox)
+      setAoiGeoJson(feature)
+      // Leave draw mode -- typing an AOI replaces drawing one.
+      setDrawMode(null)
+      setStatus(null)
+    } catch (err) {
+      // Keep the existing AOI on screen: a typo should not clear the map.
+      showError(tr('app.invalidWkt', { error: err instanceof Error ? err.message : String(err) }))
+    }
   }
 
   function handleClearAoi() {
@@ -397,7 +439,7 @@ export default function App() {
     setAoiGeoJson(null)
     setAoi([-180, -90, 180, 90])
     setFootprints(null)
-    setResultCount('')
+    setStatus(null)
     setSelectedFeature(null)
     // Also remove any result plot drawn on the map (velocity / displacement /
     // coherence overlay) and its time-series pixel marker + drawer -- otherwise
@@ -425,7 +467,7 @@ export default function App() {
         })
         if (!res.ok) {
           const err = await res.json().catch(() => ({ detail: res.statusText }))
-          setResultCount(tr('app.geoPackageError', { detail: err.detail }))
+          showError(tr('app.geoPackageError', { detail: err.detail }))
           return
         }
         const { feature: f } = await res.json()
@@ -436,12 +478,12 @@ export default function App() {
         feature = fc.features[0]
       }
 
-      if (!feature) { setResultCount(tr('app.noFeaturesFound')); return }
+      if (!feature) { showError(tr('app.noFeaturesFound')); return }
       const wkt  = geometryToWkt(feature.geometry)
       const bbox = getGeometryBbox(feature.geometry)
       handleAoiDrawn(wkt, bbox, feature)   // pass feature → polygon shape preserved
     } catch (err) {
-      setResultCount(tr('app.fileError', { error: String(err) }))
+      showError(tr('app.fileError', { error: String(err) }))
     }
   }
 
@@ -473,6 +515,8 @@ export default function App() {
         jobsOpen={jobsOpen}
         onSettingsOpen={() => setSettingsOpen(true)}
       />
+
+      <StatusBar status={status} theme={theme} />
 
       <MapToolbar
         drawMode={drawMode}
@@ -563,7 +607,7 @@ export default function App() {
               onStackHover={setHoveredStackKey}
               onStackClick={f => { setSelectedFeature(f); setStackOpen(false); setDetailScene(null) }}
               onCheckedChange={setCheckedStackKeys}
-              onClose={() => { setFootprints(null); setSelectedFeature(null); setStackOpen(false); setDetailScene(null); setResultCount(''); setCheckedStackKeys([]) }}
+              onClose={() => { setFootprints(null); setSelectedFeature(null); setStackOpen(false); setDetailScene(null); setStatus(null); setCheckedStackKeys([]) }}
             />
           )}
         </div>

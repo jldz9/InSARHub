@@ -9,6 +9,7 @@
     "geoPackageError": "GeoPackage error: {{detail}}",
     "noFeaturesFound": "No features found in file",
     "fileError": "File error: {{error}}",
+    "invalidWkt": "Invalid WKT: {{error}}",
     "timeSeries": "Time Series",
     "relativeToFirstDate": "relative to first date"
   },

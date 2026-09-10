@@ -9,6 +9,7 @@
     "geoPackageError": "GeoPackage 错误：{{detail}}",
     "noFeaturesFound": "文件中未找到要素",
     "fileError": "文件错误：{{error}}",
+    "invalidWkt": "WKT 格式错误：{{error}}",
     "timeSeries": "时间序列",
     "relativeToFirstDate": "相对于首个日期"
   },

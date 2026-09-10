@@ -11,7 +11,7 @@ import StackSummaryDrawer from './StackSummaryDrawer'
 import SceneDetailPanel from './SceneDetailPanel'
 import SettingsPanel from './SettingsPanel'
 import JobQueueDrawer, { type RasterOverlay } from './JobQueueDrawer'
-import { bboxToWkt, geometryToWkt, getGeometryBbox, wktToGeometry,type Bbox } from './geoUtils'
+import { bboxToWkt, geometryToWkt, getGeometryBbox, wktToGeometry, type Bbox } from './geoUtils'
 import { DARK, LIGHT } from './theme'
 import shpjs from 'shpjs'
 import { API } from './api'
@@ -199,7 +199,7 @@ export default function App() {
 
   // AOI state
   const [aoi,        setAoi]        = useState<Bbox>([-180, -90, 180, 90])
-  const [aoiWkt,     setAoiWkt]     = useState<string | null>('POINT (116.27 37.46)')
+  const [aoiWkt,     setAoiWkt]     = useState<string | null>(null)
   const [aoiGeoJson, setAoiGeoJson] = useState<GeoJSON.Feature | null>(null)
 
   // Map UI state
@@ -389,60 +389,40 @@ export default function App() {
 
   function handleAoiWktChange(wkt: string | null) {
     if (!wkt || !wkt.trim()) {
-    setAoiWkt(null)
-    setAoiGeoJson(null)
-    setAoi([-180, -90, 180, 90])
-    return
-  }
+      setAoiWkt(null)
+      setAoiGeoJson(null)
+      setAoi([-180, -90, 180, 90])
+      return
+    }
 
-  try {
     const cleanWkt = wkt.trim()
 
-    // WKT → GeoJSON geometry
-    const geometry = wktToGeometry(cleanWkt)
+    try {
+      const geometry = wktToGeometry(cleanWkt)
+      const feature: GeoJSON.Feature = { type: 'Feature', properties: {}, geometry }
 
-    const feature: GeoJSON.Feature = {
-      type: 'Feature',
-      properties: {},
-      geometry,
+      // A bare point has no area. Give it the same 0.1-degree box a map pin
+      // gets (see Map.tsx), so a typed coordinate and a clicked one search
+      // the same footprint.
+      let bbox: Bbox
+      if (geometry.type === 'Point') {
+        const [lng, lat] = geometry.coordinates as number[]
+        bbox = [lng - 0.1, lat - 0.1, lng + 0.1, lat + 0.1]
+      } else {
+        bbox = getGeometryBbox(geometry)
+      }
+
+      // All three move together: the WKT drives the search, the bbox drives
+      // the map view, the feature draws the AOI outline.
+      setAoiWkt(cleanWkt)
+      setAoi(bbox)
+      setAoiGeoJson(feature)
+      // Leave draw mode -- typing an AOI replaces drawing one.
+      setDrawMode(null)
+    } catch (err) {
+      // Keep the existing AOI on screen: a typo should not clear the map.
+      setResultCount(tr('app.invalidWkt', { error: err instanceof Error ? err.message : String(err) }))
     }
-
-    let bbox: Bbox
-
-    if (geometry.type === 'Point') {
-      const [lng, lat] = geometry.coordinates as number[]
-
-      // Point 本身没有面积，保持和地图 pin 功能一致
-      bbox = [
-        lng - 0.1,
-        lat - 0.1,
-        lng + 0.1,
-        lat + 0.1,
-      ]
-    } else {
-      bbox = getGeometryBbox(geometry)
-    }
-
-    // 三个状态必须同时更新
-    setAoiWkt(cleanWkt)
-    setAoi(bbox)
-    setAoiGeoJson(feature)
-
-    // 如果当前处于绘制状态，退出
-    setDrawMode(null)
-
-    console.log('[AOI] WKT -> Map:', {
-      wkt: cleanWkt,
-      bbox,
-      geometry,
-    })
-
-  } catch (err) {
-    console.error('[AOI] Invalid WKT:', err)
-
-    // 输入错误时不要删除地图上原来的 AOI
-    setResultCount(`WKT 格式错误: ${String(err)}`)
-  }
   }
 
   function handleClearAoi() {

@@ -43,16 +43,12 @@ export interface Filters {
 }
 
 export const DEFAULT_FILTERS: Filters = {
-  startDate:       '2017-01-01',
-  endDate:         '2024-12-31',
+  startDate:       '',
+  endDate:         '',
   maxResults:      '2000',
   granuleNames:    [],
   granuleFileName: '',
-  overrides:       {
-                    flightDirection:'ASCENDING',
-                    // platform: 'Sentinel-A',
-                    polarization:'VV+VH'
-  },
+  overrides:       {},
 }
 
 export function hasActiveFilters(f: Filters): boolean {

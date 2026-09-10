@@ -7699,8 +7699,8 @@ Defaults to True.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>S1_Burst</code> 是一个专用下载器，扩展自 <code>ASF_Base_Downloader</code>，用于 ASF 的 <strong>SLC-BURST</strong> 数据集。一个 burst 大约是完整 IW 切片（slice）的 1/9，因此面向 AOI 的 burst 堆叠比等效的 <code>S1_SLC</code> 搜索拉取的数据少得多——这正是 burst 处理的意义所在，也使 <code>ISCE3_Burst</code> / COMPASS 工作流在小目标区域上切实可行。请与 <code>ISCE3_Burst</code> 处理器和 <code>ISCE3_Dolphin_S1_PL</code> 分析器配合使用。</p>
-<p>搜索、过滤、摘要、足迹和配对选择与 <code>S1_SLC</code> 完全一致（它们复用 <code>ASF_Base_Downloader</code>）；只有 <code>download()</code> 不同——它将选中的 burst 颗粒交给 <code>burst2safe</code>，由后者合并注释/定标/噪声 XML 并写入清单，从而组装成合法的 <code>.SAFE</code> 目录。</p>
+<p>扩展自 <code>ASF_Base_Downloader</code>，用于 ASF 的 <strong>SLC-BURST</strong> 数据集。一个 burst 约为完整 IW 切片的 1/9，因此面向 AOI 的 burst 堆叠比等效的 <code>S1_SLC</code> 搜索拉取的数据少得多。请与 <code>ISCE3_Burst</code> 处理器和 <code>ISCE3_Dolphin_S1_PL</code> 分析器配合使用。</p>
+<p>与 <code>S1_SLC</code> 相比只有 <code>download()</code> 不同：它将选中的颗粒交给 <code>burst2safe</code>，由后者组装成合法的 <code>.SAFE</code> 目录。</p>
 <div class="admonition note">
 <p class="admonition-title">Burst 堆叠以 <code>fullBurstID</code> 为键，而非 frame</p>
 <p>ASF 的 SLC-BURST 产品不返回 <code>frameNumber</code>，因此 frame 过滤器匹配不到任何内容，已从查询中排除。burst 堆叠由 <code>fullBurstID</code>（如 <code>056_118970_IW2</code>）标识；下载器文件夹据此命名为 <code>p&lt;path&gt;_iw&lt;s&gt;_b&lt;id&gt;</code>。</p>
@@ -13300,7 +13300,7 @@ subfolders.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>NISAR_GSLC</code> 通过 ASF 搜索并下载 NISAR <strong>L2 GSLC</strong>（已地理编码的 SLC）产品。GSLC 是每个日期一帧的已地理编码复数 SLC，因此可直接送入 <code>ISCE3_NISAR</code> 处理器（无需配准、无需地理编码），再进入 <code>ISCE3_Dolphin_NISAR_PL</code> 分析器。搜索、筛选、足迹与配对选择均复用 <code>ASF_Base_Downloader</code>；<strong>不下载轨道</strong> —— NISAR 产品自带状态矢量。</p>
+<p>通过 ASF 搜索并下载 NISAR <strong>L2 GSLC</strong>（已地理编码的 SLC）产品——每个日期一帧的已地理编码复数 SLC，可直接送入 <code>ISCE3_NISAR</code> 处理器与 <code>ISCE3_Dolphin_NISAR_PL</code> 分析器。搜索、筛选、足迹与配对选择均复用 <code>ASF_Base_Downloader</code>；<strong>不下载轨道</strong>：NISAR 产品自带状态矢量。</p>
 <div class="admonition note">
 <p class="admonition-title">NISAR 的检索维度不同于 Sentinel-1</p>
 <p>NISAR 的极化按<strong>频段</strong>记录，而非单一的 <code>polarization</code> 字段（ASF 将其留空）：请按 <code>mainBandPolarization</code>（频段 A，即用于 InSAR 的宽高分辨率主带）筛选，必要时用 <code>sideBandPolarization</code>（频段 B，5 MHz 电离层带）。<code>rangeBandwidth</code>（如 <code>40+5</code>）是采集模式 —— 在一个栈内应保持不变，以保证每个日期分辨率一致。<code>frameCoverage</code>（<code>FULL</code>/<code>PARTIAL</code>）、<code>relativeOrbit</code>（path）与 <code>frame</code> 组成其余维度。NISAR 产品还不返回 <code>beamMode</code>/<code>centerLat</code>/<code>centerLon</code>/<code>granuleType</code>/<code>md5sum</code>，其 <code>bytes</code> 是按文件的映射而非单个数字。</p>

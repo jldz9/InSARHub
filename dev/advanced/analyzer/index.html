@@ -6849,7 +6849,7 @@ Removes <code>isce/coarse_interferograms/</code>, <code>isce/ESD/</code>, <code>
 </ul>
 </div>
 <div class="tabbed-block">
-<p>The <code>GMTSAR_Mintpy_SBAS</code> analyzer runs MintPy SBAS time-series on the coherent stack produced by the <code>GMTSAR_S1</code> processor. It hands GMTSAR's geocoded <code>*_ll.grd</code> products and <code>baseline_table.dat</code> to MintPy's own <code>prep_gmtsar.py</code> loader (via the <code>mintpy.load.*</code> keys), so it works without any common alignment reference — every pair already shares a geographic grid. It is the MintPy analogue of <code>ISCE2_Mintpy_SBAS</code>, differing only in how it wires the <code>load_*</code> paths. Output is written to <code>workdir/gmtsar_mintpy/</code> (a dedicated directory, so it never collides with a Hyp3/ISCE MintPy run in the same workdir).</p>
+<p>Runs MintPy SBAS on the stack from the <code>GMTSAR_S1</code> processor, handing GMTSAR's geocoded <code>*_ll.grd</code> products and <code>baseline_table.dat</code> to MintPy's <code>prep_gmtsar.py</code> loader. The MintPy analogue of <code>ISCE2_Mintpy_SBAS</code>. Output goes to <code>workdir/gmtsar_mintpy/</code>, kept separate so it never collides with a Hyp3 or ISCE MintPy run in the same workdir.</p>
 
 
 <div class="doc doc-object doc-class">
@@ -8411,8 +8411,8 @@ and authorization fails.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p>The <code>GMTSAR_SBAS</code> analyzer runs <strong>GMTSAR's own native SBAS inversion</strong> (<code>prep_sbas</code> + the <code>sbas</code> C binary) on a <code>GMTSAR_S1</code> stack_mode stack — no MintPy involved. It consumes <code>workdir/gmtsar/</code> (<code>intf.in</code>, <code>baseline_table.dat</code>, <code>intf/&lt;pair&gt;/</code>) and produces the cumulative displacement per date (<code>disp_*.grd</code>) and the linear velocity (<code>vel.grd</code>) in radar coordinates under <code>workdir/gmtsar_sbas/</code>.</p>
-<p>Because the inversion is a GMTSAR C binary, both <code>gmtsar_root</code> and <code>gmtsar_env_bin</code> are <strong>required</strong> in the config — the <code>sbas</code> binary and <code>gmt</code> come from GMTSAR's own install/conda env, not InSARHub's.</p>
+<p>Runs <strong>GMTSAR's own native SBAS inversion</strong> (<code>prep_sbas</code> + the <code>sbas</code> binary) on a <code>GMTSAR_S1</code> stack_mode stack — no MintPy. Consumes <code>workdir/gmtsar/</code> and writes cumulative displacement per date (<code>disp_*.grd</code>) and linear velocity (<code>vel.grd</code>) in radar coordinates to <code>workdir/gmtsar_sbas/</code>.</p>
+<p><code>gmtsar_root</code> and <code>gmtsar_env_bin</code> are <strong>required</strong> here: the <code>sbas</code> binary and <code>gmt</code> come from GMTSAR's own install, not InSARHub's.</p>
 
 
 <div class="doc doc-object doc-class">
@@ -9757,10 +9757,8 @@ and authorization fails.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p>The <code>ISCE3_Dolphin_S1_PL</code> analyzer runs dolphin's <code>timeseries.run</code> on the unwrapped interferogram stack produced by the <code>ISCE3_Burst</code> processor (Sentinel-1 bursts). Output is written under <code>workdir/timeseries/</code>.</p>
-<p>There is <strong>one analyzer per upstream</strong>: this one for <code>ISCE3_Burst</code>, and <a href="#"><code>ISCE3_Dolphin_NISAR_PL</code></a> for <code>ISCE3_NISAR</code>. The two share their entire inversion through <code>Dolphin_PL_Base_Analyzer</code> (<code>analyzer/dolphin_base.py</code>) and differ only in the config bound to them and in how the radar wavelength is obtained. This used to be a single analyzer whose <code>compatible_processor</code> listed both upstreams, but <code>default_config</code> is a per-class binding and nothing dispatched on the actual upstream, so a NISAR stack silently inherited the Sentinel-1 C-band wavelength — scaling every displacement by roughly 4.3x with no error raised anywhere.</p>
-<p>The wrapped-phase estimator is always dolphin's phase linking (the processor's engine is a thin wrapper over dolphin's <code>displacement.run</code>), so there is no estimator switch here. The quality raster used to pick the reference point and mask low-quality pixels is dolphin's stitched temporal coherence (<code>interferograms/temporal_coherence_*.tif</code>).</p>
-<p>Water is masked out of the inversion by default (<code>apply_water_mask=True</code>), using the processor's <code>dem/water_mask.tif</code> exactly the way dolphin's own <code>displacement.run</code> does. With this on, the analyzer's velocity/displacement outputs are byte-identical to a native <code>dolphin run</code>; turn it off to invert every pixel (leaving open water in the outputs).</p>
+<p>Runs dolphin's <code>timeseries.run</code> on the unwrapped stack from the <code>ISCE3_Burst</code> processor (Sentinel-1 bursts), writing to <code>workdir/timeseries/</code>. The NISAR counterpart is <code>ISCE3_Dolphin_NISAR_PL</code>; both inherit the inversion from <code>Dolphin_PL_Base_Analyzer</code>.</p>
+<p>Water is excluded by default (<code>apply_water_mask=True</code>) using the processor's <code>dem/water_mask.tif</code>. Turn it off to invert open water too.</p>
 <div class="admonition note">
 <p class="admonition-title">Legacy names</p>
 <p><code>ISCE3_Dolphin_PL</code>, <code>ISCE3_Dolphin_TS</code>, <code>Dolphin_TS</code> and <code>Dolphin_SBAS</code> all still resolve to this analyzer, so saved <code>insarhub_config.json</code> files and older CLI commands keep working. They are hidden from the analyzer list. The same applies to the config class: <code>ISCE3_Dolphin_PL_Config</code> and <code>ISCE3_Dolphin_PL_S1_Config</code> are aliases of <code>ISCE3_Dolphin_S1_PL_Config</code>.</p>
@@ -9940,14 +9938,14 @@ and authorization fails.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p>The <code>ISCE3_Dolphin_NISAR_PL</code> analyzer is the NISAR counterpart of <code>ISCE3_Dolphin_S1_PL</code>: same dolphin <code>timeseries.run</code>, same products, same <code>workdir/timeseries/</code> output. It consumes the stack produced by the <code>ISCE3_NISAR</code> processor (NISAR GSLC) and inherits the whole inversion from <code>Dolphin_PL_Base_Analyzer</code>.</p>
-<p>Three things differ, each forced by what <code>ISCE3_NISAR</code> actually produces:</p>
+<p>The NISAR counterpart of <code>ISCE3_Dolphin_S1_PL</code> — same <code>timeseries.run</code>, same products, same <code>workdir/timeseries/</code> output — consuming the stack from the <code>ISCE3_NISAR</code> processor.</p>
+<p>Three differences, each forced by what <code>ISCE3_NISAR</code> produces:</p>
 <ul>
-<li><strong>Wavelength is read from the GSLC metadata</strong>, not pinned to a constant. NISAR is L-band (~0.24 m against C-band's 0.055 m), and its frequency A and B groups have different centre frequencies, so the value is looked up in the granule (<code>centerFrequency</code> under <code>/science/LSAR/...</code>) and converted with <code>c / f</code>. Set <code>wavelength</code> explicitly to override.</li>
-<li><strong><code>apply_water_mask</code> defaults to <code>False</code>.</strong> It reads the processor's <code>dem/water_mask.tif</code>, and <code>ISCE3_NISAR</code> drops the <code>dem</code> stage entirely (GSLC is already geocoded), so there is no mask to apply.</li>
-<li><strong><code>los_projection</code> is not offered.</strong> <code>'vertical'</code> needs the processor's <code>static</code> stage, and <code>ISCE3_NISAR</code>'s stages are (crop, ifg, stitch, unwrap). The field is still inherited and still defaults to <code>'none'</code>, it is just hidden from the UI.</li>
+<li><strong>Wavelength</strong> is read from the GSLC metadata rather than pinned; NISAR is L-band and its frequency A/B bands differ. Set <code>wavelength</code> to override.</li>
+<li><strong><code>apply_water_mask</code> defaults to <code>False</code></strong> — <code>ISCE3_NISAR</code> runs no <code>dem</code> stage, so there is no mask to apply.</li>
+<li><strong><code>los_projection</code> is hidden</strong> — <code>'vertical'</code> needs the processor's <code>static</code> stage, which <code>ISCE3_NISAR</code> does not run.</li>
 </ul>
-<p><code>nisar_frequency</code> / <code>nisar_polarization</code> mirror <code>ISCE3_NISAR_Config</code> and must match what the processor phase-linked — they are what locates the centre frequency inside the GSLC <code>.h5</code>.</p>
+<p><code>nisar_frequency</code> / <code>nisar_polarization</code> must match what the processor phase-linked.</p>
 <div class="admonition note">
 <p class="admonition-title">Legacy name</p>
 <p><code>ISCE3_Dolphin_PL_NISAR</code> still resolves to this analyzer, and <code>ISCE3_Dolphin_PL_NISAR_Config</code> is an alias of <code>ISCE3_Dolphin_NISAR_PL_Config</code>.</p>

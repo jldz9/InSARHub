@@ -3324,13 +3324,13 @@ footprint from (see dem_path above); otherwise informational.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>GMTSAR_S1</code> 处理器在本地运行 <a href="https://github.com/gmtsar/gmtsar">GMTSAR</a> 的 Python 流程，从已下载的 SLC <code>.SAFE</code> 文件生成 Sentinel-1 干涉图。两个 GMTSAR 入口都支持，根据 <code>subswath</code> 指定的是一个还是多个 IW 自动选择：</p>
+<p>在本地运行 <a href="https://github.com/gmtsar/gmtsar">GMTSAR</a> 的 Python 流程，从 <code>.SAFE</code> SLC 生成 Sentinel-1 干涉图。入口由 <code>subswath</code> 决定：</p>
 <ul>
-<li><code>subswath</code> 只指定一个 IW（例如 <code>2</code>）— 单子条带，走 <code>p2p_processing</code>。<code>GMTSAR_S1</code> 会自行从每景 <code>.SAFE</code> 中提取所配置的 IW 子条带与极化方式，因此调用方始终只需传入原始的 <code>.SAFE</code>/<code>.EOF</code> 名称，与多子条带模式一致。</li>
-<li><code>subswath</code> 指定多个 IW（例如默认的 <code>"1 2 3"</code>）— 多子条带，走 <code>p2p_S1_TOPS_Frame</code>，生成跨所有指定子条带的合并干涉图。</li>
+<li>单个 IW（例如 <code>2</code>）——单子条带，走 <code>p2p_processing</code></li>
+<li>多个 IW（例如默认的 <code>"1 2 3"</code>）——多子条带合并，走 <code>p2p_S1_TOPS_Frame</code></li>
 </ul>
-<p>需要说明的是，<code>p2p_S1_TOPS_Frame</code> 并不会取代 <code>p2p_processing</code> — 它是建立在后者之上的编排层：内部按子条带循环调用 <code>p2p_processing S1_TOPS</code>，再执行合并。<code>p2p_processing</code> 本身是通用的逐对处理引擎，支持 ERS、ENVI、ALOS、TSX、RS2 等十余种传感器，<code>S1_TOPS</code> 只是其中之一。</p>
-<p>GMTSAR 运行在自己的 conda 环境中，与 InSARHub 的环境相互独立（numpy/GDAL 版本不同）— <code>gmtsar_root</code> 与 <code>gmtsar_env_bin</code> 分别告诉 <code>GMTSAR_S1</code> 到哪里找 GMTSAR 的脚本，以及它会调用的 <code>gmt</code> 可执行文件。两者在未设置时都会自动探测（<code>gmtsar_root</code>：<code>$GMTSAR</code> → <code>$PATH</code> 上的已知 GMTSAR 脚本 → 常见安装位置扫描；<code>gmtsar_env_bin</code>：带 <code>gmt</code> 的相邻 conda 环境 → <code>$PATH</code> 上的 <code>gmt</code>），因此实际使用中通常无需设置 — 只有在自动探测选错或找不到时才需要显式指定。</p>
+<p>两种模式下调用方都只需传入原始的 <code>.SAFE</code>/<code>.EOF</code> 名称，子条带与极化方式由内部提取。</p>
+<p>GMTSAR 运行在自己的 conda 环境中。<code>gmtsar_root</code> 与 <code>gmtsar_env_bin</code> 用于定位它，两者均可自动探测，仅在探测失败时才需显式指定。也可将 <code>container</code> 设为包含 <code>insarhub</code>+GMTSAR 的 <code>.sif</code>/Docker 镜像，从而跳过本地探测。</p>
 <ul>
 <li>
 <p><strong>导入处理器</strong></p>
@@ -3639,8 +3639,8 @@ _subprocess_env() docstring for the full writeup.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>ISCE3_Burst</code> 处理器从 ASF <code>SLC-BURST</code> 数据构建干涉图栈，使用 <a href="https://github.com/isce-framework/isce3">ISCE3</a>/<a href="https://github.com/opera-adt/COMPASS">COMPASS</a> 进行地理编码，其后的所有环节由 <a href="https://github.com/isce-framework/dolphin">dolphin</a> 完成。请与 <code>S1_Burst</code> 下载器配合使用。</p>
-<p>它最本质的特点是<strong>不做配准</strong>。COMPASS 把每一景独立地理编码到绝对 UTM 坐标，因此同一个 burst 的任意两个日期在构造上就是逐像元对齐的 — 逐对配准可能引入的错配伪影在这里根本不会出现。</p>
+<p>从 ASF <code>SLC-BURST</code> 数据构建干涉图栈，使用 <a href="https://github.com/isce-framework/isce3">ISCE3</a>/<a href="https://github.com/opera-adt/COMPASS">COMPASS</a> 进行地理编码，其后环节由 <a href="https://github.com/isce-framework/dolphin">dolphin</a> 完成。请与 <code>S1_Burst</code> 下载器配合使用。</p>
+<p><strong>不做配准</strong>：COMPASS 把每一景独立地理编码到绝对 UTM 坐标，因此同一 burst 的任意两个日期在构造上即逐像元对齐。</p>
 <p>共九个阶段，按顺序执行：</p>
 <table>
 <thead>
@@ -6315,8 +6315,8 @@ _subprocess_env() docstring for the full writeup.</p>
 
 </div></div>
 <div class="tabbed-block">
-<p><code>ISCE3_NISAR</code> 处理器从 <strong>NISAR L2 GSLC</strong> 数据构建干涉图栈，使用 <a href="https://github.com/isce-framework/dolphin">dolphin</a> 完成相位链接、干涉图与解缠。请搭配 <code>NISAR_GSLC</code> 下载器；时序分析同样使用 <code>ISCE3_Dolphin_NISAR_PL</code> 分析器（与 <code>ISCE3_Burst</code> 相同）。</p>
-<p>它复用了 <code>ISCE3_Burst</code> 的 dolphin 引擎，但<strong>跳过全部地理编码</strong>。NISAR GSLC 本身就是已地理编码的复数 SLC —— 每个日期一帧，因此不同于 <code>ISCE3_Burst</code>，没有 COMPASS 前端：<code>dem</code>/<code>tec</code>/<code>cslc</code>/<code>static</code> 阶段被完全去掉，GSLC 栅格直接送入 dolphin。由于 NISAR 每个日期只有一帧（没有 OPERA burst 拆分），<code>ifg</code> 是对整个栈的单次 <code>wrapped_phase.run</code>，而非逐 burst 调用。</p>
+<p>从 <strong>NISAR L2 GSLC</strong> 数据构建干涉图栈，使用 <a href="https://github.com/isce-framework/dolphin">dolphin</a> 完成相位链接、干涉图与解缠。请搭配 <code>NISAR_GSLC</code> 下载器与 <code>ISCE3_Dolphin_NISAR_PL</code> 分析器。</p>
+<p>与 <code>ISCE3_Burst</code> 使用相同的 dolphin 引擎，但<strong>不做地理编码</strong>——GSLC 本身已完成地理编码且每个日期一帧，因此 <code>dem</code>/<code>tec</code>/<code>cslc</code>/<code>static</code> 阶段被去掉，<code>ifg</code> 是对整个栈的单次 <code>wrapped_phase.run</code>。</p>
 <p>三个阶段，依次运行：</p>
 <table>
 <thead>

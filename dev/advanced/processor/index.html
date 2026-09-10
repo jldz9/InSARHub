@@ -3454,13 +3454,13 @@ footprint from (see dem_path above); otherwise informational.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p>The <code>GMTSAR_S1</code> processor runs <a href="https://github.com/gmtsar/gmtsar">GMTSAR</a>'s Python pipeline locally to generate Sentinel-1 interferograms from downloaded SLC <code>.SAFE</code> files. Both GMTSAR entry points are supported, chosen automatically by whether <code>subswath</code> names one IW or several:</p>
+<p>Runs <a href="https://github.com/gmtsar/gmtsar">GMTSAR</a>'s Python pipeline locally to build Sentinel-1 interferograms from <code>.SAFE</code> SLCs. The entry point is chosen by <code>subswath</code>:</p>
 <ul>
-<li><code>subswath</code> names exactly one IW (e.g. <code>2</code>) — single-subswath, via <code>p2p_processing</code>. <code>GMTSAR_S1</code> extracts the configured IW subswath + polarization from each <code>.SAFE</code> scene itself, so callers only ever pass raw <code>.SAFE</code>/<code>.EOF</code> names, the same as multi-subswath mode.</li>
-<li><code>subswath</code> names more than one IW (e.g. <code>"1 2 3"</code>, the default) — multi-subswath, via <code>p2p_S1_TOPS_Frame</code>, producing a merged interferogram across every subswath named.</li>
+<li>one IW (e.g. <code>2</code>) — single-subswath, via <code>p2p_processing</code></li>
+<li>several (e.g. <code>"1 2 3"</code>, the default) — multi-subswath merged, via <code>p2p_S1_TOPS_Frame</code></li>
 </ul>
-<p>Note <code>p2p_S1_TOPS_Frame</code> does not <em>replace</em> <code>p2p_processing</code> — it is built on top of it, calling <code>p2p_processing S1_TOPS</code> per subswath and then merging. <code>p2p_processing</code> is the generic pairwise engine and supports ~14 sensors (ERS, ENVI, ALOS, TSX, RS2, …); <code>S1_TOPS</code> is one of them.</p>
-<p>GMTSAR runs in its own conda environment, separate from InSARHub's (different numpy/GDAL stack) — <code>gmtsar_root</code> and <code>gmtsar_env_bin</code> tell <code>GMTSAR_S1</code> where to find GMTSAR's scripts and the <code>gmt</code> binary it shells out to. Both auto-detect when unset (<code>$GMTSAR</code> / a known GMTSAR script on <code>$PATH</code> for <code>gmtsar_root</code>; a sibling conda env with <code>gmt</code> in its <code>bin/</code> / bare <code>gmt</code> on <code>$PATH</code> for <code>gmtsar_env_bin</code>), so they're optional in practice — pass them explicitly only if auto-detection picks the wrong one or finds nothing. Alternatively, set <code>container</code> to a <code>.sif</code>/Docker image with <code>insarhub</code>+GMTSAR installed and skip local discovery entirely (mirrors <code>ISCE2_S1</code>'s <code>--container</code>; in HPC mode only each stage's child jobs run inside the container, the sbatch manager scaffolding stays on the host).</p>
+<p>Either way callers pass raw <code>.SAFE</code>/<code>.EOF</code> names; the subswath and polarization are extracted internally.</p>
+<p>GMTSAR runs in its own conda environment. <code>gmtsar_root</code> and <code>gmtsar_env_bin</code> locate it and both auto-detect, so pass them only when detection fails. Alternatively set <code>container</code> to a <code>.sif</code>/Docker image carrying <code>insarhub</code>+GMTSAR and skip local discovery.</p>
 <ul>
 <li>
 <p><strong>Import processor</strong></p>
@@ -3854,8 +3854,8 @@ _subprocess_env() docstring for the full writeup.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p>The <code>ISCE3_Burst</code> processor builds an interferogram stack from ASF <code>SLC-BURST</code> granules using <a href="https://github.com/isce-framework/isce3">ISCE3</a>/<a href="https://github.com/opera-adt/COMPASS">COMPASS</a> for geocoding and <a href="https://github.com/isce-framework/dolphin">dolphin</a> for everything downstream. Pair it with the <code>S1_Burst</code> downloader.</p>
-<p>Its defining property is that <strong>there is no coregistration</strong>. COMPASS geocodes every acquisition independently onto absolute UTM coordinates, so two dates of the same burst are pixel-aligned by construction — the misregistration artefacts that pairwise coregistration can introduce cannot arise.</p>
+<p>Builds an interferogram stack from ASF <code>SLC-BURST</code> granules using <a href="https://github.com/isce-framework/isce3">ISCE3</a>/<a href="https://github.com/opera-adt/COMPASS">COMPASS</a> for geocoding and <a href="https://github.com/isce-framework/dolphin">dolphin</a> downstream. Pair it with the <code>S1_Burst</code> downloader.</p>
+<p>There is <strong>no coregistration</strong>: COMPASS geocodes every acquisition independently onto absolute UTM, so two dates of the same burst are pixel-aligned by construction.</p>
 <p>Nine stages, run in order:</p>
 <table>
 <thead>
@@ -6530,8 +6530,8 @@ _subprocess_env() docstring for the full writeup.</p>
 
 </div></div>
 <div class="tabbed-block">
-<p>The <code>ISCE3_NISAR</code> processor builds an interferogram stack from <strong>NISAR L2 GSLC</strong> granules using <a href="https://github.com/isce-framework/dolphin">dolphin</a> for phase-linking, interferograms, and unwrapping. Pair it with the <code>NISAR_GSLC</code> downloader; the time series is via the <code>ISCE3_Dolphin_NISAR_PL</code> analyzer (the same one <code>ISCE3_Burst</code> uses).</p>
-<p>It shares <code>ISCE3_Burst</code>'s dolphin engine but <strong>skips all geocoding</strong>. A NISAR GSLC is already a geocoded complex SLC — one frame per date — so unlike <code>ISCE3_Burst</code> there is no COMPASS front-end: the <code>dem</code>/<code>tec</code>/<code>cslc</code>/<code>static</code> stages are dropped entirely, and the GSLC grid feeds dolphin directly. Because NISAR is one frame per date (no OPERA burst split), <code>ifg</code> is a single <code>wrapped_phase.run</code> over the whole stack rather than one call per burst.</p>
+<p>Builds an interferogram stack from <strong>NISAR L2 GSLC</strong> granules using <a href="https://github.com/isce-framework/dolphin">dolphin</a> for phase-linking, interferograms and unwrapping. Pair it with the <code>NISAR_GSLC</code> downloader and the <code>ISCE3_Dolphin_NISAR_PL</code> analyzer.</p>
+<p>Same dolphin engine as <code>ISCE3_Burst</code> but <strong>no geocoding</strong> — a GSLC is already geocoded, one frame per date, so the <code>dem</code>/<code>tec</code>/<code>cslc</code>/<code>static</code> stages are dropped and <code>ifg</code> is a single <code>wrapped_phase.run</code> over the whole stack.</p>
 <p>Three stages, run in order:</p>
 <table>
 <thead>

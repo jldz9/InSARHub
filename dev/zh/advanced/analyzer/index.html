@@ -6851,7 +6851,7 @@ and authorization fails.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>GMTSAR_Mintpy_SBAS</code> 分析器对 <code>GMTSAR_S1</code> 处理器生成的相干堆叠运行 MintPy SBAS 时序分析。它将 GMTSAR 的地理编码 <code>*_ll.grd</code> 产品和 <code>baseline_table.dat</code> 交给 MintPy 自带的 <code>prep_gmtsar.py</code> 加载器（通过 <code>mintpy.load.*</code> 键），因此无需任何公共配准参考即可工作——每对干涉图已经共享同一地理网格。它是 <code>ISCE2_Mintpy_SBAS</code> 的 MintPy 对应物，唯一区别在于如何配置 <code>load_*</code> 路径。输出写入 <code>workdir/gmtsar_mintpy/</code>（独立目录，不会与同一工作目录中的 Hyp3/ISCE MintPy 运行相互覆盖）。</p>
+<p>对 <code>GMTSAR_S1</code> 处理器生成的堆叠运行 MintPy SBAS，将 GMTSAR 的地理编码 <code>*_ll.grd</code> 产品和 <code>baseline_table.dat</code> 交给 MintPy 的 <code>prep_gmtsar.py</code> 加载器。它是 <code>ISCE2_Mintpy_SBAS</code> 的 MintPy 对应物。输出写入 <code>workdir/gmtsar_mintpy/</code>，独立目录，不会与同一工作目录中的 Hyp3 或 ISCE MintPy 运行相互覆盖。</p>
 
 
 <div class="doc doc-object doc-class">
@@ -8413,8 +8413,8 @@ and authorization fails.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>GMTSAR_SBAS</code> 分析器在 <code>GMTSAR_S1</code> stack_mode 堆叠上运行 <strong>GMTSAR 自带的原生 SBAS 反演</strong>（<code>prep_sbas</code> + <code>sbas</code> C 二进制程序）——不涉及 MintPy。它读取 <code>workdir/gmtsar/</code>（<code>intf.in</code>、<code>baseline_table.dat</code>、<code>intf/&lt;pair&gt;/</code>），并在 <code>workdir/gmtsar_sbas/</code> 下以雷达坐标生成每个日期的累计位移（<code>disp_*.grd</code>）和线性速度（<code>vel.grd</code>）。</p>
-<p>由于反演是 GMTSAR 的 C 二进制程序，配置中的 <code>gmtsar_root</code> 和 <code>gmtsar_env_bin</code> <strong>均为必需项</strong>——<code>sbas</code> 二进制程序和 <code>gmt</code> 来自 GMTSAR 自身的安装/conda 环境，而非 InSARHub。</p>
+<p>在 <code>GMTSAR_S1</code> stack_mode 堆叠上运行 <strong>GMTSAR 自带的原生 SBAS 反演</strong>（<code>prep_sbas</code> + <code>sbas</code> 二进制程序）——不涉及 MintPy。读取 <code>workdir/gmtsar/</code>，在 <code>workdir/gmtsar_sbas/</code> 下以雷达坐标生成每个日期的累计位移（<code>disp_*.grd</code>）和线性速度（<code>vel.grd</code>）。</p>
+<p>此处 <code>gmtsar_root</code> 与 <code>gmtsar_env_bin</code> <strong>均为必需项</strong>：<code>sbas</code> 二进制程序和 <code>gmt</code> 来自 GMTSAR 自身的安装，而非 InSARHub。</p>
 
 
 <div class="doc doc-object doc-class">
@@ -9759,10 +9759,8 @@ and authorization fails.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>ISCE3_Dolphin_S1_PL</code> 分析器在 <code>ISCE3_Burst</code> 处理器（Sentinel-1 burst）生成的解缠干涉图堆叠上运行 dolphin 的 <code>timeseries.run</code>，输出写入 <code>workdir/timeseries/</code>。</p>
-<p><strong>每个上游对应一个分析器</strong>：本分析器对应 <code>ISCE3_Burst</code>，<code>ISCE3_Dolphin_NISAR_PL</code> 对应 <code>ISCE3_NISAR</code>。两者通过 <code>Dolphin_PL_Base_Analyzer</code>（<code>analyzer/dolphin_base.py</code>）共享全部反演逻辑，差异仅在于绑定的配置类，以及雷达波长的获取方式。此前二者是同一个分析器、其 <code>compatible_processor</code> 同时列出两个上游，但 <code>default_config</code> 是按类绑定的，且没有任何代码依据实际上游进行分派——于是 NISAR 堆叠会静默地沿用 Sentinel-1 的 C 波段波长，使所有位移被放大约 4.3 倍，且不会在任何环节报错。</p>
-<p>缠绕相位估计器恒为 dolphin 的相位链接（处理器引擎是 dolphin <code>displacement.run</code> 的薄封装），因此这里没有估计器开关。用于选取参考点并掩膜低质量像元的质量栅格是 dolphin 拼接后的时间相干性（<code>interferograms/temporal_coherence_*.tif</code>）。</p>
-<p>默认会将水体排除在反演之外（<code>apply_water_mask=True</code>），使用处理器的 <code>dem/water_mask.tif</code>，与 dolphin 自身 <code>displacement.run</code> 的做法完全一致。开启时，本分析器的速度/位移输出与原生 <code>dolphin run</code> 逐字节一致；关闭则对每个像元都进行反演（输出中会保留开阔水域）。</p>
+<p>在 <code>ISCE3_Burst</code> 处理器（Sentinel-1 burst）生成的解缠堆叠上运行 dolphin 的 <code>timeseries.run</code>，输出写入 <code>workdir/timeseries/</code>。NISAR 对应版本为 <code>ISCE3_Dolphin_NISAR_PL</code>，两者的反演逻辑均继承自 <code>Dolphin_PL_Base_Analyzer</code>。</p>
+<p>默认将水体排除在反演之外（<code>apply_water_mask=True</code>），使用处理器的 <code>dem/water_mask.tif</code>；关闭后开阔水域也会参与反演。</p>
 <div class="admonition note">
 <p class="admonition-title">旧名称</p>
 <p><code>ISCE3_Dolphin_PL</code>、<code>ISCE3_Dolphin_TS</code>、<code>Dolphin_TS</code> 与 <code>Dolphin_SBAS</code> 均仍解析到本分析器，因此已保存的 <code>insarhub_config.json</code> 和旧的 CLI 命令继续可用；它们不会出现在分析器列表中。配置类同理：<code>ISCE3_Dolphin_PL_Config</code> 与 <code>ISCE3_Dolphin_PL_S1_Config</code> 是 <code>ISCE3_Dolphin_S1_PL_Config</code> 的别名。</p>
@@ -9942,14 +9940,14 @@ and authorization fails.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>ISCE3_Dolphin_NISAR_PL</code> 是 <code>ISCE3_Dolphin_S1_PL</code> 的 NISAR 对应版本：相同的 dolphin <code>timeseries.run</code>、相同的产品、相同的 <code>workdir/timeseries/</code> 输出。它消费 <code>ISCE3_NISAR</code> 处理器（NISAR GSLC）生成的堆叠，并从 <code>Dolphin_PL_Base_Analyzer</code> 继承全部反演逻辑。</p>
-<p>三处差异，均由 <code>ISCE3_NISAR</code> 的实际产出决定：</p>
+<p><code>ISCE3_Dolphin_S1_PL</code> 的 NISAR 对应版本——相同的 <code>timeseries.run</code>、相同的产品、相同的 <code>workdir/timeseries/</code> 输出——消费 <code>ISCE3_NISAR</code> 处理器生成的堆叠。</p>
+<p>三处差异，均由 <code>ISCE3_NISAR</code> 的产出决定：</p>
 <ul>
-<li><strong>波长从 GSLC 元数据读取</strong>，而非固定常量。NISAR 为 L 波段（约 0.24 m，而 C 波段为 0.055 m），且其 frequency A 与 B 两个分组的中心频率不同，因此该值从数据本身查找（<code>/science/LSAR/...</code> 下的 <code>centerFrequency</code>）并按 <code>c / f</code> 换算。显式设置 <code>wavelength</code> 可覆盖。</li>
-<li><strong><code>apply_water_mask</code> 默认为 <code>False</code>。</strong> 它读取处理器的 <code>dem/water_mask.tif</code>，而 <code>ISCE3_NISAR</code> 完全不执行 <code>dem</code> 阶段（GSLC 已完成地理编码），因此没有可用的掩膜。</li>
-<li><strong>不提供 <code>los_projection</code>。</strong> <code>'vertical'</code> 需要处理器的 <code>static</code> 阶段，而 <code>ISCE3_NISAR</code> 的阶段为 (crop, ifg, stitch, unwrap)。该字段仍被继承且默认为 <code>'none'</code>，只是不在界面中提供。</li>
+<li><strong>波长从 GSLC 元数据读取</strong>，而非固定常量；NISAR 为 L 波段，且 frequency A/B 的中心频率不同。显式设置 <code>wavelength</code> 可覆盖。</li>
+<li><strong><code>apply_water_mask</code> 默认为 <code>False</code></strong> —— <code>ISCE3_NISAR</code> 不执行 <code>dem</code> 阶段，没有可用的掩膜。</li>
+<li><strong>不提供 <code>los_projection</code></strong> —— <code>'vertical'</code> 需要处理器的 <code>static</code> 阶段，而 <code>ISCE3_NISAR</code> 不执行该阶段。</li>
 </ul>
-<p><code>nisar_frequency</code> / <code>nisar_polarization</code> 与 <code>ISCE3_NISAR_Config</code> 保持一致，且必须与处理器进行相位链接时所用的设置相同——它们决定了在 GSLC <code>.h5</code> 中定位中心频率的路径。</p>
+<p><code>nisar_frequency</code> / <code>nisar_polarization</code> 必须与处理器进行相位链接时所用的设置一致。</p>
 <div class="admonition note">
 <p class="admonition-title">旧名称</p>
 <p><code>ISCE3_Dolphin_PL_NISAR</code> 仍解析到本分析器；<code>ISCE3_Dolphin_PL_NISAR_Config</code> 是 <code>ISCE3_Dolphin_NISAR_PL_Config</code> 的别名。</p>

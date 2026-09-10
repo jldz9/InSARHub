@@ -7697,8 +7697,8 @@ Defaults to True.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>S1_Burst</code> is a specialized downloader that extends <code>ASF_Base_Downloader</code> for ASF's <strong>SLC-BURST</strong> dataset. A burst is roughly 1/9th of a full IW slice, so an AOI-limited burst stack pulls far less data than an equivalent <code>S1_SLC</code> search — the whole point of burst-based processing, and what makes the <code>ISCE3_Burst</code> / COMPASS workflow practical over a small target. Pair it with the <code>ISCE3_Burst</code> processor and the <code>ISCE3_Dolphin_S1_PL</code> analyzer.</p>
-<p>Search, filter, summary, footprint and pair selection behave exactly as for <code>S1_SLC</code> (they reuse <code>ASF_Base_Downloader</code>); only <code>download()</code> differs — it hands the selected burst granules to <code>burst2safe</code>, which assembles them into valid <code>.SAFE</code> directories by merging the annotation/calibration/noise XML and writing a manifest.</p>
+<p>Extends <code>ASF_Base_Downloader</code> for ASF's <strong>SLC-BURST</strong> dataset. A burst is roughly 1/9th of a full IW slice, so an AOI-limited burst stack pulls far less data than the equivalent <code>S1_SLC</code> search. Pair it with the <code>ISCE3_Burst</code> processor and the <code>ISCE3_Dolphin_S1_PL</code> analyzer.</p>
+<p>Only <code>download()</code> differs from <code>S1_SLC</code>: it hands the selected granules to <code>burst2safe</code>, which assembles them into valid <code>.SAFE</code> directories.</p>
 <div class="admonition note">
 <p class="admonition-title">Burst stacks are keyed by <code>fullBurstID</code>, not frame</p>
 <p>ASF returns no <code>frameNumber</code> on SLC-BURST products, so a frame filter matches nothing and is excluded from the query. A burst stack is identified by <code>fullBurstID</code> (e.g. <code>056_118970_IW2</code>); the downloader folder is named <code>p&lt;path&gt;_iw&lt;s&gt;_b&lt;id&gt;</code> accordingly.</p>
@@ -13298,7 +13298,7 @@ subfolders.</p>
 </ul>
 </div>
 <div class="tabbed-block">
-<p><code>NISAR_GSLC</code> searches and downloads NISAR <strong>L2 GSLC</strong> (geocoded SLC) products via ASF. A GSLC is one already-geocoded complex SLC frame per date, so it feeds the <code>ISCE3_NISAR</code> processor directly (no coregistration, no geocoding) and on to the <code>ISCE3_Dolphin_NISAR_PL</code> analyzer. Search, filter, footprint and pair selection reuse <code>ASF_Base_Downloader</code>; there is <strong>no orbit download</strong> — NISAR products carry their own state vectors.</p>
+<p>Searches and downloads NISAR <strong>L2 GSLC</strong> (geocoded SLC) products via ASF — one already-geocoded complex SLC frame per date, feeding the <code>ISCE3_NISAR</code> processor and <code>ISCE3_Dolphin_NISAR_PL</code> analyzer directly. Search, filter, footprint and pair selection reuse <code>ASF_Base_Downloader</code>. There is <strong>no orbit download</strong>: NISAR products carry their own state vectors.</p>
 <div class="admonition note">
 <p class="admonition-title">NISAR facets differ from Sentinel-1</p>
 <p>NISAR carries polarization <strong>per frequency band</strong>, not in a single <code>polarization</code> field (which ASF leaves null): filter on <code>mainBandPolarization</code> (frequency A, the wide high-resolution band used for InSAR) and, where needed, <code>sideBandPolarization</code> (frequency B, the 5 MHz band for ionosphere). <code>rangeBandwidth</code> (e.g. <code>40+5</code>) is the acquisition mode — keep it constant across a stack so every date has the same resolution. <code>frameCoverage</code> (<code>FULL</code>/<code>PARTIAL</code>), <code>relativeOrbit</code> (path) and <code>frame</code> complete the facets. NISAR products also report no <code>beamMode</code>/<code>centerLat</code>/<code>centerLon</code>/<code>granuleType</code>/<code>md5sum</code>, and their <code>bytes</code> is a per-file map rather than a single number.</p>

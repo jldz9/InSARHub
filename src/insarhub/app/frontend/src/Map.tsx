@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import maplibregl from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { bboxToWkt, geometryToWkt, getGeometryBbox, type Bbox } from './geoUtils'
@@ -53,6 +53,11 @@ export default function Map({
   const polyPointsRef       = useRef<[number, number][]>([])
   const mousePosRef         = useRef<[number, number]>([0, 0])
   const stackHighlightIds   = useRef<Set<number | string>>(new Set())
+  // Sources/layers exist once 'load' has fired. Don't use map.isStyleLoaded()
+  // for this: it also reports false while any source still has data in flight
+  // (a basemap tile, or a setData() we just issued ourselves), so it silently
+  // skipped AOI camera moves.
+  const [styleReady, setStyleReady] = useState(false)
 
   useEffect(() => { drawModeRef.current = drawMode }, [drawMode])
   useEffect(() => { onAoiDrawnRef.current = onAoiDrawn }, [onAoiDrawn])
@@ -271,6 +276,8 @@ export default function Map({
         // Only fire timeseries / other empty-map actions when no footprint hit
         onMapClickRef.current?.(e.lngLat.lat, e.lngLat.wrap().lng)
       })
+
+      setStyleReady(true)
     })
 
     // ── Helper: update polygon-in-progress preview ────────────────────────
@@ -563,7 +570,7 @@ export default function Map({
   // ── Finished AOI display ──────────────────────────────────────────────────
   useEffect(() => {
     const map = mapRef.current
-    if (!map?.isStyleLoaded()) return
+    if (!map || !styleReady) return
 
     const aoiSrc = map.getSource('aoi') as maplibregl.GeoJSONSource | undefined
     const pinSrc = map.getSource('pin') as maplibregl.GeoJSONSource | undefined
@@ -583,7 +590,7 @@ export default function Map({
     if (aoiGeojson) {
       aoiSrc?.setData({ type: 'FeatureCollection', features: [aoiGeojson] })
       const bbox = getGeometryBbox(aoiGeojson.geometry)
-      if (map.isStyleLoaded()) map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: 60 })
+      map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: 60 })
       return
     }
 
@@ -594,7 +601,11 @@ export default function Map({
       type: 'Feature', properties: {},
       geometry: { type: 'Polygon', coordinates: [[[w,s],[e,s],[e,n],[w,n],[w,s]]] },
     }]})
-  }, [aoi, aoiGeojson])
+    // Skip the whole-world default — nothing to focus on
+    if (w > -180 || s > -90 || e < 180 || n < 90) {
+      map.fitBounds([[w, s], [e, n]], { padding: 60 })
+    }
+  }, [aoi, aoiGeojson, styleReady])
 
   return <div ref={containerRef} style={{ width: '100%', height: '100%' }} />
 }

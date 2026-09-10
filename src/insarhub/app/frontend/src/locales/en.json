@@ -349,7 +349,7 @@
   },
   "topBar": {
     "downloader": "Downloader",
-    "areaOfInterest": "Area of Interest",
+    "areaOfInterest": "Area of Interest · WKT",
     "wktPlaceholder": "Draw or paste WKT…",
     "start": "Start",
     "end": "End",
@@ -404,7 +404,7 @@
     "scenesCount_other": "{{count}} scenes"
   },
   "mapToolbar": {
-    "areaOfInterest": "Area of Interest",
+    "areaOfInterest": "AOI",
     "dragBoxAoi": "Drag box AOI",
     "drawPolygonAoi": "Draw polygon AOI",
     "placePointAoi": "Place point AOI",

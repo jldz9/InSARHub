@@ -341,7 +341,7 @@
   },
   "topBar": {
     "downloader": "下载器",
-    "areaOfInterest": "感兴趣区域",
+    "areaOfInterest": "目标区域 · WKT",
     "wktPlaceholder": "绘制或粘贴 WKT…",
     "start": "开始",
     "end": "结束",
@@ -395,7 +395,7 @@
     "scenesCount_other": "{{count}} 个场景"
   },
   "mapToolbar": {
-    "areaOfInterest": "感兴趣区域",
+    "areaOfInterest": "AOI",
     "dragBoxAoi": "拖拽绘制矩形区域",
     "drawPolygonAoi": "绘制多边形区域",
     "placePointAoi": "放置点位区域",

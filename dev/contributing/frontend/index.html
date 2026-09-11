@@ -1850,9 +1850,13 @@
 </span></code></pre></div>
 <p>In a separate terminal, navigate to the InSARHub root and start the backend with uvicorn:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/InSARHub
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uvicorn<span class="w"> </span>insarhub.app.api:app<span class="w"> </span>--reload<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">INSARHUB_DEV</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>uvicorn<span class="w"> </span>insarhub.app.api:app<span class="w"> </span>--reload<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span>
 </span></code></pre></div>
 <p><code>--reload</code> restarts the server automatically on source changes. Keep this terminal open while developing.</p>
+<p><code>INSARHUB_DEV=1</code> enables CORS for the Vite dev server on <code>:5173</code>. It is required
+only for this split dev setup — a production <code>insarhub-app</code> serves the built
+frontend from the same origin and needs no CORS. Without it, the dev server's
+<code>/api</code> calls are rejected by the browser.</p>
 <p>To build for production (output goes into <code>src/insarhub/app/static/</code>):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>npm<span class="w"> </span>run<span class="w"> </span>build
 </span></code></pre></div>

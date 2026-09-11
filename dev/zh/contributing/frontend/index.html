@@ -1852,9 +1852,12 @@
 </span></code></pre></div>
 <p>在另一个终端中，切换到 InSARHub 根目录并使用 uvicorn 启动后端：</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/InSARHub
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>uvicorn<span class="w"> </span>insarhub.app.api:app<span class="w"> </span>--reload<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="nv">INSARHUB_DEV</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>uvicorn<span class="w"> </span>insarhub.app.api:app<span class="w"> </span>--reload<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span>
 </span></code></pre></div>
 <p><code>--reload</code> 会在源码变更时自动重启服务器。开发期间保持此终端开启。</p>
+<p><code>INSARHUB_DEV=1</code> 用于为运行在 <code>:5173</code> 的 Vite 开发服务器启用 CORS，仅在这种前后端分离的
+开发模式下需要 —— 生产环境的 <code>insarhub-app</code> 从同一来源提供已构建的前端，无需 CORS。
+若不设置该变量，开发服务器的 <code>/api</code> 请求会被浏览器拒绝。</p>
 <p>构建生产版本（输出至 <code>src/insarhub/app/static/</code>）：</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>npm<span class="w"> </span>run<span class="w"> </span>build
 </span></code></pre></div>

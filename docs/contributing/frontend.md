@@ -22,10 +22,15 @@ In a separate terminal, navigate to the InSARHub root and start the backend with
 
 ```bash
 cd /path/to/InSARHub
-uvicorn insarhub.app.api:app --reload --port 8080
+INSARHUB_DEV=1 uvicorn insarhub.app.api:app --reload --port 8080
 ```
 
 `--reload` restarts the server automatically on source changes. Keep this terminal open while developing.
+
+`INSARHUB_DEV=1` enables CORS for the Vite dev server on `:5173`. It is required
+only for this split dev setup — a production `insarhub-app` serves the built
+frontend from the same origin and needs no CORS. Without it, the dev server's
+`/api` calls are rejected by the browser.
 
 To build for production (output goes into `src/insarhub/app/static/`):
 

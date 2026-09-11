@@ -22,10 +22,14 @@ npm run dev        # 开发服务器运行在 :5173，代理 /api → :8080
 
 ```bash
 cd /path/to/InSARHub
-uvicorn insarhub.app.api:app --reload --port 8080
+INSARHUB_DEV=1 uvicorn insarhub.app.api:app --reload --port 8080
 ```
 
 `--reload` 会在源码变更时自动重启服务器。开发期间保持此终端开启。
+
+`INSARHUB_DEV=1` 用于为运行在 `:5173` 的 Vite 开发服务器启用 CORS，仅在这种前后端分离的
+开发模式下需要 —— 生产环境的 `insarhub-app` 从同一来源提供已构建的前端，无需 CORS。
+若不设置该变量，开发服务器的 `/api` 请求会被浏览器拒绝。
 
 构建生产版本（输出至 `src/insarhub/app/static/`）：
 

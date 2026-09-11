@@ -13,6 +13,7 @@ Interactive API docs (test without any frontend):
 """
 
 import asyncio
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -25,13 +26,24 @@ from insarhub.app.routes import auth, settings, search, folders, processor, anal
 
 app = FastAPI(title="InSARHub API")
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# The production build is served by this same app (see the StaticFiles mount at
+# the bottom of this file), so the browser's requests are already same-origin
+# and no CORS headers are needed. CORS is only required for `npm run dev`, where
+# the Vite dev server on :5173 calls this API cross-origin.
+#
+# This used to be enabled unconditionally with allow_origins=["*"] +
+# allow_credentials=True. Starlette answers that combination by reflecting the
+# caller's Origin, so any website the user happened to have open could read from
+# -- and post to -- the local API, which has no authentication of its own.
+# Reaching the port *is* the authorization here, so dropping allow_credentials
+# alone would not have helped: a bare "*" still lets any page read responses.
+if os.getenv("INSARHUB_DEV"):
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
 # ── Include all routers ──────────────────────────────────────────────────────
 app.include_router(auth.router)

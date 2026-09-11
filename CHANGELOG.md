@@ -2,6 +2,10 @@
 
 ## [0.4.0]
 
+### Security
+
+* Fixed the web API accepting cross-origin requests from any website. CORS was enabled unconditionally with `allow_origins=["*"]` and `allow_credentials=True`, which Starlette answers by reflecting the caller's `Origin` — so any page open in the same browser could call the unauthenticated local API and read the responses, including `/api/auth-status`, folder listings, job submission, and `POST /api/credentials/*`. CORS is now off by default (the production UI is served same-origin and never needed it, HPC port forwarding included) and is enabled only under `INSARHUB_DEV`, for the Vite dev server's origins. The split dev setup now needs `INSARHUB_DEV=1 uvicorn insarhub.app.api:app --reload --port 8080`; `insarhub-app` is unaffected.
+
 ### Analyzer Restructuring
 
 * Split `ISCE3_Dolphin_PL` into **`ISCE3_Dolphin_S1_PL`** (`ISCE3_Burst`) and **`ISCE3_Dolphin_NISAR_PL`** (`ISCE3_NISAR`), sharing a new `Dolphin_PL_Base_Analyzer`. One config per sensor fixes NISAR stacks silently inheriting the Sentinel-1 C-band wavelength — NISAR now reads it from the GSLC metadata. Supersedes the 0.4.0rc1 entry extending `ISCE3_Dolphin_PL` to both processors.

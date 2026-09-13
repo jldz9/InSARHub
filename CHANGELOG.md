@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Dependencies
+
+* Aligned the `fast` CI job's hand-written pip list with `pyproject.toml`: `rasterio` now matches the declared `>=1.3`, and the redundant `setuptools<81` entry is gone. `test/tier2_basic/test_docs_install_commands.py` guards this drift.
+* Removed the `setuptools<81` enforcement from the `docker/dev`, `docker/release` and devcontainer images. It was a workaround for the pyproject pin dropped in 0.4.1; pyaps3 0.3.7 does not import `pkg_resources`, so no dependency in the tree needs it.
+
 ## [0.4.1] - 2026-09-13
 
 ### Security

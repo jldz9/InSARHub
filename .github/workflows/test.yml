@@ -68,9 +68,9 @@ jobs:
           # so no tier-2 import needs it. The real thing is exercised in the
           # conda-based install and e2e jobs.
           pip install "asf_search" "colorama" "contextily" "dem_stitcher" \
-                      "hyp3_sdk" "rasterio>=1.4" "sentineleof" "openpyxl" "fastapi" \
+                      "hyp3_sdk" "rasterio>=1.3" "sentineleof" "openpyxl" "fastapi" \
                       "uvicorn" "python-multipart" "numpy<2.0" "psutil" "networkx" \
-                      "h5py" "setuptools<81"
+                      "h5py"
 
       - name: Show the environment under test
         run: |
@@ -316,9 +316,9 @@ jobs:
           # so no tier-2 import needs it. The real thing is exercised in the
           # conda-based install and e2e jobs.
           pip install "asf_search" "colorama" "contextily" "dem_stitcher" \
-                      "hyp3_sdk" "rasterio>=1.4" "sentineleof" "openpyxl" "fastapi" \
+                      "hyp3_sdk" "rasterio>=1.3" "sentineleof" "openpyxl" "fastapi" \
                       "uvicorn" "python-multipart" "numpy<2.0" "psutil" "networkx" \
-                      "h5py" "setuptools<81"
+                      "h5py"
       - name: Report
         run: |
           pytest -m "basic or regression" \

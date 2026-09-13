@@ -39,12 +39,6 @@ RUN mamba create -n insarhub -c conda-forge python=3.12 -y \
 RUN conda install -n insarhub -c conda-forge "insarhub==${INSARHUB_VERSION}" -y \
     && mamba clean -afy
 
-# pyaps3 (MintPy's correct_troposphere backend) imports pkg_resources, which
-# setuptools removed in v81. The conda package should carry InSARHub's own
-# "setuptools<81" pin, but enforce it here so the image does not depend on the
-# feedstock having reproduced it.
-RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir "setuptools<81"
-
 ENV PATH=/opt/conda/envs/insarhub/bin:$PATH
 # Put the conda env's libstdc++ on the loader path so pandas (pulled in by
 # MintPy / dem_stitcher) finds GLIBCXX_3.4.29 -- see docker/README.md,

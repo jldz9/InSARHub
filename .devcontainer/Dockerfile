@@ -79,12 +79,9 @@ RUN mamba install -n "$CONDA_ENV" -c conda-forge -y "nodejs=20" \
 # httpx are pyproject's [test] extra; packaging and pyyaml are imported directly
 # by tier 2 (test_imports.py, test_docs_install_commands.py) without being
 # declared there, and .github/workflows/test.yml installs them for the same
-# reason. setuptools<81 is pyproject's own pin -- post-create.sh installs
-# InSARHub with --no-deps, which would skip it, and without it pyaps3 (MintPy's
-# correct_troposphere backend) dies on the pkg_resources setuptools removed in
-# v81. Same rationale as docker/dev/Dockerfile.base.
+# reason.
 RUN /opt/conda/envs/$CONDA_ENV/bin/python -m pip install --no-cache-dir \
-        pytest>=8 pytest-cov httpx packaging pyyaml "setuptools<81"
+        pytest>=8 pytest-cov httpx packaging pyyaml
 
 # post-create.sh runs `pip install -e .` as $USERNAME, which writes the .pth and
 # egg-link into the env -- so the env has to be writable by that user.

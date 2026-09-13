@@ -40,10 +40,6 @@ RUN conda install -n insarhub -c conda-forge "numpy<2.0" "insarhub==${INSARHUB_V
 RUN conda install -n insarhub -c conda-forge "numpy<2.0" isce2 -y \
     && mamba clean -afy
 
-# pyaps3 (MintPy's correct_troposphere backend) imports pkg_resources, removed
-# in setuptools v81.
-RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir "setuptools<81"
-
 # Both of these are needed -- see docker/README.md, "Two meanings of ISCE_HOME".
 ENV ISCE_HOME=/opt/conda/envs/insarhub
 RUN ln -s /opt/conda/envs/insarhub/lib/python3.12/site-packages/isce/applications \

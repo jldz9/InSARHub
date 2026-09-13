@@ -1,39 +1,39 @@
-<!DOCTYPE html><html lang="zh" class="no-js"><head>
+<!DOCTYPE html><html lang="en" class="no-js"><head>
     
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
       
       
-        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/zh/contributing/contributing/">
+        <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/faq/">
       
       
-        <link rel="prev" href="../../advanced/program_structure/">
+        <link rel="prev" href="../quickstart/cli/">
       
       
-        <link rel="next" href="../backend/">
+        <link rel="next" href="../quickstart/frontend/">
       
       
         
-          <link rel="alternate" href="../../../contributing/contributing/" hreflang="en">
+          <link rel="alternate" href="./" hreflang="en">
         
-          <link rel="alternate" href="./" hreflang="zh">
+          <link rel="alternate" href="../zh/faq/" hreflang="zh">
         
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>概览 - InSARHub</title>
+        <title>FAQ - InSARHub</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -52,13 +52,11 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../stylesheets/extra.css">
     
-      <link rel="stylesheet" href="../../../stylesheets/extra.css">
-    
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
@@ -66,7 +64,7 @@
     
   
 
-  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -95,8 +93,8 @@
     <div data-md-component="skip">
       
         
-        <a href="#_1" class="md-skip">
-          跳转至
+        <a href="#frequently-asked-questions" class="md-skip">
+          Skip to content
         </a>
       
     </div>
@@ -115,8 +113,8 @@
   
 
 <header class="md-header md-header--shadow md-header--lifted" data-md-component="header">
-  <nav class="md-header__inner md-grid" aria-label="页眉">
-    <a href="../../" title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="InSARHub" class="md-header__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -136,7 +134,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              概览
+              FAQ
             
           </span>
         </div>
@@ -176,20 +174,20 @@
       <div class="md-header__option">
   <div class="md-select">
     
-    <button class="md-header__button md-icon" aria-label="选择当前语言">
+    <button class="md-header__button md-icon" aria-label="Select language">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
     </button>
     <div class="md-select__inner">
       <ul class="md-select__list">
         
           <li class="md-select__item">
-            <a href="../../../contributing/contributing/" hreflang="en" class="md-select__link">
+            <a href="./" hreflang="en" class="md-select__link">
               English
             </a>
           </li>
         
           <li class="md-select__item">
-            <a href="./" hreflang="zh" class="md-select__link">
+            <a href="../zh/faq/" hreflang="zh" class="md-select__link">
               中文
             </a>
           </li>
@@ -210,16 +208,16 @@
   <label class="md-search__overlay" for="__search"></label>
   <div class="md-search__inner" role="search">
     <form class="md-search__form" name="search">
-      <input type="text" class="md-search__input" name="query" aria-label="搜索" placeholder="搜索" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
       <label class="md-search__icon md-icon" for="__search">
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
         
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
       </label>
-      <nav class="md-search__options" aria-label="查找">
+      <nav class="md-search__options" aria-label="Search">
         
-        <button type="reset" class="md-search__icon md-icon" title="清空当前内容" aria-label="清空当前内容" tabindex="-1">
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
           
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
         </button>
@@ -232,7 +230,7 @@
       <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
         <div class="md-search-result" data-md-component="search-result">
           <div class="md-search-result__meta">
-            正在初始化搜索引擎
+            Initializing search
           </div>
           <ol class="md-search-result__list" role="presentation"></ol>
         </div>
@@ -244,7 +242,7 @@
     
     
       <div class="md-header__source">
-        <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
+        <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -259,7 +257,7 @@
   
     
       
-<nav class="md-tabs" aria-label="标签" data-md-component="tabs">
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
   <div class="md-grid">
     <ul class="md-tabs__list">
       
@@ -269,13 +267,13 @@
   
   
     <li class="md-tabs__item">
-      <a href="../../" class="md-tabs__link">
+      <a href=".." class="md-tabs__link">
         
   
   
     
   
-  主页
+  Home
 
       </a>
     </li>
@@ -290,11 +288,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../quickstart/install/" class="md-tabs__link">
+        <a href="../quickstart/install/" class="md-tabs__link">
           
   
   
-  快速开始
+  QuickStart
 
         </a>
       </li>
@@ -306,15 +304,17 @@
   
   
   
+    
   
-    <li class="md-tabs__item">
-      <a href="../../faq/" class="md-tabs__link">
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
         
   
   
     
   
-  常见问题
+  FAQ
 
       </a>
     </li>
@@ -329,11 +329,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../quickstart/frontend/" class="md-tabs__link">
+        <a href="../quickstart/frontend/" class="md-tabs__link">
           
   
   
-  Web 界面
+  Web UI
 
         </a>
       </li>
@@ -349,11 +349,11 @@
     
     
       <li class="md-tabs__item">
-        <a href="../../advanced/file_structure/" class="md-tabs__link">
+        <a href="../advanced/file_structure/" class="md-tabs__link">
           
   
   
-  高级
+  Advanced
 
         </a>
       </li>
@@ -365,17 +365,15 @@
   
   
   
-    
-  
   
     
     
-      <li class="md-tabs__item md-tabs__item--active">
-        <a href="./" class="md-tabs__link">
+      <li class="md-tabs__item">
+        <a href="../contributing/contributing/" class="md-tabs__link">
           
   
   
-  贡献指南
+  Contributing
 
         </a>
       </li>
@@ -442,9 +440,9 @@
   
 
 
-<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="导航栏" data-md-level="0">
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../" title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
+    <a href=".." title="InSARHub" class="md-nav__button md-logo" aria-label="InSARHub" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -454,7 +452,7 @@
   </label>
   
     <div class="md-nav__source">
-      <a href="https://github.com/jldz9/InSARHub" title="前往仓库" class="md-source" data-md-component="source">
+      <a href="https://github.com/jldz9/InSARHub" title="Go to repository" class="md-source" data-md-component="source">
   <div class="md-source__icon md-icon">
     
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
@@ -474,14 +472,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../" class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    主页
+    Home
   
 
     
@@ -526,7 +524,7 @@
   <span class="md-ellipsis">
     
   
-    快速开始
+    QuickStart
   
 
     
@@ -542,7 +540,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    快速开始
+    QuickStart
   
 
           </label>
@@ -555,14 +553,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/install/" class="md-nav__link">
+      <a href="../quickstart/install/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    安装
+    Installation
   
 
     
@@ -583,14 +581,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/api_setup/" class="md-nav__link">
+      <a href="../quickstart/api_setup/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    账号配置
+    Account Setup
   
 
     
@@ -636,7 +634,7 @@
   <span class="md-ellipsis">
     
   
-    运行
+    Running
   
 
     
@@ -652,7 +650,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    运行
+    Running
   
 
           </label>
@@ -665,7 +663,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/running/" class="md-nav__link">
+      <a href="../quickstart/running/" class="md-nav__link">
         
   
   
@@ -693,14 +691,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/cli/" class="md-nav__link">
+      <a href="../quickstart/cli/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    命令行
+    CLI
   
 
     
@@ -733,17 +731,44 @@
       
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../../faq/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
   <span class="md-ellipsis">
     
   
-    常见问题
+    FAQ
   
 
     
@@ -752,6 +777,103 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#the-insarhub-app-link-will-not-open" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The insarhub-app link will not open
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-finds-scenes-but-download-fails-with-search-does-not-return-any-result" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search finds scenes, but Download fails with "Search does not return any result"
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#isce2-stops-part-way-through-and-the-terminal-process-disappears" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        ISCE2 stops part-way through and the terminal process disappears
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-does-pip-install-e-install" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What does pip install -e . install?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-satellites-are-supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which satellites are supported?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-do-i-see-what-insarhub-is-doing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I see what InSARHub is doing?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#-select-pair-warns-that-no-pair-graph-will-be-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --select-pair warns that no pair graph will be generated
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -788,7 +910,7 @@
   <span class="md-ellipsis">
     
   
-    Web 界面
+    Web UI
   
 
     
@@ -804,7 +926,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Web 界面
+    Web UI
   
 
           </label>
@@ -817,14 +939,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../quickstart/frontend/" class="md-nav__link">
+      <a href="../quickstart/frontend/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    概览
+    Overview
   
 
     
@@ -845,14 +967,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../frontend/search/" class="md-nav__link">
+      <a href="../frontend/search/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    搜索与下载
+    Search &amp; Download
   
 
     
@@ -873,14 +995,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../frontend/processor/" class="md-nav__link">
+      <a href="../frontend/processor/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    处理器
+    Processor
   
 
     
@@ -901,14 +1023,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../frontend/analyzer/" class="md-nav__link">
+      <a href="../frontend/analyzer/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    分析器
+    Analyzer
   
 
     
@@ -929,14 +1051,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../frontend/results/" class="md-nav__link">
+      <a href="../frontend/results/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    结果查看器
+    Results Viewer
   
 
     
@@ -989,7 +1111,7 @@
   <span class="md-ellipsis">
     
   
-    高级
+    Advanced
   
 
     
@@ -1005,7 +1127,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    高级
+    Advanced
   
 
           </label>
@@ -1018,14 +1140,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/file_structure/" class="md-nav__link">
+      <a href="../advanced/file_structure/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    文件结构
+    File Structure
   
 
     
@@ -1046,14 +1168,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/downloader/" class="md-nav__link">
+      <a href="../advanced/downloader/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    下载器
+    Downloader
   
 
     
@@ -1074,14 +1196,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/processor/" class="md-nav__link">
+      <a href="../advanced/processor/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    处理器
+    Processor
   
 
     
@@ -1102,14 +1224,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/analyzer/" class="md-nav__link">
+      <a href="../advanced/analyzer/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    分析器
+    Analyzer
   
 
     
@@ -1130,7 +1252,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/hpc/" class="md-nav__link">
+      <a href="../advanced/hpc/" class="md-nav__link">
         
   
   
@@ -1158,14 +1280,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/container/" class="md-nav__link">
+      <a href="../advanced/container/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    容器运行
+    Container Execution
   
 
     
@@ -1186,14 +1308,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/utilities/" class="md-nav__link">
+      <a href="../advanced/utilities/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    工具集
+    Utilities
   
 
     
@@ -1214,14 +1336,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/cli_reference/" class="md-nav__link">
+      <a href="../advanced/cli_reference/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    命令行参考
+    CLI Reference
   
 
     
@@ -1242,14 +1364,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/pair_quality/" class="md-nav__link">
+      <a href="../advanced/pair_quality/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    配对质量评分
+    Pair Quality Scoring
   
 
     
@@ -1270,14 +1392,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/frontend/" class="md-nav__link">
+      <a href="../advanced/frontend/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    前端参考
+    Frontend Reference
   
 
     
@@ -1298,14 +1420,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../advanced/program_structure/" class="md-nav__link">
+      <a href="../advanced/program_structure/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    程序结构
+    Program Structure
   
 
     
@@ -1330,38 +1452,35 @@
       
   
   
-    
   
   
-  
     
     
     
     
-      
-        
-        
       
       
         
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked="">
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    贡献指南
+    Contributing
   
 
     
@@ -1372,12 +1491,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
-    贡献指南
+    Contributing
   
 
           </label>
@@ -1387,136 +1506,17 @@
                 
   
   
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    概览
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    概览
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="目录">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      目录
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        快速设置
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        项目结构
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        提交更改
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#bug" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        报告 Bug
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
   
   
     <li class="md-nav__item">
-      <a href="../backend/" class="md-nav__link">
+      <a href="../contributing/contributing/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    后端
+    Overview
   
 
     
@@ -1537,14 +1537,42 @@
   
   
     <li class="md-nav__item">
-      <a href="../frontend/" class="md-nav__link">
+      <a href="../contributing/backend/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    前端
+    Backend
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../contributing/frontend/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Frontend
   
 
     
@@ -1578,7 +1606,7 @@
                   <div class="md-sidebar__inner">
                     
 
-<nav class="md-nav md-nav--secondary" aria-label="目录">
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
   
   
   
@@ -1587,15 +1615,15 @@
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
-      目录
+      Table of contents
     </label>
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#_2" class="md-nav__link">
+  <a href="#the-insarhub-app-link-will-not-open" class="md-nav__link">
     <span class="md-ellipsis">
       
-        快速设置
+        The insarhub-app link will not open
       
     </span>
   </a>
@@ -1603,10 +1631,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_3" class="md-nav__link">
+  <a href="#search-finds-scenes-but-download-fails-with-search-does-not-return-any-result" class="md-nav__link">
     <span class="md-ellipsis">
       
-        项目结构
+        Search finds scenes, but Download fails with "Search does not return any result"
       
     </span>
   </a>
@@ -1614,10 +1642,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#_4" class="md-nav__link">
+  <a href="#isce2-stops-part-way-through-and-the-terminal-process-disappears" class="md-nav__link">
     <span class="md-ellipsis">
       
-        提交更改
+        ISCE2 stops part-way through and the terminal process disappears
       
     </span>
   </a>
@@ -1625,10 +1653,43 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#bug" class="md-nav__link">
+  <a href="#what-does-pip-install-e-install" class="md-nav__link">
     <span class="md-ellipsis">
       
-        报告 Bug
+        What does pip install -e . install?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#which-satellites-are-supported" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Which satellites are supported?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-do-i-see-what-insarhub-is-doing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How do I see what InSARHub is doing?
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#-select-pair-warns-that-no-pair-graph-will-be-generated" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        --select-pair warns that no pair graph will be generated
       
     </span>
   </a>
@@ -1655,51 +1716,128 @@
   
 
 
-<h1 id="_1">贡献指南</h1>
-<p>InSARHub 欢迎各类贡献——Bug 修复、新处理器/分析器、文档改进以及前端增强。</p>
-<h2 id="_2">快速设置</h2>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/your-username/InSARHub.git
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>conda<span class="w"> </span>env<span class="w"> </span>create<span class="w"> </span>-f<span class="w"> </span>environment.yml
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[test]"</span>
+<h1 id="frequently-asked-questions">Frequently Asked Questions</h1>
+<p>Questions that have come up more than once, mostly from the
+<a href="https://github.com/jldz9/InSARHub/issues">issue tracker</a>.</p>
+<h2 id="the-insarhub-app-link-will-not-open">The <code>insarhub-app</code> link will not open</h2>
+<p><code>insarhub-app</code> prints a URL such as <code>http://127.0.0.1:8080</code>, but the browser shows
+nothing — a connection error, a blank page, or someone else's application.</p>
+<p>Port <strong>8080</strong> is a popular default, so something else on the machine has very
+likely taken it. Start the app somewhere else:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>insarhub-app<span class="w"> </span>--port<span class="w"> </span><span class="m">12345</span>
 </span></code></pre></div>
-<h2 id="_3">项目结构</h2>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>InSARHub/
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── src/insarhub/
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>│   ├── analyzer/        # 分析器源代码
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>│   ├── app/
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>│   │   ├── frontend/    # React + Vite Web 界面（TypeScript）
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>│   │   └── routes/      # FastAPI 路由处理器
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>│   ├── cli/             # 命令行界面
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>│   ├── commands/        # CLI 与 GUI 共享的命令对象
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>│   ├── config/
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>│   │   ├── defaultconfig.py  # 各模块的 Dataclass 配置
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>│   │   └── paths.py          # 集中化工作目录路径布局
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>│   ├── core/            # 基类、注册表、引擎
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>│   ├── downloader/      # 下载器源代码
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>│   ├── processor/       # 处理器源代码
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>│   └── utils/           # 共享工具
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>├── docs/                # MkDocs 文档源文件
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>└── mkdocs.yml
-</span></code></pre></div>
-<h2 id="_4">提交更改</h2>
-<ol>
-<li>创建功能分支：<code>git checkout -b feat/my-feature</code></li>
-<li>保持提交专注 — 每次提交一个逻辑变更。</li>
-<li>在 <code>CHANGELOG.md</code> 的 <code>[Unreleased]</code> 下更新变更记录。</li>
-<li>向 <code>main</code> 分支发起 Pull Request，说明更改内容和原因。</li>
-</ol>
-<h2 id="bug">报告 Bug</h2>
-<p>在 <a href="https://github.com/jldz9/InSARHub/issues">https://github.com/jldz9/InSARHub/issues</a> 提交 Issue，包含：</p>
+<p>Then open the URL the app prints, not the old one. Any free port works.</p>
+<details class="note">
+<summary>Other things worth checking</summary>
 <ul>
-<li>InSARHub 版本（<code>insarhub --version</code>）</li>
-<li>操作系统和 Python 版本</li>
-<li>最小复现步骤</li>
-<li>相关日志或错误堆栈信息</li>
+<li><strong>Open the URL it printed.</strong> With <code>--host 0.0.0.0</code> the app is reachable
+  from other machines, but the address to type is still the host's own.</li>
+<li><strong>Remote or HPC sessions.</strong> If <code>insarhub-app</code> runs on a remote machine,
+  forward the port first: <code>ssh -L 12345:127.0.0.1:12345 user@host</code>, then
+  open <code>http://127.0.0.1:12345</code> on your own computer.</li>
+<li><strong>Blank page rather than a connection error.</strong> That means the server is
+  up but the frontend bundle is missing — reinstall InSARHub, and see
+  <a href="../quickstart/install/">Installation</a>.</li>
 </ul>
-<hr>
-<p>详见 <a href="../backend/">后端贡献</a> 和 <a href="../frontend/">前端贡献</a>。</p>
+</details>
+<h2 id="search-finds-scenes-but-download-fails-with-search-does-not-return-any-result">Search finds scenes, but Download fails with "Search does not return any result"</h2>
+<p>Fixed in <strong>0.4.0</strong> (<a href="https://github.com/jldz9/InSARHub/issues/7">#7</a>). Upgrade:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub
+</span></code></pre></div>
+<p><code>asf_search</code> 13.0.0 changed how it decides which frame field a query means. Its
+<code>should_use_asf_frame()</code> stopped recognising a generic <code>platform=SENTINEL-1</code>
+search, so the frame filter silently queried the <strong>ESA</strong> frame number and
+matched nothing — which is why searching worked while downloading found zero
+scenes. InSARHub now routes frame filters to <code>asfFrame</code> explicitly, which
+behaves the same on <code>asf_search</code> 12.x and 13.x.</p>
+<p>If you previously pinned <code>asf_search=12.3.2</code> as a workaround, you can lift the
+pin.</p>
+<h2 id="isce2-stops-part-way-through-and-the-terminal-process-disappears">ISCE2 stops part-way through and the terminal process disappears</h2>
+<p>Two different causes, and they look identical from the outside.</p>
+<p><strong>A silent crash at a fixed step</strong> was a bug in 0.3.x
+(<a href="https://github.com/jldz9/InSARHub/issues/6">#6</a>): <code>_fix_cmd</code> failed to strip
+the trailing <code>&amp;</code> that ISCE2 writes into every <code>run_files</code> line, so the command
+returned instantly with success while its real work was orphaned. <strong>Fixed in
+0.4.0.</strong></p>
+<p><strong>A crash at a varying step, often on a large stack, is usually the kernel's
+OOM killer.</strong> InSARHub runs each <code>run_files</code> line in parallel, and several
+ISCE2 steps are memory-hungry, so the total can exceed RAM. Lower the
+concurrency:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/path/to/workdir<span class="w"> </span>submit<span class="w"> </span>--max_workers<span class="w"> </span><span class="m">2</span>
+</span></code></pre></div>
+<p><code>--max_workers</code> is the knob for every step except <code>topo</code> (<code>run_01</code>), which is a
+single command — use <code>--num_proc4topo</code> for that one. See
+<a href="../advanced/processor/">Processor</a>.</p>
+<details class="note">
+<summary>Telling the two apart</summary>
+<p>Run with <code>INSARHUB_DEBUG=1</code> and check <code>executor.log</code> in the work directory.
+An OOM kill leaves the step at <code>RUNNING</code> with no error, and
+<code>dmesg | grep -i "killed process"</code> names the process. See
+<a href="../advanced/cli_reference/#logging">Logging</a>.</p>
+</details>
+<h2 id="what-does-pip-install-e-install">What does <code>pip install -e .</code> install?</h2>
+<p>The <strong>trailing dot is required</strong> — it means "the package in the current
+directory" (<a href="https://github.com/jldz9/InSARHub/issues/2">#2</a>). Activate the
+environment first, and run it from the repository root:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+</span></code></pre></div>
+<p><code>-e</code> is an <em>editable</em> install: the environment points at your checkout, so code
+changes take effect without reinstalling. You only need this to work on
+InSARHub itself — to simply use it, install from conda-forge as in
+<a href="../quickstart/install/">Installation</a>.</p>
+<h2 id="which-satellites-are-supported">Which satellites are supported?</h2>
+<p>Sentinel-1 and NISAR today (<a href="https://github.com/jldz9/InSARHub/issues/1">#1</a>):</p>
+<table>
+<thead>
+<tr>
+<th>Product</th>
+<th>Search &amp; download</th>
+<th>Processing</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sentinel-1 SLC</td>
+<td>yes</td>
+<td>HyP3, ISCE2, GMTSAR</td>
+</tr>
+<tr>
+<td>Sentinel-1 Burst</td>
+<td>yes</td>
+<td>ISCE3 / COMPASS + dolphin</td>
+</tr>
+<tr>
+<td>NISAR GSLC</td>
+<td>yes</td>
+<td>ISCE3 + dolphin</td>
+</tr>
+<tr>
+<td>NISAR RSLC, GUNW</td>
+<td>yes</td>
+<td>not yet — no processor consumes them</td>
+</tr>
+</tbody>
+</table>
+<p>NISAR RSLC and GUNW are hidden in the web UI for that reason: they would
+download a large volume of data that nothing can then process. They remain
+available from the CLI and the Python API.</p>
+<p>ALOS, ERS and other platforms are not supported yet.</p>
+<h2 id="how-do-i-see-what-insarhub-is-doing">How do I see what InSARHub is doing?</h2>
+<p>It is quiet by default — only the command's output, plus warnings and errors.
+Set <code>INSARHUB_DEBUG=1</code> for the full log:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">INSARHUB_DEBUG</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/path/to/workdir<span class="w"> </span>submit
+</span></code></pre></div>
+<p>This works for the CLI, <code>insarhub-app</code> and <code>import insarhub</code> alike. Details in
+<a href="../advanced/cli_reference/#logging">Logging</a>.</p>
+<h2 id="-select-pair-warns-that-no-pair-graph-will-be-generated"><code>--select-pair</code> warns that no pair graph will be generated</h2>
+<p>Expected for <strong>S1_Burst</strong> and the <strong>NISAR</strong> products. ASF publishes no
+perpendicular baseline for them, so a baseline-vs-time network cannot be drawn.</p>
+<p>The pairs are still created, and processing is unaffected: the ISCE3 processors
+build their own interferogram network through dolphin's phase linking, using
+temporal and index constraints rather than a perpendicular-baseline threshold.
+See <a href="../advanced/pair_quality/">Pair Quality Scoring</a>.</p>
 
 
 
@@ -1725,7 +1863,7 @@
           <button type="button" class="md-top md-icon" data-md-component="top" hidden="">
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
-  回到页面顶部
+  Back to top
 </button>
         
       </main>
@@ -1780,10 +1918,10 @@
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "\u5df2\u590d\u5236", "clipboard.copy": "\u590d\u5236", "search.result.more.one": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.more.other": "\u5728\u8be5\u9875\u4e0a\u8fd8\u6709 # \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.none": "\u6ca1\u6709\u627e\u5230\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.one": "\u627e\u5230 1 \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.other": "# \u4e2a\u7b26\u5408\u6761\u4ef6\u7684\u7ed3\u679c", "search.result.placeholder": "\u952e\u5165\u4ee5\u5f00\u59cb\u641c\u7d22", "search.result.term.missing": "\u7f3a\u5c11", "select.version": "\u9009\u62e9\u5f53\u524d\u7248\u672c"}, "version": {"provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.instant", "navigation.tabs", "navigation.tabs.sticky", "navigation.sections", "navigation.expand", "toc.follow", "navigation.top", "search.suggest", "search.highlight", "content.code.copy", "content.tabs.link", "announce.dismiss"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   

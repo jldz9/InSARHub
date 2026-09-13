@@ -15,6 +15,13 @@
         <xhtml:link rel="alternate" hreflang="zh" href="https://jldz9.github.io/InSARHub/devzh/about/"/>
     </url>
     <url>
+        <loc>https://jldz9.github.io/InSARHub/dev/faq/</loc>
+        <lastmod>2026-09-13</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jldz9.github.io/InSARHub/dev/faq/"/>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jldz9.github.io/InSARHub/devzh/faq/"/>
+    </url>
+    <url>
         <loc>https://jldz9.github.io/InSARHub/dev/advanced/analyzer/</loc>
         <lastmod>2026-09-13</lastmod>
         <changefreq>daily</changefreq>
@@ -188,6 +195,13 @@
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="zh" href="https://jldz9.github.io/InSARHub/dev/zh/about/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://jldz9.github.io/InSARHub/devabout/"/>
+    </url>
+    <url>
+        <loc>https://jldz9.github.io/InSARHub/dev/zh/faq/</loc>
+        <lastmod>2026-09-13</lastmod>
+        <changefreq>daily</changefreq>
+        <xhtml:link rel="alternate" hreflang="zh" href="https://jldz9.github.io/InSARHub/dev/zh/faq/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://jldz9.github.io/InSARHub/devfaq/"/>
     </url>
     <url>
         <loc>https://jldz9.github.io/InSARHub/dev/zh/advanced/analyzer/</loc>

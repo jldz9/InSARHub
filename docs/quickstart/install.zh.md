@@ -133,7 +133,7 @@ InSARHub 目前支持：
     默认的 InSARHub 容器，支持通过 HyP3 进行 Sentinel-1 处理，并通过 MintPy 进行时序分析。
 
     ```bash
-    ghcr.io/jldz9/insarhub-base:dev
+    ghcr.io/jldz9/insarhub-base:0.4.0
 
     ```
 
@@ -142,7 +142,7 @@ InSARHub 目前支持：
     涵盖 `ISCE2_S1` 处理器与 `ISCE2_Mintpy_SBAS` 分析器。
 
     ```bash
-    ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+    ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
     ```
 
 === "ISCE3 + Dolphin"
@@ -150,7 +150,7 @@ InSARHub 目前支持：
     涵盖 `ISCE3_Burst`（Sentinel-1 burst）与 `ISCE3_NISAR`（NISAR GSLC），以及 `ISCE3_Dolphin_S1_PL`、`ISCE3_Dolphin_NISAR_PL` 分析器。
 
     ```bash
-    ghcr.io/jldz9/insarhub-isce3-dolphin:dev
+    ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0
 
     ```
 
@@ -159,7 +159,7 @@ InSARHub 目前支持：
     涵盖 `GMTSAR_S1` 处理器与 GMTSAR 分析器。
 
     ```bash
-    ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
+    ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0
     ```
 ---
 

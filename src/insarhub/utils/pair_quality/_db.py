@@ -177,7 +177,7 @@ class PairQualityDB:
         from insarhub.utils.pair_quality._cache import CacheManager
         from insarhub.utils.pair_quality._feature_assembler import FeatureAssembler
         from insarhub.utils.pair_quality import _classifier
-        from insarhub.utils.pair_quality.pair_quality import _load_aoi, _wkt_centroid
+        from insarhub.utils.pair_quality.pair_quality import _load_aoi
 
         try:
             from tqdm import tqdm as _tqdm_cls

@@ -1,0 +1,81 @@
+# InSARHub (published release) + ISCE3 + COMPASS + Dolphin.
+#
+# RELEASE variant: InSARHub comes from conda-forge at a pinned version, and
+# nothing is copied out of the working tree. Its :dev counterpart
+# (../dev/Dockerfile.isce3-dolphin) pip-installs the local source instead.
+#
+# ISCE3_Burst runs the OPERA COMPASS CSLC workflow end to end, which needs more
+# than isce3 + dolphin:
+#   isce3      geocoding / core
+#   compass    OPERA CSLC -- provides s1_cslc.py / s1_geocode_stack.py /
+#              s1_static_layers.py, the binaries the cslc/static stages call
+#   sardem     Copernicus DEM staging (the `dem` stage)
+#   dolphin    phase linking + time series (ifg_mode = phase_link)
+#   snaphu     unwrapping (also a dolphin dependency)
+#   burst2safe S1_Burst -> .SAFE assembly (downloader side)
+#
+# COMPASS's s1reader pins numpy<2, so the whole stack -- isce3, dolphin, gdal,
+# rasterio AND mintpy -- resolves on numpy 1.26, which is also what InSARHub
+# wants. isce3 is pinned to its *cpu* build: the cuda build pulls ~GB of CUDA
+# runtime for no benefit in a CPU container.
+#
+# Serves the `ISCE3_Burst` / `ISCE3_NISAR` processors and the dolphin analyzers.
+#
+# Requires insarhub=<version> to be on conda-forge ALREADY — see the release
+# order in docker/README.md.
+#
+# Build (from repo root):
+#   docker build -f docker/release/Dockerfile.isce3-dolphin \
+#       --build-arg INSARHUB_VERSION=0.4.0 \
+#       -t ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0 .
+#
+# Publish:
+#   docker push ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0
+
+FROM condaforge/miniforge3:24.9.2-0
+
+# Links this image to the jldz9/InSARHub repo on GHCR even when pushed manually
+# -- see docker/README.md, "The GHCR label".
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+ARG INSARHUB_VERSION
+RUN test -n "$INSARHUB_VERSION" \
+    || (echo "ERROR: pass --build-arg INSARHUB_VERSION=<x.y.z>" >&2; exit 1)
+LABEL org.opencontainers.image.version="${INSARHUB_VERSION}"
+
+# Full ISCE3_Burst toolchain from conda-forge in one solve. gdal + rasterio +
+# mintpy come from conda so their compiled extensions stay on the same
+# libgdal/proj/numpy stack (a pip gdal/rasterio wheel bundles its own libproj
+# against conda's proj.db and breaks CRS calls at runtime).
+RUN mamba create -n isce3_dolphin -c conda-forge -y \
+        python=3.12 "isce3=*=*cpu*" compass sardem dolphin snaphu burst2safe \
+        gdal rasterio mintpy \
+    && mamba clean -afy
+
+# insarhub as its own follow-up solve rather than joined to the create above --
+# see docker/README.md, "Keeping numpy below 2".
+RUN conda install -n isce3_dolphin -c conda-forge -y "insarhub==${INSARHUB_VERSION}" \
+    && mamba clean -afy
+
+ENV PATH=/opt/conda/envs/isce3_dolphin/bin:$PATH
+# See docker/README.md, "The libstdc++ trap".
+ENV LD_LIBRARY_PATH=/opt/conda/envs/isce3_dolphin/lib
+
+# Fail the build if the Python stack or any ISCE3_Burst CLI tool is missing, so
+# a broken image never reaches the first job. snaphu is a Python module
+# (snaphu-py), driven by dolphin's unwrap stage -- imported, not a PATH binary.
+# The COMPASS/sardem tools ARE PATH binaries.
+RUN python -c "import numpy, isce3, dolphin, compass, mintpy, insarhub, snaphu; \
+from burst2safe.burst2safe import burst2safe; \
+from insarhub import Processor, Analyzer; \
+assert insarhub.__version__ == '${INSARHUB_VERSION}', \
+    'asked for %s, image has %s' % ('${INSARHUB_VERSION}', insarhub.__version__); \
+assert numpy.__version__ < '2', numpy.__version__; \
+import shutil; \
+missing = [t for t in ('sardem','s1_cslc.py','s1_geocode_stack.py','s1_static_layers.py') if not shutil.which(t)]; \
+assert not missing, 'missing CLI tools: %s' % missing; \
+print('insarhub', insarhub.__version__, 'numpy', numpy.__version__, \
+'isce3', isce3.__version__, 'mintpy', mintpy.__version__, \
+'procs', Processor.available(), 'analyzers', Analyzer.available())"
+
+# No custom ENTRYPOINT/CMD -- see docker/README.md, "Why no ENTRYPOINT".

@@ -691,6 +691,28 @@ class ISCE3_Base(LocalProcessor):
         the caller (notably the web GUI's submit request) for the entire run,
         leaving the UI stuck on "Submitting…".
         """
+        # Stamp the folder with what produced it. Downloaders, analyzers and
+        # Hyp3_S1 all do this; ISCE2_S1, GMTSAR_S1 and the ISCE3 processors did
+        # not, so a workdir driven through the Python API ended up recording an
+        # analyzer and no processor -- the GUI then showed the folder with an
+        # analyzer badge and a blank processor. (The GUI and CLI write the same
+        # marker themselves, which is why only the Python API path was affected.)
+        #
+        # Written at submit(), not at construction as Hyp3Base does: building a
+        # processor merely to inspect it -- --list-options, a GUI defaults
+        # lookup, a --dry-run preview -- must not stamp a folder. Hyp3Base needs
+        # an explicit dry_run guard for exactly that reason.
+        try:
+            from insarhub.utils.tool import write_workflow_marker
+            _roles = {"processor": type(self).name}
+            _dl = getattr(type(self), "compatible_downloader", None)
+            if _dl and _dl != "all":
+                _roles["downloader"] = _dl
+            write_workflow_marker(self.config.workdir, **_roles)
+        except Exception:
+            # Never let bookkeeping stop a real run.
+            pass
+
         tag = type(self).name
         want = list(steps) if steps else list(self._IMPLEMENTED)
         unknown = [s for s in want if s not in self.STAGES]
@@ -787,9 +809,21 @@ class ISCE3_Base(LocalProcessor):
                     # Redirect stdout/stderr FIRST, before any work, so a
                     # failure lands in executor.log (os._exit below never
                     # flushes Python's buffered stderr).
+                    #
+                    # dup2 onto the raw descriptors 1 and 2, NOT
+                    # sys.stdout.fileno(): sys.stdout is only guaranteed to be
+                    # a real file when nothing has replaced it, and
+                    # `sys.stdout.fileno()` raises io.UnsupportedOperation the
+                    # moment something has -- pytest's capture, Jupyter/Colab,
+                    # or any contextlib.redirect_stdout. That exception fired
+                    # inside the forked child before any stage ran, so the
+                    # executor died immediately and every stage sat at RUNNING
+                    # forever with only "local run failed: fileno" in the log.
+                    # In the child, fds 1/2 are still the inherited stdout and
+                    # stderr whatever the Python-level objects point at.
                     with open(log_file, "w") as _lf:
-                        os.dup2(_lf.fileno(), sys.stdout.fileno())
-                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                        os.dup2(_lf.fileno(), 1)
+                        os.dup2(_lf.fileno(), 2)
                     self._run_stages(stages, force=force)
                 except BaseException as exc:
                     import traceback
@@ -867,8 +901,12 @@ class ISCE3_Base(LocalProcessor):
                     # so an uncaught exception here used to be silently lost,
                     # leaving an empty executor.log and a "success" submit.
                     with open(log_file, "w") as _lf:
-                        os.dup2(_lf.fileno(), sys.stdout.fileno())
-                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                        # dup2 onto raw fds 1/2, not sys.stdout.fileno() -- that raises
+                        # io.UnsupportedOperation whenever sys.stdout has been replaced
+                        # (pytest capture, Jupyter/Colab, contextlib.redirect_stdout),
+                        # killing the forked executor before any stage runs.
+                        os.dup2(_lf.fileno(), 1)
+                        os.dup2(_lf.fileno(), 2)
                     cli_cmd = _build_cli_cmd(host_pid=own_pid)
                     wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
                     result = subprocess.run(wrapped, shell=True)
@@ -1094,9 +1132,19 @@ class ISCE3_Base(LocalProcessor):
             shutil.rmtree(self._status_dir(s), ignore_errors=True)
         return self.submit(steps=targets)
 
-    def watch(self, interval: int = 30) -> dict:
+    def watch(self, refresh_interval: int = 30, *,
+              interval: int | None = None) -> dict:
         """Stages run in a detached background process, so this only reports
-        state; call it repeatedly to poll."""
+        state; call it repeatedly to poll.
+
+        Named ``refresh_interval`` to match Hyp3Base, ISCE2_Base and GMTSAR_S1.
+        It used to be ``interval``, which the CLI's watch dispatch did not pass
+        at all -- it forwarded refresh_interval/poll_interval only -- so
+        ``insarhub processor -N ISCE3_Burst watch --interval N`` silently used
+        the default. The old keyword is still accepted.
+        """
+        if interval is not None:
+            refresh_interval = interval
         return self.refresh()
 
     def save(self) -> Path:

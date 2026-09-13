@@ -15,7 +15,12 @@ def serve(host: str = "127.0.0.1", port: int = 8080, reload: bool = False, workd
     from fastapi.responses import FileResponse
     from .api import app
     from insarhub.app import state
+    from insarhub import _logsetup
     _settings = state._settings
+
+    # The GUI owns its process and is expected to print, so it installs a
+    # handler. Release: WARNING and above; INSARHUB_DEBUG=1: everything.
+    _logsetup.configure(install_handler=True)
 
     if debug:
         import os

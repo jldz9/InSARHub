@@ -16,6 +16,13 @@ class NISAR_GSLC(ASF_Base_Downloader):
     default_config = NISAR_GSLC_Config
     product_label = "GSLCs"
 
+    # ASFProduct.stack() needs a baseline-stack reference that NISAR
+    # granules do not carry -- it raises "'NoneType' object is not
+    # iterable" from inside asf_search -- so no perpendicular baseline
+    # can be derived. select_pairs() warns on this rather than producing
+    # a pair graph that looks Sentinel-1-like but has no bperp behind it.
+    has_perpendicular_baseline = False
+
     search_filter_schema = [
         {"name": "flightDirection", "label": "Flight Direction", "kind": "select",
          "group": "Additional Filters", "choices": ["ASCENDING", "DESCENDING"]},

@@ -753,7 +753,6 @@ def _load_decay_maps_from_tif(save_dir: Path, season: str, pol: str) -> dict | N
     if not tif_path.exists():
         return None
     try:
-        import numpy as np
         import rasterio
 
         with rasterio.open(tif_path) as src:

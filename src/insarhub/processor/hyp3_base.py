@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
 import netrc
-import os
 import requests
 import sys
 import time
 import threading
 import getpass
-import zipfile  
 import io
 from contextlib import redirect_stdout
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -16,7 +14,6 @@ from pathlib import Path
 
 from collections import defaultdict
 from colorama import Fore, Style
-from dateutil.parser import isoparse
 from hyp3_sdk import HyP3, Batch, Job
 from hyp3_sdk.exceptions import AuthenticationError, HyP3Error, ServerError
 from tqdm import tqdm

@@ -160,7 +160,7 @@ def _fire_kill(fv: dict) -> bool:
         return False
 
     try:
-        import urllib.request, json, re
+        import urllib.request, re
         from datetime import datetime, timedelta
 
         # Parse bbox from WKT

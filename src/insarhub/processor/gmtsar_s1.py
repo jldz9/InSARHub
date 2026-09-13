@@ -1737,8 +1737,12 @@ class GMTSAR_S1(LocalProcessor):
                     # failure lands in executor.log (os._exit below never
                     # flushes Python's buffered stderr).
                     with open(log_file, "w") as _lf:
-                        os.dup2(_lf.fileno(), sys.stdout.fileno())
-                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                        # dup2 onto raw fds 1/2, not sys.stdout.fileno() -- that raises
+                        # io.UnsupportedOperation whenever sys.stdout has been replaced
+                        # (pytest capture, Jupyter/Colab, contextlib.redirect_stdout),
+                        # killing the forked executor before any stage runs.
+                        os.dup2(_lf.fileno(), 1)
+                        os.dup2(_lf.fileno(), 2)
                     wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
                     subprocess.run(wrapped, shell=True)
                 except BaseException as exc:
@@ -1790,8 +1794,12 @@ class GMTSAR_S1(LocalProcessor):
             try:
                 os.setsid()
                 with open(log_file, "w") as _lf:
-                    os.dup2(_lf.fileno(), sys.stdout.fileno())
-                    os.dup2(_lf.fileno(), sys.stderr.fileno())
+                    # dup2 onto raw fds 1/2, not sys.stdout.fileno() -- that raises
+                    # io.UnsupportedOperation whenever sys.stdout has been replaced
+                    # (pytest capture, Jupyter/Colab, contextlib.redirect_stdout),
+                    # killing the forked executor before any stage runs.
+                    os.dup2(_lf.fileno(), 1)
+                    os.dup2(_lf.fileno(), 2)
                 target(*args)
             except BaseException as exc:
                 import traceback
@@ -1813,6 +1821,28 @@ class GMTSAR_S1(LocalProcessor):
     # ------------------------------------------------------------------ #
 
     def submit(self) -> dict:
+        # Stamp the folder with what produced it. Downloaders, analyzers and
+        # Hyp3_S1 all do this; ISCE2_S1, GMTSAR_S1 and the ISCE3 processors did
+        # not, so a workdir driven through the Python API ended up recording an
+        # analyzer and no processor -- the GUI then showed the folder with an
+        # analyzer badge and a blank processor. (The GUI and CLI write the same
+        # marker themselves, which is why only the Python API path was affected.)
+        #
+        # Written at submit(), not at construction as Hyp3Base does: building a
+        # processor merely to inspect it -- --list-options, a GUI defaults
+        # lookup, a --dry-run preview -- must not stamp a folder. Hyp3Base needs
+        # an explicit dry_run guard for exactly that reason.
+        try:
+            from insarhub.utils.tool import write_workflow_marker
+            _roles = {"processor": type(self).name}
+            _dl = getattr(type(self), "compatible_downloader", None)
+            if _dl and _dl != "all":
+                _roles["downloader"] = _dl
+            write_workflow_marker(self.config.workdir, **_roles)
+        except Exception:
+            # Never let bookkeeping stop a real run.
+            pass
+
         # HPC mode is deliberately excluded here: the outer submit() call
         # only builds sbatch scripts + submits the first one -- pure Python/
         # bash bookkeeping that never touches GMTSAR/gmt itself, so it stays
@@ -1917,14 +1947,23 @@ class GMTSAR_S1(LocalProcessor):
         per-step markers (refresh reads them) and banners (executor.log)."""
         # Surface INFO-level logs (staging, DEM crop, region_cut, per-pair
         # progress) into executor.log -- otherwise it only carries the coarse
-        # step banners. force=True overrides any prior root config; stream is
-        # stderr, which the fork/container child has redirected to executor.log.
+        # step banners. force=True replaces the root handler installed by the
+        # CLI so records carry timestamps; stream is stderr, which the
+        # fork/container child has redirected to executor.log.
+        #
+        # The ROOT level stays at WARNING and only insarhub's own logger is
+        # lowered. Setting the root to INFO (as this once did) also lets
+        # rasterio, botocore, matplotlib and asyncio log every record they have
+        # into executor.log, burying the per-pair progress this exists to show.
         import logging as _lg
+        from insarhub import _logsetup
         _lg.basicConfig(
-            level=_lg.INFO,
+            level=_lg.WARNING,
             format="%(asctime)s %(levelname)s %(name)s: %(message)s",
             force=True,
         )
+        _lg.getLogger(_logsetup.LOGGER_NAME).setLevel(
+            _lg.DEBUG if _logsetup.debug_enabled() else _lg.INFO)
         # Persist the PENDING jobs up front so gmtsar_jobs.json exists during the
         # (long) unzip/dem/p2p run -- otherwise the GUI/refresh sees no job file
         # until the first pair finishes (container child only save()s per pair).
@@ -4903,13 +4942,28 @@ class GMTSAR_S1(LocalProcessor):
         self._run_local_or_sync(self._stage_and_run_pairs, (failed,))
         return self.jobs
 
-    def watch(self, poll_interval: float = 10.0) -> dict:
+    def watch(self, refresh_interval: float = 10.0, *,
+              poll_interval: float | None = None) -> dict:
+        """Poll until every pair has SUCCEEDED or FAILED.
+
+        The parameter is named ``refresh_interval`` to match Hyp3Base,
+        ISCE2_Base and ISCE3_Base. It used to be ``poll_interval``, which meant
+        generic callers could not drive every processor the same way -- the CLI
+        had to pass both spellings and let a shim discard the wrong one, and
+        anything simpler raised TypeError. The old keyword is still accepted so
+        existing scripts keep working.
+
+        The 10s default is deliberately far shorter than Hyp3Base's 300s: this
+        polls local state, not a cloud API.
+        """
+        if poll_interval is not None:
+            refresh_interval = poll_interval
         while True:
             self.refresh()
             statuses = {j["status"] for j in self.jobs.values()}
             if statuses <= {_SUCCEEDED, _FAILED}:
                 break
-            time.sleep(poll_interval)
+            time.sleep(refresh_interval)
         return self.jobs
 
     def cancel(self) -> None:

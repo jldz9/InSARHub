@@ -219,7 +219,7 @@ s1.reset()
             workdir=f'your/directory/p{path}_f{frame}',
             bbox=[37.74, 38.00, -113.05, -112.68],   # [S, N, W, E]
             slc_dir=f'your/directory/p{path}_f{frame}/slc',
-            container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+            container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0',
         )
         processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
         processor.submit()   # 在容器内部运行
@@ -266,7 +266,7 @@ s1.reset()
     ```python
     # Python API —— 在 create() 上设置 container；run() 会在其内部重新调用。
     analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir,
-                               container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev')
+                               container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0')
     analyzer.run()
     ```
 

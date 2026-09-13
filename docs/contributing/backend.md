@@ -368,7 +368,7 @@ Always pop `state._stop_events[job_id]` before returning on both success and err
 
 ### Universal smoke test
 
-`test/e2e/universal_smoke_test.py` is the go/no-go check across every pipeline, against real (already-completed) workdirs. It exercises three surfaces at once:
+`scripts/e2e/universal_smoke_test.py` is the go/no-go check across every pipeline, against real (already-completed) workdirs. It exercises three surfaces at once:
 
 1. **Python import** — imports every package/submodule in a fresh process (catches broken/circular imports).
 2. **CLI** — `--list-*` commands, per-pipeline `--list-options`, and `processor … refresh` via subprocess.
@@ -377,7 +377,7 @@ Always pop `state._stop_events[job_id]` before returning on both success and err
 It auto-detects each workdir's processor/analyzer from `insarhub_config.json`, so it covers `GMTSAR_S1`, `ISCE2_S1`, `ISCE3_Burst` and their analyzers without per-pipeline configuration. Missing optional dependencies (isce2, gmt/gmtsar, dolphin/compass, slurm) classify a check `SKIP` rather than `FAIL`.
 
 ```bash
-python test/e2e/universal_smoke_test.py \
+python scripts/e2e/universal_smoke_test.py \
     --scan-dir /path/to/real/workdirs \
     --workdir /path/to/p56 \
     --mode both          # cli | api | both
@@ -387,7 +387,23 @@ Exit code is non-zero if any check `FAIL`s. Use `--json` for machine-readable ou
 
 ### Unit tests
 
-`test/` contains the per-module pytest suites (`test_config.py`, `test_gmtsar_s1.py`, `test_utils_config_io.py`, …). Run them with `pytest test/`. The `e2e/` scripts (`cli_e2e_*.sh`, `api_e2e_*.py`) are **not** auto-run by pytest — they drive real ASF search/download/processing and are invoked directly when full end-to-end runs are wanted.
+`test/` holds the four-tier pytest suite — see [`test/README.md`](https://github.com/jldz9/InSARHub/blob/main/test/README.md) for the full description:
+
+| Tier | Question | Command |
+|---|---|---|
+| `tier1_install` | Is this installation wired up correctly? | `pytest -m install` |
+| `tier2_basic` | Do imports, the CLI and the GUI behave as promised? | `pytest -m basic` |
+| `tier3_e2e` | Does each workflow run on real data? | `pytest -m e2e` |
+| `tier4_regression` | Are previously-fixed bugs still fixed? | `pytest -m regression` |
+
+A bare `pytest` runs tiers 1, 2 and 4 — fast and hermetic. Tier 3 is opt-in
+because it downloads real Sentinel-1 data and runs real processing.
+
+Install the test dependencies with `pip install -e '.[test]'`.
+
+The standalone drivers under `scripts/e2e/` (`cli_e2e_*.sh`, `api_e2e_*.py`,
+`full_pipeline_e2e.py`) are **not** pytest tests — they are invoked directly when
+a full manual end-to-end run is wanted.
 
 ## Code Style
 

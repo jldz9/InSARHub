@@ -1,0 +1,414 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ── Tiers 2 + 4: fast, hermetic, gate every PR ───────────────────────────
+  fast:
+    name: basic + regression (py${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-14]
+        python: ['3.11', '3.12']
+        include:
+          - os: windows-latest
+            python: '3.11'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+
+      # These tiers never import the real geo stack (conftest.py stubs osgeo,
+      # mintpy, dask and cdsapi), so the heavy conda deps are not installed
+      # here. That keeps the PR gate at a couple of minutes instead of ~20.
+      #
+      # The dependency list is pyproject's `dependencies` MINUS the four that
+      # conftest.py stubs and that are conda-only or heavy to pip-install:
+      # cdsapi, mintpy, pyaps3, dask. Hand-curating it drifted -- an earlier
+      # version omitted contextily and sentineleof and every tier-2 module
+      # failed to import. test_ci_dependency_list_matches_pyproject keeps the
+      # two in step.
+      #
+      # --no-deps skips the [test] EXTRA as well as the runtime requirements,
+      # so pytest has to be named explicitly -- without it the job failed with
+      # "No module named pytest". numpy is pinned to match pyproject's
+      # `numpy<2.0`: an unpinned install pulled 2.x and pip reported
+      # "insarhub requires numpy<2.0, but you have numpy 2.5.3".
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . --no-deps
+          pip install pytest pytest-cov httpx packaging pyyaml
+          # burst2safe is omitted ON PURPOSE: it pulls the `gdal` PyPI package,
+          # which builds from source and fails on a bare runner with
+          # "FileNotFoundError: 'gdal-config'" -- the same trap doc_ci.yml
+          # already documents. insarhub only imports it lazily, inside the three
+          # S1_Burst functions that assemble .SAFE dirs (s1_burst.py:516/773/951),
+          # so no tier-2 import needs it. The real thing is exercised in the
+          # conda-based install and e2e jobs.
+          pip install "asf_search" "colorama" "contextily" "dem_stitcher" \
+                      "hyp3_sdk" "rasterio>=1.4" "sentineleof" "openpyxl" "fastapi" \
+                      "uvicorn" "python-multipart" "numpy<2.0" "psutil" "networkx" \
+                      "h5py" "setuptools<81"
+
+      - name: Show the environment under test
+        run: |
+          python -c "import numpy, sys; print('python', sys.version.split()[0], '| numpy', numpy.__version__)"
+          pip check || true
+
+      - name: Tier 2 + 4
+        run: pytest -m "basic or regression" -v --durations=15
+
+  # ── Tier 1: does the wheel really install, in every documented flavour? ──
+  #
+  # This is the job that actually installs. Each flavour follows
+  # docs/quickstart/install.md as written, then runs tier 1 inside the result.
+  #
+  # The BACKEND flavours are ubuntu-only: ISCE2 and the ISCE3 stack are
+  # Linux/macOS x86_64 only, and GitHub's macos-14 runners are arm64. GMTSAR is
+  # Linux-only too (its installer takes --system conda-linux-full).
+  #
+  # `base` is the exception and runs on Windows and macOS too, because it pulls
+  # no SAR backend. Without it nothing ever installed the wheel off Linux -- the
+  # `fast` job stubs the whole geo stack, so it proves imports, not
+  # installation -- leaving tier 1 (console-script shims, the packaged
+  # frontend, registry population) unrun on the two platforms whose path
+  # handling and entry-point wrappers differ most.
+  #
+  # WINDOWS IS PYTHON 3.11 ONLY, and the reason is not obvious. InSARHub needs
+  # mintpy, which needs pysolid (a Fortran extension). pysolid shipped win-64
+  # builds up to 0.3.2 and dropped Windows at 0.3.3, so a Windows solve
+  # back-solves to pysolid 0.3.2 -- which predates cpython 3.12 and has no
+  # py3.12 build. A win-64 + py3.12 solve therefore fails with
+  # "requires pysolid, but none of the providers can be installed". Verified by
+  # cross-platform dry-run solve: win-64/3.11 resolves (pysolid 0.3.2,
+  # mintpy 1.6.4, numpy 1.26.4); win-64/3.12 does not. This is what
+  # docs/quickstart/install.md means when it says Windows supports only 3.11.
+  install:
+    name: install (${{ matrix.flavor }}, py${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: bash -el {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python: ['3.11', '3.12']
+        flavor: [base, isce2, isce3-dolphin]
+        include:
+          - flavor: base
+            conda_packages: gdal mintpy
+            expect: mintpy
+          - flavor: isce2
+            conda_packages: gdal mintpy isce2
+            expect: isce2,mintpy
+          - flavor: isce3-dolphin
+            conda_packages: gdal isce3 compass sardem dolphin snaphu burst2safe
+            expect: isce3,dolphin
+          # `os` is not among the base matrix values, so each of these adds ONE
+          # extra combination rather than merging into the ubuntu ones. Only
+          # `base` goes here: isce2 ships linux-64/osx-64, the ISCE3 stack is
+          # x86_64 too, and macos-14 runners are arm64.
+          - os: windows-latest
+            python: '3.11'          # 3.12 cannot solve -- see the note above
+            flavor: base
+            conda_packages: gdal mintpy
+            expect: mintpy
+          - os: macos-14
+            python: '3.12'
+            flavor: base
+            conda_packages: gdal mintpy
+            expect: mintpy
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/insarhub/app/frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: src/insarhub/app/frontend
+        run: npm ci && npm run build
+
+      - name: Build wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel
+
+      # One environment per flavour, never a shared name. Each matrix entry is
+      # its own runner so they could not collide in CI anyway, but the name is
+      # what someone copies when reproducing a failure locally -- and there the
+      # flavours absolutely would overwrite each other.
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: ${{ matrix.python }}
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: insarhub-${{ matrix.flavor }}-py${{ matrix.python }}
+          auto-activate-base: false
+
+      - name: Show which environment this is
+        run: |
+          echo "env: $CONDA_DEFAULT_ENV"
+          echo "prefix: $CONDA_PREFIX"
+          python -c "import sys; print('python:', sys.version)"
+
+      # NOT continue-on-error. A silent backend-install failure used to turn
+      # into a silent skip of every test for that backend; if the environment
+      # cannot be built, that is the finding.
+      - name: Install backends
+        run: conda install -y -n $CONDA_DEFAULT_ENV ${{ matrix.conda_packages }}
+
+      - name: Install the wheel
+        run: python -m pip install dist/*.whl
+
+      - name: Install test deps
+        run: python -m pip install pytest httpx packaging
+
+      # Run from a scratch directory so tier 1 exercises the INSTALLED package
+      # rather than accidentally importing ./src.
+      - name: Tier 1
+        env:
+          INSARHUB_EXPECT_BACKENDS: ${{ matrix.expect }}
+        run: |
+          # $GITHUB_WORKSPACE is a BACKSLASH path on Windows and falls apart
+          # when spliced into bash paths; $(pwd) here (each step starts in the
+          # workspace) gives the POSIX form Git Bash understands. Likewise
+          # ~/ihrun rather than /tmp/run, which is not a Windows path.
+          WS="$(pwd)"
+          mkdir -p ~/ihrun && cd ~/ihrun
+          pytest -m install -v \
+            --rootdir="$WS" \
+            -c "$WS/pyproject.toml" \
+            "$WS/test/tier1_install"
+
+  # ── GMTSAR: a source build that creates its own env ──────────────────────
+  #
+  # GMTSAR is NOT a conda-forge package (the name exists there but ships zero
+  # files). docs/quickstart/install.md builds it from git, and its installer
+  # CREATES the conda env itself, named "gmtsar" -- so unlike every other
+  # flavour we do not create an env first; InSARHub and MintPy go into the env
+  # GMTSAR built. Keep these steps in step with that doc and with
+  # scripts/test_install.py.
+  install-gmtsar:
+    name: install (gmtsar)
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    # MANUAL ONLY: this clones and compiles GMTSAR from source, ~30 minutes of
+    # runner time per invocation. The other three install flavours are conda
+    # installs and stay on the normal triggers.
+    if: github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        shell: bash -el {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: src/insarhub/app/frontend/package-lock.json
+
+      - name: Build frontend
+        working-directory: src/insarhub/app/frontend
+        run: npm ci && npm run build
+
+      - name: Build wheel
+        run: |
+          python -m pip install build
+          python -m build --wheel
+
+      # Miniconda only, with no environment of our own: the GMTSAR installer
+      # creates the "gmtsar" env in the next step.
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          auto-activate-base: true
+          activate-environment: ""
+
+      - name: Build GMTSAR from source (creates the "gmtsar" conda env)
+        run: |
+          git clone https://github.com/gmtsar/gmtsar.git "$RUNNER_TEMP/gmtsar"
+          cd "$RUNNER_TEMP/gmtsar"
+          python3 gmtsar/python/install.py --system conda-linux-full
+          echo "GMTSAR=$RUNNER_TEMP/gmtsar" >> $GITHUB_ENV
+          echo "$RUNNER_TEMP/gmtsar/bin" >> $GITHUB_PATH
+
+      - name: Confirm the installer created the env it documents
+        run: |
+          conda env list
+          conda env list --json | python -c "
+          import json, sys, pathlib
+          envs = [pathlib.Path(p).name for p in json.load(sys.stdin)['envs']]
+          assert 'gmtsar' in envs, f'GMTSAR installer created no \'gmtsar\' env; got {envs}'
+          print('gmtsar env present')
+          "
+
+      - name: Add MintPy + InSARHub into the gmtsar env
+        run: |
+          conda install -y -n gmtsar -c conda-forge mintpy
+          conda run -n gmtsar python -m pip install dist/*.whl
+          conda run -n gmtsar python -m pip install pytest httpx packaging
+
+      - name: Verify as the docs do
+        run: |
+          conda run -n gmtsar bash -lc 'which p2p_processing || which p2p_processing.csh'
+          conda run -n gmtsar python -c "import insarhub, mintpy; print('ok')"
+
+      - name: Tier 1
+        env:
+          INSARHUB_EXPECT_BACKENDS: gmtsar,mintpy
+        run: |
+          mkdir -p /tmp/run && cd /tmp/run
+          conda run -n gmtsar python -m pytest -m install -v \
+            --rootdir=$GITHUB_WORKSPACE \
+            -c $GITHUB_WORKSPACE/pyproject.toml \
+            $GITHUB_WORKSPACE/test/tier1_install
+
+  # ── Coverage: informational, not a gate ──────────────────────────────────
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . --no-deps
+          pip install pytest pytest-cov httpx packaging pyyaml
+          # burst2safe is omitted ON PURPOSE: it pulls the `gdal` PyPI package,
+          # which builds from source and fails on a bare runner with
+          # "FileNotFoundError: 'gdal-config'" -- the same trap doc_ci.yml
+          # already documents. insarhub only imports it lazily, inside the three
+          # S1_Burst functions that assemble .SAFE dirs (s1_burst.py:516/773/951),
+          # so no tier-2 import needs it. The real thing is exercised in the
+          # conda-based install and e2e jobs.
+          pip install "asf_search" "colorama" "contextily" "dem_stitcher" \
+                      "hyp3_sdk" "rasterio>=1.4" "sentineleof" "openpyxl" "fastapi" \
+                      "uvicorn" "python-multipart" "numpy<2.0" "psutil" "networkx" \
+                      "h5py" "setuptools<81"
+      - name: Report
+        run: |
+          pytest -m "basic or regression" \
+            --cov=insarhub --cov-report=term-missing:skip-covered --cov-report=xml
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.xml
+
+  # ── Tier 3: nightly and on demand only ───────────────────────────────────
+  e2e:
+    name: e2e (${{ matrix.workflow }})
+    # MANUAL ONLY -- never on push, PR or a schedule. Tier 3 downloads real
+    # Sentinel-1/NISAR data and runs real processing: one NISAR run alone used
+    # 87 GB and 10 minutes of compute locally, and the HyP3 path spends cloud
+    # credits. Run it from the Actions tab when you want it, or locally with
+    # `pytest -m e2e`.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    defaults:
+      run:
+        shell: bash -el {0}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - workflow: hyp3_s1
+            conda_packages: gdal pysolid pygrib cvxopt mintpy
+            target_env: e2e-hyp3_s1
+          - workflow: isce2_s1
+            conda_packages: gdal pysolid pygrib cvxopt mintpy isce2
+            target_env: e2e-isce2_s1
+          # GMTSAR is a source build whose installer creates its own conda env
+          # named "gmtsar". Its tools link against that env's GMT libraries, so
+          # InSARHub is installed into -- and the tests run in -- that env, not
+          # one of ours. See docs/quickstart/install.md.
+          - workflow: gmtsar_s1
+            conda_packages: mintpy
+            target_env: gmtsar
+            gmtsar_build: true
+          - workflow: isce3_burst
+            conda_packages: gdal isce3 compass sardem dolphin snaphu burst2safe
+            target_env: e2e-isce3_burst
+          - workflow: isce3_nisar
+            conda_packages: gdal isce3 compass sardem dolphin snaphu burst2safe
+            target_env: e2e-isce3_nisar
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: conda-incubator/setup-miniconda@v3
+        with:
+          python-version: '3.12'
+          miniforge-version: latest
+          channels: conda-forge
+          channel-priority: strict
+          activate-environment: ${{ matrix.gmtsar_build && '' || format('e2e-{0}', matrix.workflow) }}
+          auto-activate-base: ${{ matrix.gmtsar_build }}
+
+      # Must run before the backends for the GMTSAR flavour: its installer is
+      # what creates the env everything else is then installed into.
+      - name: Build GMTSAR from source (creates the "gmtsar" conda env)
+        if: matrix.gmtsar_build
+        run: |
+          git clone https://github.com/gmtsar/gmtsar.git "$RUNNER_TEMP/gmtsar"
+          cd "$RUNNER_TEMP/gmtsar"
+          python3 gmtsar/python/install.py --system conda-linux-full
+          echo "GMTSAR=$RUNNER_TEMP/gmtsar" >> $GITHUB_ENV
+          echo "$RUNNER_TEMP/gmtsar/bin" >> $GITHUB_PATH
+          conda env list --json | python -c "
+          import json, sys, pathlib
+          envs = [pathlib.Path(p).name for p in json.load(sys.stdin)['envs']]
+          assert 'gmtsar' in envs, f'GMTSAR installer created no gmtsar env; got {envs}'
+          "
+
+      - name: Install backends
+        run: conda install -y -n ${{ matrix.target_env }} ${{ matrix.conda_packages }}
+
+      - name: Install InSARHub
+        run: |
+          conda run -n ${{ matrix.target_env }} python -m pip install -e '.[test]'
+
+      # Tier 3 needs real credentials. It skips rather than fails when the
+      # secrets are absent, so a fork's PR does not go red.
+      - name: Write credentials
+        env:
+          EARTHDATA_USERNAME: ${{ secrets.EARTHDATA_USERNAME }}
+          EARTHDATA_PASSWORD: ${{ secrets.EARTHDATA_PASSWORD }}
+        run: |
+          if [ -n "$EARTHDATA_USERNAME" ]; then
+            printf 'machine urs.earthdata.nasa.gov login %s password %s\n' \
+              "$EARTHDATA_USERNAME" "$EARTHDATA_PASSWORD" > ~/.netrc
+            chmod 600 ~/.netrc
+          else
+            echo "no Earthdata secrets configured -- tier 3 will skip"
+          fi
+
+      - name: Run workflow
+        run: |
+          conda run -n ${{ matrix.target_env }} \
+            python -m pytest -m e2e -k ${{ matrix.workflow }} -v --durations=0

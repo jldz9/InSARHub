@@ -1,0 +1,73 @@
+# InSARHub (published release) + ISCE2 + MintPy (released).
+#
+# RELEASE variant: InSARHub comes from conda-forge at a pinned version, and
+# nothing is copied out of the working tree. MintPy is the released conda-forge
+# build — the :dev counterpart (../dev/Dockerfile.isce2-mintpy) deliberately
+# swaps in MintPy's git development version to test unreleased changes, which is
+# exactly what a reproducible release image must not do.
+#
+# Serves the `ISCE2_S1` processor and the `ISCE2_Mintpy_SBAS` analyzer.
+#
+# Requires insarhub=<version> to be on conda-forge ALREADY — see the release
+# order in docker/README.md.
+#
+# Build (from repo root):
+#   docker build -f docker/release/Dockerfile.isce2-mintpy \
+#       --build-arg INSARHUB_VERSION=0.4.0 \
+#       -t ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0 .
+#
+# Publish:
+#   docker push ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+
+FROM condaforge/miniforge3:24.9.2-0
+
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+ARG INSARHUB_VERSION
+RUN test -n "$INSARHUB_VERSION" \
+    || (echo "ERROR: pass --build-arg INSARHUB_VERSION=<x.y.z>" >&2; exit 1)
+LABEL org.opencontainers.image.version="${INSARHUB_VERSION}"
+
+RUN mamba create -n insarhub -c conda-forge python=3.12 -y \
+    && mamba clean -afy
+
+# insarhub first, isce2 as its own separate follow-up call, each with an
+# explicit numpy<2.0. Solving them together lets the pin be traded away -- see
+# docker/README.md, "Keeping numpy below 2".
+RUN conda install -n insarhub -c conda-forge "numpy<2.0" "insarhub==${INSARHUB_VERSION}" -y \
+    && mamba clean -afy
+
+RUN conda install -n insarhub -c conda-forge "numpy<2.0" isce2 -y \
+    && mamba clean -afy
+
+# pyaps3 (MintPy's correct_troposphere backend) imports pkg_resources, removed
+# in setuptools v81.
+RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir "setuptools<81"
+
+# Both of these are needed -- see docker/README.md, "Two meanings of ISCE_HOME".
+ENV ISCE_HOME=/opt/conda/envs/insarhub
+RUN ln -s /opt/conda/envs/insarhub/lib/python3.12/site-packages/isce/applications \
+          /opt/conda/envs/insarhub/applications
+
+ENV PATH=/opt/conda/envs/insarhub/bin:$PATH
+# topsStack ships under share/isce2; ISCE2_S1._generate_run_files does
+# `from topsStack.stackSentinel import ...`, so its PARENT dir must be
+# importable. Host runs auto-discover this (_find_topsstack); container runs do
+# not, so expose it here or a container submit dies with
+# "ModuleNotFoundError: No module named 'topsStack'".
+ENV PYTHONPATH=/opt/conda/envs/insarhub/share/isce2
+# See docker/README.md, "The libstdc++ trap".
+ENV LD_LIBRARY_PATH=/opt/conda/envs/insarhub/lib
+
+# Fail the build if the release, ISCE2 or topsStack is broken, so a bad image
+# never reaches the first job.
+RUN python -c "import isce, insarhub, mintpy; \
+from topsStack.stackSentinel import main; \
+from insarhub import Processor, Analyzer; \
+assert insarhub.__version__ == '${INSARHUB_VERSION}', \
+    'asked for %s, image has %s' % ('${INSARHUB_VERSION}', insarhub.__version__); \
+import numpy; assert numpy.__version__ < '2', numpy.__version__; \
+print('insarhub', insarhub.__version__, 'numpy', numpy.__version__, \
+'mintpy', mintpy.__version__, 'procs', Processor.available())"
+
+# No custom ENTRYPOINT/CMD -- see docker/README.md, "Why no ENTRYPOINT".

@@ -1,0 +1,91 @@
+# InSARHub (published release) + GMTSAR + MintPy.
+#
+# RELEASE variant: InSARHub comes from conda-forge at a pinned version, and
+# nothing is copied out of the working tree. GMTSAR is pinned to a TAG rather
+# than the moving `master` its :dev counterpart tracks
+# (../dev/Dockerfile.gmtsar-mintpy) — a release image that rebuilds differently
+# next month is not a release image.
+#
+# GMTSAR is BUILT FROM SOURCE: conda-forge's `gmtsar` package contains no files,
+# so the repo is cloned and built with GMTSAR's own installer
+# (`gmtsar/python/install.py --system conda-linux-full`), which provisions the
+# gfortran/gxx/make/autoconf toolchain + GMT from conda-forge into a dedicated
+# conda env named "gmtsar", then runs ./configure && make && make install
+# (binaries land in /opt/gmtsar/bin). InSARHub + MintPy go into that same env.
+#
+# Serves the `GMTSAR_S1` processor and the `GMTSAR_Mintpy_SBAS` analyzer.
+#
+# conda-linux-full is LINUX x86_64 ONLY (GMTSAR's installer refuses otherwise).
+#
+# Requires insarhub=<version> to be on conda-forge ALREADY — see the release
+# order in docker/README.md.
+#
+# Build (from repo root):
+#   docker build -f docker/release/Dockerfile.gmtsar-mintpy \
+#       --build-arg INSARHUB_VERSION=0.4.0 \
+#       -t ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0 .
+#
+# Publish:
+#   docker push ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0
+
+FROM condaforge/miniforge3:24.9.2-0
+
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+ARG INSARHUB_VERSION
+RUN test -n "$INSARHUB_VERSION" \
+    || (echo "ERROR: pass --build-arg INSARHUB_VERSION=<x.y.z>" >&2; exit 1)
+LABEL org.opencontainers.image.version="${INSARHUB_VERSION}"
+
+# git clones GMTSAR; the compilers come from conda-linux-full. autoconf/automake
+# are on the SYSTEM path because GMTSAR's install.py invokes `autoconf` with the
+# default environment (not its conda build_env -- a quirk in install.py's
+# do_build), so the conda-provided autoconf isn't visible for that one step;
+# a system autoconf satisfies it, while ./configure && make still use the conda
+# toolchain via build_env.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        git ca-certificates autoconf automake libtool m4 make \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pinned to a release tag, unlike the :dev image's `master`. Bump deliberately.
+ARG GMTSAR_REF=v6.6
+RUN git clone --branch ${GMTSAR_REF} --depth 1 \
+        https://github.com/gmtsar/gmtsar.git /opt/gmtsar
+WORKDIR /opt/gmtsar
+RUN python3 gmtsar/python/install.py --system conda-linux-full --conda-env gmtsar
+
+# MintPy + InSARHub into the gmtsar env from conda-forge, so gdal/rasterio/h5py
+# stay on the same libgdal/hdf5 stack GMT uses. numpy is held <2 (InSARHub's
+# pin) -- see docker/README.md, "Keeping numpy below 2".
+RUN conda install -n gmtsar -c conda-forge -y "numpy<2" gdal rasterio h5py mintpy \
+    && conda clean -afy
+
+RUN conda install -n gmtsar -c conda-forge -y "numpy<2" "insarhub==${INSARHUB_VERSION}" \
+    && conda clean -afy
+
+# GMTSAR binaries on PATH; the gmtsar env's python is the default interpreter.
+ENV GMTSAR=/opt/gmtsar
+ENV PATH=/opt/gmtsar/bin:/opt/conda/envs/gmtsar/bin:$PATH
+# See docker/README.md, "The libstdc++ trap" -- without this the `dem` stage
+# dies with "GLIBCXX_3.4.29 not found" when dem_stitcher imports pandas.
+ENV LD_LIBRARY_PATH=/opt/conda/envs/gmtsar/lib
+
+# GMTSAR's .csh scripts hardcode `#!/bin/csh -f`, but conda-linux-full only
+# provides csh/tcsh inside the env's bin -- there is no /bin/csh, so every csh
+# script (align_tops.csh, ...) fails rc=127 "command not found". Symlink tcsh
+# to /bin/csh so the shebang resolves. (Placed after the conda solve so it
+# doesn't invalidate that expensive layer's cache.)
+RUN ln -sf /opt/conda/envs/gmtsar/bin/tcsh /bin/csh
+
+# Fail the build if GMTSAR, MintPy or InSARHub is broken, so a bad image never
+# reaches the first job.
+RUN which p2p_processing && gmt --version \
+    && python -c "import insarhub, mintpy; \
+from insarhub import Processor, Analyzer; \
+assert insarhub.__version__ == '${INSARHUB_VERSION}', \
+    'asked for %s, image has %s' % ('${INSARHUB_VERSION}', insarhub.__version__); \
+import numpy; assert numpy.__version__ < '2', numpy.__version__; \
+print('insarhub', insarhub.__version__, 'numpy', numpy.__version__, \
+'procs', Processor.available(), 'analyzers', Analyzer.available())"
+
+# No custom ENTRYPOINT/CMD -- see docker/README.md, "Why no ENTRYPOINT".

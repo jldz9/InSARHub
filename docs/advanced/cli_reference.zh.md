@@ -388,14 +388,14 @@ insarhub processor [--list-processors] <action> [options]
         编辑 `sbatch_options.json` 以设置每个步骤的资源，然后重新运行 `submit`。
 
     !!! note "无需本地安装 ISCE2"
-        `--container <path-or-image>` 会将整个 `insarhub processor ...` 命令重新在容器内执行，而不是在本机运行 — 传入 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]）。工作目录会以相同路径绑定挂载到容器内，因此输出文件会像本机运行一样落在宿主机上，`ISCE2_S1` 也完全不需要在宿主机上发现 ISCE2 安装。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub` 即可 — 可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile) 作为现成示例。
+        `--container <path-or-image>` 会将整个 `insarhub processor ...` 命令重新在容器内执行，而不是在本机运行 — 传入 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]）。工作目录会以相同路径绑定挂载到容器内，因此输出文件会像本机运行一样落在宿主机上，`ISCE2_S1` 也完全不需要在宿主机上发现 ISCE2 安装。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub` 即可 — 可参考仓库根目录的 [`docker/dev/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/dev/Dockerfile.isce2-mintpy) 作为现成示例。
 
         ```bash
-        insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor retry   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor watch   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor cancel  -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+        insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor retry   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor watch   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor cancel  -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
         ```
 
         `--container` 是按次调用的标志，而非已保存设置 — 与 `--dry-run` 一样，它不会写入 `insarhub_config.json`，因此每次想在容器内运行 `submit`/`refresh`/`retry`/`watch`/`cancel` 时都需要再次传入。

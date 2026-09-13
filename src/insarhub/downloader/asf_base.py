@@ -21,7 +21,6 @@ from pyproj import Transformer
 from shapely import wkt, plotting
 from shapely.ops import transform
 from shapely.geometry import shape
-from tqdm import tqdm
 
 from insarhub._version import __version__
 from insarhub.core.base import BaseDownloader
@@ -868,6 +867,64 @@ Check documentation for how to setup .netrc file.\n""")
                     ds.update_tags(AREA_OR_POINT='Point')
         return X, p
     
+    #: False for products ASF publishes no baseline stack for. ``ASFProduct``
+    #: ``.stack()`` needs a baseline-stack reference that NISAR granules do not
+    #: carry, so no perpendicular baseline can be derived for them at all.
+    has_perpendicular_baseline: bool = True
+
+    def _warn_if_pairs_will_not_be_used(self) -> None:
+        """Say so up front when a pair network cannot be built or will be ignored.
+
+        Both cases end with the user's ``--select-pairs`` having no effect on
+        processing, but for different reasons, so they are reported separately:
+
+        * No perpendicular baseline (NISAR): ASF publishes no baseline stack for
+          these granules, so there is nothing to prune pairs by. The pair graph
+          cannot be built the way it is for Sentinel-1.
+
+        * The consuming processor builds its own network (ISCE3_Burst,
+          ISCE3_NISAR): dolphin forms interferograms from the phase-linked SLCs
+          using an index/temporal network (``max_bandwidth``, default 3, or
+          ``max_temporal_baseline``) and has no perpendicular-baseline option.
+          Those processors accept a ``pairs`` argument and never read it, so a
+          selected network is silently discarded.
+
+        Warn rather than raise: writing ``stack_*.json`` and ``network_*.png``
+        is still useful for inspecting coverage, it just does not drive
+        processing.
+        """
+        from insarhub.core.registry import Processor
+
+        name = type(self).name
+
+        if not getattr(type(self), "has_perpendicular_baseline", True):
+            print(
+                f"{Fore.YELLOW}Note: ASF publishes no baseline stack for "
+                f"{name} products, so no perpendicular baseline can be "
+                f"derived and NO pair graph is produced -- select_pairs "
+                f"returns an empty network, not a temporal-only one. "
+                f"(Sentinel-1 bursts are unaffected: they get bperp from their "
+                f"own orbits, so their pairs are built normally.){Fore.RESET}"
+            )
+
+        consumers = sorted(
+            pname for pname, pcls in Processor._registry.items()
+            if getattr(pcls, "compatible_downloader", None) == name
+            and getattr(pcls, "builds_own_network", False)
+        )
+        if consumers:
+            glob = getattr(Processor._registry[consumers[0]], "input_glob", "*")
+            print(
+                f"{Fore.YELLOW}Note: {', '.join(consumers)} build their own "
+                f"interferogram network from slc/{glob} -- dolphin phase "
+                f"linking, then an index/temporal network, with no "
+                f"perpendicular-baseline criterion -- so a selected pair list "
+                f"is NOT used for processing. Shape the network with the "
+                f"processor's pl_ifg_network / n_connections / "
+                f"max_temporal_baseline instead. The stack file and network "
+                f"plot are still written, for inspection.{Fore.RESET}"
+            )
+
     def select_pairs(
         self,
         dt_targets: tuple        = None,
@@ -947,6 +1004,8 @@ Check documentation for how to setup .netrc file.\n""")
                   when ``quality_check`` is False or scoring failed.
                 - quality_factors: factor breakdown, same keying as scores.
         """
+        self._warn_if_pairs_will_not_be_used()
+
         # None → pull from the single source of truth
         from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
         if dt_targets             is None: dt_targets             = _SP["dt_targets"]
@@ -1134,7 +1193,6 @@ Check documentation for how to setup .netrc file.\n""")
         if max_workers is None:
             max_workers = getattr(self.config, "max_workers", None) or _DL["max_workers"]
         max_workers = max(1, int(max_workers))
-        import json as _json
         from concurrent.futures import ThreadPoolExecutor, as_completed
         output_dir = Path(save_path).expanduser().resolve() if save_path else self.config.workdir
         output_dir.mkdir(exist_ok=True, parents=True)

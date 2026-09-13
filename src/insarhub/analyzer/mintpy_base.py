@@ -4,7 +4,6 @@ import getpass
 import json
 import logging
 import os
-import requests
 import shutil
 import subprocess
 import sys

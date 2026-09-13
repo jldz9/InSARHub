@@ -24,7 +24,7 @@ docker run --rm -e INSARHUB_CONTAINER_CHILD=1 -v <workdir>:<workdir> <image> \
 
 ## 主机与镜像的要求
 
-运行命令行/应用的**主机**需要在 `PATH` 上有容器运行时（`docker`，或用于 `.sif` 的 `apptainer`/`singularity`）。**镜像本身**则不需要——它只需要在 SAR 软件栈之外安装了 `insarhub`。`docker/Dockerfile.*` 构建了官方镜像：
+运行命令行/应用的**主机**需要在 `PATH` 上有容器运行时（`docker`，或用于 `.sif` 的 `apptainer`/`singularity`）。**镜像本身**则不需要——它只需要在 SAR 软件栈之外安装了 `insarhub`。`docker/dev/` 与 `docker/release/` 构建官方镜像（两者的区别见 [docker/README.md](https://github.com/jldz9/InSARHub/blob/main/docker/README.md)）：
 
 | 镜像 | 软件栈 |
 |---|---|
@@ -46,9 +46,9 @@ docker run --rm -e INSARHUB_CONTAINER_CHILD=1 -v <workdir>:<workdir> <image> \
     ```bash
     insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0 \
-        --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+        --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
     insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 \
-        --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+        --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
     ```
 
     分析器在 `run` 动作**之后**接受 `--container`；不带取值的 `--container` 使用默认镜像：
@@ -65,7 +65,7 @@ docker run --rm -e INSARHUB_CONTAINER_CHILD=1 -v <workdir>:<workdir> <image> \
     cfg = ISCE2_S1_Config(
         workdir='/data/p100_f466',
         bbox=[37.74, 38.00, -113.05, -112.68],
-        container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+        container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0',
     )
     processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
     processor.submit()   # 在容器内部运行

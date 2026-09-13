@@ -134,13 +134,13 @@ Analyzer.available()
 
     - **无需本地安装 MintPy（或 ISCE2）**
 
-        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`run()`/`prep_data()`/`submit_hpc()` 都会在容器内而非宿主机上重新执行同一个 `insarhub analyzer ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处。容器镜像只需在 MintPy（`ISCE2_Mintpy_SBAS` 还需要 ISCE2）旁额外安装 `insarhub`（可参考仓库根目录的 [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile) 作为现成示例）。
+        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`run()`/`prep_data()`/`submit_hpc()` 都会在容器内而非宿主机上重新执行同一个 `insarhub analyzer ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处。容器镜像只需在 MintPy（`ISCE2_Mintpy_SBAS` 还需要 ISCE2）旁额外安装 `insarhub`（可参考仓库根目录的 [`docker/dev/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/dev/Dockerfile.isce2-mintpy) 作为现成示例）。
 
         ```python
         cfg = Mintpy_SBAS_Base_Config(
             workdir="/your/work/dir",
             load_processor="hyp3",
-            container="ghcr.io/jldz9/insarhub-isce2-mintpy:dev",
+            container="ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0",
         )
         analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         analyzer.run()

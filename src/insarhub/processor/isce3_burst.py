@@ -183,7 +183,6 @@ class ISCE3_Burst(ISCE3_Base):
 
     def burst_dirs(self) -> list[Path]:
         """Per-burst output directories written by the ifg stage."""
-        import re as _re
         if not self.workdir.is_dir():
             return []
         pat = re.compile(_BURST_RE)

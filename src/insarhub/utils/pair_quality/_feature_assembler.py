@@ -18,7 +18,6 @@ classifier in _classifier.py substitutes neutral values before scoring.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 from insarhub.utils.pair_quality._cache import CacheManager, aoi_hash
 from insarhub.utils.pair_quality import _baselines, _landcover

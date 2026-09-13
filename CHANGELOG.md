@@ -4,39 +4,56 @@
 
 ### Security
 
-* Fixed the web API accepting cross-origin requests from any website. CORS was enabled unconditionally with `allow_origins=["*"]` and `allow_credentials=True`, which Starlette answers by reflecting the caller's `Origin` — so any page open in the same browser could call the unauthenticated local API and read the responses, including `/api/auth-status`, folder listings, job submission, and `POST /api/credentials/*`. CORS is now off by default (the production UI is served same-origin and never needed it, HPC port forwarding included) and is enabled only under `INSARHUB_DEV`, for the Vite dev server's origins. The split dev setup now needs `INSARHUB_DEV=1 uvicorn insarhub.app.api:app --reload --port 8080`; `insarhub-app` is unaffected.
+* Fixed the web API accepting cross-origin requests from any website. CORS was enabled with `allow_origins=["*"]` and `allow_credentials=True`, which Starlette answers by reflecting the caller's `Origin`, so any page open in the same browser could read from — and post to — the unauthenticated local API, including `POST /api/credentials/*`. CORS is now off by default and enabled only under `INSARHUB_DEV` for the Vite dev server. Contributors running the split dev setup need `INSARHUB_DEV=1 uvicorn insarhub.app.api:app --reload --port 8080`; `insarhub-app` is unaffected.
 
 ### Analyzer Restructuring
 
-* Split `ISCE3_Dolphin_PL` into **`ISCE3_Dolphin_S1_PL`** (`ISCE3_Burst`) and **`ISCE3_Dolphin_NISAR_PL`** (`ISCE3_NISAR`), sharing a new `Dolphin_PL_Base_Analyzer`. One config per sensor fixes NISAR stacks silently inheriting the Sentinel-1 C-band wavelength — NISAR now reads it from the GSLC metadata. Supersedes the 0.4.0rc1 entry extending `ISCE3_Dolphin_PL` to both processors.
-* Renamed the analyzer modules onto one convention: `<backend>_base.py` for a base, `<processor>_<backend>_<sensor>_<method>.py` for a concrete analyzer. Class and registry names are unchanged; only deep module-path imports move.
-* Renamed the dolphin configs to `ISCE3_Dolphin_S1_PL_Config` / `ISCE3_Dolphin_NISAR_PL_Config`, keeping the old names as aliases.
-* Legacy analyzer names (`ISCE3_Dolphin_PL`, `Dolphin_SBAS`, `ISCE3_Dolphin_PL_NISAR`, …) still resolve, and are hidden from the analyzer list.
-* Pre-split saved configs are retargeted to the right sensor on read, using the processor recorded alongside them; the CLI does the same for a legacy `-N` name.
+* Split `ISCE3_Dolphin_PL` into **`ISCE3_Dolphin_S1_PL`** (`ISCE3_Burst`) and **`ISCE3_Dolphin_NISAR_PL`** (`ISCE3_NISAR`), sharing a new `Dolphin_PL_Base_Analyzer`. One config per sensor fixes NISAR stacks silently inheriting the Sentinel-1 C-band wavelength. Supersedes the 0.4.0rc1 entry.
+* Renamed the analyzer modules and dolphin configs onto one convention. Legacy names (`ISCE3_Dolphin_PL`, `Dolphin_SBAS`, …) still resolve and are hidden from the analyzer list, and pre-split saved configs are retargeted to the right sensor on read.
 
 ### Bug Fixes
 
-* Fixed CLI `--stacks PATH:FRAME` selecting nothing for `S1_Burst`. ASF returns no `frameNumber` on `SLC-BURST` products, so burst stacks key on `fullBurstID` (`124_264305_IW2`) — but the CLI coerced both halves of a token to `int`, producing a target that could never equal a burst key. Selectors are now kept as strings when they are not numeric and matched through a new `_stack_key_matches()` hook on the downloader, so `S1_Burst` accepts the full burst ID (`124:124_264305_IW2`), the burst index with subswath (`124:264305_IW2`), or a bare burst index (`124:264305`, which matches that index in every subswath, since ASF reuses an index across subswaths). Path zero-padding is ignored, so `87:87_185682_IW2` and `87:087_185682_IW2` select the same stack. `frame` is now forwarded to the ASF query only when every selector really is a frame number *and* the downloader queries on frame at all, keeping burst IDs out of `asf_search`'s int-range validator.
-* Fixed `filter()` silently falling back to the unfiltered search when no stack matched. `_subset` was assigned only in the non-empty branch, so `active_results` returned every stack the user had just excluded and downstream summary, pair selection and download all ran on the wrong set behind a single warning line. The subset is now committed even when empty.
-* Fixed CLI `--stacks` exiting `0` after matching no stacks. An explicit stack selection that matches nothing is a typo or a stale config, so it now exits non-zero and prints both the requested and the available stack keys.
-* Fixed empty downloader search results with `asf_search` 13.0.0. Its `should_use_asf_frame()` no longer detects a generic `platform=SENTINEL-1` query (it checks for a `shortName[]` CMR key while the query emits `shortName`, and its `platform[]` fallback only lists `SENTINEL-1A/-1B/-1C/-1D`), so `frame` silently queried the ESA frame and matched nothing. Sentinel-1 / ALOS / NISAR frame filters (including CLI `--stacks PATH:FRAME`) are now routed to `asfFrame` (`FRAME_NUMBER`), which works on both `asf_search` 12.x and 13.x.
-* Fixed `NameError: Fore` aborting the dolphin analyzer's empty-stack warning.
-* Fixed dolphin log lines, error messages and SLURM labels hardcoding `ISCE3_Dolphin_PL`.
-* Fixed `ISCE3_NISAR.compatible_analyzer` resolving to the Sentinel-1 analyzer.
-* Fixed `GMTSAR_SBAS` labelling its own workdir `GMTSAR_Mintpy_SBAS`, via the helper it builds in `prep_data()`.
-* Fixed `GMTSAR_SBAS` and both dolphin analyzers never recording themselves in `insarhub_config.json`, so a CLI run left the folder with no analyzer badge in the GUI.
-* Fixed the job-folder listing tagging every analyzer `MintPy`; tags now follow the actual engine, and `GMTSAR_S1` is tagged.
-* Fixed `S1_Burst` leaving an annotation-less `.SAFE` when `properties["bytes"]` came back as a string, which `s1reader` later rejected.
-* Fixed `ISCE3_Burst` SLURM job names colliding across workdirs, so one site's jobs blocked or cancelled another's.
-* Fixed the GUI map not zooming to a polygon or box AOI — only a point did. `fitBounds` sat behind a `map.isStyleLoaded()` check that MapLibre 5 reports false right after a `setData()`, so it never ran.
+* Fixed CLI `--stacks PATH:FRAME` selecting nothing for `S1_Burst`: ASF returns no `frameNumber` on `SLC-BURST`, so burst stacks key on `fullBurstID` and selectors are now matched as strings. Accepts the full burst ID, the index with subswath, or a bare index; path zero-padding is ignored.
+* Fixed `filter()` silently falling back to the unfiltered search when no stack matched, so a typo in `--stacks` processed every stack. A selection matching nothing now also exits non-zero.
+* Fixed empty downloader results with `asf_search` 13.0.0 — Sentinel-1/ALOS/NISAR frame filters are now routed to `asfFrame`, which works on 12.x and 13.x.
+* Fixed `ISCE3_Burst`/`ISCE3_NISAR` background processing dying instantly under pytest, Jupyter/Colab or any `redirect_stdout`: the forked executor used `os.dup2(..., sys.stdout.fileno())`, which raises once `sys.stdout` is replaced, leaving every stage at `RUNNING`. Fixed at all ten call sites.
+* Fixed `ISCE2_S1`, `GMTSAR_S1`, the ISCE3 processors, `GMTSAR_SBAS` and both dolphin analyzers never recording themselves in `insarhub_config.json`, which left folders with a blank processor or analyzer badge in the GUI.
+* Fixed two `select_pairs()` crashes on NISAR products: an explicit null `centerLat`/`centerLon`, and `ASFProduct.stack()` raising for datasets ASF publishes no baseline stack for.
+* Unified `watch()` on `refresh_interval` across processors — it was `poll_interval` on `GMTSAR_S1` and `interval` on the ISCE3 base, so `watch --interval N` was silently ignored there. Old keywords still work.
+* Fixed `ISCE3_NISAR.compatible_analyzer` resolving to the Sentinel-1 analyzer, dolphin log lines and SLURM labels hardcoding `ISCE3_Dolphin_PL`, `GMTSAR_SBAS` mislabelling its own workdir, and `NameError: Fore` aborting the dolphin empty-stack warning.
+* Fixed `ISCE3_Burst` SLURM job names colliding across workdirs, and `S1_Burst` leaving an annotation-less `.SAFE` when `properties["bytes"]` came back as a string.
+* Fixed the job-folder listing tagging every analyzer `MintPy`; tags now follow the actual engine.
+* Fixed the GUI map not zooming to a polygon or box AOI — `fitBounds` sat behind an `isStyleLoaded()` check MapLibre 5 reports false right after `setData()`.
+
+### Downloader
+
+* `--select-pairs` now warns when the pair network will not be used: NISAR products have no perpendicular baseline, and `ISCE3_Burst`/`ISCE3_NISAR` build their own network from `slc/` via dolphin phase linking. Sentinel-1 bursts are unaffected.
+* Progress and stack listings now name the product actually being searched (`bursts`, `GSLCs`, `RSLCs`, `GUNWs`, `SLCs`) instead of reusing the `S1_SLC` wording, and burst stacks report a Burst_ID rather than a frame number.
+* Hid `NISAR_RSLC` and `NISAR_GUNW` from the GUI downloader list — both download fine, but no processor consumes them yet. Still available from the CLI and Python API.
+* Removed `get_config()` and `utils/config.toml`: the function could never run (`tomllib` was never imported, and the `Config` class it referenced does not exist), and the file was invalid TOML configuring Mask R-CNN training rather than InSAR.
 
 ### GUI
 
-* Renamed the top-bar AOI field to **Area of Interest · WKT** (**目标区域 · WKT**) to name the format it accepts; the map toolbar label below it is now **AOI** in both languages.
+* Renamed the top-bar AOI field to **Area of Interest · WKT** (**目标区域 · WKT**); the map toolbar label below it is now **AOI**.
 
-### Downloader Output
+### Testing
 
-* Downloader progress and stack listings now describe the product actually being searched instead of reusing the `S1_SLC` wording for every dataset. Two new overridable class attributes drive this: `product_label` (`Searching for bursts....`, `GSLCs`, `RSLCs`, `GUNWs`, `SLCs`) and `stack_key_label`, which names the second half of a stack key. Burst stacks key on a burst ID rather than a frame number, so `S1_Burst` now prints `relativeOrbit 124 Burst_ID 124_264305_IW2` — previously it printed `frame 124_264305_IW2`, which misnamed the value and implied a number that could be passed to `--frame`. The label is applied consistently across `summary()`, the `footprint()` map annotation, the `min_count` drop message, and the `--stacks` token error text.
+* Replaced the test suite with a four-tier system under `test/` (see `test/README.md`): **install**, **basic**, **e2e** and **regression**. A bare `pytest` runs everything except e2e. Added a `test` extra, tier markers, and a `Tests` workflow that actually runs the suite — CI previously ran only an import smoke test.
+* Added `scripts/test_install.py`, which builds a wheel and runs tier 1 inside a fresh conda env per documented install flavour. All five workflows were verified end to end on real data over Parowan Valley, Utah.
+* Confirmed `requires-python = ">=3.11,<3.13"` is still correct: the code runs on 3.13, but `isce2` has no py3.13 build and COMPASS pins `scipy <1.13`.
+
+### Logging
+
+* InSARHub is now quiet by default: its own `INFO`/`DEBUG` records are suppressed so a run shows only the command's output. `WARNING` and `ERROR` still appear — a failure that prints nothing is worse than a noisy one — and `print()` output is untouched. Set **`INSARHUB_DEBUG=1`** to turn every InSARHub log record back on.
+* The switch is an environment variable because it has to reach all three entry points. `insarhub-app` and plain `import insarhub` previously configured no logging at all, so there was no way to get a log line out of the GUI or the Python API; both now apply the same policy as the CLI. `--verbose`/`-vv` still work and still escalate.
+* Only the `insarhub` logger is lowered in debug mode — the root stays at `WARNING`, so matplotlib, botocore, rasterio and asyncio do not bury the output. `GMTSAR_S1`'s executor used to set the **root** to `INFO`, which let every third-party library log into `executor.log` on top of the per-pair progress it was meant to surface.
+* Removed 33 dead imports across 23 modules. Re-export shims, registration side-effect imports and `# noqa: F401` markers were left intact.
+
+### Containers
+
+* Container defaults and every documented `--container` example now point at the immutable **`:0.4.0`** tag instead of the floating `:dev`. A `:dev` default meant each user pulled whatever was last pushed, so a run could not be reproduced or tied to a release. Two tier-2 tests enforce this: the tag must not be floating, and it must match `_version.py` — a version bump that forgets to re-tag now fails CI rather than silently shipping the previous release's images.
+* Split `docker/` into **`docker/dev/`** (builds from the working tree, tagged `:dev`) and **`docker/release/`** (installs a pinned InSARHub from conda-forge, tagged `:x.y.z`, with GMTSAR pinned to a tag and the released MintPy). Release images take `--build-arg INSARHUB_VERSION` and assert at build time that the installed version matches, so a lagging conda-forge fails the build instead of producing a mislabelled image.
+* Removed the unreferenced legacy `docker/Dockerfile`; `docker/release/Dockerfile.isce2-mintpy` supersedes it. Added `docker/README.md` documenting the dev/release split, the release order, and the recipe details the Dockerfiles depend on (the numpy<2 solve ordering, the two meanings of `ISCE_HOME`, the `GLIBCXX_3.4.29` loader trap, and why no image sets `ENTRYPOINT`).
 
 ## [0.4.0rc1]
 

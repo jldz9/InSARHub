@@ -24,7 +24,7 @@ Without that check the child — which still sees `container` in the persisted c
 
 ## Host vs. image requirements
 
-The **host** running the CLI/app needs a container runtime (`docker`, or `apptainer`/`singularity` for a `.sif`) on its `PATH`. The **image** does not — it only needs `insarhub` installed alongside the SAR stack. The `docker/Dockerfile.*` files build the official images:
+The **host** running the CLI/app needs a container runtime (`docker`, or `apptainer`/`singularity` for a `.sif`) on its `PATH`. The **image** does not — it only needs `insarhub` installed alongside the SAR stack. `docker/dev/` and `docker/release/` build the official images (see [docker/README.md](https://github.com/jldz9/InSARHub/blob/main/docker/README.md) for the difference):
 
 | Image | Stack |
 |---|---|
@@ -46,9 +46,9 @@ A `container` you choose **is** written to the workdir's `insarhub_config.json`,
     ```bash
     insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 \
         --bbox 33.0 38.0 -120.0 -115.0 \
-        --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+        --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
     insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 \
-        --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+        --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
     ```
 
     Analyzers take `--container` **after** the `run` action; a bare `--container` uses the default image:
@@ -65,7 +65,7 @@ A `container` you choose **is** written to the workdir's `insarhub_config.json`,
     cfg = ISCE2_S1_Config(
         workdir='/data/p100_f466',
         bbox=[37.74, 38.00, -113.05, -112.68],
-        container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+        container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0',
     )
     processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
     processor.submit()   # runs inside the container

@@ -29,7 +29,6 @@ Expected layout (produced by ISCE2_S1 / stackSentinel):
 from __future__ import annotations
 
 import shutil
-from pathlib import Path
 
 from colorama import Fore
 

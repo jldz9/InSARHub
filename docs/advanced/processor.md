@@ -306,13 +306,13 @@ Processor.available()
 
     - **Running without a local ISCE2 install**
 
-        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` all re-invoke the same `insarhub processor ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it, and ISCE2 never needs to be discovered on the host at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack (see [`docker/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile.isce2-mintpy) for a ready-to-build example). The **host** running the app/CLI needs a container runtime (`docker`, or `apptainer`/`singularity` for a `.sif`) on its `PATH`; the container image itself does **not** need one — the pipeline runs directly inside it, never nesting another `docker run`.
+        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` all re-invoke the same `insarhub processor ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it, and ISCE2 never needs to be discovered on the host at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack (see [`docker/dev/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/dev/Dockerfile.isce2-mintpy) for a ready-to-build example). The **host** running the app/CLI needs a container runtime (`docker`, or `apptainer`/`singularity` for a `.sif`) on its `PATH`; the container image itself does **not** need one — the pipeline runs directly inside it, never nesting another `docker run`.
 
         ```python
         cfg = ISCE2_S1_Config(
             workdir='/data/p100_f466',
             bbox=[33.0, 38.0, -120.0, -115.0],
-            container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+            container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0',
         )
         processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
         processor.submit()
@@ -322,7 +322,7 @@ Processor.available()
 
         ```bash
         insarhub processor -N ISCE2_S1 -w /data/p100_f466 submit \\
-            --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+            --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
         ```
 
         `container` **is persisted** to the workdir's `insarhub_config.json`, so a later `retry()`/`refresh()`/`cancel()` (and, from the GUI, a retry) re-runs inside the same image without re-passing it. An explicit `--container` / `container=` on a later call overrides the saved value; a bare `--container` (no value) resolves to the processor's `container_default` image. `container_default` is a fixed per-processor suggestion (the image the GUI's "Run in Container" checkbox pre-fills) and is **never** persisted — only your actual `container` choice is. In HPC mode only each stage's child jobs run inside the container; the sbatch manager scaffolding stays on the host.
@@ -499,7 +499,7 @@ Processor.available()
 
         ```bash
         insarhub processor -N GMTSAR_S1 -w /data/stack submit \\
-            --container ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
+            --container ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0
         ```
 
         In HPC mode only each stage's child jobs run inside the container; the sbatch manager scaffolding stays on the host.

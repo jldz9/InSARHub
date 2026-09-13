@@ -21,7 +21,6 @@ import logging
 import os
 import re
 import sys
-import threading
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -323,6 +322,28 @@ class ISCE2_S1(ISCE2_Base):
             retry() does. Default (None): normal behavior, run every step
             not already SUCCEEDED.
         """
+        # Stamp the folder with what produced it. Downloaders, analyzers and
+        # Hyp3_S1 all do this; ISCE2_S1, GMTSAR_S1 and the ISCE3 processors did
+        # not, so a workdir driven through the Python API ended up recording an
+        # analyzer and no processor -- the GUI then showed the folder with an
+        # analyzer badge and a blank processor. (The GUI and CLI write the same
+        # marker themselves, which is why only the Python API path was affected.)
+        #
+        # Written at submit(), not at construction as Hyp3Base does: building a
+        # processor merely to inspect it -- --list-options, a GUI defaults
+        # lookup, a --dry-run preview -- must not stamp a folder. Hyp3Base needs
+        # an explicit dry_run guard for exactly that reason.
+        try:
+            from insarhub.utils.tool import write_workflow_marker
+            _roles = {"processor": type(self).name}
+            _dl = getattr(type(self), "compatible_downloader", None)
+            if _dl and _dl != "all":
+                _roles["downloader"] = _dl
+            write_workflow_marker(self.config.workdir, **_roles)
+        except Exception:
+            # Never let bookkeeping stop a real run.
+            pass
+
         # `not INSARHUB_CONTAINER_CHILD`: when this submit runs *inside* the
         # container (re-invoked by _reinvoke_via_container, which sets that env
         # var), config.container is still set, so without this guard it would

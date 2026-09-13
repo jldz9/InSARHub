@@ -138,7 +138,7 @@ Currently InSARHub support:
     Default InSARHub container that support sentinel-1 processing via Hyp3 and time-series analysis via Mintpy
 
     ```bash
-    ghcr.io/jldz9/insarhub-base:dev
+    ghcr.io/jldz9/insarhub-base:0.4.0
 
     ```
 
@@ -147,7 +147,7 @@ Currently InSARHub support:
     Covers the `ISCE2_S1` processor and `ISCE2_Mintpy_SBAS` analyzer 
 
     ```bash
-    ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+    ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
     ```
 
 === "ISCE3 + Dolphin"
@@ -155,7 +155,7 @@ Currently InSARHub support:
     Covers `ISCE3_Burst` (Sentinel-1 bursts) and `ISCE3_NISAR` (NISAR GSLC), plus the `ISCE3_Dolphin_S1_PL` and `ISCE3_Dolphin_NISAR_PL` analyzers 
     
     ```bash
-    ghcr.io/jldz9/insarhub-isce3-dolphin:dev
+    ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0
 
     ```
 
@@ -164,7 +164,7 @@ Currently InSARHub support:
     Covers the `GMTSAR_S1` processor and GMTSAR analyzers 
 
     ```bash
-    ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
+    ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0
     ```
 ---
 

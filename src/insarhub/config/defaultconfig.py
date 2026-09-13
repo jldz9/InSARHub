@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field, asdict
-from typing import ClassVar, List, Union, Optional, Any
+from typing import ClassVar, Union
 from pathlib import Path
 from asf_search import constants
 from insarhub import _env
@@ -356,7 +356,28 @@ class ISCE2_S1_Config:
         num_overlap_connections: Connections used for NESD azimuth coregistration.
         reference_date: Stack reference date YYYYMMDD.  None = stackSentinel auto-selects.
         coregistration: 'NESD' (default, more accurate) or 'geometry' (faster).
-        max_workers: Parallel commands within each run step.
+        max_workers: Parallel commands within each run step. This is the knob
+            that controls concurrency for every step except topo -- InSARHub
+            runs each run-file line itself under a ThreadPoolExecutor.
+        num_proc4topo: ISCE2's own multiprocessing pool size for the topo step
+            (run_01), written into config_reference as ``numProcess``. run_01 is
+            a single command, so max_workers cannot parallelise it and this is
+            the only knob that will. On HPC it is overridden by run_01's
+            ``sbatch_options.json`` cpus_per_task.
+        num_proc: **No effect under InSARHub.** Hidden from the GUI for that
+            reason; kept as a field so saved configs round-trip and because
+            ``_resolve_num_proc()`` still reads it as the HPC fallback.
+
+            stackSentinel's ``--num_proc`` does exactly one thing: decide which
+            lines of a run file get a trailing ``&`` and where ``wait`` goes
+            (Stack.py::write_wrapper_config2run_file), i.e. shell-level
+            parallelism. InSARHub strips those ``&`` in ``_fix_cmd`` -- it has
+            to, since ``subprocess.run("cmd &", shell=True)`` returns instantly
+            with rc=0 and reports orphaned work as success -- and schedules the
+            commands under its own pool instead. So the value never reaches
+            ISCE2 as a process count: of the 51 configs stackSentinel writes for
+            a 4-scene stack, only config_reference carries ``numProcess``, and
+            that one comes from num_proc4topo. Set max_workers instead.
     """
 
     _ui_groups: ClassVar[list] = [
@@ -371,8 +392,12 @@ class ISCE2_S1_Config:
                     "rm_filter", "polarization", "unw_method", "virtual_merge"]},
         {"label": "Ionosphere",
          "fields": ["param_ion", "num_connections_ion"]},
+        # num_proc is deliberately NOT listed: it has no effect under InSARHub
+        # (see the class docstring), so offering it in the GUI invites tuning
+        # that changes nothing. The field stays on the dataclass because
+        # _resolve_num_proc() still reads it as the HPC fallback.
         {"label": "Job",
-         "fields": ["max_workers", "skip_existing", "num_proc", "num_proc4topo"]},
+         "fields": ["max_workers", "skip_existing", "num_proc4topo"]},
         {"label": "HPC (SLURM)",
          "fields": ["hpc_mode", "max_concurrent_hpc"]},
         {"label": "Container",
@@ -419,10 +444,13 @@ class ISCE2_S1_Config:
                                      "hint": "Parallel commands within each run step"},
         "skip_existing":            {"type": "bool",
                                      "hint": "Skip steps that already completed successfully"},
+        # Kept so a saved config carrying num_proc still round-trips, but hidden
+        # from _ui_groups above -- it does nothing locally. See the class
+        # docstring for why.
         "num_proc":                 {"type": "number", "min": 1, "max": 32, "step": 1, "default": 4,
-                                     "hint": "ISCE2's own internal multiprocessing (stackSentinel.py --numProcess) for geo2rdr/resample steps (run_05/06/09/10) — separate from max_workers/cpus_per_task, must be matched to whatever cores those steps are actually given or the extra cores go unused"},
+                                     "hint": "No effect under InSARHub: stackSentinel only uses --numProcess to decide which run-file lines get a trailing '&', and InSARHub strips those and schedules commands itself. Use max_workers instead"},
         "num_proc4topo":            {"type": "number", "min": 1, "max": 32, "step": 1, "default": 6,
-                                     "hint": "ISCE2's own internal multiprocessing (stackSentinel.py --numProcess4topo) for the topo step (run_01) — same caveat as num_proc, matched to run_01's sbatch_options.json cpus_per_task"},
+                                     "hint": "ISCE2's own multiprocessing pool for the topo step (run_01), written into config_reference as 'numProcess'. This is the knob that parallelises run_01 -- max_workers cannot, since that step is a single command. On HPC it is taken from run_01's sbatch_options.json cpus_per_task instead"},
         "hpc_mode":                 {"type": "bool",
                                      "hint": "Submit a sbatch manager job per step; each manager controls child job submission in batches"},
         "max_concurrent_hpc":       {"type": "number", "min": 1, "max": 200, "step": 1, "default": 12,
@@ -491,7 +519,7 @@ class ISCE2_S1_Config:
     sbatch_options_per_step: dict           = field(default_factory=dict)
     container: str | None                 = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str                = "ghcr.io/jldz9/insarhub-isce2-mintpy:dev"
+    container_default: str                = "ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0"
 
     def __post_init__(self):
         _AUTO = {"auto", ""}
@@ -834,7 +862,7 @@ class GMTSAR_Base_Config:
     # _reinvoke_via_container() docstring.
     container: str | None             = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev"
+    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0"
 
     # ── GMTSAR processing params (common to every SAT; pop_config defaults) ──
     # stack alignment: "esd" (enhanced spectral diversity, preproc_batch_tops_esd
@@ -1358,7 +1386,7 @@ class ISCE3_Burst_Config:
     # expected to have `insarhub` plus ISCE3/COMPASS installed.
     container: str | None         = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str        = "ghcr.io/jldz9/insarhub-isce3-dolphin:dev"
+    container_default: str        = "ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0"
     # Set by the CLI's --dry-run. Must exist as a real field: the CLI puts
     # dry_run into its overrides dict, but only keys that are actual dataclass
     # fields survive the filter into the config -- so without this, --dry-run
@@ -1922,7 +1950,7 @@ class Mintpy_SBAS_Base_Config:
     container: str | None = None
     # Default container image used when `--container` is passed with no value.
     # MintPy analyzers need MintPy + (for ISCE2) ISCE2 -- the isce2 image has both.
-    container_default: str = "ghcr.io/jldz9/insarhub-isce2-mintpy:dev"
+    container_default: str = "ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0"
 
     ## computing resource configuration
     # System memory minus a 1 GB reserve for the OS/scheduler: giving dask the
@@ -2148,8 +2176,8 @@ class Hyp3_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
     load_processor: str = "hyp3"
     # HyP3 generates interferograms in the cloud, so the only local step is
     # MintPy -- the lightweight insarhub-base image (InSARHub + MintPy, no
-    # ISCE2/GMTSAR) is enough. See docker/Dockerfile.base.
-    container_default: str = "ghcr.io/jldz9/insarhub-base:dev"
+    # ISCE2/GMTSAR) is enough. See docker/dev/Dockerfile.base.
+    container_default: str = "ghcr.io/jldz9/insarhub-base:0.4.0"
     deramp: str = 'linear'
     troposphericDelay_method: str = 'pyaps'
     # "adaptive": InSARHub derives each threshold from THIS stack at prep_data
@@ -2276,7 +2304,7 @@ class GMTSAR_SBAS_Config:
     # Run inside a container image that ships GMTSAR + insarhub (the sbas binary
     # and `gmt` live there, not in InSARHub's own env).
     container: str | None              = None
-    container_default: str             = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev"
+    container_default: str             = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0"
 
 
 @dataclass
@@ -2290,7 +2318,7 @@ class GMTSAR_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
     name: str                         = "GMTSAR_Mintpy_SBAS_Config"
     load_processor: str               = "gmtsar"
     # GMTSAR-based: needs GMTSAR + MintPy, so the gmtsar image, not isce2.
-    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev"
+    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0"
     # Populated by GMTSAR_Mintpy_SBAS.prep_data() — left "auto" so
     # write_mintpy_config() skips them while unset.
     load_metaFile: str                = "auto"
@@ -2454,7 +2482,7 @@ class ISCE3_Dolphin_PL_Base_Config:
     hpc_mode: bool                    = False
     container: str | None             = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str            = "ghcr.io/jldz9/insarhub-isce3-dolphin:dev"
+    container_default: str            = "ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0"
 
 
 @dataclass

@@ -1,5 +1,4 @@
 from colorama import Fore
-from tqdm import tqdm
 
 from insarhub.config import Hyp3_S1_Config
 from insarhub.processor.hyp3_base import Hyp3Base 

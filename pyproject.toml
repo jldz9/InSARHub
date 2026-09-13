@@ -42,6 +42,13 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 
+[project.optional-dependencies]
+test = [
+    "pytest>=8",
+    "pytest-cov",
+    "httpx",            # FastAPI TestClient transport
+]
+
 [project.scripts]
 insarhub = "insarhub.cli.main:main"
 insarhub-app = "insarhub.app.main:main"
@@ -58,3 +65,22 @@ where = ['src']
 
 [tool.setuptools.dynamic]
 version = {attr = "insarhub._version.__version__"}
+
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+# Tier 3 drives real backends and real data; it is opt-in via `-m e2e` so that a
+# bare `pytest` stays fast and hermetic. Everything else runs by default.
+addopts = "-m 'not e2e'"
+markers = [
+    "install: tier 1 -- the installed environment is wired up correctly",
+    "basic: tier 2 -- imports, CLI and GUI contracts, no real data",
+    "e2e: tier 3 -- full workflow against real (minimal) data; needs backends",
+    "regression: tier 4 -- one case per previously-fixed bug",
+    "needs_isce2: requires a working ISCE2 install",
+    "needs_isce3: requires ISCE3 + COMPASS + dolphin",
+    "needs_gmtsar: requires a GMTSAR install",
+    "needs_mintpy: requires MintPy",
+    "needs_network: performs real network calls",
+    "needs_creds: requires Earthdata/CDSE/CDS credentials",
+]

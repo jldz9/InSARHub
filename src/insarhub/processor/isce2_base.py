@@ -30,11 +30,7 @@ from colorama import Fore, Style
 from insarhub.core import LocalProcessor
 from insarhub.config.paths import ISCEPaths
 from insarhub.utils.tool import Slurmjob_Config
-from insarhub.utils.slurm_manager import (
-    build_cmd_sbatch_script, build_sliding_window_manager, chain_submit_lines,
-    manager_walltime, sbatch_template_header, MANAGER_CPUS_PER_TASK, MANAGER_MEM,
-    SLURM_DEAD_STATES, slurm_active_jobs, slurm_job_states,
-)
+from insarhub.utils.slurm_manager import build_cmd_sbatch_script, build_sliding_window_manager, chain_submit_lines, manager_walltime, MANAGER_CPUS_PER_TASK, MANAGER_MEM, SLURM_DEAD_STATES, slurm_active_jobs, slurm_job_states
 
 logger = logging.getLogger(__name__)
 
@@ -1494,8 +1490,12 @@ class ISCE2_Base(LocalProcessor):
                     # so an uncaught exception here used to be silently lost,
                     # leaving an empty executor.log and a "success" submit.
                     with open(log_file, "w") as _lf:
-                        os.dup2(_lf.fileno(), sys.stdout.fileno())
-                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                        # dup2 onto raw fds 1/2, not sys.stdout.fileno() -- that raises
+                        # io.UnsupportedOperation whenever sys.stdout has been replaced
+                        # (pytest capture, Jupyter/Colab, contextlib.redirect_stdout),
+                        # killing the forked executor before any stage runs.
+                        os.dup2(_lf.fileno(), 1)
+                        os.dup2(_lf.fileno(), 2)
                     cli_cmd = _build_cli_cmd(host_pid=own_pid)
                     wrapped = wrap_container_cmd(self.config.container, cli_cmd, self.workdir)
                     subprocess.run(wrapped, shell=True)
@@ -1553,8 +1553,12 @@ class ISCE2_Base(LocalProcessor):
                     # failure lands in executor.log (os._exit below never
                     # flushes Python's buffered stderr).
                     with open(log_file, "w") as _lf:
-                        os.dup2(_lf.fileno(), sys.stdout.fileno())
-                        os.dup2(_lf.fileno(), sys.stderr.fileno())
+                        # dup2 onto raw fds 1/2, not sys.stdout.fileno() -- that raises
+                        # io.UnsupportedOperation whenever sys.stdout has been replaced
+                        # (pytest capture, Jupyter/Colab, contextlib.redirect_stdout),
+                        # killing the forked executor before any stage runs.
+                        os.dup2(_lf.fileno(), 1)
+                        os.dup2(_lf.fileno(), 2)
                     self._step_executor(pending_steps)
                 except BaseException as exc:
                     import traceback

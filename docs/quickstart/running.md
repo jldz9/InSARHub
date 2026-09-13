@@ -270,7 +270,7 @@ InSARHub supports various processing methods:
             workdir=f'your/directory/p{path}_f{frame}',
             bbox=[37.74, 38.00, -113.05, -112.68],   # [S, N, W, E]
             slc_dir=f'your/directory/p{path}_f{frame}/slc',
-            container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+            container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0',
         )
         processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
         processor.submit()   # runs inside the container
@@ -317,7 +317,7 @@ The analyzer runs on the local host by default. It accepts the same **container*
     ```python
     # Python API — set container on create(); run() re-invokes inside it.
     analyzer = Analyzer.create('ISCE2_Mintpy_SBAS', workdir=workdir,
-                               container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev')
+                               container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0')
     analyzer.run()
     ```
 

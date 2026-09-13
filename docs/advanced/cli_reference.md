@@ -390,14 +390,14 @@ insarhub processor [--list-processors] <action> [options]
         Edit `sbatch_options.json` to set resources per step, then re-run `submit`.
 
     !!! note "Running without a local ISCE2 install"
-        `--container <path-or-image>` re-invokes the entire `insarhub processor ...` command inside a container instead of the host — pass a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and `ISCE2_S1` never needs to discover a host ISCE2 install at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile) in the repo root for a ready-to-build example.
+        `--container <path-or-image>` re-invokes the entire `insarhub processor ...` command inside a container instead of the host — pass a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and `ISCE2_S1` never needs to discover a host ISCE2 install at all. The container image just needs `insarhub` installed alongside ISCE2/topsStack — see [`docker/dev/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/dev/Dockerfile.isce2-mintpy) for a ready-to-build example.
 
         ```bash
-        insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor retry   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor watch   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-        insarhub processor cancel  -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+        insarhub processor submit  -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor refresh -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor retry   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor watch   -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+        insarhub processor cancel  -N ISCE2_S1 -w /data/p100_f466 --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
         ```
 
         `--container` is a per-invocation flag, not a saved setting — like `--dry-run`, it's never written to `insarhub_config.json`, so pass it again on every `submit`/`refresh`/`retry`/`watch`/`cancel` call you want to run inside the container.
@@ -834,6 +834,39 @@ insarhub utils era5-download -w /data/bryce -o /data/era5 --num-processes 5
 | `--max-retries` | `3` | Retry attempts per file on download failure |
 
 Already-downloaded files are skipped automatically, so the command is safe to re-run after an interrupted download.
+
+## Logging
+
+InSARHub is quiet by default. Its own `INFO` and `DEBUG` records are suppressed,
+so a run shows only the command's actual output; `WARNING` and `ERROR` still
+appear, because a failure that prints nothing is worse than a noisy one.
+
+Set `INSARHUB_DEBUG=1` to turn every InSARHub log record back on:
+
+```bash
+INSARHUB_DEBUG=1 insarhub processor submit -N ISCE2_S1 -w /data/p100_f466
+```
+
+| `INSARHUB_DEBUG` | InSARHub logs | Third-party logs | `print()` output |
+|---|---|---|---|
+| unset / `0` / `false` | `WARNING` and above | `WARNING` and above | always shown |
+| `1` / `true` / `yes` | everything, from `DEBUG` up | `WARNING` and above | always shown |
+
+It is an environment variable rather than a flag because it has to work for all
+three entry points — the CLI, `insarhub-app`, and plain `import insarhub` — and
+the last two have no command line to read.
+
+!!! note "Third-party libraries stay quiet even in debug mode"
+    Only InSARHub's own logger is lowered. Raising the root logger too would
+    bury your output under matplotlib, botocore, rasterio and asyncio records.
+    To debug one of those, set its level yourself:
+    `logging.getLogger("rasterio").setLevel(logging.DEBUG)`.
+
+!!! note "`--verbose` also raises the level"
+    `--verbose` (`INFO`) and `--verbose --verbose` (`DEBUG`) still work, but
+    only when typed **after** the subcommand — `insarhub downloader --verbose`,
+    not `insarhub --verbose downloader`. `INSARHUB_DEBUG` has no such
+    restriction and takes precedence.
 
 *[HPC]: High Performance Computing
 *[HyP3]: Hybrid Pluggable Processing Pipeline

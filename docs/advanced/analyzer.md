@@ -134,13 +134,13 @@ Analyzer.available()
 
     - **Running without a local MintPy (or ISCE2) install**
 
-        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `run()`/`prep_data()`/`submit_hpc()` all re-invoke the same `insarhub analyzer ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it. The container image just needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE2_Mintpy_SBAS`) — see [`Dockerfile`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile) in the repo root for a ready-to-build example.
+        Set the `container` field to a path to an Apptainer/Singularity `.sif` image, or a Docker image reference (name[:tag]), and `run()`/`prep_data()`/`submit_hpc()` all re-invoke the same `insarhub analyzer ...` CLI call inside that container instead of on the host — the workdir is bind-mounted at the identical path, so output lands exactly where a native run would put it. The container image just needs `insarhub` installed alongside MintPy (and ISCE2, for `ISCE2_Mintpy_SBAS`) — see [`docker/dev/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/dev/Dockerfile.isce2-mintpy) for a ready-to-build example.
 
         ```python
         cfg = Mintpy_SBAS_Base_Config(
             workdir="/your/work/dir",
             load_processor="hyp3",
-            container="ghcr.io/jldz9/insarhub-isce2-mintpy:dev",
+            container="ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0",
         )
         analyzer = Analyzer.create('Hyp3_Mintpy_SBAS', config=cfg)
         analyzer.run()

@@ -306,13 +306,13 @@ Processor.available()
 
     - **无需本地安装 ISCE2**
 
-        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` 都会在容器内而非宿主机上重新执行同一个 `insarhub processor ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处，ISCE2 也完全不需要在宿主机上被发现。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub`（可参考 [`docker/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile.isce2-mintpy) 作为现成示例）。运行应用/CLI 的**宿主机**需要在 `PATH` 上有容器运行时（`docker`，或对 `.sif` 用 `apptainer`/`singularity`）；容器镜像**本身**不需要 — 流水线直接在镜像内运行，不会再嵌套一次 `docker run`。
+        将 `container` 字段设置为 Apptainer/Singularity `.sif` 镜像的路径，或 Docker 镜像引用（name[:tag]），`submit()`/`retry()`/`refresh()`/`watch()`/`cancel()` 都会在容器内而非宿主机上重新执行同一个 `insarhub processor ...` CLI 调用 — 工作目录会以相同路径绑定挂载，因此输出会像本机运行一样落在原处，ISCE2 也完全不需要在宿主机上被发现。容器镜像只需在 ISCE2/topsStack 旁额外安装 `insarhub`（可参考 [`docker/dev/Dockerfile.isce2-mintpy`](https://github.com/jldz9/InSARHub/blob/main/docker/dev/Dockerfile.isce2-mintpy) 作为现成示例）。运行应用/CLI 的**宿主机**需要在 `PATH` 上有容器运行时（`docker`，或对 `.sif` 用 `apptainer`/`singularity`）；容器镜像**本身**不需要 — 流水线直接在镜像内运行，不会再嵌套一次 `docker run`。
 
         ```python
         cfg = ISCE2_S1_Config(
             workdir='/data/p100_f466',
             bbox=[33.0, 38.0, -120.0, -115.0],
-            container='ghcr.io/jldz9/insarhub-isce2-mintpy:dev',
+            container='ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0',
         )
         processor = Processor.create('ISCE2_S1', pairs=pairs, config=cfg)
         processor.submit()
@@ -322,7 +322,7 @@ Processor.available()
 
         ```bash
         insarhub processor -N ISCE2_S1 -w /data/p100_f466 submit \\
-            --container ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+            --container ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
         ```
 
         `container` **会持久化**写入工作目录的 `insarhub_config.json`，因此之后的 `retry()`/`refresh()`/`cancel()`（以及 GUI 中的重试）会在同一镜像内重新运行，无需再次传入。后续调用若显式给出 `--container` / `container=` 会覆盖已保存的值；不带值的 `--container` 会解析为处理器的 `container_default` 镜像。`container_default` 是每个处理器固定的建议镜像（GUI “在容器中运行” 复选框会用它预填），**从不**持久化 —— 只有你实际选择的 `container` 会被保存。在 HPC 模式下，只有各阶段的子作业在容器内运行，sbatch 管理器脚手架仍留在宿主机上。
@@ -453,7 +453,7 @@ Processor.available()
 
         ```bash
         insarhub processor -N GMTSAR_S1 -w /data/stack submit \
-            --container ghcr.io/jldz9/insarhub-gmtsar-mintpy:dev
+            --container ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0
         ```
 
         在 HPC 模式下，只有各阶段的子作业在容器内运行，sbatch 管理器脚手架仍留在宿主机上。

@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Union, Optional, Any, Type
+from typing import List, Optional, Any, Type
 
 
 def _compatible_processor(cp, pname: str) -> bool:

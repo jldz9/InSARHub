@@ -19,11 +19,9 @@
 </p>
 
 <p align="center">
-  <img alt="InSAR" src="https://img.shields.io/badge/InSAR-time--series-informational">
-  <img alt="Sentinel-1" src="https://img.shields.io/badge/Sentinel--1-SLC%20%7C%20Burst-brightgreen">
-  <img alt="NISAR" src="https://img.shields.io/badge/NISAR-GSLC-orange">
-  <img alt="Engines" src="https://img.shields.io/badge/engines-HyP3%20%7C%20ISCE2%20%7C%20GMTSAR%20%7C%20dolphin-blue">
-  <img alt="MintPy" src="https://img.shields.io/badge/time--series-MintPy%20SBAS-9cf">
+  <img alt="Satellites" src="https://img.shields.io/badge/support-Sentinel--1%20%7C%20NISAR-brightgreen">
+  <img alt="Engines" src="https://img.shields.io/badge/engines-HyP3%20%7C%20ISCE2%20%7C%20ISCE3%20%7C%20GMTSAR-blue">
+  <img alt="Time-series" src="https://img.shields.io/badge/time--series-MintPy%20%7C%20Dolphin%20%7C%20GMTSAR-9cf">
 </p>
 
 InSARHub 是一个模块化的 Python 框架，用于自动化 InSAR 与时序处理。

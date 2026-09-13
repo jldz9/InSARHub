@@ -3,7 +3,6 @@
 
 import asyncio
 import base64
-import dataclasses
 import logging
 import os
 import tempfile

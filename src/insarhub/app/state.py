@@ -80,6 +80,11 @@ def _build_registry_meta(registry) -> dict[str, Any]:
     result: dict[str, Any] = {}
     for name in registry.available():
         cls = registry._registry[name]
+        # Components can opt out of the GUI without leaving the registry, so the
+        # Python API and CLI keep working while the UI stays honest about what
+        # can be carried through to a result.
+        if getattr(cls, "gui_hidden", False):
+            continue
         cfg_cls = getattr(cls, "default_config", None)
         if cfg_cls is None or not dataclasses.is_dataclass(cfg_cls):
             continue

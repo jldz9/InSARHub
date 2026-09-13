@@ -13,7 +13,7 @@ from insarhub.app.models import ProcessRequest, Hyp3ActionRequest, LocalActionRe
 from insarhub.app.state import _apply_config_from_dict, _finish_job, write_insarhub_config
 from insarhub.commands.processor import SaveJobsCommand, SubmitCommand
 from insarhub.core.registry import Processor
-from insarhub.utils.local_processor_reload import _jobs_glob, _find_jobs_file, _load_local_processor
+from insarhub.utils.local_processor_reload import _jobs_glob, _load_local_processor
 
 router = APIRouter()
 
@@ -474,7 +474,6 @@ async def get_processor_steps(processor: str):
 
 
 
-from insarhub.processor.isce2_base import _SBATCH_DEFAULT_TEMPLATE
 
 
 @router.get("/api/folder-sbatch-options")

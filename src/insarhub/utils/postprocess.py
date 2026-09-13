@@ -9,7 +9,7 @@ import re
 from rasterio.features import shapes
 from rasterio.transform import from_origin
 from rasterio.crs import CRS
-from shapely.geometry import shape, Polygon, MultiPolygon, box
+from shapely.geometry import shape, box
 from shapely.ops import unary_union
 
 

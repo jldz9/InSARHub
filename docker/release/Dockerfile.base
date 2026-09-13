@@ -1,0 +1,63 @@
+# InSARHub (published release) + MintPy — the lightweight base image.
+#
+# RELEASE variant: InSARHub comes from conda-forge at a pinned version, and
+# nothing is copied out of the working tree. The image is therefore reproducible
+# from this file alone — rebuilding it next year yields the same InSARHub.
+# Its :dev counterpart (../dev/Dockerfile.base) installs the local source
+# instead. See docker/README.md for when to use which.
+#
+# Serves the cloud HyP3 workflow: the `Hyp3_S1` processor runs on ASF's HyP3
+# service (no local SAR toolchain needed), and the `Hyp3_Mintpy_SBAS` analyzer
+# runs MintPy locally. Just InSARHub + MintPy, with none of the heavy
+# ISCE2 / ISCE3 / GMTSAR stacks.
+#
+# Requires insarhub=<version> to be on conda-forge ALREADY — see the release
+# order in docker/README.md.
+#
+# Build (from repo root):
+#   docker build -f docker/release/Dockerfile.base \
+#       --build-arg INSARHUB_VERSION=0.4.0 \
+#       -t ghcr.io/jldz9/insarhub-base:0.4.0 .
+#
+# Publish:
+#   docker push ghcr.io/jldz9/insarhub-base:0.4.0
+
+FROM condaforge/miniforge3:24.9.2-0
+
+LABEL org.opencontainers.image.source="https://github.com/jldz9/InSARHub"
+
+ARG INSARHUB_VERSION
+RUN test -n "$INSARHUB_VERSION" \
+    || (echo "ERROR: pass --build-arg INSARHUB_VERSION=<x.y.z>" >&2; exit 1)
+LABEL org.opencontainers.image.version="${INSARHUB_VERSION}"
+
+RUN mamba create -n insarhub -c conda-forge python=3.12 -y \
+    && mamba clean -afy
+
+# insarhub alone pulls its full dependency tree -- including MintPy -- correctly
+# respecting its own declared numpy<2.0.
+RUN conda install -n insarhub -c conda-forge "insarhub==${INSARHUB_VERSION}" -y \
+    && mamba clean -afy
+
+# pyaps3 (MintPy's correct_troposphere backend) imports pkg_resources, which
+# setuptools removed in v81. The conda package should carry InSARHub's own
+# "setuptools<81" pin, but enforce it here so the image does not depend on the
+# feedstock having reproduced it.
+RUN /opt/conda/envs/insarhub/bin/pip install --no-cache-dir "setuptools<81"
+
+ENV PATH=/opt/conda/envs/insarhub/bin:$PATH
+# Put the conda env's libstdc++ on the loader path so pandas (pulled in by
+# MintPy / dem_stitcher) finds GLIBCXX_3.4.29 -- see docker/README.md,
+# "The libstdc++ trap".
+ENV LD_LIBRARY_PATH=/opt/conda/envs/insarhub/lib
+
+# Fail the build rather than ship an image whose InSARHub is not the one asked
+# for -- a feedstock lag would otherwise be discovered by a user, not here.
+RUN python -c "import insarhub, mintpy; \
+from insarhub import Processor, Analyzer; \
+assert insarhub.__version__ == '${INSARHUB_VERSION}', \
+    'asked for %s, image has %s' % ('${INSARHUB_VERSION}', insarhub.__version__); \
+print('insarhub', insarhub.__version__, 'mintpy', mintpy.__version__, \
+'procs', Processor.available(), 'analyzers', Analyzer.available())"
+
+# No custom ENTRYPOINT/CMD -- see docker/README.md, "Why no ENTRYPOINT".

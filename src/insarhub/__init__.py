@@ -25,6 +25,13 @@ from colorama import Fore, Style, Back
 # level on that library's own logger instead; cli/main.py's main() configures
 # the CLI's levels (root WARNING, insarhub INFO).
 from insarhub._version import __version__
+
+# Apply the logging policy (release: WARNING+ only; INSARHUB_DEBUG=1: everything).
+# install_handler is left at None on purpose -- importing a library must not
+# attach handlers to the host application's root logger, so one is installed
+# only when INSARHUB_DEBUG asks for output that would otherwise go nowhere.
+from insarhub import _logsetup as _logsetup
+_logsetup.configure()
 _system_info = platform.system()
 
 # ---------------------MintPy Configuration-----------------------------------

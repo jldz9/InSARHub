@@ -367,7 +367,7 @@ async def _run_my_action(job_id: str, req: MyRequest):
 
 ### 通用冒烟测试
 
-`test/e2e/universal_smoke_test.py` 是针对每一条流水线、基于真实（已完成的）工作目录的“通过/不通过”检查，同时覆盖三个界面：
+`scripts/e2e/universal_smoke_test.py` 是针对每一条流水线、基于真实（已完成的）工作目录的“通过/不通过”检查，同时覆盖三个界面：
 
 1. **Python 导入** — 在全新进程中导入每一个包/子模块（捕捉损坏的导入或循环导入）。
 2. **CLI** — `--list-*` 命令、每条流水线的 `--list-options`，以及通过子进程运行 `processor … refresh`。
@@ -376,7 +376,7 @@ async def _run_my_action(job_id: str, req: MyRequest):
 它会从每个工作目录的 `insarhub_config.json` 自动识别处理器/分析器，因此无需逐条流水线配置即可覆盖 `GMTSAR_S1`、`ISCE2_S1`、`ISCE3_Burst` 及其分析器。缺失的可选依赖（isce2、gmt/gmtsar、dolphin/compass、slurm）会将相应检查标记为 `SKIP` 而非 `FAIL`。
 
 ```bash
-python test/e2e/universal_smoke_test.py \
+python scripts/e2e/universal_smoke_test.py \
     --scan-dir /path/to/real/workdirs \
     --workdir /path/to/p56 \
     --mode both          # cli | api | both
@@ -386,7 +386,22 @@ python test/e2e/universal_smoke_test.py \
 
 ### 单元测试
 
-`test/` 包含各模块的 pytest 测试套件（`test_config.py`、`test_gmtsar_s1.py`、`test_utils_config_io.py` 等），通过 `pytest test/` 运行。`e2e/` 下的脚本（`cli_e2e_*.sh`、`api_e2e_*.py`）**不会**被 pytest 自动运行——它们驱动真实的 ASF 搜索/下载/处理，仅在需要完整端到端运行时直接调用。
+`test/` 为四层 pytest 测试体系，完整说明见 [`test/README.md`](https://github.com/jldz9/InSARHub/blob/main/test/README.md)：
+
+| 层级 | 回答的问题 | 命令 |
+|---|---|---|
+| `tier1_install` | 当前安装是否正确就绪？ | `pytest -m install` |
+| `tier2_basic` | 导入、CLI 与 GUI 是否符合承诺？ | `pytest -m basic` |
+| `tier3_e2e` | 各条流水线能否在真实数据上跑通？ | `pytest -m e2e` |
+| `tier4_regression` | 历史已修复的 Bug 是否仍然保持修复？ | `pytest -m regression` |
+
+直接运行 `pytest` 会执行第 1、2、4 层——快速且不依赖外部环境。第 3 层需显式开启，
+因为它会下载真实的 Sentinel-1 数据并执行真实处理。
+
+使用 `pip install -e '.[test]'` 安装测试依赖。
+
+`scripts/e2e/` 下的独立脚本（`cli_e2e_*.sh`、`api_e2e_*.py`、`full_pipeline_e2e.py`）
+**不是** pytest 测试，仅在需要完整手动端到端运行时直接调用。
 
 ## 代码风格
 

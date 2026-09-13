@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
 import re
 import requests
 import time
@@ -132,7 +131,25 @@ def _fetch_stack_with_retry(
     rid = ref.properties["sceneName"]
     for attempt in range(1, max_attempts + 1):
         try:
-            return rid, ref.stack()
+            return rid, (ref.stack() or [])
+        except TypeError:
+            # asf_search's .stack() needs a baseline-stack reference that not
+            # every dataset carries. NISAR GSLC has none, so .stack() raises
+            # "'NoneType' object is not iterable" from inside asf_search
+            # itself -- it is an upstream limitation, not a transient error, so
+            # retrying cannot help.
+            #
+            # Treat it as "no perpendicular baselines available" rather than
+            # failing the run: the baseline table already models a missing bp
+            # as _MISSING, and pair selection then works from temporal spacing
+            # alone. Before this, the whole NISAR workflow died in select_pairs
+            # before forming a single pair.
+            logger.warning(
+                "No ASF baseline stack for %s -- asf_search does not provide "
+                "one for this dataset. Falling back to temporal baselines only.",
+                rid,
+            )
+            return rid, []
         except ASFSearchError:
             if attempt == max_attempts:
                 logger.error(
@@ -322,8 +339,13 @@ def _build_baseline_table_poeorb(
     anchor   = prods[0]
     anc_nm   = anchor.properties["sceneName"]
     anc_tc   = _poeorb_center_time(anchor.properties)
-    anc_lat  = float(anchor.properties.get("centerLat", 0))
-    anc_lon  = float(anchor.properties.get("centerLon", 0))
+    # `or 0`, not a .get() default: ASF returns centerLat/centerLon as an
+    # explicit null for NISAR GSLC products (the key is present with value
+    # None), so .get("centerLat", 0) hands float() a None and raises
+    # "float() argument must be ... not 'NoneType'". That killed select_pairs
+    # for the whole NISAR workflow before a single pair was formed.
+    anc_lat  = float(anchor.properties.get("centerLat") or 0)
+    anc_lon  = float(anchor.properties.get("centerLon") or 0)
     anc_eof  = eof_path_map.get(anc_nm)
 
     if anc_eof is None or parsed.get(anc_eof) is None:
@@ -1627,8 +1649,10 @@ def _select_burst_group(
         r_anc, v_anc = _orbit_at_time(anc_svs, anc_tc)
         if anc_ground is None:
             ap = rep[anchor_date].properties
-            glat = float(ap.get("centerLat", 0))
-            glon = float(ap.get("centerLon", 0))
+            # See the note at _build_baseline_table_poeorb: these come back as
+            # an explicit None for NISAR, so a .get() default never applies.
+            glat = float(ap.get("centerLat") or 0)
+            glon = float(ap.get("centerLon") or 0)
             anc_ground = (glat, glon)
         ground_anc = _ecef_from_latlon(*anc_ground)
         along_beam = r_anc - ground_anc
@@ -1664,24 +1688,6 @@ def _select_burst_group(
     scene_bp = {d: float(v) for d, v in bp_vector.items()}
     return dates, id_time_dt, B, scene_bp, prefetch
 
-
-def get_config(config_path=None):
-
-    """A function to load config file in TOML format"""
-    if config_path is None:
-        config_path = Path(__file__).parent.joinpath('config.toml')        
-    config_path = Path(config_path)
-    if config_path.is_file():
-        try:
-            with open(config_path, 'rb') as f:
-                toml = tomllib.load(f)
-                cfg = Config(toml)
-                return cfg
-        except Exception as e:
-                raise ValueError(f"Error loading config file with error {e}, is this a valid config file in TOML format?")
-    else:
-        raise FileNotFoundError(f"Config file not found under {config_path}")
-    
 
 def plot_pair_network(
     pairs: list[Pair] | PairGroup,

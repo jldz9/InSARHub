@@ -805,7 +805,6 @@ def _unwrap_optional(annotation):
 def _field_argparse_kwargs(annotation, default) -> dict:
     """Return kwargs for ArgumentParser.add_argument() inferred from a type annotation."""
     import typing
-    import dataclasses
 
     base = _unwrap_optional(annotation)
     origin = typing.get_origin(base)
@@ -1209,7 +1208,6 @@ def _load_pairs(args, workdir: Path) -> dict | list:
 # ---------------------------------------------------------------------------
 
 def cmd_downloader(args, extra_args: list[str]):
-    import dataclasses
     from insarhub import Downloader
     from insarhub.commands import SearchCommand, SummaryCommand, FootprintCommand, DownloadScenesCommand
 
@@ -1625,7 +1623,6 @@ def _proc_submit(args, extra_args: list[str]):
     # On dry-run: preview submission — find every process directory at workdir level
     # and one level of subdirectories, write processor config into insarhub_config.json.
     if dry_run:
-        from insarhub.utils.config_io import write_insarhub_config
         _skip_write = _SUBMIT_SKIP_FIELDS | {"earthdata_credentials_pool", "workdir", "pairs"}
         _preview_overrides = {k: v for k, v in overrides.items()
                               if k not in _SUBMIT_SKIP_FIELDS | {"name", "config"}}
@@ -2215,10 +2212,11 @@ def _proc_local_watch(args):
     container = _resolve_container_arg(processor_name, getattr(args, "container", None))
     processor = _load_local_processor(processor_name, workdir, jobs_path,
                                       hpc_mode=hpc_mode, container=container)
-    # refresh_interval (ISCE2_Base) vs poll_interval (GMTSAR_S1) -- pass both
-    # spellings, _call_if_supported keeps only the one the method actually has.
-    _call_if_supported(processor.watch, refresh_interval=refresh_interval,
-                       poll_interval=refresh_interval)
+    # Every processor's watch() takes `refresh_interval` (Hyp3Base, ISCE2_Base,
+    # GMTSAR_S1, ISCE3_Base). This used to pass poll_interval as well, because
+    # GMTSAR_S1 spelled it differently -- and ISCE3_Base's `interval` was not
+    # passed at all, so `watch --interval N` silently used its default there.
+    _call_if_supported(processor.watch, refresh_interval=refresh_interval)
 
 
 def cmd_analyzer(args, extra_args: list[str]):
@@ -2563,10 +2561,17 @@ def main():
     # exists, so an embedding application's own setup still wins; the root
     # stays at WARNING regardless so third-party libraries (matplotlib,
     # botocore, asyncio, ...) never flood the terminal.
-    logging.basicConfig(level=logging.WARNING, format="[%(levelname)s] %(message)s")
-    _v = getattr(args, "verbose", 0) or 0
-    logging.getLogger("insarhub").setLevel(
-        logging.DEBUG if _v >= 2 else logging.INFO if _v == 1 else logging.WARNING)
+    from insarhub import _logsetup
+    _logsetup.configure(install_handler=True)
+    # INSARHUB_DEBUG wins outright; otherwise --verbose still escalates, so the
+    # flag keeps working for anyone already using it. (Note the known bug that
+    # --verbose only counts AFTER the subcommand -- see the strict xfail in
+    # test/tier2_basic/test_cli_contract.py.)
+    if not _logsetup.debug_enabled():
+        _v = getattr(args, "verbose", 0) or 0
+        if _v:
+            logging.getLogger("insarhub").setLevel(
+                logging.DEBUG if _v >= 2 else logging.INFO)
 
     if not args.command:
         parser.print_help()

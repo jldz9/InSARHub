@@ -55,7 +55,7 @@ insarhub-app
 
 所有数据都保留在本机 —— InSARHub 在本地运行一个 FastAPI 服务，并直接在浏览器中提供现代化的 React 前端。
 
-完整演练请参阅 [Web UI 文档](https://jldz9.github.io/InSARHub/)。
+完整演练请参阅 [Web UI 文档](https://jldz9.github.io/InSARHub/latest/zh/quickstart/frontend/)。
 
 ### 检索与下载
 
@@ -137,7 +137,7 @@ conda activate insarhub_dev
 pip install -e .
 ```
 
-以上命令安装的是基础版 InSARHub（HyP3 + MintPy）。使用 **ISCE2**、**ISCE3 + dolphin** 或 **GMTSAR** 进行本地处理时，需要各自的工具链额外安装到该环境中。各处理器的具体安装步骤请参阅[安装指南](https://jldz9.github.io/InSARHub/quickstart/install/)。
+以上命令安装的是基础版 InSARHub（HyP3 + MintPy）。使用 **ISCE2**、**ISCE3 + dolphin** 或 **GMTSAR** 进行本地处理时，需要各自的工具链额外安装到该环境中。各处理器的具体安装步骤请参阅[安装指南](https://jldz9.github.io/InSARHub/latest/zh/quickstart/install/)。
 
 ### 在容器中运行
 
@@ -156,7 +156,7 @@ insarhub processor -N ISCE2_S1 -w /data/p100_f466 --bbox 33.0 38.0 -120.0 -115.0
 | `insarhub-gmtsar-mintpy` | `GMTSAR_S1` + GMTSAR 分析器 |
 | `insarhub-isce3-dolphin` | `ISCE3_Burst`、`ISCE3_NISAR` + `ISCE3_Dolphin_S1_PL`、`ISCE3_Dolphin_NISAR_PL` |
 
-你也可以完全在容器中运行，而无需在本地安装任何东西。详情请参阅[容器运行指南](https://jldz9.github.io/InSARHub/advanced/container/)，若需自行构建镜像，请查看 [`docker/`](docker/) 下的 Dockerfile。
+你也可以完全在容器中运行，而无需在本地安装任何东西。详情请参阅[容器运行指南](https://jldz9.github.io/InSARHub/latest/zh/advanced/container/)，若需自行构建镜像，请查看 [`docker/`](docker/) 下的 Dockerfile。
 
 ## 依赖
 - Python >=3.11,<3.13
@@ -356,7 +356,7 @@ insarhub analyzer -N ISCE2_Mintpy_SBAS -w /data/p100_f466 run
 | `insarhub analyzer`   | 对已处理的干涉图运行时序分析 |
 | `insarhub utils`      | 辅助工具（像对选择、网络绘图、SLURM、ERA5、裁剪） |
 
-使用 `insarhub <command> --help` 查看完整选项说明，或参阅 [CLI 参考](https://jldz9.github.io/InSARHub/quickstart/cli/)。
+使用 `insarhub <command> --help` 查看完整选项说明，或参阅 [CLI 参考](https://jldz9.github.io/InSARHub/latest/zh/advanced/cli_reference/)。
 
 ## 文档
 

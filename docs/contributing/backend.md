@@ -7,7 +7,7 @@ The backend is pure Python — FastAPI routes, processor/analyzer classes, CLI, 
 ```bash
 conda env create -f environment.yml
 conda activate insarhub
-pip install -e ".[dev]"
+pip install -e ".[test]"
 ```
 
 ## Architecture Overview

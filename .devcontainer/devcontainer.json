@@ -1,13 +1,62 @@
 {
-    "name": "insarhub",
-    "dockerFile": "Dockerfile",
-    "runArgs": [
-      "--gpus", "all",  // Include this if using GPU, remove if unnecessary
-      "--ipc=host"
-    ],
+    "name": "InSARHub",
+
+    // Build context is the repo root so the Dockerfile can COPY environment.yml
+    // -- the single dev-environment definition shared with contributors who
+    // install on bare metal.
+    "build": {
+        "dockerfile": "Dockerfile",
+        "context": ".."
+    },
+
+    // No "--gpus all": nothing in InSARHub uses CUDA. The only GPU references in
+    // the codebase are SLURM directives that utils/tool.py WRITES INTO a job
+    // script for a remote cluster (--gres=gpu:N), never anything this container
+    // executes. Requiring a GPU here just made the container refuse to start on
+    // any host without the NVIDIA container toolkit. "--ipc=host" went with it;
+    // that was for a PyTorch dataloader this project does not have.
+
     "remoteUser": "vscode",
-    "forwardPorts": [3000, 8080, 8081, 8082],
-    "mounts": ["source=${localEnv:HOME}/DL,target=/home/vscode/data,type=bind,consistency=cached"],
-    "workspaceFolder": "/home/vscode"
- }
- 
+
+    // Left at the defaults: the workspace lands at
+    // /workspaces/${localWorkspaceFolderBasename}. Do not pin workspaceFolder to
+    // a home directory -- that opens VS Code somewhere the repo is not.
+
+    // 8080 -- `insarhub-app` default (app/main.py serve(port=8080)).
+    // 5173 -- `npm run dev`, the Vite dev server, which proxies /api to 8080
+    //         (see src/insarhub/app/frontend/vite.config.ts).
+    "forwardPorts": [8080, 5173],
+    "portsAttributes": {
+        "8080": { "label": "InSARHub GUI" },
+        "5173": { "label": "Vite dev server" }
+    },
+
+    // Editable install + frontend deps. Split into a script so it can be read
+    // and run by hand; see .devcontainer/post-create.sh.
+    "postCreateCommand": "bash .devcontainer/post-create.sh",
+
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "ms-python.black-formatter",
+                "dbaeumer.vscode-eslint",
+                "bradlc.vscode-tailwindcss",
+                "redhat.vscode-yaml"
+            ],
+            "settings": {
+                "python.defaultInterpreterPath": "/opt/conda/envs/insarhub/bin/python",
+                "python.terminal.activateEnvInCurrentTerminal": true,
+                "python.testing.pytestEnabled": true,
+                "python.testing.pytestArgs": ["test"],
+                "terminal.integrated.defaultProfile.linux": "bash"
+            }
+        }
+    }
+
+    // To work against local SAR data, bind-mount it, e.g.:
+    //   "mounts": ["source=${localEnv:HOME}/insar-data,target=/data,type=bind,consistency=cached"]
+    // Left out by default -- a mount whose source does not exist stops the
+    // container from starting.
+}

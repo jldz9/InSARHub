@@ -1,23 +1,3 @@
-!!! warning "预发布版本（0.4.0rc1）"
-    这是一个**候选发布版**。conda 没有 `--pre` 选项，因此必须**指定精确版本**才能安装：
-
-    ```bash
-    conda install -c conda-forge "insarhub=0.4.0rc1"
-    ```
-
-    直接 `conda install insarhub` 安装的是最新的**稳定版**，而非此预发布版。下面所有命令都已固定 `"insarhub=0.4.0rc1"`（pip 为 `"insarhub==0.4.0rc1"`）—— 待 0.4.0 正式发布后即可去掉该版本约束。
-
-!!! danger "已知问题：`asf_search` 13.0.0 会导致下载器失效"
-    `asf_search` **13.0.0** 引入了破坏性改动，会导致 `S1_SLC` 下载器检索不到任何结果
-    （`Search does not return any result, please check input parameters or Internet connection`）。
-    在我们发布修复之前，请**回退到旧版本**：
-
-    ```bash
-    conda install "asf_search=12.3.2"
-    ```
-
-    （pip：`pip install "asf_search==12.3.2"`。）我们正在调查该改动，并会相应更新 InSARHub。
-
 === "默认"
 
     ??? note "创建新环境（推荐）"
@@ -31,14 +11,14 @@
         在 Windows 上目前仅支持 Python 3.11 —— 创建上面的环境时请使用 `python=3.11`。Linux 和 macOS 同时支持 3.11 和 3.12。
 
     ```bash
-    conda install "insarhub=0.4.0rc1" -c conda-forge
+    conda install insarhub -c conda-forge
     ```
 
     或使用 pip（需先通过 conda 安装 GDAL）：
 
     ```bash
     conda install gdal
-    pip install "insarhub==0.4.0rc1"
+    pip install insarhub
     ```
 
 === "ISCE2 处理器"
@@ -51,7 +31,7 @@
     先安装 InSARHub，再将 ISCE2 添加到同一环境：
 
     ```bash
-    conda install "insarhub=0.4.0rc1" -c conda-forge
+    conda install insarhub -c conda-forge
     conda install isce2 -c conda-forge
     ```
 
@@ -60,7 +40,7 @@
     ```bash
 
     conda install gdal isce2
-    pip install "insarhub==0.4.0rc1"
+    pip install insarhub
     ```
 
     验证 ISCE2 是否安装正确：
@@ -82,7 +62,7 @@
     ```bash
     conda create -n isce3_dolphin python=3.12
     conda activate isce3_dolphin
-    conda install -c conda-forge "insarhub=0.4.0rc1" isce3 compass sardem dolphin snaphu burst2safe gdal
+    conda install -c conda-forge insarhub isce3 compass sardem dolphin snaphu burst2safe gdal
     ```
 
     验证工具链可正常导入：
@@ -105,7 +85,7 @@
 
     # 2. 将 InSARHub + MintPy 添加到同一环境
     conda activate gmtsar
-    conda install -c conda-forge "insarhub=0.4.0rc1" mintpy
+    conda install -c conda-forge insarhub mintpy
 
     # 3. 将 GMTSAR 的可执行文件加入 PATH（写入 shell 配置以持久化）
     export GMTSAR=$(pwd)

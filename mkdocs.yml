@@ -45,6 +45,7 @@ nav:
         - Running:
           - API: quickstart/running.md
           - CLI: quickstart/cli.md
+  - FAQ: faq.md
   - Web UI:
         - Overview: quickstart/frontend.md
         - Search & Download: frontend/search.md
@@ -125,6 +126,7 @@ plugins:
           build: true
           nav_translations:
             Home: 主页
+            FAQ: 常见问题
             QuickStart: 快速开始
             Installation: 安装
             Account Setup: 账号配置

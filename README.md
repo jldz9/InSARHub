@@ -55,7 +55,7 @@ Open `http://localhost:8080` to access the UI.
 
 All data stays on your machine — InSARHub runs a local FastAPI server and delivers a modern React frontend directly in your browser.
 
-See the [Web UI documentation](https://jldz9.github.io/InSARHub/) for a full walkthrough.
+See the [Web UI documentation](https://jldz9.github.io/InSARHub/latest/quickstart/frontend/) for a full walkthrough.
 
 ### Search & Download
 
@@ -137,7 +137,7 @@ conda activate insarhub_dev
 pip install -e .
 ```
 
-The commands above install base InSARHub (HyP3 + MintPy). Local processing with **ISCE2**, **ISCE3 + dolphin**, or **GMTSAR** each needs its own toolchain added to the environment. See the [Installation guide](https://jldz9.github.io/InSARHub/quickstart/install/) for the per-processor install steps.
+The commands above install base InSARHub (HyP3 + MintPy). Local processing with **ISCE2**, **ISCE3 + dolphin**, or **GMTSAR** each needs its own toolchain added to the environment. See the [Installation guide](https://jldz9.github.io/InSARHub/latest/quickstart/install/) for the per-processor install steps.
 
 ### Run in a container
 
@@ -156,7 +156,7 @@ Prebuilt images (`ghcr.io/jldz9/insarhub-*:dev`):
 | `insarhub-gmtsar-mintpy` | `GMTSAR_S1` + GMTSAR analyzers |
 | `insarhub-isce3-dolphin` | `ISCE3_Burst`, `ISCE3_NISAR` + `ISCE3_Dolphin_S1_PL`, `ISCE3_Dolphin_NISAR_PL` |
 
-You can also run entirely inside a container instead of installing anything locally. See the [Container Execution guide](https://jldz9.github.io/InSARHub/advanced/container/) for details, and the Dockerfiles under [`docker/`](docker/) to build your own.
+You can also run entirely inside a container instead of installing anything locally. See the [Container Execution guide](https://jldz9.github.io/InSARHub/latest/advanced/container/) for details, and the Dockerfiles under [`docker/`](docker/) to build your own.
 
 ## Requirements
 - Python >=3.11,<3.13
@@ -356,7 +356,7 @@ insarhub analyzer -N ISCE2_Mintpy_SBAS -w /data/p100_f466 run
 | `insarhub analyzer`   | Run time-series analysis on processed interferograms |
 | `insarhub utils`      | Helper utilities (pair selection, network plot, SLURM, ERA5, clip) |
 
-Use `insarhub <command> --help` for full option details, or see the [CLI Reference](https://jldz9.github.io/InSARHub/quickstart/cli/).
+Use `insarhub <command> --help` for full option details, or see the [CLI Reference](https://jldz9.github.io/InSARHub/latest/advanced/cli_reference/).
 
 ## Documentation
 

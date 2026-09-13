@@ -21,7 +21,7 @@ from insarhub.app.routes.search import _download_workers, _EXECUTION_CONFIG_FIEL
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, read_insarhub_config, write_insarhub_config
 from insarhub.utils.pair_quality._cache import seed_prefetch
 from insarhub.utils.pair_quality._geom import footprint_wkt_from_products
-from insarhub.utils.stack_io import write_stack_file
+from insarhub.utils.stack_io import merge_db_scores_into_stack, write_stack_file
 
 router = APIRouter()
 
@@ -179,11 +179,32 @@ async def folder_select_pairs(req: SelectPairsRequest, background_tasks: Backgro
 
 
 
-def _launch_db_build(folder, scenes_by_stack, bperp_by_stack) -> str | None:
+def _merge_stack_quality(folder: Path, stack_path: Path, pairs: list) -> None:
+    """Copy the DB's scores for *pairs* into the stack file's ``pair_quality``.
+
+    write_stack_file() always leaves ``pair_quality`` empty — it runs before the
+    DB exists. Without this follow-up the block stays empty forever, so
+    /api/pair-quality misses its fast path and recomputes every score on demand.
+    """
+    try:
+        stack_data = json.loads(stack_path.read_text())
+    except Exception as exc:
+        logger.warning("Could not read %s to merge pair quality: %s", stack_path.name, exc)
+        return
+    merge_db_scores_into_stack(stack_path, stack_data, folder, pairs)
+
+
+def _launch_db_build(folder, scenes_by_stack, bperp_by_stack,
+                     stack_path: Path | None = None,
+                     pairs: list | None = None) -> str | None:
     """Launch a background thread that builds the full pair-quality DB for *folder*.
 
     Skips the build if an existing complete DB already covers the same scene set.
     Returns the job_id, or None if the build was skipped.
+
+    When *stack_path* and *pairs* are given, the DB's scores for those pairs are
+    merged into the stack file once the DB is ready (or immediately, when an
+    existing DB already covers the scene set and the build is skipped).
     """
     import threading
     from insarhub.utils.pair_quality._db import PairQualityDB
@@ -206,6 +227,10 @@ def _launch_db_build(folder, scenes_by_stack, bperp_by_stack) -> str | None:
             skip = existing.get("_n_scenes", 0) >= n_scenes
         if skip:
             logger.debug("Pair DB up-to-date for %s (%d scenes) — skipping rebuild", folder.name, n_scenes)
+            # The stack file was just rewritten with an empty pair_quality block;
+            # the existing DB already has the scores, so fill it in now.
+            if stack_path is not None and pairs is not None:
+                _merge_stack_quality(folder, stack_path, pairs)
             return None
 
     db_job_id, _ = _new_job(f"Building pair database — {folder.name}…")
@@ -213,6 +238,8 @@ def _launch_db_build(folder, scenes_by_stack, bperp_by_stack) -> str | None:
     def _run():
         try:
             PairQualityDB(folder).build(scenes_by_stack, bperp_by_stack, show_progress=False)
+            if stack_path is not None and pairs is not None:
+                _merge_stack_quality(folder, stack_path, pairs)
             _finish_job(db_job_id, status="done", message="Pair database ready")
         except Exception as exc:
             logger.warning("Background DB build failed for %s: %s", folder, exc)
@@ -328,6 +355,8 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                         subdir,
                         {(path, frame): stack_scenes},
                         {(path, frame): {k: float(v) for k, v in sp.items()}},
+                        stack_path=stack_path,
+                        pairs=group_pairs,
                     )
                     if db_job_id:
                         db_job_ids.append(db_job_id)
@@ -349,6 +378,8 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     folder,
                     {(0, 0): stack_scenes},
                     {(0, 0): {k: float(v) for k, v in sp.items()}},
+                    stack_path=stack_path,
+                    pairs=pairs,
                 )
                 if db_job_id:
                     db_job_ids.append(db_job_id)
@@ -421,5 +452,8 @@ async def save_folder_pairs(req: SavePairsRequest):
             data = {}
         data["pairs"] = pairs
         stack_file.write_text(json.dumps(data, indent=2))
+        # pair_quality still describes the pre-edit pair set — re-derive it from
+        # the DB so scores line up with what was just saved.
+        merge_db_scores_into_stack(stack_file, data, folder, pairs)
         saved.append(stack_file.name)
     return {"ok": True, "saved": saved}

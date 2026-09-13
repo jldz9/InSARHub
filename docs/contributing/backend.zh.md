@@ -7,7 +7,7 @@
 ```bash
 conda env create -f environment.yml
 conda activate insarhub
-pip install -e ".[dev]"
+pip install -e ".[test]"
 ```
 
 ## 架构概览

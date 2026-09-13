@@ -10,7 +10,7 @@ git clone https://github.com/your-username/InSARHub.git
 cd InSARHub
 conda env create -f environment.yml
 conda activate insarhub
-pip install -e ".[dev]"
+pip install -e ".[test]"
 ```
 
 ## Project Layout

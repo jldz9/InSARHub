@@ -833,6 +833,35 @@ insarhub utils era5-download -w /data/bryce -o /data/era5 --num-processes 5
 
 已下载的文件会自动跳过，因此在下载中断后重新运行该命令是安全的。
 
+## Logging
+
+InSARHub 默认是安静的：它自己的 `INFO` 与 `DEBUG` 日志会被抑制，一次运行只输出命令本身的
+结果；`WARNING` 与 `ERROR` 仍会显示 —— 一个什么都不打印的失败比一个吵闹的失败更糟。
+
+设置 `INSARHUB_DEBUG=1` 可以打开 InSARHub 的全部日志：
+
+```bash
+INSARHUB_DEBUG=1 insarhub processor submit -N ISCE2_S1 -w /data/p100_f466
+```
+
+| `INSARHUB_DEBUG` | InSARHub 日志 | 第三方库日志 | `print()` 输出 |
+|---|---|---|---|
+| 未设置 / `0` / `false` | `WARNING` 及以上 | `WARNING` 及以上 | 始终显示 |
+| `1` / `true` / `yes` | 全部，从 `DEBUG` 起 | `WARNING` 及以上 | 始终显示 |
+
+之所以使用环境变量而非命令行参数，是因为它需要同时作用于三个入口 —— 命令行、
+`insarhub-app` 和直接 `import insarhub`，而后两者没有命令行可供解析。
+
+!!! note "调试模式下第三方库仍保持安静"
+    只有 InSARHub 自己的 logger 会被调低。若同时调低根 logger，输出会被 matplotlib、
+    botocore、rasterio 和 asyncio 的日志淹没。需要调试其中某个库时请自行设置：
+    `logging.getLogger("rasterio").setLevel(logging.DEBUG)`。
+
+!!! note "`--verbose` 同样可以提升日志级别"
+    `--verbose`（`INFO`）与 `--verbose --verbose`（`DEBUG`）仍然可用，但只有写在子命令
+    **之后**才生效 —— 即 `insarhub downloader --verbose`，而非
+    `insarhub --verbose downloader`。`INSARHUB_DEBUG` 没有这个限制，且优先级更高。
+
 *[HPC]: High Performance Computing
 *[HyP3]: Hybrid Pluggable Processing Pipeline
 *[ASF]: Alaska Satellite Facility

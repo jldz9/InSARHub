@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.4.0]
+## [0.4.1] - 2026-09-13
 
 ### Security
 
@@ -24,6 +24,7 @@
 * Fixed `ISCE3_Burst` SLURM job names colliding across workdirs, and `S1_Burst` leaving an annotation-less `.SAFE` when `properties["bytes"]` came back as a string.
 * Fixed the job-folder listing tagging every analyzer `MintPy`; tags now follow the actual engine.
 * Fixed the GUI map not zooming to a polygon or box AOI — `fitBounds` sat behind an `isStyleLoaded()` check MapLibre 5 reports false right after `setData()`.
+* Fixed saved pair quality never reaching the stack file. `write_stack_file()` runs before the pair-quality DB exists, so it always wrote an empty `pair_quality` block and nothing filled it in afterwards — `/api/pair-quality` missed its fast path and recomputed every score on demand. The DB's scores are now merged in once the build finishes, or immediately when an existing DB already covers the scene set and the rebuild is skipped, and re-derived when pairs are edited in the GUI so `pair_quality` describes the pairs actually saved.
 
 ### Downloader
 
@@ -42,6 +43,16 @@
 * Added `scripts/test_install.py`, which builds a wheel and runs tier 1 inside a fresh conda env per documented install flavour. All five workflows were verified end to end on real data over Parowan Valley, Utah.
 * Confirmed `requires-python = ">=3.11,<3.13"` is still correct: the code runs on 3.13, but `isce2` has no py3.13 build and COMPASS pins `scipy <1.13`.
 
+### Documentation
+
+* Added a **FAQ** page (English and Chinese), built from the questions that actually recur in the issue tracker: `insarhub-app`'s link not opening (port 8080 is usually taken — use `--port`), search succeeding while download returns nothing, ISCE2 stopping part-way, what `pip install -e .` does, which satellites are supported, and reading logs with `INSARHUB_DEBUG`.
+* Removed the pre-release banner and the `asf_search` 13.0.0 warning from the install docs, and dropped the `insarhub=0.4.0rc1` pins from every install command — both issues are resolved in 0.4.1.
+* Added the FAQ to the `mkdocs.yml` nav (**常见问题** in the Chinese build). The page was written but listed nowhere, so it was reachable only by typing its URL.
+* Fixed every documentation link in both READMEs and `CONTRIBUTING.md` landing on a 404. The site is versioned with mike, so each URL needs a `latest/` segment — `latest/zh/` for the Chinese pages. The CLI link now also points at the full `advanced/cli_reference/` instead of the short `quickstart/cli/` page.
+* Corrected `pip install -e ".[dev]"` to `".[test]"` in `CONTRIBUTING.md` and both contributing guides. `pyproject.toml` defines only a `test` extra, so the documented setup command failed for every new contributor.
+* Translated the `INSARHUB_DEBUG` logging section into the Chinese CLI reference, which still stopped at the ERA5 command while the English page documented the switch.
+* Rewrote `CONTRIBUTING.md` against the code as it actually is: the four test tiers and which tier a change belongs in, the frontend build (`npm ci` && `npm run build` — the Python install does not produce `dist/`, so a fresh clone serves no GUI), and backend registration via `__init_subclass__`. It previously told contributors to call `registry.register()` and add a config to `insarhub/config.py`; neither has existed since the config package landed. The Black instruction is gone too — no formatter is configured in the repo, and running one buries a change in reflowed lines.
+
 ### Logging
 
 * InSARHub is now quiet by default: its own `INFO`/`DEBUG` records are suppressed so a run shows only the command's output. `WARNING` and `ERROR` still appear — a failure that prints nothing is worse than a noisy one — and `print()` output is untouched. Set **`INSARHUB_DEBUG=1`** to turn every InSARHub log record back on.
@@ -54,6 +65,13 @@
 * Container defaults and every documented `--container` example now point at the immutable **`:0.4.0`** tag instead of the floating `:dev`. A `:dev` default meant each user pulled whatever was last pushed, so a run could not be reproduced or tied to a release. Two tier-2 tests enforce this: the tag must not be floating, and it must match `_version.py` — a version bump that forgets to re-tag now fails CI rather than silently shipping the previous release's images.
 * Split `docker/` into **`docker/dev/`** (builds from the working tree, tagged `:dev`) and **`docker/release/`** (installs a pinned InSARHub from conda-forge, tagged `:x.y.z`, with GMTSAR pinned to a tag and the released MintPy). Release images take `--build-arg INSARHUB_VERSION` and assert at build time that the installed version matches, so a lagging conda-forge fails the build instead of producing a mislabelled image.
 * Removed the unreferenced legacy `docker/Dockerfile`; `docker/release/Dockerfile.isce2-mintpy` supersedes it. Added `docker/README.md` documenting the dev/release split, the release order, and the recipe details the Dockerfiles depend on (the numpy<2 solve ordering, the two meanings of `ISCE_HOME`, the `GLIBCXX_3.4.29` loader trap, and why no image sets `ENTRYPOINT`).
+
+### Development Environment
+
+* Rebuilt the VS Code dev container, which could not have worked for InSARHub. It downloaded `environment.yml` from **geodlkit** — an unrelated project — over the network and then `pip install geodlkit`, so the container came up without a single InSARHub dependency in it. It now builds from this repo's own `environment.yml` (the build context is the repo root so the file can be copied in), adds Node for the frontend, and installs the same test tooling CI does.
+* Moved the editable install and the frontend build into `.devcontainer/post-create.sh`, since both need the mounted workspace and neither exists at image-build time. `pip install` runs `--no-deps` on purpose: conda already resolved the tree, and letting pip re-resolve pulls PyPI wheels of rasterio and burst2safe over the conda builds, which then fail at runtime on `proj.db` version mismatches.
+* Dropped `--gpus all` and `--ipc=host` from `devcontainer.json`. Nothing in InSARHub uses CUDA — the only GPU references in the tree are `--gres=gpu:N` directives that `utils/tool.py` *writes into* a SLURM script for a remote cluster — so the container simply refused to start on any host without the NVIDIA container toolkit.
+* Stopped pinning `workspaceFolder` to `/home/vscode`, which opened VS Code on a directory the repo was not in; narrowed `forwardPorts` to the two ports that exist (8080 for `insarhub-app`, 5173 for the Vite dev server); and removed the default bind-mount, because a mount whose source is missing on the host stops the container from starting.
 
 ## [0.4.0rc1]
 

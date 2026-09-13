@@ -1,8 +1,8 @@
 # InSARHub (published release) + GMTSAR + MintPy.
 #
-# RELEASE variant: InSARHub comes from conda-forge at a pinned version, and
-# nothing is copied out of the working tree. GMTSAR is pinned to a TAG rather
-# than the moving `master` its :dev counterpart tracks
+# RELEASE variant: InSARHub comes from PyPI at a pinned version, and nothing is
+# copied out of the working tree. GMTSAR is pinned to a COMMIT rather than the
+# moving `master` its :dev counterpart tracks
 # (../dev/Dockerfile.gmtsar-mintpy) — a release image that rebuilds differently
 # next month is not a release image.
 #
@@ -17,8 +17,10 @@
 #
 # conda-linux-full is LINUX x86_64 ONLY (GMTSAR's installer refuses otherwise).
 #
-# Requires insarhub=<version> to be on conda-forge ALREADY — see the release
-# order in docker/README.md.
+# Requires insarhub=<version> to be on PyPI ALREADY — see the release order in
+# docker/README.md. PyPI, not conda-forge: this env holds gmt 6.4 (which caps
+# gdal at 3.6), so the feedstock's `gdal >=3.8` makes `conda install insarhub`
+# unsatisfiable here, while the pip package carries no gdal constraint at all.
 #
 # Build (from repo root):
 #   docker build -f docker/release/Dockerfile.gmtsar-mintpy \
@@ -47,21 +49,70 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git ca-certificates autoconf automake libtool m4 make \
     && rm -rf /var/lib/apt/lists/*
 
-# Pinned to a release tag, unlike the :dev image's `master`. Bump deliberately.
-ARG GMTSAR_REF=v6.6
-RUN git clone --branch ${GMTSAR_REF} --depth 1 \
-        https://github.com/gmtsar/gmtsar.git /opt/gmtsar
+# Pinned to a COMMIT, not a release tag, because no GMTSAR tag can build this
+# way. The install.py flow below landed on master on 2026-07-21; the newest tag,
+# v6.6, is from 2025-04-21 and ships no gmtsar/python/install.py at all (its
+# gmtsar/python/ holds only shell scripts), so `--branch v6.6` failed with
+# "can't open file '/opt/gmtsar/gmtsar/python/install.py'". v6.5, v6.2.2 and
+# v6.1 are older still. A commit SHA is exactly as immutable and reproducible as
+# a tag, which is the property this image actually needs. Bump deliberately, and
+# re-verify the build when you do -- master is not a release.
+#
+# No --depth 1: `git clone --branch` only accepts branch and tag names, never a
+# SHA, so the commit is checked out after a full clone. This also matches
+# docker/dev/Dockerfile.gmtsar-mintpy, whose full clone is the flow install.py is
+# known to build from.
+ARG GMTSAR_REF=8a5c85b0c7db191d5d5313fd9f5946a38e865292
+RUN git clone https://github.com/gmtsar/gmtsar.git /opt/gmtsar \
+    && git -C /opt/gmtsar checkout --detach ${GMTSAR_REF}
 WORKDIR /opt/gmtsar
 RUN python3 gmtsar/python/install.py --system conda-linux-full --conda-env gmtsar
 
-# MintPy + InSARHub into the gmtsar env from conda-forge, so gdal/rasterio/h5py
-# stay on the same libgdal/hdf5 stack GMT uses. numpy is held <2 (InSARHub's
-# pin) -- see docker/README.md, "Keeping numpy below 2".
-RUN conda install -n gmtsar -c conda-forge -y "numpy<2" gdal rasterio h5py mintpy \
+# Seed the env with InSARHub's runtime dependencies from conda-forge, so the
+# geospatial stack starts on the libgdal/hdf5 that GMT and the GMTSAR C binaries
+# were built against. InSARHub itself is installed by pip below.
+#
+# Why not `conda install insarhub`: the conda-forge recipe declares `gdal >=3.8`,
+# but install.py pins `gmt=6.4`, and gmt 6.4 requires gdal <3.7 -- the solve is
+# flatly unsatisfiable ("package insarhub requires gdal >=3.8, but none of the
+# providers can be installed").
+#
+# Letting conda resolve it with gmt unpinned is WORSE than failing. The solver
+# "fixes" the conflict by upgrading gmt 6.4 -> 6.6 and hdf5 1.12 -> 2.1, which
+# swaps libhdf5 out from under the C binaries install.py just compiled against
+# 1.12 and moves GMT off the version GMTSAR pins on purpose (install.py: a GMT
+# upgrade can shift numerical output, and GMTSAR's ax_lib_hdf5.m4 cannot even
+# link against hdf5 1.14+). That corruption is silent: the install succeeds and
+# the binaries fail or quietly compute different numbers later. So nothing added
+# here may pull gmt/hdf5 off their pins.
+#
+# This list tracks the `run:` section of the conda-forge feedstock recipe; the
+# verification layer at the end of this file is the backstop, since `import
+# insarhub` registers every downloader/processor/analyzer and so imports most of
+# them.
+RUN conda install -n gmtsar -c conda-forge -y \
+        "numpy<2.0" gdal rasterio h5py mintpy \
+        asf_search burst2safe cdsapi colorama contextily dask dem_stitcher \
+        hyp3_sdk networkx openpyxl psutil pyaps3 python-multipart fastapi \
+        pysolid pygrib uvicorn sentineleof \
     && conda clean -afy
 
-RUN conda install -n gmtsar -c conda-forge -y "numpy<2" "insarhub==${INSARHUB_VERSION}" \
-    && conda clean -afy
+# InSARHub itself comes from PyPI via pip, NOT conda: the feedstock declares
+# `gdal >=3.8`, and gmt 6.4 caps gdal at 3.6, so `conda install insarhub` is
+# unsatisfiable here ("package insarhub requires gdal >=3.8, but none of the
+# providers can be installed"). The pip package carries no gdal constraint.
+#
+# Dependencies ARE resolved (no --no-deps): pip reads insarhub's metadata and
+# installs what is missing. In particular it enforces `numpy<2.0`, which also
+# repairs the env install.py leaves behind -- GMTSAR's own `do_python_deps` pip
+# step installs a requirements.txt with an unpinned numpy, so without this the
+# conda-forge shapely built against the 1.x ABI dies on import with
+# "_ARRAY_API not found". It likewise upgrades rasterio to the `>=1.4` wheel the
+# published metadata requires; that wheel bundles its own GDAL and was verified
+# to import alongside the conda gdal 3.6.3. Anything already satisfied by the
+# conda install above (mintpy, h5py, ...) is left alone.
+RUN /opt/conda/envs/gmtsar/bin/pip install --no-cache-dir \
+        "insarhub==${INSARHUB_VERSION}"
 
 # GMTSAR binaries on PATH; the gmtsar env's python is the default interpreter.
 ENV GMTSAR=/opt/gmtsar

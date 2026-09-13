@@ -13,10 +13,10 @@ point:
 
 |  | `dev/` | `release/` |
 |---|---|---|
-| InSARHub source | your working tree (`COPY src`) | conda-forge, pinned |
+| InSARHub source | your working tree (`COPY src`) | conda-forge, pinned (GMTSAR image: PyPI) |
 | Version | whatever is checked out, uncommitted included | `--build-arg INSARHUB_VERSION=x.y.z` |
 | Tag | `:dev` | `:x.y.z` |
-| Third-party pins | tracks moving refs (GMTSAR `master`, MintPy `main`) | pinned tags / released builds |
+| Third-party pins | tracks moving refs (GMTSAR `master`, MintPy `main`) | pinned commit / released builds (GMTSAR has no tag that builds — see `Dockerfile.gmtsar-mintpy`) |
 | Reproducible | no — rebuilds follow your tree | yes — rebuilds from this file alone |
 | Use for | iterating on InSARHub itself | what users actually pull |
 
@@ -69,6 +69,13 @@ A `release/` image installs InSARHub from conda-forge, so it can only be built
    `src/insarhub/config/defaultconfig.py` at `:X.Y.Z`.
 
 Steps 1–2 are what gate everything; a `dev/` image needs none of them.
+
+The **GMTSAR image is the exception**: it installs InSARHub from PyPI via pip,
+not conda. The feedstock recipe declares `gdal >=3.8`, but a GMTSAR env pins
+`gmt=6.4`, which caps gdal at 3.6, so `conda install insarhub` there is
+unsatisfiable. That image therefore needs only step 1, and resolves InSARHub's
+dependencies with pip — which enforces the `numpy<2.0` pin and so also repairs
+the unpinned numpy GMTSAR's own installer pip-installs.
 
 ### Patch releases may reuse the series' images
 

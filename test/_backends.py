@@ -119,7 +119,7 @@ def _netrc_has(host: str) -> bool:
     if not netrc.is_file():
         return False
     try:
-        return f"machine {host}" in netrc.read_text()
+        return f"machine {host}" in netrc.read_text(encoding="utf-8")
     except OSError:
         return False
 

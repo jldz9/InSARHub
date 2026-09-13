@@ -48,7 +48,7 @@ def test_get_default_does_not_protect_against_an_explicit_none():
 def test_center_latlon_are_read_none_safely():
     """No `float(... .get("centerLat", <number>))` anywhere in tool.py."""
     offenders = [
-        line.strip() for line in TOOL.read_text().splitlines()
+        line.strip() for line in TOOL.read_text(encoding="utf-8").splitlines()
         if re.search(r'float\([^)]*\.get\("center(Lat|Lon)",\s*[0-9]', line)
     ]
     assert not offenders, (
@@ -63,7 +63,7 @@ def test_center_latlon_still_have_a_fallback():
     float(None) and float(props["centerLat"]) both raise; the point is to land
     on 0, not to remove the guard.
     """
-    text = TOOL.read_text()
+    text = TOOL.read_text(encoding="utf-8")
     hits = re.findall(r'float\([^)]*\.get\("center(?:Lat|Lon)"\)\s*or\s*0\)', text)
     assert len(hits) >= 2, (
         "expected centerLat/centerLon to be read as `.get(...) or 0`; found "

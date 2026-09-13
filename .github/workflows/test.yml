@@ -16,6 +16,14 @@ jobs:
   fast:
     name: basic + regression (py${{ matrix.python }}, ${{ matrix.os }})
     runs-on: ${{ matrix.os }}
+    # Windows runners default to PowerShell, where `\` is NOT a line
+    # continuation -- the multi-line `pip install ... \` below parsed as
+    # "Unexpected token '\"rasterio>=1.4\"' in expression or statement" and the
+    # job died before installing anything. Every runner has bash (Git Bash on
+    # Windows), so pin it for the whole job rather than per step.
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:

@@ -42,7 +42,7 @@ MARKING_SOURCES = ["hyp3_base.py", "isce2_s1.py", "gmtsar_s1.py", "isce3_base.py
 
 @pytest.mark.parametrize("name", MARKING_SOURCES)
 def test_processor_writes_the_workflow_marker(name):
-    text = (PROCESSOR_DIR / name).read_text()
+    text = (PROCESSOR_DIR / name).read_text(encoding="utf-8")
     assert "write_workflow_marker" in text, (
         f"{name} never calls write_workflow_marker(), so a workdir it produces "
         "records no processor and the GUI shows a blank processor badge"
@@ -52,7 +52,7 @@ def test_processor_writes_the_workflow_marker(name):
 @pytest.mark.parametrize("name", ["isce2_s1.py", "gmtsar_s1.py", "isce3_base.py"])
 def test_marker_records_the_processor_role(name):
     """It must record `processor=`, not just any role."""
-    text = (PROCESSOR_DIR / name).read_text()
+    text = (PROCESSOR_DIR / name).read_text(encoding="utf-8")
     assert re.search(r'"processor":\s*type\(self\)\.name', text), (
         f"{name} calls write_workflow_marker but does not pass "
         'processor=type(self).name'
@@ -66,7 +66,7 @@ def test_marker_is_written_from_submit_not_construction(name):
     --list-options, a GUI defaults lookup and --dry-run all build a processor
     without intending to touch the workdir.
     """
-    text = (PROCESSOR_DIR / name).read_text()
+    text = (PROCESSOR_DIR / name).read_text(encoding="utf-8")
     marker_at = text.index("write_workflow_marker(")
     submit_at = text.index("    def submit(")
     assert marker_at > submit_at, (

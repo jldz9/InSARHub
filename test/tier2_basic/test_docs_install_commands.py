@@ -230,6 +230,52 @@ def _fast_job_pip_specs(workflow: str) -> dict[str, str]:
     return {_requirement_name(q): q for q in re.findall(r'"([^"]+)"', line)}
 
 
+def test_ci_windows_jobs_declare_a_bash_shell(workflow):
+    """Any job that can land on a Windows runner must pin a bash shell.
+
+    GitHub defaults Windows steps to PowerShell, where ``\\`` is not a line
+    continuation. A perfectly ordinary multi-line
+
+        pip install "a" "b" \\
+                    "c" "d"
+
+    then dies at parse time with *"Unexpected token"* before installing
+    anything -- and only on Windows, so it looks like a dependency problem
+    rather than a shell problem. Every runner has bash (Git Bash on Windows),
+    so pinning it costs nothing.
+
+    This is checked for every Windows job, not just ones that currently use a
+    continuation, because the failure appears the moment someone wraps a long
+    line -- a change that looks purely cosmetic.
+    """
+    import yaml
+
+    jobs = yaml.safe_load(workflow)["jobs"]
+    offenders = []
+    for name, job in jobs.items():
+        matrix = job.get("strategy", {}).get("matrix", {}) or {}
+        oses = set()
+        if isinstance(matrix.get("os"), list):
+            oses |= set(matrix["os"])
+        for inc in matrix.get("include", []) or []:
+            if "os" in inc:
+                oses.add(inc["os"])
+        if not oses:
+            oses = {str(job.get("runs-on", ""))}
+        if not any("windows" in str(o) for o in oses):
+            continue
+        shell = job.get("defaults", {}).get("run", {}).get("shell", "")
+        if "bash" not in str(shell):
+            offenders.append((name, shell or None))
+
+    assert not offenders, (
+        "these jobs can run on Windows without pinning a bash shell, so their "
+        f"steps run under PowerShell: {offenders}. Add\n"
+        "    defaults:\n      run:\n        shell: bash\n"
+        "to the job."
+    )
+
+
 def test_ci_dependency_list_matches_pyproject(workflow):
     """The `fast` job's pip list must be pyproject's dependencies minus the
     documented omissions.

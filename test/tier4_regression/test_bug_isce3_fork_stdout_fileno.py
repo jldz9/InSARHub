@@ -46,7 +46,7 @@ SOURCES = ["isce3_base.py", "isce2_base.py", "gmtsar_s1.py"]
 @pytest.mark.parametrize("name", SOURCES)
 def test_no_processor_dup2s_onto_sys_stdout_fileno(name):
     """The exact construct that broke, in every processor that forks."""
-    text = (PROCESSOR_DIR / name).read_text()
+    text = (PROCESSOR_DIR / name).read_text(encoding="utf-8")
     offenders = [
         line.strip() for line in text.splitlines()
         if re.search(r"os\.dup2\([^)]*sys\.std(out|err)\.fileno\(\)", line)
@@ -66,7 +66,7 @@ def test_processors_still_redirect_the_child(name):
     never flushes Python's buffered stderr, which is why the redirect has to
     happen before any work.
     """
-    text = (PROCESSOR_DIR / name).read_text()
+    text = (PROCESSOR_DIR / name).read_text(encoding="utf-8")
     assert re.search(r"os\.dup2\(_lf\.fileno\(\),\s*1\)", text), (
         f"{name} no longer redirects its forked child's stdout to the log file"
     )

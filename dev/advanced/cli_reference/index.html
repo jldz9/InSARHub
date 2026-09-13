@@ -1618,6 +1618,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -2278,6 +2289,17 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2978,12 +3000,12 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Running without a local ISCE2 install</p>
-<p><code>--container &lt;path-or-image&gt;</code> re-invokes the entire <code>insarhub processor ...</code> command inside a container instead of the host — pass a path to an Apptainer/Singularity <code>.sif</code> image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and <code>ISCE2_S1</code> never needs to discover a host ISCE2 install at all. The container image just needs <code>insarhub</code> installed alongside ISCE2/topsStack — see <a href="https://github.com/jldz9/InSARHub/blob/main/docker/Dockerfile"><code>Dockerfile</code></a> in the repo root for a ready-to-build example.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w">  </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w">   </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w">   </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
-</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w">  </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:dev
+<p><code>--container &lt;path-or-image&gt;</code> re-invokes the entire <code>insarhub processor ...</code> command inside a container instead of the host — pass a path to an Apptainer/Singularity <code>.sif</code> image, or a Docker image reference (name[:tag]). The workdir is bind-mounted into the container at the identical path, so output files land on the host exactly like a native run, and <code>ISCE2_S1</code> never needs to discover a host ISCE2 install at all. The container image just needs <code>insarhub</code> installed alongside ISCE2/topsStack — see <a href="https://github.com/jldz9/InSARHub/blob/main/docker/dev/Dockerfile.isce2-mintpy"><code>docker/dev/Dockerfile.isce2-mintpy</code></a> for a ready-to-build example.</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w">  </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--bbox<span class="w"> </span><span class="m">33</span>.0<span class="w"> </span><span class="m">38</span>.0<span class="w"> </span>-120.0<span class="w"> </span>-115.0<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+</span><span id="__span-22-3"><a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w">   </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+</span><span id="__span-22-4"><a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w">   </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
+</span><span id="__span-22-5"><a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w">  </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466<span class="w"> </span>--container<span class="w"> </span>ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0
 </span></code></pre></div>
 <p><code>--container</code> is a per-invocation flag, not a saved setting — like <code>--dry-run</code>, it's never written to <code>insarhub_config.json</code>, so pass it again on every <code>submit</code>/<code>refresh</code>/<code>retry</code>/<code>watch</code>/<code>cancel</code> call you want to run inside the container.</p>
 </div>
@@ -3807,6 +3829,54 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 </tbody>
 </table>
 <p>Already-downloaded files are skipped automatically, so the command is safe to re-run after an interrupted download.</p>
+<h2 id="logging">Logging</h2>
+<p>InSARHub is quiet by default. Its own <code>INFO</code> and <code>DEBUG</code> records are suppressed,
+so a run shows only the command's actual output; <code>WARNING</code> and <code>ERROR</code> still
+appear, because a failure that prints nothing is worse than a noisy one.</p>
+<p>Set <code>INSARHUB_DEBUG=1</code> to turn every InSARHub log record back on:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-48-1"><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="nv">INSARHUB_DEBUG</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
+</span></code></pre></div>
+<table>
+<thead>
+<tr>
+<th><code>INSARHUB_DEBUG</code></th>
+<th>InSARHub logs</th>
+<th>Third-party logs</th>
+<th><code>print()</code> output</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>unset / <code>0</code> / <code>false</code></td>
+<td><code>WARNING</code> and above</td>
+<td><code>WARNING</code> and above</td>
+<td>always shown</td>
+</tr>
+<tr>
+<td><code>1</code> / <code>true</code> / <code>yes</code></td>
+<td>everything, from <code>DEBUG</code> up</td>
+<td><code>WARNING</code> and above</td>
+<td>always shown</td>
+</tr>
+</tbody>
+</table>
+<p>It is an environment variable rather than a flag because it has to work for all
+three entry points — the CLI, <code>insarhub-app</code>, and plain <code>import insarhub</code> — and
+the last two have no command line to read.</p>
+<div class="admonition note">
+<p class="admonition-title">Third-party libraries stay quiet even in debug mode</p>
+<p>Only InSARHub's own logger is lowered. Raising the root logger too would
+bury your output under matplotlib, botocore, rasterio and asyncio records.
+To debug one of those, set its level yourself:
+<code>logging.getLogger("rasterio").setLevel(logging.DEBUG)</code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title"><code>--verbose</code> also raises the level</p>
+<p><code>--verbose</code> (<code>INFO</code>) and <code>--verbose --verbose</code> (<code>DEBUG</code>) still work, but
+only when typed <strong>after</strong> the subcommand — <code>insarhub downloader --verbose</code>,
+not <code>insarhub --verbose downloader</code>. <code>INSARHUB_DEBUG</code> has no such
+restriction and takes precedence.</p>
+</div>
 
 
 

@@ -2295,21 +2295,58 @@
 <p>Always pop <code>state._stop_events[job_id]</code> before returning on both success and error paths.</p>
 <h2 id="testing">Testing</h2>
 <h3 id="universal-smoke-test">Universal smoke test</h3>
-<p><code>test/e2e/universal_smoke_test.py</code> is the go/no-go check across every pipeline, against real (already-completed) workdirs. It exercises three surfaces at once:</p>
+<p><code>scripts/e2e/universal_smoke_test.py</code> is the go/no-go check across every pipeline, against real (already-completed) workdirs. It exercises three surfaces at once:</p>
 <ol>
 <li><strong>Python import</strong> — imports every package/submodule in a fresh process (catches broken/circular imports).</li>
 <li><strong>CLI</strong> — <code>--list-*</code> commands, per-pipeline <code>--list-options</code>, and <code>processor … refresh</code> via subprocess.</li>
 <li><strong>API</strong> — a throwaway <code>uvicorn</code> server hit over HTTP with <code>requests</code> (no <code>httpx</code> needed): <code>/api/health</code>, <code>/api/folder-local-jobs</code>, <code>/api/folder-local-action</code> refresh, <code>/api/analyzer-steps</code>.</li>
 </ol>
 <p>It auto-detects each workdir's processor/analyzer from <code>insarhub_config.json</code>, so it covers <code>GMTSAR_S1</code>, <code>ISCE2_S1</code>, <code>ISCE3_Burst</code> and their analyzers without per-pipeline configuration. Missing optional dependencies (isce2, gmt/gmtsar, dolphin/compass, slurm) classify a check <code>SKIP</code> rather than <code>FAIL</code>.</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>python<span class="w"> </span>test/e2e/universal_smoke_test.py<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>python<span class="w"> </span>scripts/e2e/universal_smoke_test.py<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span>--scan-dir<span class="w"> </span>/path/to/real/workdirs<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span>--workdir<span class="w"> </span>/path/to/p56<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span>--mode<span class="w"> </span>both<span class="w">          </span><span class="c1"># cli | api | both</span>
 </span></code></pre></div>
 <p>Exit code is non-zero if any check <code>FAIL</code>s. Use <code>--json</code> for machine-readable output, or set <code>INSARHUB_TEST_SCAN_DIRS</code> to point at your workdirs instead of passing <code>--scan-dir</code>.</p>
 <h3 id="unit-tests">Unit tests</h3>
-<p><code>test/</code> contains the per-module pytest suites (<code>test_config.py</code>, <code>test_gmtsar_s1.py</code>, <code>test_utils_config_io.py</code>, …). Run them with <code>pytest test/</code>. The <code>e2e/</code> scripts (<code>cli_e2e_*.sh</code>, <code>api_e2e_*.py</code>) are <strong>not</strong> auto-run by pytest — they drive real ASF search/download/processing and are invoked directly when full end-to-end runs are wanted.</p>
+<p><code>test/</code> holds the four-tier pytest suite — see <a href="https://github.com/jldz9/InSARHub/blob/main/test/README.md"><code>test/README.md</code></a> for the full description:</p>
+<table>
+<thead>
+<tr>
+<th>Tier</th>
+<th>Question</th>
+<th>Command</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tier1_install</code></td>
+<td>Is this installation wired up correctly?</td>
+<td><code>pytest -m install</code></td>
+</tr>
+<tr>
+<td><code>tier2_basic</code></td>
+<td>Do imports, the CLI and the GUI behave as promised?</td>
+<td><code>pytest -m basic</code></td>
+</tr>
+<tr>
+<td><code>tier3_e2e</code></td>
+<td>Does each workflow run on real data?</td>
+<td><code>pytest -m e2e</code></td>
+</tr>
+<tr>
+<td><code>tier4_regression</code></td>
+<td>Are previously-fixed bugs still fixed?</td>
+<td><code>pytest -m regression</code></td>
+</tr>
+</tbody>
+</table>
+<p>A bare <code>pytest</code> runs tiers 1, 2 and 4 — fast and hermetic. Tier 3 is opt-in
+because it downloads real Sentinel-1 data and runs real processing.</p>
+<p>Install the test dependencies with <code>pip install -e '.[test]'</code>.</p>
+<p>The standalone drivers under <code>scripts/e2e/</code> (<code>cli_e2e_*.sh</code>, <code>api_e2e_*.py</code>,
+<code>full_pipeline_e2e.py</code>) are <strong>not</strong> pytest tests — they are invoked directly when
+a full manual end-to-end run is wanted.</p>
 <h2 id="code-style">Code Style</h2>
 <ul>
 <li>No comments explaining <em>what</em> the code does — only <em>why</em> (hidden constraint, workaround, subtle invariant).</li>

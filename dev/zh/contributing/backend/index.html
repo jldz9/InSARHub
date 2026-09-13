@@ -2296,21 +2296,57 @@
 <p>在成功和错误路径中都必须 pop <code>state._stop_events[job_id]</code>。</p>
 <h2 id="_14">测试</h2>
 <h3 id="_15">通用冒烟测试</h3>
-<p><code>test/e2e/universal_smoke_test.py</code> 是针对每一条流水线、基于真实（已完成的）工作目录的“通过/不通过”检查，同时覆盖三个界面：</p>
+<p><code>scripts/e2e/universal_smoke_test.py</code> 是针对每一条流水线、基于真实（已完成的）工作目录的“通过/不通过”检查，同时覆盖三个界面：</p>
 <ol>
 <li><strong>Python 导入</strong> — 在全新进程中导入每一个包/子模块（捕捉损坏的导入或循环导入）。</li>
 <li><strong>CLI</strong> — <code>--list-*</code> 命令、每条流水线的 <code>--list-options</code>，以及通过子进程运行 <code>processor … refresh</code>。</li>
 <li><strong>API</strong> — 启动一个临时 <code>uvicorn</code> 服务器，用 <code>requests</code> 通过 HTTP 访问（无需 <code>httpx</code>）：<code>/api/health</code>、<code>/api/folder-local-jobs</code>、<code>/api/folder-local-action</code> refresh、<code>/api/analyzer-steps</code>。</li>
 </ol>
 <p>它会从每个工作目录的 <code>insarhub_config.json</code> 自动识别处理器/分析器，因此无需逐条流水线配置即可覆盖 <code>GMTSAR_S1</code>、<code>ISCE2_S1</code>、<code>ISCE3_Burst</code> 及其分析器。缺失的可选依赖（isce2、gmt/gmtsar、dolphin/compass、slurm）会将相应检查标记为 <code>SKIP</code> 而非 <code>FAIL</code>。</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>python<span class="w"> </span>test/e2e/universal_smoke_test.py<span class="w"> </span><span class="se">\</span>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>python<span class="w"> </span>scripts/e2e/universal_smoke_test.py<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span>--scan-dir<span class="w"> </span>/path/to/real/workdirs<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">    </span>--workdir<span class="w"> </span>/path/to/p56<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">    </span>--mode<span class="w"> </span>both<span class="w">          </span><span class="c1"># cli | api | both</span>
 </span></code></pre></div>
 <p>任一检查 <code>FAIL</code> 时退出码非零。使用 <code>--json</code> 获取机器可读输出，或设置 <code>INSARHUB_TEST_SCAN_DIRS</code> 指向你的工作目录，以替代 <code>--scan-dir</code> 参数。</p>
 <h3 id="_16">单元测试</h3>
-<p><code>test/</code> 包含各模块的 pytest 测试套件（<code>test_config.py</code>、<code>test_gmtsar_s1.py</code>、<code>test_utils_config_io.py</code> 等），通过 <code>pytest test/</code> 运行。<code>e2e/</code> 下的脚本（<code>cli_e2e_*.sh</code>、<code>api_e2e_*.py</code>）<strong>不会</strong>被 pytest 自动运行——它们驱动真实的 ASF 搜索/下载/处理，仅在需要完整端到端运行时直接调用。</p>
+<p><code>test/</code> 为四层 pytest 测试体系，完整说明见 <a href="https://github.com/jldz9/InSARHub/blob/main/test/README.md"><code>test/README.md</code></a>：</p>
+<table>
+<thead>
+<tr>
+<th>层级</th>
+<th>回答的问题</th>
+<th>命令</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tier1_install</code></td>
+<td>当前安装是否正确就绪？</td>
+<td><code>pytest -m install</code></td>
+</tr>
+<tr>
+<td><code>tier2_basic</code></td>
+<td>导入、CLI 与 GUI 是否符合承诺？</td>
+<td><code>pytest -m basic</code></td>
+</tr>
+<tr>
+<td><code>tier3_e2e</code></td>
+<td>各条流水线能否在真实数据上跑通？</td>
+<td><code>pytest -m e2e</code></td>
+</tr>
+<tr>
+<td><code>tier4_regression</code></td>
+<td>历史已修复的 Bug 是否仍然保持修复？</td>
+<td><code>pytest -m regression</code></td>
+</tr>
+</tbody>
+</table>
+<p>直接运行 <code>pytest</code> 会执行第 1、2、4 层——快速且不依赖外部环境。第 3 层需显式开启，
+因为它会下载真实的 Sentinel-1 数据并执行真实处理。</p>
+<p>使用 <code>pip install -e '.[test]'</code> 安装测试依赖。</p>
+<p><code>scripts/e2e/</code> 下的独立脚本（<code>cli_e2e_*.sh</code>、<code>api_e2e_*.py</code>、<code>full_pipeline_e2e.py</code>）
+<strong>不是</strong> pytest 测试，仅在需要完整手动端到端运行时直接调用。</p>
 <h2 id="_17">代码风格</h2>
 <ul>
 <li>不写解释代码<em>做什么</em>的注释——只写解释<em>为什么</em>的注释（隐藏约束、绕过特定 Bug、微妙的不变量）。</li>

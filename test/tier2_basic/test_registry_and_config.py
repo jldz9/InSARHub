@@ -9,6 +9,7 @@ in the browser or a flag that silently does nothing -- never as an exception.
 from __future__ import annotations
 
 import dataclasses
+import re
 
 import pytest
 
@@ -141,20 +142,45 @@ def test_container_default_is_not_a_floating_tag(cfg):
     )
 
 
+_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)")
+
+
+def _release_triple(version: str) -> tuple[int, int, int] | None:
+    """``(major, minor, patch)`` of an X.Y.Z version, or None if it is not one.
+
+    Only the numeric prefix is read, so "0.4.2.dev0" and "0.4.2rc1" parse the
+    same as "0.4.2" -- the prerelease suffix is handled by the skips below.
+    """
+    m = _VERSION_RE.match(version)
+    return (int(m[1]), int(m[2]), int(m[3])) if m else None
+
+
 @pytest.mark.parametrize("cfg", CONFIGS.values(), ids=list(CONFIGS))
-def test_container_default_tag_matches_this_version(cfg):
-    """The pinned image tag must be THIS release's version.
+def test_container_default_tag_is_this_release_series(cfg):
+    """The pinned image tag must come from THIS release series (same X.Y).
 
     The tags are written out literally (``...insarhub-base:0.4.0``) rather than
     interpolated from ``__version__``, because the tag has to name an image that
     was actually built and pushed -- deriving it would silently promise an image
     for every dev version that will never exist.
 
-    The cost of writing them literally is that bumping ``_version.py`` without
-    re-tagging leaves a release shipping the PREVIOUS release's images: the
-    container still runs, still looks fine, and quietly executes old code. That
-    is a genuinely nasty failure because nothing about it looks wrong. So the
-    bump and the re-tag have to land together, and this is what forces it.
+    Requiring an *exact* match, which this test used to do, cannot hold on
+    release day. A ``docker/release/*`` image installs InSARHub from conda-forge
+    and asserts the installed version equals ``INSARHUB_VERSION``, so ``:X.Y.Z``
+    is unbuildable until the feedstock has ``X.Y.Z`` -- which lands a day or more
+    after the tag is pushed. Exact equality therefore forced a choice between
+    tagging a release with red CI and pointing users at an image that does not
+    exist. 0.4.1 hit precisely that and shipped defaulting to the 0.4.0 images.
+
+    So a patch-level lag *within* one series is allowed: 0.4.1 may point at
+    ``:0.4.0``. That is safe because a patch release by definition carries no
+    processor or analyzer change large enough to matter to what runs inside the
+    image -- if it ever does, build the new patch images and re-tag.
+
+    What is still caught, because this is where images and code genuinely
+    diverge, is a lag across a **minor or major** bump: 0.5.0 may not ship
+    pointing at ``:0.4.x``. A tag running *ahead* of ``__version__`` is caught
+    too, since that names an image nobody has built yet.
     """
     import insarhub
 
@@ -165,11 +191,28 @@ def test_container_default_tag_matches_this_version(cfg):
         pytest.skip("prerelease build may legitimately point at an older tag")
 
     tag = default.rsplit(":", 1)[1]
-    assert tag == insarhub.__version__, (
+    tag_v = _release_triple(tag)
+    this_v = _release_triple(insarhub.__version__)
+    assert tag_v is not None, (
+        f"{cfg.__name__}.container_default is tagged {tag!r}, which is not an "
+        "X.Y.Z version. Releases must pin an immutable, versioned tag."
+    )
+    assert this_v is not None, (
+        f"insarhub.__version__ is {insarhub.__version__!r}, which is not X.Y.Z "
+        "and carries no .dev/rc marker either -- fix _version.py."
+    )
+
+    assert tag_v[:2] == this_v[:2], (
         f"{cfg.__name__}.container_default is tagged {tag!r} but this is "
-        f"InSARHub {insarhub.__version__}. Bumping the version means building "
-        f"and pushing the {insarhub.__version__} images and re-tagging all "
-        "container_default values in the same commit -- see docker/README.md."
+        f"InSARHub {insarhub.__version__}. A patch-level lag is fine, but a "
+        f"minor or major bump means the images no longer match the code: build "
+        f"and push the {this_v[0]}.{this_v[1]}.x images and re-tag every "
+        "container_default -- see docker/README.md."
+    )
+    assert tag_v[2] <= this_v[2], (
+        f"{cfg.__name__}.container_default is tagged {tag!r}, which is ahead of "
+        f"InSARHub {insarhub.__version__}. That names an image that has not been "
+        "built; container_default may lag this version, never lead it."
     )
 
 

@@ -58,7 +58,9 @@ docker push ghcr.io/jldz9/insarhub-base:0.4.0
 A `release/` image installs InSARHub from conda-forge, so it can only be built
 **after** that version exists there. The full chain:
 
-1. Tag `vX.Y.Z` → `.github/workflows/publish.yml` builds the wheel → **PyPI**.
+1. Tag `vX.Y.Z`, then build and **upload the sdist and wheel to PyPI**.
+   `.github/workflows/publish.yml` builds and smoke-tests the wheel on every
+   platform but does *not* upload it, so this step is manual today.
 2. The conda-forge feedstock bot opens a PR from the PyPI sdist → merge →
    **conda-forge**.
 3. Build and push the four `release/` images with
@@ -67,6 +69,22 @@ A `release/` image installs InSARHub from conda-forge, so it can only be built
    `src/insarhub/config/defaultconfig.py` at `:X.Y.Z`.
 
 Steps 1–2 are what gate everything; a `dev/` image needs none of them.
+
+### Patch releases may reuse the series' images
+
+Steps 3–4 are **optional for a patch release**. Because a `release/` image can
+only be built once conda-forge has the version, `:X.Y.Z` does not exist on the
+day `vX.Y.Z` is tagged — so requiring it would mean shipping a release whose
+`container_default` names an image nobody can pull. A patch release may instead
+keep pointing at the series' existing images (0.4.1 ships pointing at
+`:0.4.0`), and `test_container_default_tag_is_this_release_series` allows
+exactly that: a patch-level lag inside one `X.Y` series, never across a minor or
+major bump, and never a tag ahead of `__version__`.
+
+Do run steps 3–4 for a patch anyway when the release changes code that executes
+*inside* a container — anything under `processor/`, `analyzer/` or the shared
+core. A fix confined to the web API, the CLI or the docs does not, since the
+container only ever runs the processor/analyzer re-invocation.
 
 Each release Dockerfile asserts `insarhub.__version__ == INSARHUB_VERSION` at
 build time, so a feedstock that has not caught up fails the build here rather

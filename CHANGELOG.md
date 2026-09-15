@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Pair Quality
+
+* Replaced the weighted 0–100 pair score — three interchangeable modes, hard-kills, warnings and good/risky/bad cutoffs — with an **event verdict**: a pair is `concern` when at least one *serious* condition is detected at either acquisition, and `healthy` otherwise. There is deliberately no third label, and every verdict carries the events and measurements behind it, so a label is always traceable to a number.
+* Weather and snow now come from **Open-Meteo and the S1 global coherence dataset only**. WorldCover land cover, the Copernicus DEM, MODIS/Sentinel-2 NDVI, MODIS snow cover, CDS ERA5 and FIRMS were removed, taking the subsystem from ~9 hosts and 4 credential mechanisms to **2 anonymous hosts and none** — so a pair-quality run behaves the same on every machine instead of silently scoring against whatever happened to be reachable.
+* Weather is sampled on the archive's **native 0.1° (~9 km) grid across the AOI and averaged**, instead of a single AOI-centroid cell. All sample points travel in **one** Open-Meteo request; the per-point response is averaged per variable and only the mean is cached, so an AOI is represented by its area rather than one grid cell.
+* Rain and soil-moisture thresholds are **calibrated per AOI** (p97/p90) because neither has a published C-band threshold; snow, coherence, freeze/thaw and wind thresholds cite the literature. The applied thresholds are recorded with the result.
+
+### Bug Fixes
+
+* Fixed the AOI centroid being computed two different ways, which gave the weather/snow cache two keys for one AOI.
+* Fixed pair-quality scoring stampeding rate-limited APIs.
+* Fixed a failed weather/snow fetch being written to the quality cache as a full set of null readings.
+* Fixed the GUI pair-network editor rendering `concern` pairs grey instead of yellow and labelling the legend **Healthy / Risky**. It still tested the removed `risky` keyword, so a `concern` verdict never matched and fell through to the unjudged grey; the legend is now **Healthy / Concern**.
+* Fixed `select-pair` logging `Invalid HTTP request received.` (HTTP 400) during pair scoring. The network editor requested pair-DB lookups with every edge key in the query string, which can exceed the HTTP parser's ~64 KiB request line; the lookup now sends the key list in a JSON request body (`POST /api/pair-quality-db/lookup`).
+
+### Removed
+
+* Removed the `avoid_low_quality_days` pair-selection pre-filter and its `snow_threshold` / `precip_mm_threshold` options. Its snow criteria read `snow_cover_frac`, which the batch fetch never populated, so they could never fire — while `snow_threshold=0.0` flagged every acquisition date. Weather now informs the per-pair verdict instead of silently deleting scenes.
+
 ### Dependencies
 
 * Aligned the `fast` CI job's hand-written pip list with `pyproject.toml`: `rasterio` now matches the declared `>=1.3`, and the redundant `setuptools<81` entry is gone. `test/tier2_basic/test_docs_install_commands.py` guards this drift.

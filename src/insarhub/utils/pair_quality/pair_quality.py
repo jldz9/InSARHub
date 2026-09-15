@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-PairQuality — compute interferogram pair quality scores for a folder.
+PairQuality — judge every interferogram pair in a folder healthy or concern.
+
+A pair is flagged ``concern`` when at least one *serious* extreme condition was
+detected at either acquisition, or when the S1 decay model already predicts
+unusable coherence at its temporal baseline. There is no score and no third label; see
+:mod:`_events` for the event definitions and their sources.
 
 Usage (Python API)
 ------------------
@@ -8,9 +13,8 @@ Usage (Python API)
 
     pq = PairQuality("/data/bryce/p100_f466")
     result = pq.compute()
-    # result.scores  -> {"scene_a:scene_b": 0.42, ...}
-    # result.factors -> {"scene_a:scene_b": {"dt_days": 12, ...}, ...}
-    # result.ndvi_source -> "sentinel2" | "modis" | "climatology" | "mixed"
+    # result.status  -> {"scene_a:scene_b": "concern", ...}
+    # result.factors -> {"scene_a:scene_b": {"events": [...], ...}, ...}
 
 Usage (API)
 -----------
@@ -21,7 +25,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,22 +39,33 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class QualityResult:
-    scores:       dict[str, float]   # "ref:sec" -> 0–1
-    factors:      dict[str, dict]    # "ref:sec" -> factor breakdown
-    ndvi_source:  str                # dominant NDVI source across pairs
-    snow_fetched: int                # number of dates fetched from remote APIs
-    cached:       bool               # True if all data came from cache
+    """The verdict for every pair in a folder.
+
+    There is no score. ``status`` is "healthy" or "concern", and ``factors``
+    carries the events that decided it together with the measurements behind
+    them — see :mod:`_events`.
+    """
+
+    status:        dict[str, str]    # "ref:sec" -> "healthy" | "concern"
+    factors:       dict[str, dict]   # "ref:sec" -> events + observations
+    remote_fetches: int              # HTTP requests that actually went out
+    cached:        bool              # True when nothing had to be fetched
+    missing_dates: list[str]         # dates the archive never answered for
+    thresholds:    dict              # per-AOI thresholds actually applied
 
 
 # ── AOI helpers ───────────────────────────────────────────────────────────────
 
 def _wkt_centroid(wkt: str) -> tuple[float, float]:
-    coords = re.findall(r'(-?\d+\.?\d*)\s+(-?\d+\.?\d*)', wkt)
-    if not coords:
-        raise ValueError(f"No coordinates found in WKT: {wkt!r}")
-    lons = [float(c[0]) for c in coords]
-    lats = [float(c[1]) for c in coords]
-    return sum(lats) / len(lats), sum(lons) / len(lons)
+    """Deprecated alias — use :func:`insarhub.utils.pair_quality._geom.wkt_centroid`.
+
+    Kept so existing imports keep working; it must stay a thin delegation so
+    the AOI centroid has exactly one definition (see the docstring there for
+    why that matters to the cache).
+    """
+    from insarhub.utils.pair_quality._geom import wkt_centroid
+
+    return wkt_centroid(wkt)
 
 
 def _load_aoi(folder: Path) -> tuple[float, float, str]:
@@ -136,21 +150,11 @@ def _load_pairs(folder: Path) -> list[tuple[str, str, float, float]]:
 # ── Main class ────────────────────────────────────────────────────────────────
 
 class PairQuality:
-    """Compute pair quality scores for a single InSARHub folder."""
+    """Judge every pair in a single InSARHub folder."""
 
-    def __init__(
-        self,
-        folder_path: str | Path,
-        force_refresh: bool = False,
-        weights: dict[str, float] | None = None,
-        lc_aware: bool = True,
-        coherence_aware: bool = True,
-    ):
-        self.folder           = Path(folder_path).expanduser().resolve()
-        self.force_refresh    = force_refresh
-        self.weights          = weights         # only used when lc_aware=False and coherence_aware=False
-        self.lc_aware         = lc_aware        # True = land-cover branching
-        self.coherence_aware  = coherence_aware # True = use S1 global coherence dataset
+    def __init__(self, folder_path: str | Path, force_refresh: bool = False):
+        self.folder        = Path(folder_path).expanduser().resolve()
+        self.force_refresh = force_refresh
 
     def compute(self, show_progress: bool = True) -> QualityResult:
         """Run the full quality computation and return a QualityResult.
@@ -159,7 +163,30 @@ class PairQuality:
         ----------
         show_progress : show tqdm progress bars on stderr (default True).
                         Set False when called from API/background threads.
+
+        Shares the per-folder build lock with :meth:`PairQualityDB.build`, so
+        this never runs alongside a background DB build of the same folder --
+        they would otherwise duplicate every remote fetch and write the same
+        cache file and decay-map GeoTIFFs at the same time.
         """
+        from insarhub.utils.pair_quality._db import building
+
+        if self.force_refresh:
+            # Both layers hold successful payloads for the life of the process
+            # precisely so nothing is fetched twice. force_refresh is the one
+            # request to go back to the network, so it has to reach them too --
+            # otherwise it only discards the on-disk cache and refills it from
+            # the same in-memory copy.
+            from insarhub.utils.pair_quality import _archive, _http
+
+            _archive.clear()
+            _http.clear_cache()
+
+        with building(self.folder):
+            return self._compute(show_progress=show_progress)
+
+    def _compute(self, show_progress: bool = True) -> QualityResult:
+        """Do the work. Call :meth:`compute`, which holds the folder lock."""
         try:
             from tqdm import tqdm
         except ImportError:
@@ -173,23 +200,23 @@ class PairQuality:
         pairs = _load_pairs(self.folder)
         if not pairs:
             return QualityResult(
-                scores={}, factors={},
-                ndvi_source="n/a", snow_fetched=0, cached=True,
+                status={}, factors={}, remote_fetches=0, cached=True,
+                missing_dates=[], thresholds={},
             )
 
         try:
             lat, lon, wkt = _load_aoi(self.folder)
         except Exception as exc:
             logger.error("Cannot determine AOI for quality scoring: %s", exc)
-            return QualityResult(scores={}, factors={}, ndvi_source="n/a", snow_fetched=0, cached=False)
+            return QualityResult(
+                status={}, factors={}, remote_fetches=0, cached=False,
+                missing_dates=[], thresholds={},
+            )
 
         cache = CacheManager(self.folder, force_refresh=self.force_refresh)
-        assembler = FeatureAssembler(
-            cache=cache, aoi_wkt=wkt, lat=lat, lon=lon,
-            skip_ndvi=self.coherence_aware,  # S3 COG is primary; skip slow NDVI fetch
-        )
+        assembler = FeatureAssembler(cache=cache, aoi_wkt=wkt, lat=lat, lon=lon)
 
-        # Batch-prefetch weather + snow for all unique acquisition dates upfront
+        # One request for every acquisition date in the stack.
         unique_dates: set[str] = set()
         for ref, sec, _, _ in pairs:
             d1, d2 = _scene_date(ref), _scene_date(sec)
@@ -197,30 +224,29 @@ class PairQuality:
             if d2: unique_dates.add(d2)
 
         if tqdm and show_progress:
-            tqdm.write(f"Prefetching weather/snow for {len(unique_dates)} dates …")
+            tqdm.write(f"Fetching weather for {len(unique_dates)} dates …")
         assembler.prefetch_dates(list(unique_dates))
 
-        # Prefetch S1 global coherence COH maps for all unique seasons
-        if self.coherence_aware:
-            if tqdm and show_progress:
-                tqdm.write("Prefetching S1 coherence maps from S3 …")
-            assembler.prefetch_coherence([
-                (_scene_date(ref).replace("-", ""), _scene_date(sec).replace("-", ""))
-                for ref, sec, _, _ in pairs
-                if _scene_date(ref) and _scene_date(sec)
-            ])
+        if tqdm and show_progress:
+            tqdm.write("Prefetching S1 coherence decay maps …")
+        assembler.prefetch_coherence([
+            (_scene_date(ref).replace("-", ""), _scene_date(sec).replace("-", ""))
+            for ref, sec, _, _ in pairs
+            if _scene_date(ref) and _scene_date(sec)
+        ])
 
         cache.save()  # persist batch results before the pair loop
 
-        scores:  dict[str, float] = {}
-        factors: dict[str, dict]  = {}
-        ndvi_sources: set[str]    = set()
-        snow_fetched = 0
+        status_map: dict[str, str]  = {}
+        factors:    dict[str, dict] = {}
 
-        mode = "S3 coherence" if self.coherence_aware else ("LC/NDVI" if self.lc_aware else "flat")
+        # Rain and soil moisture are calibrated against this AOI's own record
+        # because neither has a published C-band threshold — _events.calibrate.
+        thresholds = _classifier.calibrate(assembler.weather_by_date)
+
         for ref, sec, bperp_ref, bperp_sec in _tqdm(
             pairs,
-            desc=f"Scoring pairs [{mode}]",
+            desc="Judging pairs",
             unit="pair",
             total=len(pairs),
         ):
@@ -230,74 +256,64 @@ class PairQuality:
                 continue
 
             fv = assembler.assemble(ref, sec, bperp_ref, bperp_sec, date1, date2)
+            st, fct = _classifier.classify(fv, thresholds)
+            pair_key             = f"{ref}:{sec}"
+            status_map[pair_key] = st
+            factors[pair_key]    = fct
 
-            if self.coherence_aware:
-                sc, fct = _classifier.coherence_score(fv)
-            elif self.lc_aware:
-                sc, fct = _classifier.lc_score(fv)
-                sc = max(0, min(100, round(float(sc) * 100)))
-            else:
-                sc, fct = _classifier.score(fv, weights=self.weights)
-                sc = max(0, min(100, round(float(sc) * 100)))
-            pair_key          = f"{ref}:{sec}"
-            scores[pair_key]  = sc
-            factors[pair_key] = fct
-
-            ndvi_sources.add(fv.get("ndvi_source", "climatology"))
-
-        # Flush cache to disk
         cache.save()
 
-        snow_fetched = assembler.remote_fetch_count
-
-        # Determine dominant NDVI source
-        if len(ndvi_sources) > 1:
-            if "sentinel2" in ndvi_sources:
-                ndvi_source = "sentinel2"
-            elif "modis" in ndvi_sources:
-                ndvi_source = "mixed"
-            else:
-                ndvi_source = "climatology"
-        else:
-            ndvi_source = next(iter(ndvi_sources), "climatology")
-
-        all_cached = (snow_fetched == 0)
+        fetches = assembler.remote_fetch_count
         return QualityResult(
-            scores=scores,
+            status=status_map,
             factors=factors,
-            ndvi_source=ndvi_source,
-            snow_fetched=snow_fetched,
-            cached=all_cached,
+            remote_fetches=fetches,
+            cached=(fetches == 0),
+            missing_dates=sorted(assembler.missing_dates),
+            thresholds=thresholds.as_dict(),
         )
 
     def print_summary(self) -> None:
         """CLI helper — print a human-readable summary table."""
         result = self.compute()
-        if not result.scores:
+        if not result.status:
             print("No pairs found.")
             return
 
-        print(f"\nPair quality summary  (NDVI source: {result.ndvi_source})")
-        print(f"{'Pair':<60}  {'Score':>6}  {'dt':>5}  {'bperp':>6}  "
-              f"{'season':>7}  {'veg':>5}  {'snow_d1':>7}  {'snow_d2':>7}")
-        print("-" * 110)
-        for key in sorted(result.scores, key=lambda k: result.scores[k], reverse=True):
+        concern = [k for k, v in result.status.items() if v == "concern"]
+        print(f"\nPair quality — {len(result.status)} pairs, "
+              f"{len(concern)} concern, {len(result.status) - len(concern)} healthy")
+        if result.missing_dates:
+            print(f"  ⚠ {len(result.missing_dates)} date(s) had no weather data: "
+                  f"{', '.join(result.missing_dates[:5])}")
+        print(f"{'Pair':<28}  {'Status':<8}  {'dt':>5}  {'γ':>5}  Events")
+        print("-" * 100)
+
+        from insarhub.utils.pair_quality._dates import scene_date_compact
+
+        # Concern first, then by how much evidence there is.
+        def _rank(key: str):
+            fct = result.factors[key]
+            return (0 if result.status[key] == "concern" else 1,
+                    -len(fct.get("events", [])))
+
+        for key in sorted(result.status, key=_rank):
             ref, _, sec = key.partition(":")
-            from insarhub.utils.pair_quality._dates import scene_date_compact
-            label = f"{scene_date_compact(ref)}–{scene_date_compact(sec)}"
-            sc    = result.scores[key]
-            fct   = result.factors[key]
-            bar   = "█" * int(sc * 20)
+            fct    = result.factors[key]
+            events = fct.get("events", [])
+            coh    = fct.get("coherence_expected")
+            label  = f"{scene_date_compact(ref)}-{scene_date_compact(sec)}"
+            kinds  = ", ".join(
+                e["kind"] + ("!" if e["severity"] == "serious" else "")
+                for e in events
+            ) or "-"
             print(
-                f"  {label:<56}  {sc:6.3f}"
-                f"  {fct.get('dt_days', 0):>5}d"
-                f"  {fct.get('bperp_diff', 0):>5.0f}m"
-                f"  {fct.get('season', 0):>7.2f}"
-                f"  {fct.get('veg') or 0:>5.2f}"
-                f"  {fct.get('snow_cover_d1') or 0:>7.2f}"
-                f"  {fct.get('snow_cover_d2') or 0:>7.2f}"
-                f"  {bar}"
+                f"  {label:<26}  {result.status[key]:<8}"
+                f"  {fct.get('dt_days') or 0:>4}d"
+                f"  {coh if coh is not None else float('nan'):>5.2f}"
+                f"  {kinds}"
             )
+        print("\n  ! = serious (sets the concern verdict)")
 
 if __name__ == "__main__":
     from pathlib import Path

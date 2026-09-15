@@ -39,6 +39,7 @@ from __future__ import annotations
 import functools
 import logging
 import math
+import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -259,26 +260,6 @@ def split_by_season(
 
     return segments
 
-
-# ── InSAR-relevant land cover groups ─────────────────────────────────────────
-#
-# WorldCover class codes grouped by InSAR coherence behaviour:
-#   stable     — urban + bare rock/soil: highest ρ∞, longest τ, PS candidates
-#   vegetation — shrub + grass + crop:   seasonal, NDVI-driven, most variable
-#   forest     — tree cover + mangrove:  volume scattering, always low coherence
-#   water      — water + wetland:        zero coherence (hard kill)
-#
-_LC_GROUPS: dict[str, set[int]] = {
-    "stable":     {50, 60},
-    "vegetation": {20, 30, 40},
-    "forest":     {10, 95},
-    "water":      {80, 90},
-}
-_LC_MIN_PIXELS = 30   # minimum coherence pixels required for a reliable class mean
-
-
-# ── COH level reader (S3 COG windowed read) ───────────────────────────────────
-
 def _read_coh_pixels(
     aoi_wkt: str,
     season: str,
@@ -330,84 +311,6 @@ def _read_mean_coh(
         return None
     return float(valid.mean()) / 100.0
 
-
-def _fetch_season_coh_by_class(
-    aoi_wkt: str,
-    lat: float,
-    lon: float,
-    season: str,
-    pol: str = "vv",
-    cache: dict | None = None,
-) -> dict[str, dict[int, float]]:
-    """Return per-LC-class COH maps for one season.
-
-    Reads WorldCover pixel data, reprojects to coherence grid (~1.1 km),
-    then groups coherence pixel values by InSAR-relevant land cover class.
-
-    Returns
-    -------
-    {class_name: {level_days: coherence}}
-    Classes with fewer than _LC_MIN_PIXELS coherence pixels are omitted.
-    Returns {} if WorldCover or coherence data are unavailable.
-    """
-    cache_key = f"s1coh_cls:{lat:.2f}:{lon:.2f}:{season}:{pol}"
-    if cache is not None and cache_key in cache:
-        raw = cache[cache_key]
-        # Re-inflate int keys (JSON serialises dict keys as strings)
-        return {cls: {int(k): float(v) for k, v in lvl.items()}
-                for cls, lvl in raw.items()}
-
-    try:
-        import numpy as np
-        from rasterio.warp import reproject, Resampling
-        from insarhub.utils.pair_quality._landcover import read_pixels as _wc_pixels
-    except ImportError as exc:
-        _log.debug("Per-class coherence skipped — missing dependency: %s", exc)
-        return {}
-
-    # Read WorldCover pixels once for the AOI
-    wc_arr, wc_transform, wc_crs = _wc_pixels(aoi_wkt)
-    if wc_arr is None:
-        return {}
-
-    class_maps: dict[str, dict[int, float]] = {g: {} for g in _LC_GROUPS}
-
-    for level in _COH_LEVELS:
-        coh_raw, coh_transform, coh_crs = _read_coh_pixels(aoi_wkt, season, level, pol)
-        if coh_raw is None:
-            continue
-
-        # Reproject WorldCover labels to coherence pixel grid (majority resampling)
-        wc_on_coh = np.zeros(coh_raw.shape, dtype=np.uint8)
-        try:
-            reproject(
-                source=wc_arr.astype(np.uint8),
-                destination=wc_on_coh,
-                src_transform=wc_transform,
-                src_crs=wc_crs,
-                dst_transform=coh_transform,
-                dst_crs=coh_crs,
-                resampling=Resampling.mode,
-            )
-        except Exception as exc:
-            _log.debug("WorldCover reproject failed at COH%02d: %s", level, exc)
-            continue
-
-        coh_f     = coh_raw.astype(float)
-        valid_mask = (coh_f > 0) & (coh_f < 255)   # 0 = native nodata, 255 = outside polygon
-
-        for group, codes in _LC_GROUPS.items():
-            class_mask = np.isin(wc_on_coh, list(codes)) & valid_mask
-            pixels     = coh_f[class_mask]
-            if pixels.size >= _LC_MIN_PIXELS:
-                class_maps[group][level] = round(float(pixels.mean()) / 100.0, 4)
-
-    result = {g: v for g, v in class_maps.items() if v}
-
-    if cache is not None:
-        cache[cache_key] = result   # stored with int keys → fine for in-memory
-
-    return result
 
 
 # ── Interpolation & decay chaining ────────────────────────────────────────────
@@ -683,6 +586,38 @@ def _decay_maps_tif_path(save_dir: Path, season: str, pol: str) -> Path:
     return save_dir / f"S1_coherence_decay_{season}_{pol}.tif"
 
 
+# One lock per decay-map file. Phase 2 of prefetch_coherence runs eight threads
+# that all reach _fetch_season_decay_maps, and a second scorer can be working
+# the same folder concurrently, so the "does the TIF exist yet?" check and the
+# write that follows it must not interleave: two GDAL creates on one path made
+# one of them fail with "Unable to open <path> to obtain file list".
+# Reentrant so a caller can hold it across "is it there?" and the write that
+# follows without deadlocking on _save_decay_maps_to_tif taking it again.
+_tif_locks: dict[str, threading.RLock] = {}
+_tif_locks_guard = threading.Lock()
+
+
+def _tif_lock(tif_path: Path) -> threading.RLock:
+    key = str(tif_path)
+    with _tif_locks_guard:
+        lock = _tif_locks.get(key)
+        if lock is None:
+            lock = _tif_locks[key] = threading.RLock()
+        return lock
+
+
+def _save_decay_maps_if_absent(maps: dict, save_dir: Path, season: str, pol: str) -> None:
+    """Write the decay-map GeoTIFF only if it is not on disk yet.
+
+    The check and the write happen under one lock, so concurrent callers do
+    not all decide the file is missing and then write it on top of each other.
+    """
+    tif_path = _decay_maps_tif_path(save_dir, season, pol)
+    with _tif_lock(tif_path):
+        if not tif_path.exists():
+            _save_decay_maps_to_tif(maps, save_dir, season, pol)
+
+
 def _save_decay_maps_to_tif(maps: dict, save_dir: Path, season: str, pol: str) -> None:
     """Save pixel decay map arrays to a 3-band GeoTIFF.
 
@@ -693,14 +628,20 @@ def _save_decay_maps_to_tif(maps: dict, save_dir: Path, season: str, pol: str) -
     3 : τ   (decorrelation time, days)
 
     nodata = -9999.0
+
+    Written to a temporary file and moved into place, so a reader never sees a
+    half-written raster and a failed write cannot leave a corrupt one behind.
     """
     try:
+        import os
+
         import numpy as np
         import rasterio
         from rasterio.transform import Affine
 
         save_dir.mkdir(parents=True, exist_ok=True)
         tif_path = _decay_maps_tif_path(save_dir, season, pol)
+        tmp_path = tif_path.with_name(f".{tif_path.name}.{os.getpid()}.tmp")
 
         H, W = maps["shape"]
         ginf = np.array(maps["gamma_inf"], dtype=np.float32)
@@ -727,16 +668,22 @@ def _save_decay_maps_to_tif(maps: dict, save_dir: Path, season: str, pol: str) -
             "nodata":    float(NODATA),
             "compress":  "lzw",
         }
-        with rasterio.open(tif_path, "w", **profile) as dst:
-            dst.write(ginf, 1)
-            dst.write(g0,   2)
-            dst.write(tau,  3)
-            dst.update_tags(
-                season=season, pol=pol,
-                band1="gamma_inf_PS_floor",
-                band2="gamma0_initial_coherence",
-                band3="tau_decorrelation_days",
-            )
+        with _tif_lock(tif_path):
+            try:
+                with rasterio.open(tmp_path, "w", **profile) as dst:
+                    dst.write(ginf, 1)
+                    dst.write(g0,   2)
+                    dst.write(tau,  3)
+                    dst.update_tags(
+                        season=season, pol=pol,
+                        band1="gamma_inf_PS_floor",
+                        band2="gamma0_initial_coherence",
+                        band3="tau_decorrelation_days",
+                    )
+                os.replace(tmp_path, tif_path)
+            finally:
+                if tmp_path.exists():
+                    tmp_path.unlink(missing_ok=True)
         _log.info("Saved coherence decay map: %s", tif_path)
 
     except Exception as exc:
@@ -820,10 +767,11 @@ def _fetch_season_decay_maps(
             return None, "failed"
         # Write GeoTIFF if save_dir is given and file doesn't exist yet
         # (happens when data came from a prior run's JSON cache but TIF was never saved)
+        #
+        # Every Phase-2 thread reaches this branch once the in-memory cache is
+        # warm, so the check and the write are held together under one lock.
         if save_dir is not None and stored is not None:
-            tif = _decay_maps_tif_path(save_dir, season, pol)
-            if not tif.exists():
-                _save_decay_maps_to_tif(stored, save_dir, season, pol)
+            _save_decay_maps_if_absent(stored, save_dir, season, pol)
         return stored, "s3"
 
     # ── 2. Disk GeoTIFF cache ─────────────────────────────────────────────

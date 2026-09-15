@@ -121,9 +121,6 @@ class SelectPairsRequest(BaseModel):
     max_degree:               int   = _SP["max_degree"]
     force_connect:            bool  = _SP["force_connect"]
     max_workers:              int   = _SP["max_workers"]
-    avoid_low_quality_days:   bool  = _SP["avoid_low_quality_days"]
-    snow_threshold:           float = _SP["snow_threshold"]
-    precip_mm_threshold:      float = _SP["precip_mm_threshold"]
     # No manual "merge" flag — auto-detected server-side from whether the
     # folder's saved config has `frame` as a list (see _run_folder_select_pairs).
 
@@ -178,8 +175,18 @@ class ParseAoiRequest(BaseModel):
 
 
 class PairQualityResponse(BaseModel):
-    scores:       dict[str, float]  # "ref_scene:sec_scene" -> 0.0–1.0
-    factors:      dict[str, Any]    # "ref_scene:sec_scene" -> factor breakdown
-    ndvi_source:  str               # "modis" | "climatology" | "mixed"
-    snow_fetched: int               # how many dates were fetched from Open-Meteo
-    cached:       bool              # True when all data came from disk cache
+    """Healthy/concern per pair, with the events that decided each verdict."""
+
+    status:         dict[str, str]  # "ref:sec" -> "healthy" | "concern"
+    factors:        dict[str, Any]  # "ref:sec" -> events + observations
+    remote_fetches: int             # HTTP requests that actually went out
+    cached:         bool            # True when nothing had to be fetched
+    missing_dates:  list[str] = []  # dates the weather archive never answered
+    thresholds:     dict      = {}  # per-AOI thresholds actually applied
+
+
+class PairQualityLookupRequest(BaseModel):
+    """Pair-DB lookup by POST, so a large key list avoids the URL length cap."""
+
+    path:  str        # absolute path to a job folder
+    pairs: list[str]  # "ref:sec" pair keys

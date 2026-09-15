@@ -1003,106 +1003,6 @@ def group_scenes_by_stack(
     return {k: _stack_scene_ids(prods) for k, prods in active_results.items()}
 
 
-def _bad_scene_names(
-    prods: list,
-    snow_thr: float,
-    precip_thr: float,
-    aoi_wkt: str | None = None,
-) -> tuple[set[str], dict[str, dict], dict[str, dict], float, float]:
-    """Return (bad_names, weather_dict, snow_dict, lat, lon).
-
-    weather_dict / snow_dict are {date: feats} for ALL unique dates — not
-    just the bad ones — so callers can seed FeatureAssembler's cache and
-    avoid a second fetch during scoring.
-
-    Flags a date bad when:
-      - wet snow  : snow_frac > 0.3 AND temp_max > 0 °C  (C-band hard kill)
-      - heavy snow: snow_frac >= snow_thr
-      - heavy rain: precip_3day (or daily precip fallback) >= precip_thr mm
-    """
-    from shapely.geometry import shape as _shape
-    from shapely.ops import unary_union
-    from insarhub.utils.pair_quality._weather import fetch_weather_batch
-    from insarhub.utils.pair_quality._snow_modis import fetch_snow_features_batch
-
-    # Prefer the explicit AOI centroid (same geometry FeatureAssembler uses).
-    # Fall back to the union centroid of all scene footprints.
-    try:
-        from shapely import wkt as _wkt
-        if aoi_wkt:
-            c = _wkt.loads(aoi_wkt).centroid
-        else:
-            union = unary_union([_shape(p.geometry) for p in prods])
-            c = union.centroid
-        lat, lon = c.y, c.x
-    except Exception as exc:
-        logger.warning("avoid_low_quality_days: could not extract centroid (%s) — skipping filter", exc)
-        return set(), {}, {}, 0.0, 0.0
-
-    # Use startTime property (already ISO-8601) rather than parsing the scene
-    # name at fixed character positions — more reliable across sensor types.
-    date_of: dict[str, str] = {
-        p.properties["sceneName"]: (p.properties.get("startTime") or "")[:10]
-        for p in prods
-    }
-    unique_dates = list({d for d in date_of.values() if len(d) == 10})
-
-    if not unique_dates:
-        logger.warning("avoid_low_quality_days: no valid dates extracted — skipping filter")
-        return set(), {}, {}, lat, lon
-
-    # Build per-date overpass hour from scene names (YYYYMMDDTHHMMSS in name)
-    date_hour: dict[str, int] = {}
-    for p in prods:
-        name = p.properties.get("sceneName", "")
-        date = date_of.get(name, "")
-        if date and len(name) >= 28 and name[25] == "T":
-            try:
-                date_hour[date] = int(name[26:28])
-            except ValueError:
-                pass
-
-    logger.info("avoid_low_quality_days: fetching weather/snow for %d dates …", len(unique_dates))
-    try:
-        weather = fetch_weather_batch(lat, lon, unique_dates, date_hour=date_hour or None)
-    except Exception as exc:
-        logger.warning("avoid_low_quality_days: weather fetch failed (%s) — skipping filter", exc)
-        weather = {}
-    try:
-        snow = fetch_snow_features_batch(lat, lon, unique_dates, date_hour=date_hour or None)
-    except Exception as exc:
-        logger.warning("avoid_low_quality_days: snow fetch failed (%s) — skipping filter", exc)
-        snow = {}
-
-    bad_dates: set[str] = set()
-    for date in unique_dates:
-        w = weather.get(date, {})
-        s = snow.get(date, {})
-        _t   = w.get("temp")
-        temp = _t if _t is not None else w.get("temp_max")
-        # precip_3day can be None when the API returns null for precipitation_sum.
-        # Fall back to the daily precip so the check is never silently bypassed.
-        precip3   = w.get("precip_3day")
-        precip1   = w.get("precip")
-        precip_mm = (precip3 if precip3 is not None else precip1) or 0.0
-        snow_frac = s.get("snow_cover_frac") or 0.0
-
-        wet_snow   = (temp is not None and temp > 0 and snow_frac > 0.30)
-        heavy_snow = snow_frac >= snow_thr
-        heavy_rain = precip_mm >= precip_thr
-
-        if wet_snow or heavy_snow or heavy_rain:
-            reasons = []
-            if wet_snow:   reasons.append(f"wet snow (frac={snow_frac:.2f}, temp={temp:.1f}°C)")
-            if heavy_snow: reasons.append(f"heavy snow (frac={snow_frac:.2f} ≥ {snow_thr})")
-            if heavy_rain: reasons.append(f"heavy rain (precip={precip_mm:.1f} mm ≥ {precip_thr} mm)")
-            logger.warning("avoid_low_quality_days: dropping date %s — %s", date, ", ".join(reasons))
-            bad_dates.add(date)
-
-    bad_names = {name for name, d in date_of.items() if d in bad_dates}
-    return bad_names, weather, snow, lat, lon
-
-
 def select_pairs(
     search_results: Union[dict[tuple[int, int], list[ASFProduct]], list[ASFProduct]],
     dt_targets: tuple[int, ...]  = _SP["dt_targets"],
@@ -1113,9 +1013,6 @@ def select_pairs(
     max_degree: int              = _SP["max_degree"],
     force_connect: bool          = _SP["force_connect"],
     max_workers: int             = _SP["max_workers"],
-    avoid_low_quality_days: bool = _SP["avoid_low_quality_days"],
-    snow_threshold: float        = _SP["snow_threshold"],
-    precip_mm_threshold: float   = _SP["precip_mm_threshold"],
     aoi_wkt: str | None = None,
     burst: bool = False,
     safe_dir: str | Path | None = None,
@@ -1164,22 +1061,10 @@ def select_pairs(
         max_workers (int, optional):
             Number of threads for API fallback. Has no effect if all products have local baseline
             data (common for Sentinel-1 and ALOS). Set to 1 to disable threading (useful for debugging).
-        avoid_low_quality_days (bool, optional):
-            If True, fetch weather and snow cover for every acquisition date and
-            remove scenes whose date fails quality thresholds before building the
-            network. Removed scenes are logged as warnings. Defaults to False.
-        snow_threshold (float, optional):
-            Snow-cover fraction [0–1] above which a scene is considered unusable.
-            Also triggers a wet-snow hard-kill (snow_frac > 0.3 AND temp > 0 °C).
-            Defaults to 0.5.
-        precip_mm_threshold (float, optional):
-            3-day accumulated precipitation (mm) above which a scene is considered
-            unusable. Defaults to 20.0 mm.
         aoi_wkt (str, optional):
-            WKT geometry of the area of interest.  When provided the centroid of
-            this geometry is used for weather/snow lookups instead of the union
-            centroid of the scene footprints, ensuring the same location is used
-            here as in FeatureAssembler.  Defaults to None.
+            WKT geometry of the area of interest, recorded in the folder config
+            so pair-quality scoring later reads back the same region.
+            Defaults to None.
         burst (bool, optional):
             Select pairs for an SLC-BURST stack. Nodes become ``YYYYMMDD``
             acquisition dates; dt is computed from burst ``startTime`` and
@@ -1241,8 +1126,6 @@ def select_pairs(
     pairs_group: PairGroup = defaultdict(list)
     baseline_group: dict[tuple[int, int], BaselineTable] = {}
     scene_bperp_group: dict[tuple[int, int], dict] = {}
-    # Keyed by (path, frame): {"weather": {date: feats}, "snow": {date: feats}, "lat": float, "lon": float}
-    prefetch_cache: dict[tuple[int, int], dict] = {}
 
     # ── process each (path, frame) key ───────────────────────────────────
     for key, search_result in working_dict.items():
@@ -1259,16 +1142,10 @@ def select_pairs(
             # every burst inherits the geometry of the date it was acquired
             # on. Nodes are dates, dt comes from startTime, bperp from the
             # per-date orbit (SAFE annotation / local EOF / POEORB by date).
-            dates, id_time_dt, B, scene_bp, prefetch = _select_burst_group(
+            dates, id_time_dt, B, scene_bp = _select_burst_group(
                 search_result,
-                avoid_low_quality_days=avoid_low_quality_days,
-                snow_threshold=snow_threshold,
-                precip_mm_threshold=precip_mm_threshold,
-                aoi_wkt=aoi_wkt,
                 safe_dir=safe_dir, eof_dir=eof_dir, poeorb_cache=poeorb_cache,
             )
-            if prefetch:
-                prefetch_cache[key] = prefetch
             names = dates
         else:
             # Sort by acquisition time so `names` is chronologically ordered
@@ -1305,29 +1182,6 @@ def select_pairs(
             ids: set[SceneID] = set(id_time_raw)
             names: list[SceneID] = [p.properties["sceneName"] for p in prods]
 
-            # ── 0. Drop bad-weather/snow acquisition dates ────────────────
-            if avoid_low_quality_days:
-                bad, w_cache, s_cache, pc_lat, pc_lon = _bad_scene_names(
-                    prods, snow_threshold, precip_mm_threshold, aoi_wkt
-                )
-                prefetch_cache[key] = {
-                    "weather": w_cache,
-                    "snow":    s_cache,
-                    "lat":     pc_lat,
-                    "lon":     pc_lon,
-                }
-                if bad:
-                    before = len(prods)
-                    prods  = [p for p in prods if p.properties["sceneName"] not in bad]
-                    names  = [n for n in names if n not in bad]
-                    ids    = set(names)
-                    id_time_raw = {k: v for k, v in id_time_raw.items() if k not in bad}
-                    id_time_dt  = {k: v for k, v in id_time_dt.items()  if k not in bad}
-                    logger.warning(
-                        "Key %s — avoid_low_quality_days: removed %d / %d scenes.",
-                        key, before - len(prods), before,
-                    )
-
             # ── 1. Build pairwise baseline table ─────────────────────────
             B, scene_bp = _build_baseline_table(prods, ids, id_time_dt, max_workers=max_workers)
 
@@ -1361,9 +1215,8 @@ def select_pairs(
         )
     pairs = pairs_group[(0, 0)] if input_is_list else pairs_group
     scene_bperp = scene_bperp_group.get((0, 0), {}) if input_is_list else scene_bperp_group
-    prefetch = prefetch_cache.get((0, 0), {}) if input_is_list else prefetch_cache
 
-    return pairs, baseline_group, scene_bperp, prefetch
+    return pairs, baseline_group, scene_bperp
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1562,9 +1415,6 @@ def _resolve_burst_orbit(
 
 def _select_burst_group(
     prods: list[ASFProduct],
-    avoid_low_quality_days: bool = False,
-    snow_threshold: float        = _SP["snow_threshold"],
-    precip_mm_threshold: float   = _SP["precip_mm_threshold"],
     aoi_wkt: str | None = None,
     safe_dir: str | Path | None = None,
     eof_dir: str | Path | None = None,
@@ -1581,12 +1431,11 @@ def _select_burst_group(
       precise-orbit ``.EOF``, or a POEORB download keyed by date + mission.
       No parent-SLC lookup is performed.
 
-    Returns ``(dates, id_time_dt, B, scene_bp, prefetch)``:
+    Returns ``(dates, id_time_dt, B, scene_bp)``:
         dates       sorted ``YYYYMMDD`` nodes
         id_time_dt  node -> Unix timestamp
         B           pairwise ``(dt_days, bperp_m)`` table keyed by ``(date, date)``
         scene_bp    date -> signed bperp relative to the anchor date
-        prefetch    weather/snow cache ``{weather, snow, lat, lon}`` (or ``{}``)
     """
     # ── collapse bursts of one date into a single date node ────────────────
     date_prod: dict[str, list] = defaultdict(list)
@@ -1596,26 +1445,9 @@ def _select_burst_group(
             date_prod[d].append(p)
     if not date_prod:
         logger.warning("Burst group — no valid acquisition dates; skipping.")
-        return [], {}, {}, {}, {}
+        return [], {}, {}, {}
 
     dates = sorted(date_prod)
-
-    # ── drop bad-weather/snow dates (shared with the scene path) ──────────
-    prefetch: dict = {}
-    if avoid_low_quality_days:
-        bad, w_cache, s_cache, pc_lat, pc_lon = _bad_scene_names(
-            prods, snow_threshold, precip_mm_threshold, aoi_wkt
-        )
-        prefetch = {"weather": w_cache, "snow": s_cache,
-                    "lat": pc_lat, "lon": pc_lon}
-        if bad:
-            bad_dates = {d for p, d in ((p, _burst_date_of(p)) for p in prods)
-                         if d and p.properties["sceneName"] in bad}
-            dates = [d for d in dates if d not in bad_dates]
-            logger.warning("avoid_low_quality_days: removed %d / %d burst dates.",
-                           len(bad_dates), len(date_prod))
-            if not dates:
-                return [], {}, {}, {}, prefetch
 
     rep = {d: date_prod[d][0] for d in dates}   # representative product
 
@@ -1686,7 +1518,7 @@ def _select_burst_group(
                   else _MISSING)
             B[(a, b)] = (dt, bp)
     scene_bp = {d: float(v) for d, v in bp_vector.items()}
-    return dates, id_time_dt, B, scene_bp, prefetch
+    return dates, id_time_dt, B, scene_bp
 
 
 def plot_pair_network(
@@ -1696,7 +1528,7 @@ def plot_pair_network(
     title: str = "Interferogram Network",
     figsize: tuple[int, int] = (18, 7),
     save_path: str | Path | None = None,
-    quality_scores: dict[str, float] | None = None,
+    pair_status: dict[str, str] | None = None,
     quality_factors: dict[str, dict] | None = None,
 ) -> plt.Figure | dict:
 
@@ -1791,7 +1623,7 @@ def plot_pair_network(
                     title=group_title,
                     figsize=figsize,
                     save_path=group_save_path,
-                    quality_scores=quality_scores,
+                    pair_status=pair_status,
                     quality_factors=quality_factors,
                 )
 
@@ -1871,39 +1703,20 @@ def plot_pair_network(
     }
 
     # ── 4. Visual attributes ──────────────────────────────────────────────
-    # 3-category quality colours matching the GUI thresholds (Hanssen 2001)
-    _Q_GOOD  = '#4caf50'
-    _Q_RISKY = '#ffc107'
-    _Q_BAD   = '#f44336'
-    _Q_NONE  = '#888888'  # unscored
+    # Two states, matching the GUI. A pair is flagged concern when at least one
+    # serious extreme condition was detected at either acquisition — see
+    # insarhub.utils.pair_quality._events. There is no "bad": the events are
+    # environmental proxies and cannot support a claim that data is unusable.
+    _Q_HEALTHY = '#4caf50'
+    _Q_CONCERN   = '#ffc107'
+    _Q_NONE    = '#888888'   # not judged
 
-    def _quality_colour(sc: float | None) -> str:
-        if sc is None:  return _Q_NONE
-        # support both 0-1 (coherence) and 0-100 (pair quality) scales
-        v = sc if sc <= 1 else sc / 100.0
-        # Calibrated for TRUE (unfiltered) coherence (Kellndorfer et al. 2022):
-        # 12-day median ~0.31, 6-day median ~0.42. 0.60/0.30 were the
-        # Goldstein-filtered values and made every 12-day pair "risky"/"bad".
-        if v >= 0.40:  return _Q_GOOD
-        if v >= 0.25:  return _Q_RISKY
-        return _Q_BAD
-
-    # ── Extract per-class scores from quality_factors ─────────────────────
-    _LC_CLASSES = [
-        ("stable",     "🏗 Stable"),
-        ("vegetation", "🌾 Vegetation"),
-        ("forest",     "🌲 Forest"),
-    ]
-    _class_scores: dict[str, dict[str, float]] = {}   # {class: {pair_key: coh}}
-    if quality_factors:
-        for pair_key, fct in quality_factors.items():
-            by_cls = fct.get("coherence_by_class") or {}
-            for cls_name, coh_val in by_cls.items():
-                _class_scores.setdefault(cls_name, {})[pair_key] = float(coh_val)
-                # Also store reverse key
-                parts = pair_key.split(":", 1)
-                if len(parts) == 2:
-                    _class_scores[cls_name][f"{parts[1]}:{parts[0]}"] = float(coh_val)
+    def _status_colour(st: str | None) -> str:
+        if st == "concern":
+            return _Q_CONCERN
+        if st == "healthy":
+            return _Q_HEALTHY
+        return _Q_NONE
 
     degrees      = dict(G.degree())
     max_deg      = max(degrees.values(), default=1)
@@ -1912,15 +1725,14 @@ def plot_pair_network(
     edge_dts     = [G[a][b]["dt"] for a, b in G.edges()]
     max_dt       = max((d for d in edge_dts if d < _MISSING), default=1.0)
 
-    if quality_scores:
+    if pair_status:
         edge_colours = []
         edge_widths  = []
         for a, b in G.edges():
-            sc = quality_scores.get(f"{a}:{b}") or quality_scores.get(f"{b}:{a}")
-            edge_colours.append(_quality_colour(sc))
-            sv = (sc / 100.0 if sc is not None and sc > 1 else sc)
-            edge_widths.append(2.0 if sv is not None and sv >= 0.40 else
-                               1.2 if sv is not None and sv >= 0.25 else 0.7)
+            st = pair_status.get(f"{a}:{b}") or pair_status.get(f"{b}:{a}")
+            edge_colours.append(_status_colour(st))
+            edge_widths.append(2.0 if st == "healthy" else
+                               1.0 if st == "concern" else 0.7)
     else:
         edge_colours = [plt.cm.RdYlGn_r(min(dt, max_dt) / max_dt) for dt in edge_dts]
         edge_widths  = [0.5 + 2.5 * (1.0 - min(dt, max_dt) / max_dt) for dt in edge_dts]
@@ -1938,7 +1750,6 @@ def plot_pair_network(
     # ── 5. Figure layout ─────────────────────────────────────────────────
     # Main figure: network + histogram.
     # Per-class figures are saved separately when class data is available.
-    _has_class_data = bool(_class_scores)
     fig = plt.figure(figsize=figsize)
     gs  = fig.add_gridspec(1, 2, width_ratios=[3, 1], wspace=0.35)
     ax_net  = fig.add_subplot(gs[0])
@@ -2068,13 +1879,12 @@ def plot_pair_network(
     )
     ax_net.add_artist(deg_legend)
 
-    if quality_scores:
+    if pair_status:
         ax_net.legend(
             handles=[
-                mpatches.Patch(color=_Q_GOOD,  label="Good"),
-                mpatches.Patch(color=_Q_RISKY, label="Risky"),
-                mpatches.Patch(color=_Q_BAD,   label="Bad"),
-                mpatches.Patch(color=_Q_NONE,  label="Unscored"),
+                mpatches.Patch(color=_Q_HEALTHY, label="Healthy"),
+                mpatches.Patch(color=_Q_CONCERN,   label="Concern"),
+                mpatches.Patch(color=_Q_NONE,    label="Not judged"),
             ],
             title="Pair quality", loc="lower right", fontsize=11, title_fontsize=12,
         )
@@ -2106,107 +1916,6 @@ def plot_pair_network(
     if save_path:
         fig.savefig(save_path.as_posix(), dpi=300, bbox_inches="tight")
         print(f"Saved → {save_path}")
-
-    # ── 10. Per-LC-class figures (separate PNGs) ──────────────────────────
-    if _has_class_data and save_path:
-        sp   = Path(save_path)
-        stem = sp.stem
-        ext  = sp.suffix
-
-        for cls_name, cls_label in _LC_CLASSES:
-            cls_map = _class_scores.get(cls_name, {})
-            if not cls_map:
-                continue
-
-            c_colours, c_widths = [], []
-            for a, b in G.edges():
-                sc = cls_map.get(f"{a}:{b}") or cls_map.get(f"{b}:{a}")
-                c_colours.append(_quality_colour(sc))
-                sv = (sc / 100.0 if sc is not None and sc > 1 else sc)
-                c_widths.append(2.0 if sv is not None and sv >= 0.40 else
-                                1.2 if sv is not None and sv >= 0.25 else 0.7)
-
-            fig_c = plt.figure(figsize=figsize)
-            gs_c  = fig_c.add_gridspec(1, 2, width_ratios=[3, 1], wspace=0.35)
-            ax_c  = fig_c.add_subplot(gs_c[0])
-            ax_h  = fig_c.add_subplot(gs_c[1])
-
-            # Network
-            nx.draw_networkx_edges(
-                G, pos, ax=ax_c,
-                edgelist=list(G.edges()),
-                edge_color=c_colours,
-                width=c_widths,
-                alpha=0.7,
-            )
-            nx.draw_networkx_nodes(
-                G, pos, ax=ax_c,
-                node_color=node_colours,
-                node_size=80,
-                linewidths=0.5,
-                edgecolors="black",
-            )
-            nx.draw_networkx_labels(
-                G, pos,
-                labels={s: s[-8:] for s in G.nodes()},
-                ax=ax_c,
-                font_size=5,
-            )
-
-            ax_c.set_xlabel("Days since first acquisition", fontsize=11)
-            ax_c.set_ylabel("Perpendicular baseline [m]", fontsize=11)
-            ax_c.set_title(
-                f"{title} — {cls_label}\n{subtitle}\n"
-                f"{len(scenes)} scenes · {len(flat_pairs)} pairs",
-                fontsize=11,
-            )
-            ax_c.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
-            ax_c.set_frame_on(True)
-
-            ax2_c = ax_c.twiny()
-            ax2_c.set_xlim(ax_c.get_xlim())
-            ax2_c.set_xticks(x_ticks)
-            ax2_c.set_xticklabels(
-                [(t0 + __import__("datetime").timedelta(days=d)).strftime("%Y-%m-%d")
-                 for d in x_ticks],
-                rotation=30, ha="left", fontsize=7,
-            )
-            ax2_c.set_xlabel("Acquisition date (UTC)", fontsize=9)
-
-            ax_c.legend(
-                handles=[
-                    mpatches.Patch(color=_Q_GOOD,  label="Good  (≥0.40)"),
-                    mpatches.Patch(color=_Q_RISKY, label="Risky (0.25–0.40)"),
-                    mpatches.Patch(color=_Q_BAD,   label="Bad   (<0.25)"),
-                    mpatches.Patch(color=_Q_NONE,  label="Unscored"),
-                ],
-                title=f"{cls_label} coherence", loc="lower right",
-                fontsize=7, title_fontsize=8,
-            )
-
-            # Histogram (same degree info — identical across class figures)
-            ax_h.barh(
-                y_positions, scene_degrees,
-                color=bar_colours, edgecolor="white", linewidth=0.4, height=0.7,
-            )
-            for bar, count in zip(ax_h.patches, scene_degrees):
-                ax_h.text(bar.get_width() + 0.1,
-                          bar.get_y() + bar.get_height() / 2,
-                          str(count), va="center", fontsize=7)
-            ax_h.axvline(mean_deg, color="steelblue", linestyle="--",
-                         linewidth=1.0, alpha=0.8)
-            ax_h.set_yticks(y_positions)
-            ax_h.set_yticklabels(short_names, fontsize=6)
-            ax_h.set_xlabel("Number of connections", fontsize=9)
-            ax_h.set_title("Connections\nper scene", fontsize=10)
-            ax_h.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
-            ax_h.set_frame_on(True)
-            ax_h.invert_yaxis()
-
-            cls_path = sp.parent / f"{stem}_{cls_name}{ext}"
-            fig_c.savefig(cls_path.as_posix(), dpi=300, bbox_inches="tight")
-            plt.close(fig_c)
-            print(f"Saved → {cls_path}")
 
     return fig
 

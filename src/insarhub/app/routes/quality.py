@@ -1,27 +1,34 @@
 # -*- coding: utf-8 -*-
 """
-/api/pair-quality  — interferogram pair quality scoring endpoint.
+/api/pair-quality  — interferogram pair quality endpoint.
 
-Returns a quality score in [0, 1] (0 = likely good, 1 = likely bad) for
-every pair in a folder, computed from temporal/perpendicular baseline,
-snow conditions (Open-Meteo ERA5), and NDVI (MODIS or climatology).
+Returns "healthy" or "concern" for every pair in a folder. A pair is flagged
+concern when at least one serious extreme condition was detected at either
+acquisition —
+wet snow, deep snow, heavy rain, a large soil-moisture step — or when the S1
+global coherence decay model already predicts unusable coherence at the pair's
+temporal baseline. Each verdict carries the events and the measurements behind
+them; see insarhub.utils.pair_quality._events.
 
 Results are cached in <folder>/.insarhub_quality_cache.json so repeated
 calls are instant.
 """
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, HTTPException
 
-from insarhub.app.models import PairQualityResponse
+from insarhub.app.models import PairQualityLookupRequest, PairQualityResponse
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
 @router.get("/api/pair-quality", response_model=PairQualityResponse)
 async def get_pair_quality(path: str, force_refresh: bool = False):
-    """Compute and return quality scores for all pairs in *path*.
+    """Judge every pair in *path*: healthy, or concern.
 
     Query parameters
     ----------------
@@ -55,39 +62,62 @@ async def get_pair_quality(path: str, force_refresh: bool = False):
     def _run():
         import json
 
-        # Fast path: read pre-computed JSON written by select_pairs (stored in stack_p*_f*.json)
-        if not force_refresh:
-            merged_scores: dict = {}
+        def _from_stack_files():
+            """Return the pre-computed QualityResult, or None if none is stored."""
+            merged_status: dict = {}
             merged_factors: dict = {}
-            ndvi_sources: set = set()
             found_any = False
             for sfile in sorted(folder.glob("stack_p*_f*.json")):
                 try:
                     data = json.loads(sfile.read_text())
                     pq = data.get("pair_quality", {})
-                    merged_scores.update(pq.get("scores", {}))
+                    # Schema 1 stored a numeric "scores" map. Those numbers came
+                    # from a weighting that no longer exists and cannot be
+                    # mapped onto an event verdict, so a pre-event stack file
+                    # is treated as unjudged and rebuilt rather than migrated.
+                    merged_status.update(pq.get("status", {}))
                     merged_factors.update(pq.get("factors", {}))
-                    src = pq.get("ndvi_source", "climatology")
-                    if src:
-                        ndvi_sources.add(src)
-                    if pq.get("scores"):
+                    if pq.get("status"):
                         found_any = True
                 except Exception:
                     pass
-            if found_any:
-                # Normalise legacy 0-1 scores to 0-100
-                if merged_scores and max(merged_scores.values()) <= 1.5:
-                    merged_scores = {k: max(0, min(100, round(float(v) * 100))) for k, v in merged_scores.items()}
-                from insarhub.utils.pair_quality import QualityResult
-                return QualityResult(
-                    scores=merged_scores,
-                    factors=merged_factors,
-                    ndvi_source=next(iter(ndvi_sources), "climatology"),
-                    snow_fetched=0,
-                    cached=True,
-                )
+            if not found_any:
+                return None
+            from insarhub.utils.pair_quality import QualityResult
+            return QualityResult(
+                status=merged_status,
+                factors=merged_factors,
+                remote_fetches=0,
+                cached=True,
+                missing_dates=[],
+                thresholds={},
+            )
 
-        # Slow path: compute on demand (also updates cache)
+        # Fast path: read pre-computed JSON written by select_pairs (stored in stack_p*_f*.json)
+        if not force_refresh:
+            result = _from_stack_files()
+            if result is not None:
+                return result
+
+        from insarhub.utils.pair_quality._db import build_lock, is_building
+
+        # A background DB build populates exactly these verdicts, and select-pairs
+        # launches one immediately -- so an empty fast path usually means "not
+        # finished yet", not "nobody will ever compute this". Computing anyway
+        # duplicated every weather/snow/S3 request alongside the build and put
+        # two writers on one cache file. Wait for the build instead, then read
+        # what it produced.
+        if is_building(folder):
+            logger.info("Pair quality for %s is being built — waiting for it", folder.name)
+            with build_lock(folder):
+                pass
+            if not force_refresh:
+                result = _from_stack_files()
+                if result is not None:
+                    return result
+
+        # Slow path: compute on demand (also updates cache). PairQuality.compute()
+        # takes the same folder lock, so this stays serialised either way.
         from insarhub.utils.pair_quality import PairQuality
         pq = PairQuality(folder, force_refresh=force_refresh)
         return pq.compute(show_progress=False)
@@ -101,14 +131,15 @@ async def get_pair_quality(path: str, force_refresh: bool = False):
     # sending tens of MB over HTTP.  The GUI fetches per-pair factors on
     # demand via /api/pair-quality-db/lookup when the user hovers an edge.
     _FACTOR_LIMIT = 2000
-    factors = result.factors if len(result.scores) <= _FACTOR_LIMIT else {}
+    factors = result.factors if len(result.status) <= _FACTOR_LIMIT else {}
 
     return PairQualityResponse(
-        scores=result.scores,
+        status=result.status,
         factors=factors,
-        ndvi_source=result.ndvi_source,
-        snow_fetched=result.snow_fetched,
+        remote_fetches=result.remote_fetches,
         cached=result.cached,
+        missing_dates=result.missing_dates,
+        thresholds=result.thresholds,
     )
 
 
@@ -127,20 +158,8 @@ async def get_pair_quality_db_status(path: str):
     return PairQualityDB.status(folder)
 
 
-@router.get("/api/pair-quality-db/lookup")
-async def lookup_pair_quality_db(path: str, pairs: str):
-    """Return precomputed quality scores for the requested pairs.
-
-    Query parameters
-    ----------------
-    path  : absolute path to a job folder
-    pairs : comma-separated list of "ref:sec" pair keys
-
-    Response
-    --------
-    { "scores": {"ref:sec": 0.23, ...}, "factors": {"ref:sec": {...}, ...} }
-    If a pair is missing from the DB its key is omitted from the response.
-    """
+def _lookup_status(path: str, pair_keys: list[str]) -> dict:
+    """Shared implementation for the GET and POST pair-DB lookup routes."""
     from pathlib import Path
     from insarhub.utils.pair_quality._db import PairQualityDB, _load_db
 
@@ -154,24 +173,55 @@ async def lookup_pair_quality_db(path: str, pairs: str):
             detail="Pair quality DB not found. Run insarhub downloader --select-pairs first."
         )
 
-    pair_keys = [p.strip() for p in pairs.split(",") if ":" in p]
-    if not pair_keys:
+    valid = [k for k in (p.strip() for p in pair_keys) if ":" in k]
+    if not valid:
         raise HTTPException(status_code=400, detail="No valid pair keys provided (expect ref:sec format)")
 
     db = _load_db(folder)
-    scores_db  = db.get("scores", {})  if db else {}
+    status_db  = db.get("status", {})  if db else {}
     factors_db = db.get("factors", {}) if db else {}
 
-    legacy = scores_db and max(scores_db.values(), default=0) <= 1.5
-    out_scores:  dict[str, float] = {}
-    out_factors: dict[str, dict]  = {}
-    for key in pair_keys:
-        if key in scores_db:
-            v = scores_db[key]
-            out_scores[key]  = max(0, min(100, round(float(v) * 100))) if legacy else v
+    out_status:  dict[str, str]  = {}
+    out_factors: dict[str, dict] = {}
+    for key in valid:
+        if key in status_db:
+            out_status[key]  = status_db[key]
             out_factors[key] = factors_db.get(key, {})
 
-    return {"scores": out_scores, "factors": out_factors}
+    return {"status": out_status, "factors": out_factors}
+
+
+@router.get("/api/pair-quality-db/lookup")
+async def lookup_pair_quality_db(path: str, pairs: str):
+    """Return the precomputed verdict for the requested pairs.
+
+    Query parameters
+    ----------------
+    path  : absolute path to a job folder
+    pairs : comma-separated list of "ref:sec" pair keys
+
+    Prefer the POST form for large pair sets: a query string is capped at the
+    HTTP parser's ~64 KiB request line, so a stack with many pairs is rejected
+    with HTTP 400 before it reaches this handler.
+
+    Response
+    --------
+    { "status": {"ref:sec": "concern", ...}, "factors": {"ref:sec": {...}, ...} }
+    If a pair is missing from the DB its key is omitted from the response.
+    """
+    return _lookup_status(path, pairs.split(","))
+
+
+@router.post("/api/pair-quality-db/lookup")
+async def lookup_pair_quality_db_post(req: PairQualityLookupRequest):
+    """Same as the GET lookup, with the pair keys in the JSON body.
+
+    The network editor looks up every edge lacking a cached verdict — for a
+    large stack that is thousands of ~100-character keys. In a query string
+    that exceeds the HTTP parser's request-line limit and comes back as
+    HTTP 400; a request body has no such limit.
+    """
+    return _lookup_status(req.path, req.pairs)
 
 
 @router.get("/api/coherence-maps")

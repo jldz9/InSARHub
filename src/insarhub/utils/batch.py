@@ -78,7 +78,7 @@ def dis_scan(
         result_slc = slc.search()
 
     from insarhub.utils.defaults import SELECT_PAIRS_DEFAULTS as _SP
-    pairs, _, _, _ = select_pairs(
+    pairs, _, _ = select_pairs(
             result_slc,
             dt_targets=(12, 24, 36, 48, 72),  # quicklook: skip 6-day and 96-day
             dt_tol=_SP["dt_tol"],

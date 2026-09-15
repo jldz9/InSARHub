@@ -26,6 +26,15 @@ from insarhub.app.routes import auth, settings, search, folders, processor, anal
 
 app = FastAPI(title="InSARHub API")
 
+
+@app.middleware("http")
+async def _revalidate_html(request, call_next):
+    response = await call_next(request)
+    if response.headers.get("content-type", "").startswith("text/html"):
+        response.headers["Cache-Control"] = "no-cache"
+    return response
+
+
 # The production build is served by this same app (see the StaticFiles mount at
 # the bottom of this file), so the browser's requests are already same-origin
 # and no CORS headers are needed. CORS is only required for `npm run dev`, where

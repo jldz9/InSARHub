@@ -17,9 +17,6 @@ SELECT_PAIRS_DEFAULTS: dict = {
     "max_degree":             5,
     "force_connect":          True,
     "max_workers":            8,
-    "avoid_low_quality_days": True,
-    "snow_threshold":         0.5,
-    "precip_mm_threshold":    25.0,
 }
 
 # ── File download ─────────────────────────────────────────────────────────────
@@ -32,11 +29,6 @@ DOWNLOAD_DEFAULTS: dict = {
 # Represents a generic mid-latitude location (France/central Europe).
 # Used as a last resort so code never crashes on missing geometry.
 
-FALLBACK_AOI: dict = {
-    "lat": 45.0,
-    "lon": 0.0,
-    "wkt": "POLYGON ((0 45, 1 45, 1 46, 0 46, 0 45))",
-}
 
 # ── Season mapping (Northern Hemisphere) ─────────────────────────────────────
 # Used by pair-quality scoring, coherence modelling, and feature assembly.

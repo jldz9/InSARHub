@@ -156,13 +156,6 @@ def create_parser() -> argparse.ArgumentParser:
                          help=f"Force connectivity for isolated scenes (default: {_SP['force_connect']})")
     g_pairs.add_argument("--sp-workers", type=int, default=_SP["max_workers"], metavar="INT",
                          help=f"Threads for baseline API fallback (default: {_SP['max_workers']})")
-    g_pairs.add_argument("--no-avoid-low-quality-days", action="store_false", dest="avoid_low_quality_days",
-                         help="Disable weather/snow pre-filter (enabled by default)")
-    g_pairs.set_defaults(avoid_low_quality_days=_SP["avoid_low_quality_days"])
-    g_pairs.add_argument("--snow-threshold", type=float, default=_SP["snow_threshold"], metavar="FRAC",
-                         help=f"Snow cover fraction [0-1] above which a scene is dropped (default: {_SP['snow_threshold']})")
-    g_pairs.add_argument("--precip-mm-threshold", type=float, default=_SP["precip_mm_threshold"], metavar="MM",
-                         help=f"3-day precipitation (mm) above which a scene is dropped (default: {_SP['precip_mm_threshold']})")
     g_pairs.add_argument("--pairs-output", metavar="PATH", default=None,
                          help="Output file for pairs (default: <workdir>/pairs.json)")
 
@@ -1410,7 +1403,7 @@ def cmd_downloader(args, extra_args: list[str]):
 
     if args.select_pairs:
         merge_flag = getattr(args, "merge", False)
-        pairs, _baselines, _scene_bperp, _prefetch_cache, quality_scores, _quality_factors = downloader.select_pairs(
+        pairs, _baselines, _scene_bperp, pair_status, _quality_factors = downloader.select_pairs(
             dt_targets=tuple(args.dt_targets),
             dt_tol=args.dt_tol,
             dt_max=args.dt_max,
@@ -1419,13 +1412,10 @@ def cmd_downloader(args, extra_args: list[str]):
             max_degree=args.max_degree,
             force_connect=args.force_connect,
             max_workers=args.sp_workers,
-            avoid_low_quality_days=args.avoid_low_quality_days,
-            snow_threshold=args.snow_threshold,
-            precip_mm_threshold=args.precip_mm_threshold,
             merge=merge_flag,
         )
 
-        # Summary only — select_pairs() already wrote stack files, scored the
+        # Summary only — select_pairs() already wrote stack files, judged the
         # pairs, and saved the network plot(s).
         dl_workdir = downloader.config.workdir
         _sp = StackPaths(dl_workdir)
@@ -1435,12 +1425,17 @@ def cmd_downloader(args, extra_args: list[str]):
                 tag = _sp.dir_for(path, frame).name
                 subdir = dl_workdir if _dl_is_stack else dl_workdir / tag
                 stack_path = subdir / _sp.stack_file_for(path, frame).name
-                n_scored = len((quality_scores or {}).get((path, frame), {}))
-                print(f"[quality] {n_scored} selected pairs scored")
+                _st = (pair_status or {}).get((path, frame), {}) or {}
+                _concern = sum(1 for v in _st.values() if v == "concern")
+                print(f"[quality] {len(_st)} pairs judged — {_concern} concern, "
+                      f"{len(_st) - _concern} healthy")
                 print(f"[pairs] {tag}: {len(group_pairs)} pairs → {stack_path}")
         else:
             stack_path = dl_workdir / _sp.stack_file(0, 0).name
-            print(f"[quality] {len(quality_scores or {})} selected pairs scored")
+            _st = pair_status or {}
+            _concern = sum(1 for v in _st.values() if v == "concern")
+            print(f"[quality] {len(_st)} pairs judged — {_concern} concern, "
+                  f"{len(_st) - _concern} healthy")
             print(f"[pairs] Saved {len(pairs)} pairs → {stack_path}")
 
     if args.download:

@@ -19,9 +19,8 @@ from insarhub.config import S1_SLC_Config
 from insarhub.core.registry import Downloader
 from insarhub.app.routes.search import _download_workers, _EXECUTION_CONFIG_FIELDS
 from insarhub.app.state import _apply_config_from_dict, _new_job, _finish_job, read_insarhub_config, write_insarhub_config
-from insarhub.utils.pair_quality._cache import seed_prefetch
 from insarhub.utils.pair_quality._geom import footprint_wkt_from_products
-from insarhub.utils.stack_io import merge_db_scores_into_stack, write_stack_file
+from insarhub.utils.stack_io import merge_db_status_into_stack, write_stack_file
 
 router = APIRouter()
 
@@ -184,14 +183,14 @@ def _merge_stack_quality(folder: Path, stack_path: Path, pairs: list) -> None:
 
     write_stack_file() always leaves ``pair_quality`` empty — it runs before the
     DB exists. Without this follow-up the block stays empty forever, so
-    /api/pair-quality misses its fast path and recomputes every score on demand.
+    /api/pair-quality misses its fast path and re-judges every pair on demand.
     """
     try:
         stack_data = json.loads(stack_path.read_text())
     except Exception as exc:
         logger.warning("Could not read %s to merge pair quality: %s", stack_path.name, exc)
         return
-    merge_db_scores_into_stack(stack_path, stack_data, folder, pairs)
+    merge_db_status_into_stack(stack_path, stack_data, folder, pairs)
 
 
 def _launch_db_build(folder, scenes_by_stack, bperp_by_stack,
@@ -287,7 +286,7 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 _dl_is_stack and isinstance(active, dict)
                 and len(_active_paths) == 1 and len(active) > 1
             )
-            pairs, baselines, scene_bperp, prefetch_cache, _qs, _qf = downloader.select_pairs(
+            pairs, baselines, scene_bperp, _status, _qf = downloader.select_pairs(
                 dt_targets=tuple(req.dt_targets),
                 dt_tol=req.dt_tol,
                 dt_max=req.dt_max,
@@ -296,9 +295,6 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 max_degree=req.max_degree,
                 force_connect=req.force_connect,
                 max_workers=req.max_workers,
-                avoid_low_quality_days=req.avoid_low_quality_days,
-                snow_threshold=req.snow_threshold,
-                precip_mm_threshold=req.precip_mm_threshold,
                 merge=merge_flag,
                 quality_check=False,   # GUI scores via its own async DB build below
                 plot_network=False,
@@ -349,8 +345,6 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                     # the name _sp.dir_for(path, frame) would compute.
                     stack_path = subdir / _sp.stack_file_for(path, frame).name
                     write_stack_file(stack_path, group_pairs, sp, stack_scenes)
-                    state._jobs[job_id]["message"] = f"Building weather/snow cache — {label}…"
-                    seed_prefetch(subdir, prefetch_cache.get((path, frame), {}))
                     db_job_id = _launch_db_build(
                         subdir,
                         {(path, frame): stack_scenes},
@@ -372,8 +366,6 @@ async def _run_folder_select_pairs(job_id: str, req: SelectPairsRequest):
                 stack_scenes = scenes_by_stack.get((0, 0), [])
                 stack_path = folder / _sp.stack_file(0, 0).name
                 write_stack_file(stack_path, pairs, sp, stack_scenes)
-                state._jobs[job_id]["message"] = "Building weather/snow cache…"
-                seed_prefetch(folder, prefetch_cache)
                 db_job_id = _launch_db_build(
                     folder,
                     {(0, 0): stack_scenes},
@@ -454,6 +446,6 @@ async def save_folder_pairs(req: SavePairsRequest):
         stack_file.write_text(json.dumps(data, indent=2))
         # pair_quality still describes the pre-edit pair set — re-derive it from
         # the DB so scores line up with what was just saved.
-        merge_db_scores_into_stack(stack_file, data, folder, pairs)
+        merge_db_status_into_stack(stack_file, data, folder, pairs)
         saved.append(stack_file.name)
     return {"ok": True, "saved": saved}

@@ -8,17 +8,17 @@ All extractor modules share a single JSON file per folder:
 Structure
 ---------
 {
-  "_schema_version": 2,
+  "_schema_version": 3,
   "geometry":   { "<aoi_hash>": { ..., "_fetched_at": "ISO-8601" } },
-  "landcover":  { "<aoi_hash>": { ..., "_fetched_at": "ISO-8601" } },
-  "snow_modis": { "<lat>:<lon>:<date>": { ... } },
-  "weather":    { "<lat>:<lon>:<date>": { ... } },
+  "s1_coherence": { "map": { "<cache_key>": { ... } } },
+  "weather":    { "<lat>:<lon>:<date>": { ... } },   # AOI mean over the 0.1° grid
   "veg":        { "<source>:<lat>:<lon>:<year>:<month>": { ... } }
 }
 
 TTLs
 ----
-  geometry / landcover : 365 days  (static data, but allow annual refresh)
+  weather / s1_coherence : no TTL — ERA5 is immutable reanalysis and the S1
+                           coherence mosaics are a fixed 2019-2020 product
   everything else      : no expiry (historical reanalysis / satellite, immutable)
 """
 
@@ -34,13 +34,17 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 CACHE_FILE = ".insarhub_quality_cache.json"
-_SCHEMA_VERSION = 2
+# Schema 3 stores each weather date as the AOI-mean over the native 0.1° sample
+# grid. Schema 2 held a single centroid-cell reading under the same key, so it
+# is discarded rather than mixed with means.
+_SCHEMA_VERSION = 3
 
-# Sections that have a TTL; others never expire.
-_TTL_DAYS: dict[str, int] = {
-    "geometry":  365,
-    "landcover": 365,
-}
+# Sections that have a TTL; others never expire. Both live sections hold
+# immutable data — ERA5 reanalysis and a fixed 2019-2020 coherence product —
+# so nothing expires today. The table stays because a future mutable source
+# would need one, and because its absence is what let failed fetches persist
+# forever before has_measurements() was introduced.
+_TTL_DAYS: dict[str, int] = {}
 
 
 # ── Public helpers ────────────────────────────────────────────────────────────
@@ -48,6 +52,51 @@ _TTL_DAYS: dict[str, int] = {
 def aoi_hash(wkt: str) -> str:
     """Return an 8-character SHA-256 digest of the WKT string."""
     return hashlib.sha256(wkt.encode()).hexdigest()[:8]
+
+
+def has_measurements(feats: dict | None) -> bool:
+    """True when *feats* carries at least one real value from a data source.
+
+    A failed weather/snow fetch used to produce a dict of all-None fields.
+    That dict is *truthy*, so a plain ``if feats:`` accepted it and wrote the
+    failure into the cache — where, since the weather and snow sections have
+    no TTL, it stayed forever and every later run read nulls back as if they
+    were measurements. Anything deciding whether data is worth persisting has
+    to ask this question, not test the dict for emptiness.
+    """
+    if not feats:
+        return False
+    return any(
+        value is not None
+        for key, value in feats.items()
+        if not key.startswith("_") and key != "snow_source"
+    )
+
+
+def _drop_empty_measurements(raw: dict[str, Any]) -> dict[str, Any]:
+    """Discard weather/snow entries that hold no measurement.
+
+    Self-heal for caches written before failed fetches stopped being cached.
+    Those entries are all-None, never expire (neither section has a TTL), and
+    are read back as real "no snow, no rain" readings — so a folder scored
+    during an outage stayed wrong forever. Dropping them on load turns that
+    into a re-fetch on the next run. Sections holding genuinely expensive
+    results (the S1 coherence decay maps) are left untouched.
+    """
+    dropped = 0
+    for section in ("weather", "snow_modis"):
+        entries = raw.get(section)
+        if not isinstance(entries, dict):
+            continue
+        for key in [k for k, v in entries.items() if not has_measurements(v)]:
+            del entries[key]
+            dropped += 1
+    if dropped:
+        logger.warning(
+            "Discarded %d cached weather/snow entries with no data — these were "
+            "recorded from a failed fetch and will be re-fetched", dropped,
+        )
+    return raw
 
 
 class CacheManager:
@@ -68,7 +117,7 @@ class CacheManager:
             if raw.get("_schema_version") != _SCHEMA_VERSION:
                 logger.info("Cache schema mismatch — starting fresh")
                 return {"_schema_version": _SCHEMA_VERSION}
-            return raw
+            return _drop_empty_measurements(raw)
         except Exception as exc:
             logger.warning("Could not read quality cache: %s", exc)
             return {"_schema_version": _SCHEMA_VERSION}
@@ -113,28 +162,3 @@ class CacheManager:
             self._path.write_text(json.dumps(self._data, indent=2))
         except Exception as exc:
             logger.warning("Could not save quality cache: %s", exc)
-
-
-def seed_prefetch(folder: Path, prefetch: dict) -> None:
-    """Seed quality cache with weather/snow data from select_pairs() prefetch dict.
-
-    prefetch format: {"weather": {date: feats}, "snow": {date: feats}, "lat": float, "lon": float}
-    Shared by CLI and GUI so neither duplicates this logic.
-    """
-    weather = prefetch.get("weather", {})
-    snow    = prefetch.get("snow", {})
-    if not weather and not snow:
-        return
-    lat = prefetch.get("lat", 0.0)
-    lon = prefetch.get("lon", 0.0)
-    try:
-        cache = CacheManager(folder)
-        for date, feats in weather.items():
-            if feats:
-                cache.set("weather", f"{lat:.3f}:{lon:.3f}:{date}", feats)
-        for date, feats in snow.items():
-            if feats:
-                cache.set("snow_modis", f"{lat:.3f}:{lon:.3f}:{date}", feats)
-        cache.save()
-    except Exception as exc:
-        logger.warning("Could not seed quality cache for %s: %s", folder, exc)

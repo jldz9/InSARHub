@@ -15,9 +15,8 @@
   },
   "networkEditor": {
     "quality": {
-      "good": "Good",
-      "risky": "Risky",
-      "bad": "Bad"
+      "healthy": "Healthy",
+      "concern": "Concern"
     },
     "interferogram": "Interferogram",
     "pairQuality": "Pair Quality",
@@ -25,8 +24,6 @@
     "sec": "Sec",
     "perpBaseline": "⊥ baseline",
     "coherence": "Coherence",
-    "score": "Score",
-    "source": "Source",
     "absCoherence": "Abs. coherence",
     "psFloor": "PS floor (ρ∞)",
     "seasons": "Seasons",
@@ -34,27 +31,7 @@
     "hardKills": "Hard kills:",
     "warnings": "Warnings:",
     "qualityPenalties": "Quality penalties:",
-    "penalties": "Penalties:",
     "hoverForDetails": "hover for details",
-    "unscored": "Unscored",
-    "kills": {
-      "waterDominant": "Water dominant",
-      "heavyRain": "Heavy rain (>30 mm)",
-      "heavySnowCover": "Heavy snow cover (>90%)",
-      "deepSnow": "Deep snow (>50 cm)"
-    },
-    "kills2": {
-      "waterDominant": "Water dominant (>50%)",
-      "snowIceDominant": "Snow/ice dominant (>40%)",
-      "heavyRain": "Heavy rain (>30 mm/day)",
-      "wetSnow": "Wet snow (temp >0°C + snow >30%)",
-      "freshSnowfall": "Fresh snowfall (Δcover >50%)",
-      "heavySnowCover": "Heavy snow cover (>90%)",
-      "fire": "Fire detected (FIRMS)"
-    },
-    "s1Global": "S1 Global",
-    "ndviLc": "NDVI/LC",
-    "clim": "Clim",
     "globalS1Coherence": "Global S1 coherence",
     "climatology": "Climatology",
     "jobFailed": "Job failed",
@@ -91,10 +68,6 @@
     "minConnections": "Min connections",
     "maxConnections": "Max connections",
     "forceConnectedNetwork": "Force connected network",
-    "avoidLowQualityDays": "Avoid low-quality acquisition days",
-    "fetchesWeatherSnow": "(fetches weather & snow)",
-    "snowCoverThreshold": "Snow cover threshold (0–1)",
-    "precipThreshold": "3-day precip threshold (mm)",
     "updateNetwork": "Update Network",
     "loadingNetworkData": "Loading network data…",
     "removed": "removed",
@@ -112,7 +85,26 @@
     "dbBuildFailed": "DB build failed",
     "buildingPairDatabase": "Building pair database…",
     "acquisitionDate": "Acquisition Date",
-    "perpBaselineM": "⊥ baseline (m)"
+    "perpBaselineM": "⊥ baseline (m)",
+    "events": "Detected events",
+    "noEvents": "No extreme conditions detected",
+    "notJudged": "Not judged",
+    "expectedCoherence": "Expected γ",
+    "coherenceUnavailable": "coherence unavailable",
+    "crossSeason": "cross-season",
+    "events2": {
+      "wet_snow": "wet snow",
+      "deep_snow": "deep snow",
+      "fresh_snowfall": "fresh snowfall",
+      "heavy_rain": "heavy rain",
+      "rain": "rain",
+      "high_wind": "high wind",
+      "freeze_thaw": "freeze–thaw",
+      "soil_moisture_change": "soil moisture change",
+      "soil_moisture_shift": "soil moisture shift",
+      "low_coherence": "low expected coherence",
+      "marginal_coherence": "marginal expected coherence"
+    }
   },
   "settings": {
     "type": "Type",

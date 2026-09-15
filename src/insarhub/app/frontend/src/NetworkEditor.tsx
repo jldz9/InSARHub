@@ -126,51 +126,70 @@ function computeLayout(rawNodes: RawNode[], W: number, H: number): LayoutNode[] 
  * Quality-risk colour ramp: blue (0 = good) → yellow (0.5) → red (1 = bad).
  * Matches the Python _QUALITY_CMAP used in plot_pair_network.
  */
-// Two score scales:
-//   Coherence mode (analyzer): 0–1 float  — Good ≥0.40, Risky 0.25–0.40, Bad <0.25
-//   Quality mode (pair quality): 0–100 int — Good ≥40,  Risky 25–39,   Bad <25
-// Calibrated for TRUE (unfiltered) coherence from the global S1 seasonal
-// coherence dataset (Kellndorfer et al. 2022): 12-day median ~0.31, 6-day
-// median ~0.42. The previous 0.60/0.30 values assumed Goldstein-filtered
-// coherence, which inflates the scale.
-function qualityCategory(score: number): 'good' | 'risky' | 'bad' {
-  if (score <= 1) {
-    if (score >= 0.4) return 'good'
-    if (score >= 0.25) return 'risky'
-    return 'bad'
-  }
-  if (score >= 40) return 'good'
-  if (score >= 25) return 'risky'
-  return 'bad'
+// Pair quality is a verdict, not a score. A pair is "concern" when at least one
+// serious extreme condition was detected at either acquisition, or when the S1
+// decay model already predicts unusable coherence at its temporal baseline —
+// see insarhub/utils/pair_quality/_events.py. There is no "bad": the events
+// are environmental proxies and cannot support a claim that data is unusable.
+type PairStatus = 'healthy' | 'concern'
+
+/** One extreme condition detected for a pair, as returned in `factors.events`. */
+interface PairEvent {
+  kind:     string
+  severity: 'serious' | 'minor'
+  detail:   string
+  date?:    string | null
 }
 
-const _CAT_HEX  = { good: 0x4caf50, risky: 0xffc107, bad: 0xf44336 } as const
-const _CAT_CSS  = { good: '#4caf50', risky: '#ffc107', bad: '#f44336' } as const
-// JSX render sites translate category labels via networkEditor.quality.<cat>
-const _CAT_LABEL_KEYS = { good: 'networkEditor.quality.good', risky: 'networkEditor.quality.risky', bad: 'networkEditor.quality.bad' } as const
+const _CAT_HEX  = { healthy: 0x4caf50, concern: 0xffc107 } as const
+const _CAT_CSS  = { healthy: '#4caf50', concern: '#ffc107' } as const
+// JSX render sites translate labels via networkEditor.quality.<status>
+const _CAT_LABEL_KEYS = {
+  healthy: 'networkEditor.quality.healthy',
+  concern:   'networkEditor.quality.concern',
+} as const
 
-function qualityHex(score: number): number {
-  return _CAT_HEX[qualityCategory(score)]
-}
+function statusHex(st: PairStatus): number { return _CAT_HEX[st] }
 
-function qualityCSS(score: number, alpha: number): string {
-  const hex = _CAT_CSS[qualityCategory(score)]
-  // parse hex to rgba
+function statusCSS(st: PairStatus, alpha: number): string {
+  const hex = _CAT_CSS[st]
   const r = parseInt(hex.slice(1, 3), 16)
   const g = parseInt(hex.slice(3, 5), 16)
   const b = parseInt(hex.slice(5, 7), 16)
   return `rgba(${r},${g},${b},${alpha})`
 }
 
-/** Return quality score (1=good, 0=bad) for an edge, or null if not yet loaded. */
-function edgeScore(e: Edge, quality: Record<string, number> | null): number | null {
-  if (!quality) return null
-  const v = quality[`${e.ref}:${e.sec}`] ?? quality[`${e.sec}:${e.ref}`]
+/** Return the verdict for an edge, or null if not judged / not yet loaded. */
+function edgeStatus(e: Edge, status: Record<string, string> | null): PairStatus | null {
+  if (!status) return null
+  const v = status[`${e.ref}:${e.sec}`] ?? status[`${e.sec}:${e.ref}`]
+  return v === 'healthy' || v === 'concern' ? v : null
+}
+
+// MintPy mode colours edges by MEASURED coherence from the override URL rather
+// than by the verdict — a different question, so it keeps its own ramp.
+// Thresholds calibrated for TRUE (unfiltered) coherence from the global S1
+// seasonal dataset (Kellndorfer et al. 2022): 12-day median ~0.31, 6-day ~0.42.
+const _COH_HIGH = 0.40
+const _COH_LOW  = 0.25
+
+function coherenceHex(v: number): number {
+  return v >= _COH_HIGH ? 0x4caf50 : v >= _COH_LOW ? 0xffc107 : 0xf44336
+}
+
+function coherenceCSS(v: number): string {
+  return v >= _COH_HIGH ? '#4caf50' : v >= _COH_LOW ? '#ffc107' : '#f44336'
+}
+
+/** Measured coherence for an edge in MintPy mode, or null. */
+function edgeCoherence(e: Edge, coh: Record<string, number> | null): number | null {
+  if (!coh) return null
+  const v = coh[`${e.ref}:${e.sec}`] ?? coh[`${e.sec}:${e.ref}`]
   return v ?? null
 }
 
-const _UNSCORED_HEX = 0x888888
-const _UNSCORED_CSS = '#888888'
+const _UNJUDGED_HEX = 0x888888
+const _UNJUDGED_CSS = '#888888'
 
 /** Draw a dashed line on a Graphics object (all segments, then one stroke call). */
 function dashLine(
@@ -217,9 +236,6 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const [minDegree,           setMinDegree]           = useState(3)
   const [maxDegree,           setMaxDegree]           = useState(5)
   const [forceConnect,        setForceConnect]        = useState(true)
-  const [avoidLowQuality,     setAvoidLowQuality]     = useState(true)
-  const [snowThreshold,       setSnowThreshold]       = useState(0.5)
-  const [precipMmThreshold,   setPrecipMmThreshold]   = useState(25.0)
   const [updating,     setUpdating]     = useState(false)
   const [updateMsg,    setUpdateMsg]    = useState('')
 
@@ -255,11 +271,12 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       })
       .catch(() => {})
   }, [mintpyMode, folderPath])
-  const [qualityScores,    setQualityScores]     = useState<Record<string, number> | null>(null)
+  const [pairStatus,       setPairStatus]        = useState<Record<string, string> | null>(null)
+  const [cohScores,        setCohScores]         = useState<Record<string, number> | null>(null)
   const [qualityFactors,   setQualityFactors]    = useState<Record<string, any> | null>(null)
   const qualityFactorsRef  = useRef<Record<string, any> | null>(null)
   // Scores/factors for manually drawn edges — persisted across quality re-fetches
-  const manualScoresRef  = useRef<Record<string, number>>({})
+  const manualStatusRef  = useRef<Record<string, string>>({})
   const manualFactorsRef = useRef<Record<string, any>>({})
 
   // Refs — mutated without re-renders
@@ -301,7 +318,13 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     const hov    = hoveredRef.current
     const nodeMap = new Map(nodes.map(n => [n.id, n]))
 
-    const _edgeScore = (e: Edge): number | null => edgeScore(e, qualityRef.current)
+    // MintPy mode colours by measured coherence; otherwise by the verdict.
+    const _edgeColour = (e: Edge): number => {
+      const c = edgeCoherence(e, cohRef.current)
+      if (c !== null) return coherenceHex(c)
+      const st = edgeStatus(e, qualityRef.current)
+      return st === null ? _UNJUDGED_HEX : statusHex(st)
+    }
 
     // s = current zoom scale; divide all screen-space sizes by s so they stay
     // constant in CSS pixels regardless of zoom level.
@@ -356,11 +379,11 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       } else if (hasNodeHov && connectedEdgeSet.has(i)) {
         // Connected to hovered node — brighter and thicker
         edgeGfx.moveTo(n1.x, n1.y).lineTo(n2.x, n2.y)
-        edgeGfx.stroke({ width: 2.5 / s, color: (() => { const sc = _edgeScore(e); return sc === null ? _UNSCORED_HEX : qualityHex(sc) })(), alpha: 1 })
+        edgeGfx.stroke({ width: 2.5 / s, color: _edgeColour(e), alpha: 1 })
       } else if (e.active) {
         edgeGfx.moveTo(n1.x, n1.y).lineTo(n2.x, n2.y)
         // Dim unrelated edges when a node is hovered
-        edgeGfx.stroke({ width: 1.5 / s, color: (() => { const sc = _edgeScore(e); return sc === null ? _UNSCORED_HEX : qualityHex(sc) })(), alpha: hasNodeHov ? 0.15 : 0.75 })
+        edgeGfx.stroke({ width: 1.5 / s, color: _edgeColour(e), alpha: hasNodeHov ? 0.15 : 0.75 })
       } else {
         removedPaths.push([n1.x, n1.y, n2.x, n2.y])
       }
@@ -442,7 +465,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     }
   }, [])
 
-  // ── Lookup DB scores for edges missing from qualityRef ───────────────────────
+  // ── Look up DB verdicts for edges missing from qualityRef ───────────────────
 
   function lookupMissingScores() {
     const edges = edgesRef.current
@@ -451,14 +474,18 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       !((`${e.ref}:${e.sec}` in existing) || (`${e.sec}:${e.ref}` in existing))
     )
     if (missing.length === 0) return
-    const keys = missing.flatMap(e => [`${e.ref}:${e.sec}`, `${e.sec}:${e.ref}`]).join(',')
-    fetch(`${API}/api/pair-quality-db/lookup?path=${encodeURIComponent(folderPathRef.current)}&pairs=${encodeURIComponent(keys)}`)
+    const keys = missing.flatMap(e => [`${e.ref}:${e.sec}`, `${e.sec}:${e.ref}`])
+    fetch(`${API}/api/pair-quality-db/lookup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ path: folderPathRef.current, pairs: keys }),
+    })
       .then(r => r.ok ? r.json() : null)
       .then(d => {
-        if (!d?.scores || Object.keys(d.scores).length === 0) return
-        qualityRef.current = { ...(qualityRef.current ?? {}), ...d.scores }
+        if (!d?.status || Object.keys(d.status).length === 0) return
+        qualityRef.current = { ...(qualityRef.current ?? {}), ...d.status }
         qualityFactorsRef.current = { ...(qualityFactorsRef.current ?? {}), ...(d.factors ?? {}) }
-        setQualityScores(prev => ({ ...(prev ?? {}), ...d.scores }))
+        setPairStatus(prev => ({ ...(prev ?? {}), ...d.status }))
         setQualityFactors(prev => ({ ...(prev ?? {}), ...(d.factors ?? {}) }))
         redraw()
       })
@@ -496,21 +523,21 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
       }
     })
     edgesRef.current = edges
-    // Apply coherence override as quality scores so edges are coloured by coherence.
-    // API returns "YYYYMMDD_YYYYMMDD" keys; edgeScore() expects "YYYYMMDD:YYYYMMDD".
+    // MintPy mode: colour edges by measured coherence, kept separate from the
+    // pair-quality verdict. API returns "YYYYMMDD_YYYYMMDD"; we key on ":".
     if (cohOverrideRef.current) {
       const converted: Record<string, number> = {}
       for (const [k, v] of Object.entries(cohOverrideRef.current)) {
         converted[k.replace('_', ':')] = v
       }
-      qualityRef.current = converted
-      setQualityScores(converted)
+      cohRef.current = converted
+      setCohScores(converted)
     }
     setActiveCount(edges.filter(e => e.active).length)
     setTotalCount(edges.length)
     hoveredRef.current = -1
     setHovEdge(null)
-    // After edges are set, look up DB scores for any pairs not in the quality JSON
+    // After edges are set, look up DB verdicts for pairs not in the quality JSON
     if (!saveUrlRef.current) setTimeout(() => lookupMissingScores(), 0)
 
     // Reset view
@@ -817,23 +844,27 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                   bperpDiff: Math.abs(src.bperp - tgt.bperp),
                 })
                 setTotalCount(edges.length)
-                // Look up precomputed quality score for the new pair from DB.
+                // Look up the precomputed verdict for the new pair from the DB.
                 // If DB isn't ready yet, retry once the status shows complete.
                 const pairKey = `${src.id}:${tgt.id}`
                 const altKey  = `${tgt.id}:${src.id}`
                 const applyDragScore = (d: any) => {
-                  if (!d?.scores || Object.keys(d.scores).length === 0) return false
-                  manualScoresRef.current  = { ...manualScoresRef.current,  ...d.scores }
+                  if (!d?.status || Object.keys(d.status).length === 0) return false
+                  manualStatusRef.current  = { ...manualStatusRef.current,  ...d.status }
                   manualFactorsRef.current = { ...manualFactorsRef.current, ...(d.factors ?? {}) }
-                  qualityRef.current = { ...(qualityRef.current ?? {}), ...d.scores }
+                  qualityRef.current = { ...(qualityRef.current ?? {}), ...d.status }
                   qualityFactorsRef.current = { ...(qualityFactorsRef.current ?? {}), ...(d.factors ?? {}) }
-                  setQualityScores(prev => ({ ...(prev ?? {}), ...d.scores }))
+                  setPairStatus(prev => ({ ...(prev ?? {}), ...d.status }))
                   setQualityFactors(prev => ({ ...(prev ?? {}), ...(d.factors ?? {}) }))
                   redraw()
                   return true
                 }
-                const lookupUrl = `${API}/api/pair-quality-db/lookup?path=${encodeURIComponent(folderPathRef.current)}&pairs=${encodeURIComponent(pairKey)},${encodeURIComponent(altKey)}`
-                fetch(lookupUrl)
+                const lookup = () => fetch(`${API}/api/pair-quality-db/lookup`, {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ path: folderPathRef.current, pairs: [pairKey, altKey] }),
+                })
+                lookup()
                   .then(r => r.ok ? r.json() : null)
                   .then(d => {
                     if (applyDragScore(d)) return
@@ -845,7 +876,7 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                           if (!s?.complete) return
                           clearInterval(poll)
                           dbAvailableRef.current = true
-                          fetch(lookupUrl).then(r => r.ok ? r.json() : null).then(applyDragScore).catch(() => {})
+                          lookup().then(r => r.ok ? r.json() : null).then(applyDragScore).catch(() => {})
                         })
                         .catch(() => clearInterval(poll))
                     }, 3000)
@@ -941,7 +972,8 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
   const saveUrlRef      = useRef(saveUrl)
   useEffect(() => { saveUrlRef.current = saveUrl }, [saveUrl])
   // Quality scores keyed by "ref:sec" — null means not yet loaded
-  const qualityRef      = useRef<Record<string, number> | null>(null)
+  const qualityRef      = useRef<Record<string, string> | null>(null)
+  const cohRef          = useRef<Record<string, number> | null>(null)
   // Whether the precomputed full pair DB is available for this folder
   const dbAvailableRef  = useRef(false)
   useEffect(() => { stacksRef.current = stacks },       [stacks])
@@ -994,9 +1026,9 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     fetch(`${API}/api/pair-quality?path=${encodeURIComponent(folderPath)}`)
       .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() })
       .then(d => {
-        qualityRef.current = { ...(d.scores ?? {}), ...manualScoresRef.current }
+        qualityRef.current = { ...(d.status ?? {}), ...manualStatusRef.current }
         qualityFactorsRef.current = { ...(d.factors ?? {}), ...manualFactorsRef.current }
-        setQualityScores({ ...(d.scores ?? {}), ...manualScoresRef.current })
+        setPairStatus({ ...(d.status ?? {}), ...manualStatusRef.current })
         setQualityFactors({ ...(d.factors ?? {}), ...manualFactorsRef.current })
         redraw()
         lookupMissingScores()
@@ -1043,16 +1075,16 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
     ps.world.scale.set(1)
   }
 
-  async function refreshQualityScores() {
+  async function refreshPairStatus() {
     qualityRef.current = null
     qualityFactorsRef.current = null
     try {
       const r = await fetch(`${API}/api/pair-quality?path=${encodeURIComponent(folderPath)}`)
       const d = r.ok ? await r.json() : null
       if (d) {
-        qualityRef.current = d.scores ?? {}
+        qualityRef.current = d.status ?? {}
         qualityFactorsRef.current = d.factors ?? {}
-        setQualityScores(d.scores ?? {})
+        setPairStatus(d.status ?? {})
         setQualityFactors(d.factors ?? {})
         redraw()
       }
@@ -1072,9 +1104,6 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           dt_max: dtMax, pb_max: pbMax,
           min_degree: minDegree, max_degree: maxDegree,
           force_connect: forceConnect,
-          avoid_low_quality_days: avoidLowQuality,
-          snow_threshold: snowThreshold,
-          precip_mm_threshold: precipMmThreshold,
         }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -1132,11 +1161,11 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
         })()
       }
 
-      // Scoring the SELECTED pairs is separate and much faster — /api/pair-quality
-      // computes it on demand for just this stack's pairs, not all N×(N-1)/2
-      // combinations. Await it so edges are actually colored by the time Done shows.
+      // Judging the SELECTED pairs is separate and much faster — /api/pair-quality
+      // does it on demand for just this stack's pairs, not all N×(N-1)/2
+      // combinations. Await it so edges are actually coloured by the time Done shows.
       setUpdateMsg(tr('networkEditor.scoringPairQuality'))
-      await refreshQualityScores()
+      await refreshPairStatus()
       setUpdateMsg(tr('jobQueue.done'))
     } catch (e) {
       setError(String(e)); setUpdateMsg('')
@@ -1476,29 +1505,6 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
                         style={{ accentColor: t.accent, width: 14, height: 14 }} />
                       {tr('networkEditor.forceConnectedNetwork')}
                     </label>
-                    <div style={{ borderTop: `1px solid ${t.border}`, paddingTop: 10 }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 12, color: t.text, marginBottom: 8 }}>
-                        <input type="checkbox" checked={avoidLowQuality}
-                          onChange={e => setAvoidLowQuality(e.target.checked)}
-                          style={{ accentColor: t.accent, width: 14, height: 14 }} />
-                        {tr('networkEditor.avoidLowQualityDays')}
-                        <span style={{ color: t.textMuted, fontSize: 10 }}>{tr('networkEditor.fetchesWeatherSnow')}</span>
-                      </label>
-                      {avoidLowQuality && (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginLeft: 20 }}>
-                          <div>
-                            <label style={lbl}>{tr('networkEditor.snowCoverThreshold')}</label>
-                            <input type="number" style={inp} value={snowThreshold} min={0} max={1} step={0.05}
-                              onChange={e => setSnowThreshold(parseFloat(e.target.value) || 0)} />
-                          </div>
-                          <div>
-                            <label style={lbl}>{tr('networkEditor.precipThreshold')}</label>
-                            <input type="number" style={inp} value={precipMmThreshold} min={0} step={5}
-                              onChange={e => setPrecipMmThreshold(parseFloat(e.target.value) || 0)} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
                   </div>
                   {/* footer */}
                   <div style={{
@@ -1547,15 +1553,19 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
             display: 'flex', flexDirection: 'column', gap: 4,
           }}>
             <span style={{ color: t.text, fontWeight: 600, marginBottom: 2 }}>{saveUrl ? tr('networkEditor.coherence') : tr('networkEditor.pairQuality')}</span>
-            {(saveUrl
-              ? [{ score: 0.5, label: 'good' as const }, { score: 0.32, label: 'risky' as const }, { score: 0.15, label: 'bad' as const }]
-              : [{ score: 60, label: 'good' as const }, { score: 32,   label: 'risky' as const }, { score: 15,   label: 'bad' as const }]
-            ).map(({ score, label }) => (
-              <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
-                <div style={{ width: 28, height: 3, background: qualityCSS(score, 0.9), borderRadius: 1 }} />
-                <span>{tr(_CAT_LABEL_KEYS[label])}</span>
-              </div>
-            ))}
+            {saveUrl
+              ? [0.5, 0.32, 0.15].map(v => (
+                  <div key={v} style={{ display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
+                    <div style={{ width: 28, height: 3, background: coherenceCSS(v), borderRadius: 1 }} />
+                    <span>{v >= 0.40 ? '\u2265 0.40' : v >= 0.25 ? '0.25 \u2013 0.40' : '< 0.25'}</span>
+                  </div>
+                ))
+              : (['healthy', 'concern'] as const).map(st => (
+                  <div key={st} style={{ display: 'flex', alignItems: 'center', gap: 6, pointerEvents: 'none' }}>
+                    <div style={{ width: 28, height: 3, background: statusCSS(st, 0.9), borderRadius: 1 }} />
+                    <span>{tr(_CAT_LABEL_KEYS[st])}</span>
+                  </div>
+                ))}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, pointerEvents: 'none' }}>
               <div style={{ width: 28, height: 0, borderTop: `2px dashed #e57373` }} />
               <span style={{ color: '#e57373' }}>{tr('networkEditor.removed')}</span>
@@ -1608,169 +1618,67 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
           })()}
 
           {/* Floating edge tooltip on edge hover */}
+          {/* Floating edge tooltip on edge hover */}
           {hovEdge && !hovNode && mousePos && (() => {
             const fct = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
                      ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
-            const sc  = edgeScore(hovEdge, qualityScores)
-            const cat = sc !== null ? qualityCategory(sc) : null
+            const st  = edgeStatus(hovEdge, pairStatus)
+            const coh = edgeCoherence(hovEdge, cohScores)
+            const events: PairEvent[] = fct?.events ?? []
+            const expected = fct?.coherence_expected as number | null | undefined
 
-            // Detect scoring mode from factor keys
-            const isCohMode = fct && 'coherence_source' in fct
-            const isLcMode  = fct && 'contributions' in fct
-
-            // Normalise hard kills: coherence_score uses singular string, lc_score uses array
-            const _KILL_LABEL: Record<string, string> = {
-              water_dominant:   tr('networkEditor.kills2.waterDominant'),
-              snow_ice_dominant:tr('networkEditor.kills2.snowIceDominant'),
-              heavy_rain:       tr('networkEditor.kills2.heavyRain'),
-              wet_snow:         tr('networkEditor.kills2.wetSnow'),
-              fresh_snowfall:   tr('networkEditor.kills2.freshSnowfall'),
-              heavy_snow_cover: tr('networkEditor.kills2.heavySnowCover'),
-              fire:             tr('networkEditor.kills2.fire'),
-            }
-            const _killLabel = (k: string) => _KILL_LABEL[k] ?? k.replace(/_/g, ' ')
-            const kills: string[] = isCohMode
-              ? (fct?.hard_kill ? [_killLabel(String(fct.hard_kill))] : [])
-              : (fct?.hard_kills ?? [])
-            const warnings: string[] = fct?.warnings ?? []
-
-            // Coherence source badge
-            const cohSrc     = fct?.coherence_source as string | undefined
-            const cohSrcLabel = cohSrc === 's3' ? tr('networkEditor.globalS1Coherence') : cohSrc === 'failed' ? tr('networkEditor.ndviLc') : cohSrc === 'climatology' ? tr('networkEditor.climatology') : undefined
-            const cohSrcColor = cohSrc === 's3' ? '#4caf50' : cohSrc === 'failed' ? '#90caf9' : '#ffc107'
-
-            // Coherence segments from _coherence.py: [(dt, season, coh), ...]
-            const segments: [number, string, number][] = fct?.coherence_segments ?? []
-
-            // Penalty breakdown dict from backend (quality fraction lost per feature)
-            const cohPenalties: [string, number][] = isCohMode
-              ? Object.entries((fct?.penalties ?? {}) as Record<string, number>)
-                  .filter(([, v]) => v > 0.001)
-                  .sort((a, b) => b[1] - a[1])
-              : []
-
-            const lcContribs: Record<string, number> = isLcMode ? (fct?.contributions ?? {}) : {}
-
-            const container = containerRef.current
-            const cw = container?.clientWidth  ?? 800
-            const ch = container?.clientHeight ?? 600
-            const flip_x = mousePos.x + 270 > cw
-            const flip_y = mousePos.y + 280 > ch
             return (
               <div style={{
-                position: 'absolute',
-                left: flip_x ? mousePos.x - 268 : mousePos.x + 14,
-                top:  flip_y ? mousePos.y - 270 : mousePos.y + 10,
-                zIndex: 30, pointerEvents: 'none',
-                background: t.bg2, border: `1px solid ${t.border}`,
-                borderRadius: 6, padding: '8px 12px',
-                boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-                minWidth: 240, fontSize: 12, color: t.text,
+                position: 'fixed', left: mousePos.x + 14, top: mousePos.y + 14, zIndex: 50,
+                background: t.bg2, border: `1px solid ${t.border}`, borderRadius: 6,
+                padding: '8px 10px', fontSize: 11, color: t.text, pointerEvents: 'none',
+                maxWidth: 380, boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
               }}>
-                <div style={{ fontWeight: 700, marginBottom: 6, color: t.accent }}>{saveUrl ? tr('networkEditor.interferogram') : tr('networkEditor.pairQuality')}</div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '4px 12px', marginBottom: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '3px 10px', marginBottom: events.length ? 8 : 0 }}>
                   <span style={{ color: t.textMuted }}>{tr('networkEditor.ref')}</span>
                   <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.ref : nodeDateId(hovEdge.ref)}</span>
                   <span style={{ color: t.textMuted }}>{tr('networkEditor.sec')}</span>
                   <span style={{ fontFamily: 'monospace', fontSize: 10 }}>{saveUrl ? hovEdge.sec : nodeDateId(hovEdge.sec)}</span>
-                  <span style={{ color: t.textMuted }}>Δt</span>
+                  <span style={{ color: t.textMuted }}>&Delta;t</span>
                   <span>{tr('jobQueue.days', { count: Math.round(hovEdge.dt) })}</span>
                   <span style={{ color: t.textMuted }}>{tr('networkEditor.perpBaseline')}</span>
                   <span>{Math.round(hovEdge.bperpDiff)} m</span>
-                  {sc !== null && cat && <>
-                    <span style={{ color: t.textMuted }}>{saveUrl ? tr('networkEditor.coherence') : tr('networkEditor.score')}</span>
-                    <span style={{ color: _CAT_CSS[cat], fontWeight: 700 }}>
-                      {tr(_CAT_LABEL_KEYS[cat])} ({Number.isInteger(sc) ? sc : sc.toFixed(2)})
-                    </span>
+                  {coh !== null && <>
+                    <span style={{ color: t.textMuted }}>{tr('networkEditor.coherence')}</span>
+                    <span style={{ color: coherenceCSS(coh), fontWeight: 700 }}>{coh.toFixed(2)}</span>
                   </>}
-                  {/* Coherence mode: show source + expected coherence */}
-                  {isCohMode && cohSrcLabel && <>
-                    <span style={{ color: t.textMuted }}>{tr('networkEditor.source')}</span>
-                    <span style={{ color: cohSrcColor, fontSize: 10 }}>{cohSrcLabel}</span>
+                  {st && <>
+                    <span style={{ color: t.textMuted }}>{tr('networkEditor.pairQuality')}</span>
+                    <span style={{ color: _CAT_CSS[st], fontWeight: 700 }}>{tr(_CAT_LABEL_KEYS[st])}</span>
                   </>}
-                  {isCohMode && fct?.coherence_abs != null && <>
-                    <span style={{ color: t.textMuted }}>{tr('networkEditor.absCoherence')}</span>
-                    <span style={{ fontFamily: 'monospace' }}>{Number(fct.coherence_abs).toFixed(3)}</span>
-                  </>}
-                  {isCohMode && (fct?.rho_inf ?? 0) > 0 && <>
-                    <span style={{ color: t.textMuted }}>{tr('networkEditor.psFloor')}</span>
-                    <span style={{ fontFamily: 'monospace' }}>{Number(fct!.rho_inf).toFixed(3)}</span>
-                  </>}
-                  {isCohMode && fct?.coherence_same_season === false && <>
-                    <span style={{ color: t.textMuted }}>{tr('networkEditor.seasons')}</span>
-                    <span style={{ color: '#ffc107', fontSize: 10 }}>
-                      {fct?.coherence_season_d1} → {fct?.coherence_season_d2}
-                    </span>
+                  {expected != null && <>
+                    <span style={{ color: t.textMuted }}>{tr('networkEditor.expectedCoherence')}</span>
+                    <span style={{ fontFamily: 'monospace' }}>{Number(expected).toFixed(2)}</span>
                   </>}
                 </div>
 
-                {/* Cross-season segments */}
-                {isCohMode && segments.length > 1 && (
-                  <div style={{ fontSize: 10, color: t.textMuted, marginBottom: 6 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 2, color: t.text }}>{tr('networkEditor.segments')}</div>
-                    {segments.map(([dt, season, coh], i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                        <span>{dt}d {season}</span>
-                        <span style={{ fontFamily: 'monospace' }}>coh {Number(coh).toFixed(3)}</span>
+                {/* The events that decided the verdict, each with its measurement. */}
+                {events.length > 0 && (
+                  <div style={{ fontSize: 10, color: t.textMuted, borderTop: `1px solid ${t.border}`, paddingTop: 6 }}>
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>{tr('networkEditor.events')}</div>
+                    {events.map((ev, i) => (
+                      <div key={i} style={{ marginBottom: 3 }}>
+                        <span style={{
+                          color: ev.severity === 'serious' ? '#ffc107' : t.textMuted,
+                          fontWeight: ev.severity === 'serious' ? 700 : 400,
+                        }}>
+                          {ev.severity === 'serious' ? '\u25CF ' : '\u25CB '}
+                          {tr(`networkEditor.events2.${ev.kind}`, { defaultValue: ev.kind.replace(/_/g, ' ') })}
+                          {ev.date ? ` (${ev.date})` : ''}
+                        </span>
+                        <div style={{ paddingLeft: 12, opacity: 0.85 }}>{ev.detail}</div>
                       </div>
                     ))}
                   </div>
                 )}
-
-                {kills.length > 0 && (
-                  <div style={{ color: '#f44336', fontSize: 10, marginBottom: 6 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{tr('networkEditor.hardKills')}</div>
-                    {kills.map(k => <div key={k}>✕ {k.replace(/_/g, ' ')}</div>)}
-                  </div>
-                )}
-                {warnings.length > 0 && (
-                  <div style={{ color: '#ffc107', fontSize: 10, marginBottom: 6 }}>
-                    <div style={{ fontWeight: 600, marginBottom: 2 }}>{tr('networkEditor.warnings')}</div>
-                    {warnings.map(w => <div key={w}>⚠ {w.replace(/_/g, ' ')}</div>)}
-                  </div>
-                )}
-
-                {/* Coherence mode: environmental penalties (quality % lost per feature) */}
-                {isCohMode && cohPenalties.length > 0 && (
-                  <div style={{ fontSize: 10, color: t.textMuted }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>{tr('networkEditor.qualityPenalties')}</div>
-                    {cohPenalties.map(([k, v]) => {
-                      // Show the raw sensor value alongside the quality loss
-                      const rawMap: Record<string, string> = {
-                        snow:        `max(d1=${((fct?.snow_cover_d1 ?? 0) * 100).toFixed(0)}%, d2=${((fct?.snow_cover_d2 ?? 0) * 100).toFixed(0)}%, Δ=${((fct?.delta_snow ?? 0) * 100).toFixed(0)}%)`,
-                        precip_d1:   fct?.precip_3day_d1 != null ? `${Number(fct.precip_3day_d1).toFixed(1)} mm/3d` : '',
-                        precip_d2:   fct?.precip_3day_d2 != null ? `${Number(fct.precip_3day_d2).toFixed(1)} mm/3d` : '',
-                        freeze_thaw: fct?.temp_max_d1 != null && fct?.temp_max_d2 != null
-                          ? `${Number(fct.temp_max_d1).toFixed(0)}°→${Number(fct.temp_max_d2).toFixed(0)}°C` : '',
-                      }
-                      return (
-                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                          <span>
-                            {k.replace(/_/g, ' ')}
-                            {rawMap[k] ? <span style={{ color: t.textMuted, marginLeft: 4 }}>({rawMap[k]})</span> : null}
-                          </span>
-                          <span style={{ color: '#f44336', fontFamily: 'monospace', flexShrink: 0 }}>−{(v * 100).toFixed(1)}%</span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {/* LC mode: contributions dict */}
-                {isLcMode && Object.keys(lcContribs).length > 0 && (
-                  <div style={{ fontSize: 10, color: t.textMuted }}>
-                    <div style={{ fontWeight: 600, marginBottom: 4, color: t.text }}>{tr('networkEditor.penalties')}</div>
-                    {Object.entries(lcContribs)
-                      .filter(([, v]) => Math.abs(v) > 0.001)
-                      .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-                      .map(([k, v]) => (
-                        <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-                          <span>{k.replace(/_/g, ' ')}</span>
-                          <span style={{ color: v > 0 ? '#f44336' : '#4caf50', fontFamily: 'monospace' }}>
-                            {v > 0 ? '-' : '+'}{v.toFixed(3)}
-                          </span>
-                        </div>
-                      ))}
+                {st === 'healthy' && events.length === 0 && (
+                  <div style={{ fontSize: 10, color: t.textMuted, borderTop: `1px solid ${t.border}`, paddingTop: 6 }}>
+                    {tr('networkEditor.noEvents')}
                   </div>
                 )}
               </div>
@@ -1801,61 +1709,48 @@ export function NetworkEditor({ theme: t, folderPath, onClose, onSaved, initPara
               <span>Δt {Math.round(hovEdge.dt)} d</span>
               <span>⊥ {Math.round(hovEdge.bperpDiff)} m</span>
               {(() => {
-                const fct2 = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
-                          ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
-                const sc = edgeScore(hovEdge, qualityScores)
-                if (sc === null) return <span style={{ color: _UNSCORED_CSS }}>● {tr('networkEditor.unscored')}</span>
-                const cat = qualityCategory(sc)
-                const fct = fct2
-                const isCohMode = fct && 'coherence_source' in fct
-                const _KILL_LABEL: Record<string, string> = {
-                  water_dominant:   tr('networkEditor.kills.waterDominant'),
-                  heavy_rain:       tr('networkEditor.kills.heavyRain'),
-                  heavy_snow_cover: tr('networkEditor.kills.heavySnowCover'),
-                  deep_snow:        tr('networkEditor.kills.deepSnow'),
+                const fct = qualityFactors?.[`${hovEdge.ref}:${hovEdge.sec}`]
+                         ?? qualityFactors?.[`${hovEdge.sec}:${hovEdge.ref}`]
+                const st  = edgeStatus(hovEdge, pairStatus)
+                const coh = edgeCoherence(hovEdge, cohScores)
+                if (coh !== null) {
+                  return <span style={{ color: coherenceCSS(coh), fontWeight: 600 }}>
+                    γ {coh.toFixed(2)}
+                  </span>
                 }
-                const _killLabel = (k: string) => _KILL_LABEL[k] ?? k.replace(/_/g, ' ')
-                const kills: string[] = isCohMode
-                  ? (fct?.hard_kill ? [_killLabel(String(fct.hard_kill))] : [])
-                  : (fct?.hard_kills ?? [])
-                const warnings: string[] = fct?.warnings ?? []
-                const contribs: Record<string, number> = (!isCohMode && fct?.contributions) ? fct.contributions : {}
-                // Coherence mode footer: show source badge + expected coh
+                if (st === null) {
+                  return <span style={{ color: _UNJUDGED_CSS }}>● {tr('networkEditor.notJudged')}</span>
+                }
+                const events: PairEvent[] = fct?.events ?? []
+                const serious = events.filter(e => e.severity === 'serious').map(e => e.kind)
+                const minor   = events.filter(e => e.severity !== 'serious').map(e => e.kind)
+                const label = (k: string) =>
+                  tr(`networkEditor.events2.${k}`, { defaultValue: k.replace(/_/g, ' ') })
                 const cohSrc = fct?.coherence_source as string | undefined
-                const cohSrcLabel = cohSrc === 's3' ? tr('networkEditor.s1Global') : cohSrc === 'failed' ? tr('networkEditor.ndviLc') : cohSrc === 'climatology' ? tr('networkEditor.clim') : undefined
-                const cohSrcColor = cohSrc === 's3' ? '#4caf50' : '#ffc107'
-                const sameSeason  = fct?.coherence_same_season as boolean | undefined
+                const sameSeason = fct?.coherence_same_season as boolean | undefined
                 return (
                   <>
-                    <span style={{ color: _CAT_CSS[cat], fontWeight: 600 }}>
-                      ● {tr(_CAT_LABEL_KEYS[cat])} ({sc.toFixed(2)})
+                    <span style={{ color: _CAT_CSS[st], fontWeight: 600 }}>
+                      ● {tr(_CAT_LABEL_KEYS[st])}
                     </span>
-                    {isCohMode && cohSrcLabel && (
-                      <span style={{ color: cohSrcColor, fontSize: 10 }}>[{cohSrcLabel}]</span>
-                    )}
-                    {isCohMode && sameSeason === false && (
+                    {serious.length > 0 && (
                       <span style={{ color: '#ffc107', fontSize: 10 }}>
-                        ⚠ cross-season
+                        ⚠ {serious.map(label).join(', ')}
                       </span>
                     )}
-                    {kills.length > 0 && (
-                      <span style={{ color: '#f44336', fontSize: 10 }}>
-                        ✕ {kills.join(', ')}
-                      </span>
-                    )}
-                    {warnings.length > 0 && (
-                      <span style={{ color: '#ffc107', fontSize: 10 }}>
-                        ⚠ {warnings.join(', ')}
-                      </span>
-                    )}
-                    {!isCohMode && kills.length === 0 && Object.keys(contribs).length > 0 && (
+                    {minor.length > 0 && (
                       <span style={{ color: t.textMuted, fontSize: 10 }}>
-                        {Object.entries(contribs)
-                          .filter(([, v]) => Math.abs(v) > 0.001)
-                          .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
-                          .slice(0, 4)
-                          .map(([k, v]) => `${k.replace(/_/g, ' ')}: ${v > 0 ? '-' : '+'}${v.toFixed(3)}`)
-                          .join('  ')}
+                        {minor.map(label).join(', ')}
+                      </span>
+                    )}
+                    {cohSrc === 'failed' && (
+                      <span style={{ color: '#ffc107', fontSize: 10 }}>
+                        ⚠ {tr('networkEditor.coherenceUnavailable')}
+                      </span>
+                    )}
+                    {sameSeason === false && (
+                      <span style={{ color: t.textMuted, fontSize: 10 }}>
+                        {tr('networkEditor.crossSeason')}
                       </span>
                     )}
                   </>

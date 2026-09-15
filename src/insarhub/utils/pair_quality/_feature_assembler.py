@@ -1,31 +1,49 @@
 # -*- coding: utf-8 -*-
 """
-Feature assembler — collects outputs from all extractors into a single
-FeatureVector dict for one interferogram pair.
+Feature assembler — gathers the measurements one pair is judged on.
 
-The assembler is the only place that coordinates calls to the individual
-extractor modules.  It handles:
-  - AOI-level features (geometry, landcover): fetched once per folder,
-    cached in CacheManager, reused for every pair.
-  - Date-level features (weather, snow): fetched once per unique date,
-    cached, then looked up per pair.
-  - Pair-level features (baselines, vegetation): computed per pair.
+Two data sources, and only two
+------------------------------
+* **Open-Meteo ERA5 archive** (:mod:`_archive`) — temperature, soil
+  temperature, soil moisture, rain, snow depth, snowfall, wind. One HTTP
+  request covers an entire stack, and a second caller over the same AOI makes
+  none.
+* **S1 global coherence** (:mod:`_coherence`) — the seasonal decay model
+  γ(t) = γ∞ + (γ0 − γ∞)·exp(−t/τ), read from windowed COG reads and cached.
 
-None values in the returned dict mean a feature was unavailable.  The
-classifier in _classifier.py substitutes neutral values before scoring.
+WorldCover land cover, MODIS/Sentinel-2 NDVI, NSIDC MODIS snow cover, the
+Copernicus DEM and FIRMS fire were all removed. They cost four more hosts and
+three credential systems; NDVI was skipped by default anyway, MODIS snow cover
+never populated the field the scorer read from it, and the DEM fed a terrain
+term worth 0.04 of a weighted score that no longer exists.
+
+The assembler does not decide anything. It produces a feature vector;
+:mod:`_events` decides what in it counts as extreme and :mod:`_classifier`
+records the verdict.
 """
 
 from __future__ import annotations
 
 import logging
 
-from insarhub.utils.pair_quality._cache import CacheManager, aoi_hash
-from insarhub.utils.pair_quality import _baselines, _landcover
-from insarhub.utils.pair_quality import _weather, _snow_modis, _veg
-from insarhub.utils.pair_quality._ndvi import get_ndvi_batch
-from insarhub.utils.pair_quality import _coherence
+from insarhub.utils.pair_quality import _archive, _baselines, _coherence, _weather
+from insarhub.utils.pair_quality._cache import CacheManager, has_measurements
+from insarhub.utils.pair_quality._geom import sample_grid_points
 
 logger = logging.getLogger(__name__)
+
+
+def _floor_at_ps(coh: dict) -> float | None:
+    """Expected coherence floored at the permanent-scatterer level rho_inf."""
+    expected = coh.get("coherence_expected")
+    rho_inf  = coh.get("coherence_rho_inf")
+    if expected is None and rho_inf is None:
+        return None
+    if expected is None:
+        return round(float(rho_inf), 4)
+    if rho_inf is None:
+        return round(float(expected), 4)
+    return round(max(float(rho_inf), float(expected)), 4)
 
 
 class FeatureAssembler:
@@ -33,52 +51,41 @@ class FeatureAssembler:
 
     Parameters
     ----------
-    cache        : CacheManager for this folder
-    aoi_wkt      : WKT polygon of the AOI (used for geom + landcover)
-    lat, lon     : AOI centroid coordinates
-    ndvi_cache   : mutable dict passed through to _ndvi.get_ndvi
+    cache    : CacheManager for this folder
+    aoi_wkt  : WKT polygon of the AOI — used for the coherence window and the
+               native-resolution weather sample grid
+    lat, lon : AOI centroid, the key for the weather disk cache and coherence
+               lookup; weather itself is the mean over the sample grid
     """
 
-    def __init__(
-        self,
-        cache: CacheManager,
-        aoi_wkt: str,
-        lat: float,
-        lon: float,
-        skip_ndvi: bool = False,
-    ):
-        self._cache     = cache
-        self._wkt       = aoi_wkt
-        self._lat       = lat
-        self._lon       = lon
-        self._skip_ndvi = skip_ndvi
-        self._save_dir  = self._cache._path.parent / "decay_maps"
-        # AOI-level features — fetch once, reuse for all pairs
-        self._lc_feats:   dict      = self._get_landcover()
+    def __init__(self, cache: CacheManager, aoi_wkt: str, lat: float, lon: float):
+        self._cache    = cache
+        self._wkt      = aoi_wkt
+        self._lat      = lat
+        self._lon      = lon
+        self._save_dir = self._cache._path.parent / "decay_maps"
 
-        # Per-date caches built up as pairs are assembled
-        self._weather_cache:  dict[str, dict] = {}
-        self._snow_cache:     dict[str, dict] = {}
-        self._date_hour:      dict[str, int]  = {}   # date → UTC overpass hour from scene names
-        self.remote_fetch_count: int = 0   # incremented on every network fetch
+        # Weather is sampled on the archive's native 0.1° grid across the AOI
+        # and averaged, rather than read from the single centroid cell.  The
+        # centroid still keys the disk cache and the coherence lookup.
+        self._points = sample_grid_points(aoi_wkt)
+
+        self._weather_cache: dict[str, dict] = {}
+        self._date_hour:     dict[str, int]  = {}   # date → UTC overpass hour
+        self.remote_fetch_count: int = 0
+
+        # Dates the archive did not answer for. Non-empty means the events
+        # below are missing environmental inputs, and callers should say so
+        # rather than presenting the verdict as complete.
+        self.missing_dates: set[str] = set()
 
         # Coherence cache: {cache_key → {level_str: coh_val}}
-        # Populated lazily / via prefetch_coherence()
         self._coh_cache: dict = self._load_coh_cache()
 
-        # NDVI cache: {"ndvi:<lat>:<lon>:<date>": {"ndvi": float, "source": str}}
-        # Persisted to CacheManager so expensive MODIS fetches survive across runs
-        self._ndvi_cache: dict = self._load_ndvi_cache()
-
-    # ── AOI-level helpers ─────────────────────────────────────────────────────
+    # ── Coherence cache ───────────────────────────────────────────────────────
 
     def _load_coh_cache(self) -> dict:
-        """Load S1 coherence entries from CacheManager into a flat dict.
-
-        None entries (failed S3 fetches) and failed pair estimates are stripped
-        so transient failures from a previous session are retried rather than
-        treated as permanent blacklists.
-        """
+        """Load S1 coherence entries, dropping failures so they are retried."""
         cached = self._cache.get("s1_coherence", "map") or {}
         return {
             k: v for k, v in cached.items()
@@ -87,11 +94,7 @@ class FeatureAssembler:
         }
 
     def _save_coh_cache(self) -> None:
-        """Persist the in-memory coherence cache back to CacheManager.
-
-        None values (failed S3 fetches) are not written to disk — they suppress
-        retries within the current session only, not across sessions.
-        """
+        """Persist the coherence cache. Failures are never written to disk."""
         to_save = {
             k: v for k, v in self._coh_cache.items()
             if v is not None
@@ -100,60 +103,58 @@ class FeatureAssembler:
         if to_save:
             self._cache.set("s1_coherence", "map", to_save)
 
-    def _load_ndvi_cache(self) -> dict:
-        """Load NDVI entries from CacheManager into the in-memory dict."""
-        cached = self._cache.get("ndvi", "map") or {}
-        return dict(cached)
+    # ── Request accounting ────────────────────────────────────────────────────
 
-    def _save_ndvi_cache(self) -> None:
-        """Persist the in-memory NDVI cache back to CacheManager."""
-        if self._ndvi_cache:
-            self._cache.set("ndvi", "map", dict(self._ndvi_cache))
+    def _counting_requests(self, fn, *args, **kwargs):
+        """Run *fn*, adding only requests that actually reached the network.
 
-    def _get_landcover(self) -> dict:
-        key = aoi_hash(self._wkt)
-        cached = self._cache.get("landcover", key)
-        if cached:
-            return cached
-        feats = _landcover.extract(self._wkt)
-        self._cache.set("landcover", key, feats)
-        return feats
+        The archive serves a date range it already holds without any request,
+        so counting call sites instead of requests reported fetches that never
+        happened — and made ``cached`` (derived from this count being zero)
+        permanently false.
+        """
+        before = _archive.request_count
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            self.remote_fetch_count += _archive.request_count - before
 
-    # ── Date-level helpers ────────────────────────────────────────────────────
+    # ── Weather ───────────────────────────────────────────────────────────────
 
-    def _get_weather(self, date: str) -> dict:
+    def _cache_key(self, date: str) -> str:
+        return f"{self._lat:.3f}:{self._lon:.3f}:{date}"
+
+    def get_weather(self, date: str) -> dict:
+        """Return the measurement record for *date*, fetching only if needed."""
         if date in self._weather_cache:
             return self._weather_cache[date]
-        cache_key = f"{self._lat:.3f}:{self._lon:.3f}:{date}"
-        cached = self._cache.get("weather", cache_key)
+
+        cached = self._cache.get("weather", self._cache_key(date))
         if cached:
             self._weather_cache[date] = cached
             return cached
-        feats = _weather.fetch_weather(
-            self._lat, self._lon, date,
-            overpass_hour=self._date_hour.get(date),
+
+        # A date present in the batch result was answered by the archive; one
+        # absent from it was not, and must not be cached. After prefetch_dates()
+        # the archive already holds the stack's whole span, so this normally
+        # costs no request at all.
+        batch = self._counting_requests(
+            _weather.fetch_weather_batch_points,
+            self._points, [date],
+            date_hour={date: self._date_hour[date]} if date in self._date_hour else None,
         )
-        self._cache.set("weather", cache_key, feats)
+        feats = batch.get(date)
+        if not has_measurements(feats):
+            self.missing_dates.add(date)
+            return dict(_weather._EMPTY)      # neutral, deliberately not cached
+        self._cache.set("weather", self._cache_key(date), feats)
         self._weather_cache[date] = feats
-        self.remote_fetch_count += 1
         return feats
 
-    def _get_snow(self, date: str) -> dict:
-        if date in self._snow_cache:
-            return self._snow_cache[date]
-        cache_key = f"{self._lat:.3f}:{self._lon:.3f}:{date}"
-        cached = self._cache.get("snow_modis", cache_key)
-        if cached:
-            self._snow_cache[date] = cached
-            return cached
-        feats = _snow_modis.fetch_snow_features(
-            self._lat, self._lon, date,
-            overpass_hour=self._date_hour.get(date),
-        )
-        self._cache.set("snow_modis", cache_key, feats)
-        self._snow_cache[date] = feats
-        self.remote_fetch_count += 1
-        return feats
+    @property
+    def weather_by_date(self) -> dict[str, dict]:
+        """Everything fetched so far — the sample :func:`_events.calibrate` uses."""
+        return dict(self._weather_cache)
 
     # ── Batch prefetch ────────────────────────────────────────────────────────
 
@@ -162,299 +163,116 @@ class FeatureAssembler:
         dates: list[str],
         date_hour: dict[str, int] | None = None,
     ) -> None:
-        """Batch-fetch weather and snow for all unique dates not already cached.
+        """Fetch every uncached date in one request, before the pair loop.
 
         Parameters
         ----------
         dates     : unique acquisition dates (YYYY-MM-DD)
-        date_hour : {date: utc_hour} parsed from scene names — each date uses
-                    its exact overpass hour instead of the module-level default.
-
-        Call once before the pair loop so assemble() hits only in-memory cache.
+        date_hour : {date: utc_hour} from scene names, so point-in-time
+                    variables are read at the actual overpass rather than a
+                    module default.
         """
         if date_hour:
             self._date_hour.update(date_hour)
 
-        uncached_weather: list[str] = []
-        uncached_snow:    list[str] = []
-
+        uncached: list[str] = []
         for date in dates:
-            cache_key = f"{self._lat:.3f}:{self._lon:.3f}:{date}"
-            if date not in self._weather_cache:
-                cached = self._cache.get("weather", cache_key)
-                if cached:
-                    self._weather_cache[date] = cached
-                else:
-                    uncached_weather.append(date)
-            if date not in self._snow_cache:
-                cached = self._cache.get("snow_modis", cache_key)
-                if cached:
-                    self._snow_cache[date] = cached
-                else:
-                    uncached_snow.append(date)
+            if date in self._weather_cache:
+                continue
+            cached = self._cache.get("weather", self._cache_key(date))
+            if cached:
+                self._weather_cache[date] = cached
+            else:
+                uncached.append(date)
 
-        if uncached_weather:
-            logger.info("Batch-fetching weather for %d dates …", len(uncached_weather))
-            batch = _weather.fetch_weather_batch(
-                self._lat, self._lon, uncached_weather,
-                date_hour=self._date_hour or None,
-            )
-            for date, feats in batch.items():
-                cache_key = f"{self._lat:.3f}:{self._lon:.3f}:{date}"
-                self._cache.set("weather", cache_key, feats)
-                self._weather_cache[date] = feats
-            self.remote_fetch_count += 1
-
-        if uncached_snow:
-            logger.info("Batch-fetching snow for %d dates …", len(uncached_snow))
-            batch = _snow_modis.fetch_snow_features_batch(
-                self._lat, self._lon, uncached_snow,
-                date_hour=self._date_hour or None,
-            )
-            for date, feats in batch.items():
-                cache_key = f"{self._lat:.3f}:{self._lon:.3f}:{date}"
-                self._cache.set("snow_modis", cache_key, feats)
-                self._snow_cache[date] = feats
-            self.remote_fetch_count += 1
-
-        # NDVI — skipped when coherence_aware=True (S3 COG is the primary signal;
-        # NDVI is only needed as a fallback when S3 is unreachable, and in that
-        # case the climatology table provides it without a network call).
-        if not self._skip_ndvi:
-            ndvi_uncached = [d for d in dates
-                             if f"ndvi:{self._lat:.3f}:{self._lon:.3f}:{d}" not in self._ndvi_cache]
-            if ndvi_uncached:
-                logger.info("Batch-fetching MODIS NDVI for %d dates …", len(ndvi_uncached))
-                get_ndvi_batch(self._lat, self._lon, ndvi_uncached, self._ndvi_cache)
-                self._save_ndvi_cache()   # persist — NDVI is the slowest fetch
-                self.remote_fetch_count += 1
-
-    def prefetch_coherence(self, pairs: list[tuple[str, str]]) -> None:
-        """Prefetch S1 coherence for all pairs: fetch pixel decay maps and
-        pre-compute the full coherence result per pair.
-
-        Two-phase parallel strategy
-        ---------------------------
-        Phase 1 — download unique season pixel maps in parallel (max 4 threads,
-                   one per season).  S3 downloads dominate; numpy is released.
-        Phase 2 — compute per-pair coherence results in parallel.  Season maps
-                   are read-only at this point so dict access is thread-safe;
-                   numpy releases the GIL so threads get true parallelism.
-        """
-        if not pairs:
+        if not uncached:
             return
 
-        from concurrent.futures import ThreadPoolExecutor, as_completed
+        logger.info("Fetching weather for %d date(s) over %d point(s) in one request …",
+                    len(uncached), len(self._points))
+        batch = self._counting_requests(
+            _weather.fetch_weather_batch_points,
+            self._points, uncached,
+            date_hour=self._date_hour or None,
+        )
 
-        # ── Phase 1: download unique season pixel maps in parallel ────────────
-        needed_seasons: set[str] = set()
-        for d1, d2 in pairs:
-            for _, season in _coherence.split_by_season(
-                _coherence._normalize_date(d1), _coherence._normalize_date(d2), self._lat
-            ):
-                needed_seasons.add(season)
+        # Only entries carrying an actual measurement are cached. An all-None
+        # entry reaches here when the archive answered for the range but had no
+        # row for that date; the weather cache has no TTL, so storing it would
+        # read back as a real "no snow, no rain" reading for the life of the
+        # folder. Leaving it out costs nothing — the whole span is one request.
+        for date, feats in batch.items():
+            if not has_measurements(feats):
+                continue
+            self._weather_cache[date] = feats
+            self._cache.set("weather", self._cache_key(date), feats)
 
-        before_season_keys = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")}
-
-        def _fetch_season(season: str) -> None:
-            _coherence._fetch_season_decay_maps(
-                self._wkt, self._lat, self._lon, season, "vv",
-                self._coh_cache, save_dir=self._save_dir,
+        missing = [d for d in uncached if not has_measurements(batch.get(d))]
+        if missing:
+            self.missing_dates.update(missing)
+            logger.warning(
+                "Weather unavailable for %d of %d date(s) (%s%s) — pairs using "
+                "them are judged without environmental events; re-run to retry",
+                len(missing), len(uncached), ", ".join(sorted(missing)[:3]),
+                ", …" if len(missing) > 3 else "",
             )
 
-        with ThreadPoolExecutor(max_workers=min(4, len(needed_seasons))) as ex:
-            for fut in as_completed([ex.submit(_fetch_season, s) for s in needed_seasons]):
-                fut.result()
+    def prefetch_coherence(self, date_pairs: list[tuple[str, str]]) -> None:
+        """Warm the S1 coherence decay maps for every season the pairs touch."""
+        try:
+            _coherence.prefetch_coherence(
+                self._wkt, self._lat, self._lon, date_pairs,
+                pol="vv", cache=self._coh_cache,
+            )
+        except Exception as exc:
+            logger.warning("S1 coherence prefetch failed: %s — pairs will be "
+                           "judged on weather events only", exc)
+        finally:
+            self._save_coh_cache()
 
-        new_season_keys = {k for k in self._coh_cache if k.startswith("s1coh_pmaps:")} - before_season_keys
-        if new_season_keys:
-            self.remote_fetch_count += len(new_season_keys)
-
-        # ── Phase 2: compute per-pair coherence in parallel ───────────────────
-        # Season maps are fully populated — estimate_coherence() only reads them.
-        # Each pair writes a unique key so concurrent dict writes are safe.
-        uncached: list[tuple[str, str, str]] = []
-        for d1, d2 in pairs:
-            d1n, d2n = _coherence._normalize_date(d1), _coherence._normalize_date(d2)
-            pair_key = f"s1coh_pair:{self._lat:.2f}:{self._lon:.2f}:{d1n}:{d2n}:vv"
-            if pair_key not in self._coh_cache:
-                uncached.append((d1, d2, pair_key))
-
-        if uncached:
-            def _compute_pair(args: tuple[str, str, str]) -> None:
-                d1, d2, pair_key = args
-                result = _coherence.estimate_coherence(
-                    self._wkt, self._lat, self._lon, d1, d2,
-                    pol="vv", cache=self._coh_cache, save_dir=self._save_dir,
-                )
-                self._coh_cache[pair_key] = result
-
-            with ThreadPoolExecutor(max_workers=8) as ex:
-                for fut in as_completed([ex.submit(_compute_pair, a) for a in uncached]):
-                    fut.result()
-
-        self._save_coh_cache()
-
-    # ── Public API ────────────────────────────────────────────────────────────
+    # ── Per-pair assembly ─────────────────────────────────────────────────────
 
     def assemble(
         self,
-        ref: str,
-        sec: str,
-        bperp_ref: float,
-        bperp_sec: float,
-        date1: str,
-        date2: str,
+        ref: str, sec: str,
+        bperp_ref: float, bperp_sec: float,
+        date1: str, date2: str,
     ) -> dict:
-        """Return a flat FeatureVector dict for one (ref, sec) pair.
-
-        Parameters
-        ----------
-        ref, sec      : Sentinel-1 scene names
-        bperp_ref/sec : perpendicular baselines (m)
-        date1, date2  : ISO-8601 acquisition dates
-        """
-        # 1. Baselines (always available, deterministic)
+        """Return the feature vector for one pair."""
         bl = _baselines.extract(ref, sec, bperp_ref, bperp_sec)
 
-        # 2. Date-level: weather + snow (DEM removed — slope_p90 weight 0.04 not worth ~10s fetch)
-        w1 = self._get_weather(date1)
-        w2 = self._get_weather(date2)
-        s1 = self._get_snow(date1)
-        s2 = self._get_snow(date2)
+        w1 = self.get_weather(date1)
+        w2 = self.get_weather(date2)
 
-        # 3. Pair-level: vegetation
-        # Skipped when skip_ndvi=True (coherence_aware mode): S3 coherence is the
-        # primary signal, NDVI is only needed by lc_score() as a fallback.
-        if self._skip_ndvi:
-            veg = {
-                "ndvi_d1": None, "ndvi_d2": None, "delta_ndvi": None,
-                "ndvi_max": None, "growing_season": None,
-                "veg_temporal": None, "ndvi_source": "skipped",
-            }
-        else:
-            veg = _veg.get_veg_features(
-                self._lat, self._lon,
-                date1, date2,
-                dt_normalized=bl["dt_normalized"],
-                ndvi_cache=self._ndvi_cache,
-            )
-
-        # 4. Derived cross-features
-        ft = _weather.freeze_thaw(w1, w2)
-        delta_snow = _snow_modis.snow_cover_delta(s1, s2)
-
-        # 5. Season crossing (from existing _scorer logic, inline here)
-        season_pen = _season_penalty(date1, date2, self._lat)
-
-        # 6. S1 global coherence estimate — pair-level cache hit when prefetch_coherence ran
         d1n = _coherence._normalize_date(date1)
         d2n = _coherence._normalize_date(date2)
         pair_key = f"s1coh_pair:{self._lat:.2f}:{self._lon:.2f}:{d1n}:{d2n}:vv"
-        coh_result = self._coh_cache.get(pair_key) or _coherence.estimate_coherence(
-            self._wkt, self._lat, self._lon,
-            date1, date2,
-            pol="vv",
-            cache=self._coh_cache,
+        coh = self._coh_cache.get(pair_key) or _coherence.estimate_coherence(
+            self._wkt, self._lat, self._lon, date1, date2,
+            pol="vv", cache=self._coh_cache, save_dir=self._save_dir,
         )
 
-        fv: dict = {
-            # Meta (used by lc_scorer for fire check)
-            "date1":   date1,
-            "date2":   date2,
+        return {
+            "ref": ref, "sec": sec,
+            "date1": date1, "date2": date2,
             "aoi_wkt": self._wkt,
 
-            # Baselines
-            "dt_days":           bl["dt_days"],
-            "bperp_diff":        bl["bperp_diff"],
-            "dt_normalized":     bl["dt_normalized"],
-            "bperp_normalized":  bl["bperp_normalized"],
-            "is_annual_repeat":  bl["is_annual_repeat"],
+            # Geometry — context only, never flags a pair.
+            "dt_days":    bl["dt_days"],
+            "bperp_diff": bl["bperp_diff"],
 
-            # Land cover (AOI-level)
-            "lc_forest_fraction": self._lc_feats.get("lc_forest_fraction"),
-            "lc_shrub_fraction":  self._lc_feats.get("lc_shrub_fraction"),
-            "lc_grass_fraction":  self._lc_feats.get("lc_grass_fraction"),
-            "lc_crop_fraction":   self._lc_feats.get("lc_crop_fraction"),
-            "lc_urban_fraction":  self._lc_feats.get("lc_urban_fraction"),
-            "lc_bare_fraction":   self._lc_feats.get("lc_bare_fraction"),
-            "lc_snow_fraction":   self._lc_feats.get("lc_snow_fraction"),
-            "lc_water_fraction":  self._lc_feats.get("lc_water_fraction"),
-            "lc_dominant_class":  self._lc_feats.get("lc_dominant_class"),
+            # The two acquisitions' measurements, whole. _events reads these.
+            "weather_d1": w1,
+            "weather_d2": w2,
 
-            # Snow (pair-level, per-date)
-            "snow_cover_frac_d1":  s1.get("snow_cover_frac"),
-            "snow_cover_frac_d2":  s2.get("snow_cover_frac"),
-            "delta_snow_cover":    delta_snow,
-            "glacier_fraction":    s1.get("glacier_fraction"),  # AOI-level proxy
-            "snow_depth_d1":       s1.get("snow_depth"),
-            "snow_depth_d2":       s2.get("snow_depth"),
-            "snow_source":         s1.get("snow_source", "none"),
-
-            # Weather (pair-level, per-date) — overpass-hour temp preferred
-            "temp_max_d1":     w1.get("temp") if w1.get("temp") is not None else w1.get("temp_max"),
-            "temp_max_d2":     w2.get("temp") if w2.get("temp") is not None else w2.get("temp_max"),
-            "precip_d1":       w1.get("precip"),
-            "precip_d2":       w2.get("precip"),
-            "precip_3day_d1":  w1.get("precip_3day"),
-            "precip_3day_d2":  w2.get("precip_3day"),
-            "precip_7day_d1":  w1.get("precip_7day"),
-            "precip_7day_d2":  w2.get("precip_7day"),
-            "soil_moisture_d1": w1.get("soil_moisture"),
-            "soil_moisture_d2": w2.get("soil_moisture"),
-            "freeze_thaw":     ft,
-
-            # Vegetation (pair-level)
-            "ndvi_d1":          veg["ndvi_d1"],
-            "ndvi_d2":          veg["ndvi_d2"],
-            "delta_ndvi":       veg["delta_ndvi"],
-            "ndvi_max":         veg["ndvi_max"],
-            "growing_season":   veg["growing_season"],
-            "veg_temporal":     veg["veg_temporal"],
-            "ndvi_source":      veg["ndvi_source"],
-
-            # Season
-            "season_penalty":  season_pen,
-
-            # S1 global coherence (replaces landcover+NDVI in coherence_score mode)
-            "coherence_expected":    coh_result.get("coherence_expected"),
-            "coherence_source":      coh_result.get("coherence_source", "s3"),
-            "coherence_same_season": coh_result.get("coherence_same_season"),
-            "coherence_season_d1":   coh_result.get("coherence_season_d1"),
-            "coherence_season_d2":   coh_result.get("coherence_season_d2"),
-            "coherence_segments":    coh_result.get("coherence_segments"),
-            "coherence_dt_total":    coh_result.get("coherence_dt_total"),
-            "coherence_rho_inf":     coh_result.get("coherence_rho_inf", 0.0),
-            # Final safeline: climatology estimate (always available, no network needed)
-            "coherence_climatology": _coherence._climatology_pair_coherence(
-                self._lat, date1, date2,
-            ),
+            # S1 global coherence decay model at this pair's baseline.
+            "coherence_expected":    coh.get("coherence_expected"),
+            # Floored at the permanent-scatterer level rho_inf: even a fully
+            # decorrelated distributed target keeps the PS fraction. This is
+            # the value to compare against a MintPy minimum-coherence setting.
+            "coherence_abs":         _floor_at_ps(coh),
+            "coherence_source":      coh.get("coherence_source", "none"),
+            "coherence_same_season": coh.get("coherence_same_season"),
+            "coherence_season_d1":   coh.get("coherence_season_d1"),
+            "coherence_season_d2":   coh.get("coherence_season_d2"),
         }
-
-        return fv
-
-
-# ── Season penalty ────────────────────────────────────────────────────────────
-
-from insarhub.utils.defaults import SEASON_NH as _SEASON_NH, SEASON_ADJACENT as _ADJACENT
-
-
-def _season(month: int, lat: float) -> str:
-    if lat < 0:
-        month = ((month - 1 + 6) % 12) + 1
-    return _SEASON_NH[month]
-
-
-def _season_penalty(date1: str, date2: str, lat: float) -> float:
-    m1, m2 = int(date1[5:7]), int(date2[5:7])
-    s1, s2 = _season(m1, lat), _season(m2, lat)
-    if s1 == s2:
-        return 0.0
-    pair = frozenset({s1, s2})
-    if pair in _ADJACENT:
-        return 0.35
-    if "winter" in pair:
-        return 0.95
-    return 0.70
-
-

@@ -156,3 +156,35 @@ def test_no_cors_headers_by_default(api_client):
         "/api/health", headers={"Origin": "https://evil.example.com"}
     )
     assert "access-control-allow-origin" not in {k.lower() for k in response.headers}
+
+
+# ── Pair-DB lookup must survive a large pair list ────────────────────────────
+
+def test_pair_db_lookup_accepts_a_large_pair_list_over_post(api_client, tmp_path):
+    """A huge pair list must travel in the body, not the URL.
+
+    The network editor looks up every edge lacking a verdict — for a large
+    stack that is thousands of ~100-character scene names. In a query string
+    that exceeds the HTTP parser's ~64 KiB request line and comes back as
+    HTTP 400 before the handler runs; the POST body has no such limit.
+    """
+    import json
+
+    base = "S1A_IW_SLC__1SDV_20200102T133453_20200102T133520_030622_038236_0000"
+    pairs = [f"{base}{i}:{base}{i + 10000}" for i in range(4000)]
+    status = {k: ("concern" if i % 3 == 0 else "healthy") for i, k in enumerate(pairs)}
+    (tmp_path / ".insarhub_pair_quality_db.json").write_text(json.dumps({
+        "_schema_version": 3,
+        "status":  status,
+        "factors": {k: {"status": v} for k, v in status.items()},
+    }))
+
+    response = api_client.post(
+        "/api/pair-quality-db/lookup",
+        json={"path": str(tmp_path), "pairs": pairs},
+    )
+    assert response.status_code == 200, response.text
+    assert len(response.json()["status"]) == len(pairs)
+    # The equivalent GET URL would not fit the request line, which is why the
+    # POST form exists.
+    assert len(",".join(pairs)) > 64 * 1024

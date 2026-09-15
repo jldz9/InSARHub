@@ -935,9 +935,6 @@ Check documentation for how to setup .netrc file.\n""")
         max_degree: int          = None,
         force_connect: bool      = None,
         max_workers: int         = None,
-        avoid_low_quality_days: bool = None,
-        snow_threshold: float    = None,
-        precip_mm_threshold: float = None,
         aoi_wkt: str | None = None,
         merge: bool = False,
         burst: bool = False,
@@ -958,9 +955,6 @@ Check documentation for how to setup .netrc file.\n""")
             max_degree (int, optional): Maximum number of connections per scene. Defaults to 5.
             force_connect (bool, optional): Force connectivity for isolated scenes. Defaults to True.
             max_workers (int, optional): Threads for API baseline fallback. Defaults to 4.
-            avoid_low_quality_days (bool, optional): Skip scenes with heavy snow or rain. Defaults to True.
-            snow_threshold (float, optional): MODIS snow fraction threshold to exclude a scene. Defaults to 0.5.
-            precip_mm_threshold (float, optional): 3-day precipitation threshold in mm to exclude a scene. Defaults to 25.0.
             aoi_wkt (str, optional): AOI geometry in WKT for quality scoring. Defaults to search AOI.
             merge (bool, optional): When True, stacks sharing the same relative
                 orbit (path) are combined into one pairing network before
@@ -981,28 +975,26 @@ Check documentation for how to setup .netrc file.\n""")
             poeorb_cache (str, optional): Burst mode: directory for POEORB
                 downloads keyed by date + mission (online fallback).
             quality_check (bool, optional): After pairing, write the stack
-                file(s), seed the weather/snow cache, and precompute the
-                PairQualityDB coherence scores for all possible pairs (the
-                slow, network-heavy step). ``False`` skips scoring. Defaults
-                to True.
+                file(s) and build the PairQualityDB verdict for every possible
+                pair (the slow, network-heavy step). ``False`` skips it.
+                Defaults to True.
             plot_network (bool, optional): Save ``network_*.png`` with the
-                pair network, coloured by quality when ``quality_check`` is
+                pair network, coloured healthy/concern when ``quality_check`` is
                 True (falls back to temporal-baseline colouring otherwise).
                 Defaults to True.
 
         Returns:
-            tuple: ``(pairs, baselines, scene_bperp, prefetch_cache,
-            quality_scores, quality_factors)``
+            tuple: ``(pairs, baselines, scene_bperp, pair_status,
+            quality_factors)``
                 - pairs: dict keyed by (path, frame) for multi-stack — or
                   (path, "merged") per distinct path when merge=True — or a
                   flat list for a single stack.
                 - baselines: temporal baselines
                 - scene_bperp: perpendicular baselines per scene
-                - prefetch_cache: coherence/weather cache dict for downstream use
-                - quality_scores: ``{pair_key: score}`` (list case) or
-                  ``{(path, frame): {pair_key: score}}`` (dict case); ``None``
-                  when ``quality_check`` is False or scoring failed.
-                - quality_factors: factor breakdown, same keying as scores.
+                - pair_status: ``{pair_key: "healthy"|"concern"}`` (list case)
+                  or ``{(path, frame): {pair_key: status}}`` (dict case);
+                  ``None`` when ``quality_check`` is False or it failed.
+                - quality_factors: the events behind each verdict, same keying.
         """
         self._warn_if_pairs_will_not_be_used()
 
@@ -1016,9 +1008,6 @@ Check documentation for how to setup .netrc file.\n""")
         if max_degree             is None: max_degree             = _SP["max_degree"]
         if force_connect          is None: force_connect          = _SP["force_connect"]
         if max_workers            is None: max_workers            = _SP["max_workers"]
-        if avoid_low_quality_days is None: avoid_low_quality_days = _SP["avoid_low_quality_days"]
-        if snow_threshold         is None: snow_threshold         = _SP["snow_threshold"]
-        if precip_mm_threshold    is None: precip_mm_threshold    = _SP["precip_mm_threshold"]
         from insarhub.utils.tool import select_pairs as _select_pairs
 
         if not hasattr(self, 'results'):
@@ -1057,9 +1046,6 @@ Check documentation for how to setup .netrc file.\n""")
             max_degree=max_degree,
             force_connect=force_connect,
             max_workers=max_workers,
-            avoid_low_quality_days=avoid_low_quality_days,
-            snow_threshold=snow_threshold,
-            precip_mm_threshold=precip_mm_threshold,
             aoi_wkt=_aoi_wkt,
             burst=burst,
             safe_dir=safe_dir,
@@ -1069,10 +1055,9 @@ Check documentation for how to setup .netrc file.\n""")
         pairs      = _sp_result[0]
         baselines  = _sp_result[1]
         scene_bperp: dict = _sp_result[2] if len(_sp_result) > 2 else {}
-        prefetch:   dict  = _sp_result[3] if len(_sp_result) > 3 else {}
 
         if not (quality_check or plot_network):
-            return pairs, baselines, scene_bperp, prefetch, None, None
+            return pairs, baselines, scene_bperp, None, None
 
         # ── Finalize: write stack files, score pairs, plot network ────────
         from dataclasses import asdict
@@ -1102,13 +1087,25 @@ Check documentation for how to setup .netrc file.\n""")
                 cfg["relativeOrbit"] = path
                 if not is_merged:
                     cfg["frame"] = frame
+                # Record the AOI when the user did not draw one. Without it
+                # _load_aoi() has nothing to read and pair quality has no
+                # location to fetch weather or coherence for.
+                if not cfg.get("intersectsWith"):
+                    from insarhub.utils.pair_quality._geom import footprint_wkt_from_products
+                    if is_merged:
+                        _prods = [p for (k_path, _k_frame), prods in self.active_results.items()
+                                  if k_path == path for p in prods]
+                    else:
+                        _prods = self.active_results.get((path, frame), [])
+                    _wkt = footprint_wkt_from_products(_prods)
+                    if _wkt:
+                        cfg["scene_footprint_wkt"] = _wkt
                 write_insarhub_config(subdir, {"downloader": {"type": type(self).name, "config": cfg}})
                 sp = scene_bperp.get((path, frame)) or {}
                 stack_scenes = scenes_by_stack.get((path, frame), [])
                 stack_path = subdir / _sp.stack_file_for(path, frame).name
                 qs, qf = finalize_stack(
                     subdir, stack_path, group_pairs, sp, stack_scenes,
-                    prefetch.get((path, frame), {}),
                     key=(path, frame),
                     baselines=baselines[(path, frame)],
                     title=f"Interferogram Network — {label}",
@@ -1124,7 +1121,7 @@ Check documentation for how to setup .netrc file.\n""")
             stack_scenes = scenes_by_stack.get((0, 0), [])
             stack_path = workdir / _sp.stack_file(0, 0).name
             quality_scores, quality_factors = finalize_stack(
-                workdir, stack_path, pairs, sp, stack_scenes, prefetch,
+                workdir, stack_path, pairs, sp, stack_scenes,
                 key=(0, 0),
                 baselines=baselines,
                 title="Interferogram Network",
@@ -1133,7 +1130,7 @@ Check documentation for how to setup .netrc file.\n""")
                 plot_network=plot_network,
             )
 
-        return pairs, baselines, scene_bperp, prefetch, quality_scores, quality_factors
+        return pairs, baselines, scene_bperp, quality_scores, quality_factors
 
     def _mark_stack_dir(self, stack_dir, extra_cfg: dict | None = None) -> None:
         """Write the two files that make a directory a recognised stack.

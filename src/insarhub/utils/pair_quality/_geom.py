@@ -1,21 +1,19 @@
 # -*- coding: utf-8 -*-
 """
-Terrain geometry feature extractor.
+AOI geometry helpers for pair quality.
 
-Uses dem_stitcher (already a project dependency) to fetch a Copernicus
-GLO-30 DEM tile for the AOI bounding box, then derives terrain statistics
-in-memory — no raster is written to disk.
+Three things, all to keep one definition of the AOI:
 
-Features returned (AOI-level, same for every pair in the folder)
-----------------------------------------------------------------
-  elevation_mean    : float | None  — mean elevation in m
-  elevation_range   : float | None  — max − min elevation in m
-  slope_mean        : float | None  — mean slope in degrees
-  slope_p90         : float | None  — 90th-percentile slope in degrees
-  roughness         : float | None  — std-dev of local relief (3×3 kernel) in m
+* :func:`wkt_centroid` — the location that keys the weather disk cache and the
+  S1 coherence lookup.
+* :func:`sample_grid_points` — the native-resolution (0.1°) sample grid weather
+  is averaged over, so an AOI is represented by its area, not one cell.
+* :func:`footprint_wkt_from_products` — the AOI recorded when the user drew
+  none.
 
-All values are None when the DEM fetch fails; callers substitute neutral
-values so the classifier can still run.
+The DEM-derived terrain extractor that used to live here was removed with the
+Copernicus GLO-30 pull: pair quality now fetches from Open-Meteo and the S1
+global coherence dataset only.
 """
 
 from __future__ import annotations
@@ -23,7 +21,6 @@ from __future__ import annotations
 import logging
 import re
 
-import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -38,31 +35,110 @@ def _wkt_bbox(wkt: str) -> tuple[float, float, float, float]:
     return min(lons), min(lats), max(lons), max(lats)
 
 
-def _slope_degrees(dem: np.ndarray, res_m: float = 30.0) -> np.ndarray:
-    """Compute slope magnitude in degrees from a 2-D DEM array."""
-    dy, dx = np.gradient(dem.astype(float), res_m)
-    return np.degrees(np.arctan(np.sqrt(dx**2 + dy**2)))
+def wkt_centroid(wkt: str) -> tuple[float, float]:
+    """Return ``(lat, lon)`` for the centroid of a WKT geometry.
+
+    This is *the* AOI centroid for the whole pair-quality subsystem.  It has
+    to be, because the weather/snow disk cache is keyed by rounded lat/lon:
+    two callers computing the centroid two different ways produce two
+    different keys for one AOI, so neither ever sees the other's cached data
+    and every date gets fetched twice.
+
+    Shapely's true polygon centroid is authoritative.  The fallback averages
+    the ring vertices, dropping the repeated closing vertex — a closed
+    ``POLYGON`` repeats its first point, and counting it twice pulls the
+    result toward that corner (~9 km on a typical Sentinel-1 AOI).
+    """
+    try:
+        from shapely import wkt as _shapely_wkt
+
+        centroid = _shapely_wkt.loads(wkt).centroid
+        if not centroid.is_empty:
+            return float(centroid.y), float(centroid.x)
+    except Exception:
+        pass
+
+    coords = re.findall(r'(-?\d+\.?\d*)\s+(-?\d+\.?\d*)', wkt)
+    if not coords:
+        raise ValueError(f"No coordinates found in WKT: {wkt!r}")
+    if len(coords) > 1 and coords[0] == coords[-1]:
+        coords = coords[:-1]
+    lons = [float(c[0]) for c in coords]
+    lats = [float(c[1]) for c in coords]
+    return sum(lats) / len(lats), sum(lons) / len(lons)
 
 
-def _aspect_degrees(dem: np.ndarray, res_m: float = 30.0) -> np.ndarray:
-    """Compute aspect in degrees clockwise from north (0–360)."""
-    dy, dx = np.gradient(dem.astype(float), res_m)
-    # atan2 returns angle from east; convert to clockwise-from-north
-    aspect = np.degrees(np.arctan2(dx, dy))
-    return aspect % 360.0
+# The archive serves ERA5-Land on a 0.1° (~9 km) native grid; Open-Meteo does
+# not expose anything finer for these variables.  Requesting points closer than
+# one grid cell returns the same cell's data, so the sample grid is spaced at
+# the native resolution rather than at a fixed count.  The default land
+# cell-selection then matches each point to the cell with the closest elevation
+# (90 m DEM), which is what lets a grid span an AOI's elevation range where a
+# single centroid cannot.
+DEFAULT_GRID_SPACING_DEG = 0.1
+
+# One request carries all points.  Kept well below the archive's ~250-coordinate
+# URL ceiling so a grid widens its spacing rather than failing with HTTP 414.
+MAX_GRID_POINTS = 128
 
 
-def _roughness(dem: np.ndarray) -> np.ndarray:
-    """Local relief (std-dev in a 3×3 neighbourhood) as a roughness proxy."""
-    from numpy.lib.stride_tricks import sliding_window_view
-    if dem.shape[0] < 3 or dem.shape[1] < 3:
-        return np.array([dem.std()])
-    windows = sliding_window_view(dem.astype(float), (3, 3))
-    return windows.std(axis=(-2, -1))
+def sample_grid_points(
+    wkt: str,
+    spacing_deg: float = DEFAULT_GRID_SPACING_DEG,
+    max_points: int = MAX_GRID_POINTS,
+) -> list[tuple[float, float]]:
+    """Return regular lat/lon sample points inside the AOI polygon.
+
+    Points are cell centres of a grid at ``spacing_deg``, clipped to the
+    polygon.  If that yields more than ``max_points`` the spacing is doubled
+    until it fits, so a very large AOI degrades in resolution instead of
+    producing a request the archive will reject.  Falls back to the centroid
+    if the polygon cannot be parsed.
+    """
+    west, south, east, north = _wkt_bbox(wkt)
+    spacing = float(spacing_deg)
+
+    def _grid(step: float) -> list[tuple[float, float]]:
+        n_lat = max(1, round((north - south) / step))
+        n_lon = max(1, round((east - west) / step))
+        return [
+            (south + (i + 0.5) * (north - south) / n_lat,
+             west + (j + 0.5) * (east - west) / n_lon)
+            for i in range(n_lat)
+            for j in range(n_lon)
+        ]
+
+    while True:
+        points = _grid(spacing)
+        if len(points) <= max_points or spacing > 5.0:
+            break
+        spacing *= 2
+
+    try:
+        from shapely import wkt as _shapely_wkt
+        from shapely.geometry import Point
+
+        poly = _shapely_wkt.loads(wkt)
+        inside = [p for p in points if poly.contains(Point(p[1], p[0]))]
+        if inside:
+            points = inside
+    except Exception:
+        pass
+
+    if not points:
+        points = [wkt_centroid(wkt)]
+    return points
 
 
 def footprint_wkt_from_products(products) -> str | None:
-    """Return WKT union of ASFProduct footprints, or None on failure."""
+    """Return the WKT union of ASFProduct footprints, or None on failure.
+
+    Used to record an AOI when the user drew none, so pair quality has a
+    region to fetch weather and coherence for. Both the CLI and the GUI route
+    go through this one helper: the weather cache is keyed on the rounded
+    centroid, so two callers deriving the AOI differently would produce two
+    cache keys for one stack.
+    """
     try:
         from shapely.geometry import shape as _shape
         from shapely.ops import unary_union
@@ -73,63 +149,3 @@ def footprint_wkt_from_products(products) -> str | None:
     except Exception as exc:
         logger.warning("Could not compute footprint WKT: %s", exc)
         return None
-
-
-def extract(aoi_wkt: str) -> dict:
-    """Return terrain feature dict for the given AOI WKT.
-
-    The GLO-30 DEM is fetched in-memory and not cached by this function —
-    caching is handled by the CacheManager in pair_quality.py.
-    """
-    result: dict = {
-        "elevation_mean":  None,
-        "elevation_range": None,
-        "slope_mean":      None,
-        "slope_p90":       None,
-        "aspect_mean":     None,
-        "roughness":       None,
-    }
-
-    try:
-        import dem_stitcher
-
-        west, south, east, north = _wkt_bbox(aoi_wkt)
-        # Add a small buffer so edge pixels have valid neighbours for gradient
-        buf = 0.05
-        bbox = [west - buf, south - buf, east + buf, north + buf]
-
-        dem_arr, _ = dem_stitcher.stitch_dem(
-            bbox,
-            dem_name="glo_30",
-            dst_area_or_point="Point",
-            dst_ellipsoidal_height=True,
-        )
-
-        # dem_stitcher returns shape (bands, rows, cols); squeeze to 2-D
-        if dem_arr.ndim == 3:
-            dem_arr = dem_arr[0]
-
-        # Mask nodata (common fill values: -9999, -32768)
-        dem_f = dem_arr.astype(float)
-        dem_f[dem_f < -1000] = np.nan
-
-        valid = dem_f[~np.isnan(dem_f)]
-        if valid.size == 0:
-            return result
-
-        dem_filled = np.nan_to_num(dem_f, nan=float(np.nanmean(dem_f)))
-        slope  = _slope_degrees(dem_filled)
-        aspect = _aspect_degrees(dem_filled)
-        rough  = _roughness(dem_filled)
-
-        result["elevation_mean"]  = round(float(np.nanmean(dem_f)), 1)
-        result["elevation_range"] = round(float(np.nanmax(dem_f) - np.nanmin(dem_f)), 1)
-        result["slope_mean"]      = round(float(np.nanmean(slope)), 2)
-        result["slope_p90"]       = round(float(np.nanpercentile(slope, 90)), 2)
-        result["aspect_mean"]     = round(float(np.nanmean(aspect)), 1)
-        result["roughness"]       = round(float(np.nanmean(rough)), 2)
-
-    except Exception as exc:
-        logger.warning("DEM terrain fetch failed: %s", exc)
-
-    return result

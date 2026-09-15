@@ -15,9 +15,8 @@
   },
   "networkEditor": {
     "quality": {
-      "good": "良好",
-      "risky": "风险",
-      "bad": "较差"
+      "healthy": "良好",
+      "concern": "需关注"
     },
     "interferogram": "干涉图",
     "pairQuality": "干涉对质量",
@@ -25,8 +24,6 @@
     "sec": "辅助",
     "perpBaseline": "⊥ 垂直基线",
     "coherence": "相干性",
-    "score": "得分",
-    "source": "来源",
     "absCoherence": "绝对相干性",
     "psFloor": "PS 基底 (ρ∞)",
     "seasons": "季节",
@@ -34,27 +31,7 @@
     "hardKills": "硬性剔除：",
     "warnings": "警告：",
     "qualityPenalties": "质量扣分项：",
-    "penalties": "扣分项：",
     "hoverForDetails": "悬停查看详情",
-    "unscored": "未评分",
-    "kills": {
-      "waterDominant": "水体主导",
-      "heavyRain": "强降雨 (>30 mm)",
-      "heavySnowCover": "厚积雪覆盖 (>90%)",
-      "deepSnow": "深积雪 (>50 cm)"
-    },
-    "kills2": {
-      "waterDominant": "水体主导 (>50%)",
-      "snowIceDominant": "冰雪主导 (>40%)",
-      "heavyRain": "强降雨 (>30 mm/天)",
-      "wetSnow": "湿雪（温度 >0°C 且积雪 >30%）",
-      "freshSnowfall": "新降雪（Δ覆盖 >50%）",
-      "heavySnowCover": "厚积雪覆盖 (>90%)",
-      "fire": "检测到火情 (FIRMS)"
-    },
-    "s1Global": "S1 全球",
-    "ndviLc": "NDVI/地表覆盖",
-    "clim": "气候态",
     "globalS1Coherence": "全球 S1 相干性",
     "climatology": "气候态",
     "jobFailed": "任务失败",
@@ -91,10 +68,6 @@
     "minConnections": "最小连接数",
     "maxConnections": "最大连接数",
     "forceConnectedNetwork": "强制连通网络",
-    "avoidLowQualityDays": "避开低质量采集日",
-    "fetchesWeatherSnow": "（将获取天气和积雪数据）",
-    "snowCoverThreshold": "积雪覆盖阈值 (0–1)",
-    "precipThreshold": "3 日降水阈值（毫米）",
     "updateNetwork": "更新网络",
     "loadingNetworkData": "正在加载网络数据…",
     "removed": "已移除",
@@ -112,7 +85,26 @@
     "dbBuildFailed": "数据库构建失败",
     "buildingPairDatabase": "正在构建干涉对数据库…",
     "acquisitionDate": "采集日期",
-    "perpBaselineM": "⊥ 垂直基线（米）"
+    "perpBaselineM": "⊥ 垂直基线（米）",
+    "events": "检测到的事件",
+    "noEvents": "未检测到极端条件",
+    "notJudged": "未评定",
+    "expectedCoherence": "预期相干性 γ",
+    "coherenceUnavailable": "相干性数据不可用",
+    "crossSeason": "跨季节",
+    "events2": {
+      "wet_snow": "湿雪",
+      "deep_snow": "厚积雪",
+      "fresh_snowfall": "新降雪",
+      "heavy_rain": "强降雨",
+      "rain": "降雨",
+      "high_wind": "大风",
+      "freeze_thaw": "冻融交替",
+      "soil_moisture_change": "土壤湿度突变",
+      "soil_moisture_shift": "土壤湿度变化",
+      "low_coherence": "预期相干性低",
+      "marginal_coherence": "预期相干性偏低"
+    }
   },
   "settings": {
     "type": "类型",

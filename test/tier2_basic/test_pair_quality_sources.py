@@ -48,7 +48,7 @@ def test_the_package_exists_and_has_modules():
 def test_no_module_references_a_host_outside_the_allowed_two():
     offenders: dict[str, set[str]] = {}
     for path in _py_files():
-        for line in path.read_text().splitlines():
+        for line in path.read_text(encoding="utf-8").splitlines():
             stripped = line.strip()
             # Skip comments and doc prose — a citation is not a request.
             if stripped.startswith("#") or stripped.startswith("*"):
@@ -86,7 +86,7 @@ def test_no_credential_machinery_remains():
     """No netrc, no API-key env vars. Both sources are anonymous."""
     offenders: dict[str, list[str]] = {}
     for path in _py_files():
-        for i, line in enumerate(path.read_text().splitlines(), 1):
+        for i, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
             stripped = line.strip()
             if stripped.startswith("#"):
                 continue
@@ -187,7 +187,7 @@ def test_filter_token_is_gone_everywhere(token):
     hits = {
         str(p.relative_to(_SRC)): i
         for p in _sources("*.py", "*.ts", "*.tsx", "*.json")
-        for i, line in enumerate(p.read_text(errors="ignore").splitlines(), 1)
+        for i, line in enumerate(p.read_text(encoding="utf-8", errors="ignore").splitlines(), 1)
         if token in line
     }
     assert not hits, (
@@ -241,7 +241,7 @@ def test_no_module_imports_a_deleted_sibling():
     offenders: dict[str, set[str]] = {}
     pattern = re.compile(r"(?:from\s+insarhub\.utils\.pair_quality(?:\s+import\s+|\.))(_\w+)")
     for path in _py_files():
-        for match in pattern.findall(path.read_text()):
+        for match in pattern.findall(path.read_text(encoding="utf-8")):
             if match not in existing:
                 offenders.setdefault(path.name, set()).add(match)
     assert not offenders, f"imports of deleted modules: {offenders}"

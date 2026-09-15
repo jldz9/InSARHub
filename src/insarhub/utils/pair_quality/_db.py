@@ -9,7 +9,7 @@ network call.
 File structure
 --------------
 {
-  "_schema_version": 3,
+  "_schema_version": 4,
   "_built_at":       "ISO-8601",
   "_n_scenes":       42,
   "_n_pairs":        861,
@@ -21,9 +21,10 @@ File structure
 }
 
 Schema 2 replaced the 0-100 ``scores`` map with ``status``; schema 3 renamed the
-flagged value from ``"risky"`` to ``"concern"``. Older files are discarded and
-rebuilt rather than migrated — the v1 numbers came from a weighting that no
-longer exists, and rebuilding is one cached request plus local computation.
+flagged value from ``"risky"`` to ``"concern"``. Schema 4 demoted ``deep_snow``
+from serious to minor — an unchanged dry pack does not cost coherence — so
+verdicts written before it no longer mean the same thing. Older files are
+discarded and rebuilt rather than migrated.
 
 Usage
 -----
@@ -53,7 +54,7 @@ from insarhub.utils.pair_quality._dates import scene_date, scene_hour
 logger = logging.getLogger(__name__)
 
 DB_FILE         = ".insarhub_pair_quality_db.json"
-_SCHEMA_VERSION = 3
+_SCHEMA_VERSION = 4
 
 
 # ── Per-folder build serialisation ────────────────────────────────────────────

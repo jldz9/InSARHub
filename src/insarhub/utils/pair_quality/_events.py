@@ -67,9 +67,12 @@ CONCERN   = "concern"
 WET_SNOW_MIN_DEPTH_M   = 0.01    # 1 cm — enough to dominate the return
 WET_SNOW_MIN_TEMP_C    = 0.0
 
-# Dry snow. C-band penetrates dry snow well, so depth alone is a much weaker
-# signal than wetness; volume scattering only becomes significant in a deep
-# pack. Serious only well beyond the wet-snow depth.
+# Dry snow. C-band penetrates dry snow well — a deep, unchanged pack is a
+# stable target — so depth alone is a much weaker signal than wetness. It is
+# recorded as minor: what actually costs coherence is liquid water (wet_snow)
+# or the pack changing between the acquisitions (delta_snow), not how deep the
+# snow is. Volume scattering from coarse grains/depth hoar in a deep pack is
+# real but secondary, and grain size is not something this model can see.
 DEEP_SNOW_M            = 0.25    # 25 cm
 # Fresh snowfall resurfaces the scene between passes. Minor: a light dusting
 # frequently leaves coherence intact.
@@ -294,7 +297,7 @@ def _date_events(date: str, w: dict, th: Thresholds) -> list[Event]:
         ))
     elif depth is not None and depth >= DEEP_SNOW_M:
         events.append(Event(
-            "deep_snow", SERIOUS,
+            "deep_snow", MINOR,
             f"{depth * 100:.0f} cm dry snow — volume scattering", date,
         ))
 

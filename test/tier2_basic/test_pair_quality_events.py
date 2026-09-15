@@ -107,9 +107,20 @@ def test_cold_shallow_snow_is_not_wet_snow():
     assert status == HEALTHY
 
 
-def test_deep_dry_snow_is_serious_but_shallow_dry_snow_is_not():
-    _, deep = _events.detect(_fv(w1=_w(snow_depth=0.40, temp=-10.0)))
-    assert [e for e in deep if e.kind == "deep_snow" and e.severity == SERIOUS]
+def test_deep_dry_snow_is_minor_and_shallow_dry_snow_is_not_flagged():
+    """C-band penetrates dry snow, so depth alone is not a verdict.
+
+    A deep but *unchanged* dry pack is a stable target. On p100_f466 a third of
+    the concerns came from exactly that, so deep_snow is recorded as minor:
+    only wetness (wet_snow) or a changing pack (delta_snow) sets concern.
+    """
+    status, deep = _events.detect(_fv(
+        w1=_w(snow_depth=0.40, temp=-10.0),
+        w2=_w(snow_depth=0.40, temp=-10.0),   # same pack across the pair
+    ))
+    ds = [e for e in deep if e.kind == "deep_snow"]
+    assert ds and all(e.severity == MINOR for e in ds)
+    assert status == HEALTHY, "an unchanged dry pack must not flag a pair"
 
     _, shallow = _events.detect(_fv(w1=_w(snow_depth=0.05, temp=-10.0)))
     assert not [e for e in shallow if e.kind == "deep_snow"]

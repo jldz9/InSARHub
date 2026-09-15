@@ -170,11 +170,13 @@ def test_pair_db_lookup_accepts_a_large_pair_list_over_post(api_client, tmp_path
     """
     import json
 
+    from insarhub.utils.pair_quality._db import _SCHEMA_VERSION
+
     base = "S1A_IW_SLC__1SDV_20200102T133453_20200102T133520_030622_038236_0000"
     pairs = [f"{base}{i}:{base}{i + 10000}" for i in range(4000)]
     status = {k: ("concern" if i % 3 == 0 else "healthy") for i, k in enumerate(pairs)}
     (tmp_path / ".insarhub_pair_quality_db.json").write_text(json.dumps({
-        "_schema_version": 3,
+        "_schema_version": _SCHEMA_VERSION,
         "status":  status,
         "factors": {k: {"status": v} for k, v in status.items()},
     }))

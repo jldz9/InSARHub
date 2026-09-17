@@ -65,10 +65,11 @@ A `release/` image installs InSARHub from conda-forge, so it can only be built
    **conda-forge**.
 3. Build and push the four `release/` images with
    `--build-arg INSARHUB_VERSION=X.Y.Z`.
-4. Point the `container_default` fields in
-   `src/insarhub/config/defaultconfig.py` at `:X.Y.Z`.
 
-Steps 1–2 are what gate everything; a `dev/` image needs none of them.
+There is no step 4: `container_default` is interpolated from `_version.py` by
+`_container_image()`, so bumping the version repoints all nine configs at
+`:X.Y.Z` on its own. Steps 1–2 are what gate everything; a `dev/` image needs
+none of them.
 
 The **GMTSAR image is the exception**: it installs InSARHub from PyPI via pip,
 not conda. The feedstock recipe declares `gdal >=3.8`, but a GMTSAR env pins
@@ -79,16 +80,20 @@ the unpinned numpy GMTSAR's own installer pip-installs.
 
 ### Patch releases may reuse the series' images
 
-Steps 3–4 are **optional for a patch release**. Because a `release/` image can
-only be built once conda-forge has the version, `:X.Y.Z` does not exist on the
-day `vX.Y.Z` is tagged — so requiring it would mean shipping a release whose
-`container_default` names an image nobody can pull. A patch release may instead
-keep pointing at the series' existing images (0.4.1 ships pointing at
-`:0.4.0`), and `test_container_default_tag_is_this_release_series` allows
-exactly that: a patch-level lag inside one `X.Y` series, never across a minor or
-major bump, and never a tag ahead of `__version__`.
+Step 3 is **optional for a patch release**. Because a `release/` image can only
+be built once conda-forge has the version, `:X.Y.Z` does not exist on the day
+`vX.Y.Z` is tagged — so requiring it would mean holding every release until the
+feedstock catches up. `container_default` still names `:X.Y.Z` (it is derived
+from `_version.py` and cannot lag), but `test_container_default_tag_resolves`
+asks the registry only whether the **`X.Y` series** exists, not the exact patch.
+A patch-level gap inside one series is therefore allowed; a whole series with no
+images — 0.5.0 shipping while only `:0.4.x` exists — is not.
 
-Do run steps 3–4 for a patch anyway when the release changes code that executes
+The trade-off that buys: between the version bump and the push, `--container`
+with no value names a tag that is not in the registry yet, and the pull fails
+with manifest-unknown. Run step 3 promptly.
+
+Do run step 3 for a patch anyway when the release changes code that executes
 *inside* a container — anything under `processor/`, `analyzer/` or the shared
 core. A fix confined to the web API, the CLI or the docs does not, since the
 container only ever runs the processor/analyzer re-invocation.

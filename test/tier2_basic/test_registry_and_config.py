@@ -184,15 +184,43 @@ def test_prerelease_points_at_dev_image():
         dc._insarhub_version = real
 
 
+_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)")
+
+
+def _release_triple(version: str) -> tuple[int, int, int] | None:
+    """``(major, minor, patch)`` of an X.Y.Z version, or None if it is not one.
+
+    Only the numeric prefix is read, so "0.4.2.dev0" and "0.4.2rc1" parse the
+    same as "0.4.2", and non-version tags like "dev" return None.
+    """
+    m = _VERSION_RE.match(version)
+    return (int(m[1]), int(m[2]), int(m[3])) if m else None
+
+
 @pytest.mark.needs_network
 @pytest.mark.parametrize("cfg", CONFIGS.values(), ids=list(CONFIGS))
 def test_container_default_tag_resolves(cfg):
-    """The pinned image must actually EXIST in the registry.
+    """The pinned image's RELEASE SERIES must exist in the registry.
 
     This is the guard the old string comparison could not provide. Every
     versioned image was missing from ghcr.io through 0.4.0 and 0.4.1 -- a bare
     ``--container`` failed with manifest-unknown for every user -- while the
     string test passed happily, because it only ever compared two strings.
+
+    It checks the **X.Y series**, not the exact X.Y.Z tag. ``container_default``
+    is interpolated from ``__version__`` (see ``_container_image``), so it names
+    ``:X.Y.Z`` the moment the version is bumped -- but a ``docker/release/*``
+    image installs InSARHub from conda-forge and asserts the installed version
+    equals ``INSARHUB_VERSION``, so ``:X.Y.Z`` is unbuildable until the feedstock
+    has X.Y.Z, which lands a day or more after the tag is pushed. Demanding the
+    exact tag therefore forces a choice between tagging a release with red CI and
+    holding the release for the feedstock; 0.4.1 and 0.4.2 both hit that.
+
+    A patch-level lag inside one series is safe because a patch release by
+    definition carries no processor or analyzer change large enough to matter to
+    what runs inside the image. What is still caught -- the case where images and
+    code genuinely diverge -- is a whole series with no images at all: 0.5.0 may
+    not ship while only ``:0.4.x`` exists.
     """
     import json
     import urllib.request
@@ -216,10 +244,26 @@ def test_container_default_tag_resolves(cfg):
     except Exception as exc:                       # offline, rate-limited, DNS
         pytest.skip(f"registry unreachable: {exc}")
 
-    assert tag in tags, (
-        f"{cfg.__name__}.container_default={default!r} names a tag that does not "
-        f"exist in ghcr.io/{path}. Published tags: {sorted(tags)}. Build and push "
-        "the release images -- see docker/README.md."
+    want = _release_triple(tag)
+    if want is None:
+        # Not an X.Y.Z tag (":dev" on a prerelease build). There is no series to
+        # fall back on, so it has to exist exactly as named.
+        assert tag in tags, (
+            f"{cfg.__name__}.container_default={default!r} names a tag that does "
+            f"not exist in ghcr.io/{path}. Published tags: {sorted(tags)}."
+        )
+        return
+
+    series = sorted(
+        t for t in tags
+        if (v := _release_triple(t)) is not None and v[:2] == want[:2]
+    )
+    assert series, (
+        f"{cfg.__name__}.container_default={default!r} names the "
+        f"{want[0]}.{want[1]}.x series, and ghcr.io/{path} has no image in that "
+        f"series at all. Published tags: {sorted(tags)}. A patch-level lag is "
+        f"fine -- a missing series is not: build and push the "
+        f"{want[0]}.{want[1]}.x release images, see docker/README.md."
     )
 
 

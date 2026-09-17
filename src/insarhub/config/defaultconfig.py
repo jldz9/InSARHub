@@ -3,6 +3,27 @@ from typing import ClassVar, Union
 from pathlib import Path
 from asf_search import constants
 from insarhub import _env
+from insarhub._version import __version__ as _insarhub_version
+
+
+def _container_image(stack: str) -> str:
+    """The default container image for *stack*, tagged from ``_version.py``.
+
+    Derived rather than written out literally so a release bump is one edit
+    instead of nine. The literal form was chosen originally to stop a version
+    bump from silently promising an image for a version nobody built -- that
+    guard has not gone away, it moved: ``test_container_default_tag_resolves``
+    asks the registry whether the tag actually exists, which catches the
+    nonexistent-image case the string comparison never could (every versioned
+    image was missing from ghcr.io for two releases while that test passed).
+
+    A prerelease resolves to ``:dev`` on purpose. ``0.4.3.dev0`` has no image and
+    never will, so pointing it at the floating dev image -- the one a developer
+    on an unreleased tree actually wants -- beats a guaranteed pull failure.
+    """
+    prerelease = ".dev" in _insarhub_version or "rc" in _insarhub_version
+    tag = "dev" if prerelease else _insarhub_version
+    return f"ghcr.io/jldz9/insarhub-{stack}:{tag}"
 
 # ---------------------------------------------------------------------------
 # Downloader configurations
@@ -519,7 +540,7 @@ class ISCE2_S1_Config:
     sbatch_options_per_step: dict           = field(default_factory=dict)
     container: str | None                 = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str                = "ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0"
+    container_default: str                = _container_image("isce2-mintpy")
 
     def __post_init__(self):
         _AUTO = {"auto", ""}
@@ -862,7 +883,7 @@ class GMTSAR_Base_Config:
     # _reinvoke_via_container() docstring.
     container: str | None             = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0"
+    container_default: str            = _container_image("gmtsar-mintpy")
 
     # ── GMTSAR processing params (common to every SAT; pop_config defaults) ──
     # stack alignment: "esd" (enhanced spectral diversity, preproc_batch_tops_esd
@@ -1386,7 +1407,7 @@ class ISCE3_Burst_Config:
     # expected to have `insarhub` plus ISCE3/COMPASS installed.
     container: str | None         = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str        = "ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0"
+    container_default: str        = _container_image("isce3-dolphin")
     # Set by the CLI's --dry-run. Must exist as a real field: the CLI puts
     # dry_run into its overrides dict, but only keys that are actual dataclass
     # fields survive the filter into the config -- so without this, --dry-run
@@ -1950,7 +1971,7 @@ class Mintpy_SBAS_Base_Config:
     container: str | None = None
     # Default container image used when `--container` is passed with no value.
     # MintPy analyzers need MintPy + (for ISCE2) ISCE2 -- the isce2 image has both.
-    container_default: str = "ghcr.io/jldz9/insarhub-isce2-mintpy:0.4.0"
+    container_default: str = _container_image("isce2-mintpy")
 
     ## computing resource configuration
     # System memory minus a 1 GB reserve for the OS/scheduler: giving dask the
@@ -2177,7 +2198,7 @@ class Hyp3_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
     # HyP3 generates interferograms in the cloud, so the only local step is
     # MintPy -- the lightweight insarhub-base image (InSARHub + MintPy, no
     # ISCE2/GMTSAR) is enough. See docker/dev/Dockerfile.base.
-    container_default: str = "ghcr.io/jldz9/insarhub-base:0.4.0"
+    container_default: str = _container_image("base")
     deramp: str = 'linear'
     troposphericDelay_method: str = 'pyaps'
     # "adaptive": InSARHub derives each threshold from THIS stack at prep_data
@@ -2304,7 +2325,7 @@ class GMTSAR_SBAS_Config:
     # Run inside a container image that ships GMTSAR + insarhub (the sbas binary
     # and `gmt` live there, not in InSARHub's own env).
     container: str | None              = None
-    container_default: str             = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0"
+    container_default: str             = _container_image("gmtsar-mintpy")
 
 
 @dataclass
@@ -2318,7 +2339,7 @@ class GMTSAR_Mintpy_SBAS_Config(Mintpy_SBAS_Base_Config):
     name: str                         = "GMTSAR_Mintpy_SBAS_Config"
     load_processor: str               = "gmtsar"
     # GMTSAR-based: needs GMTSAR + MintPy, so the gmtsar image, not isce2.
-    container_default: str            = "ghcr.io/jldz9/insarhub-gmtsar-mintpy:0.4.0"
+    container_default: str            = _container_image("gmtsar-mintpy")
     # Populated by GMTSAR_Mintpy_SBAS.prep_data() — left "auto" so
     # write_mintpy_config() skips them while unset.
     load_metaFile: str                = "auto"
@@ -2482,7 +2503,7 @@ class ISCE3_Dolphin_PL_Base_Config:
     hpc_mode: bool                    = False
     container: str | None             = None
     # Default container image used when `--container` is passed with no value.
-    container_default: str            = "ghcr.io/jldz9/insarhub-isce3-dolphin:0.4.0"
+    container_default: str            = _container_image("isce3-dolphin")
 
 
 @dataclass

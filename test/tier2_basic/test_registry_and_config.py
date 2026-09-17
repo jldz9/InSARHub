@@ -142,77 +142,84 @@ def test_container_default_is_not_a_floating_tag(cfg):
     )
 
 
-_VERSION_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)")
-
-
-def _release_triple(version: str) -> tuple[int, int, int] | None:
-    """``(major, minor, patch)`` of an X.Y.Z version, or None if it is not one.
-
-    Only the numeric prefix is read, so "0.4.2.dev0" and "0.4.2rc1" parse the
-    same as "0.4.2" -- the prerelease suffix is handled by the skips below.
-    """
-    m = _VERSION_RE.match(version)
-    return (int(m[1]), int(m[2]), int(m[3])) if m else None
-
-
 @pytest.mark.parametrize("cfg", CONFIGS.values(), ids=list(CONFIGS))
-def test_container_default_tag_is_this_release_series(cfg):
-    """The pinned image tag must come from THIS release series (same X.Y).
+def test_container_default_is_derived_not_hardcoded(cfg):
+    """Every container_default must come from ``_container_image()``.
 
-    The tags are written out literally (``...insarhub-base:0.4.0``) rather than
-    interpolated from ``__version__``, because the tag has to name an image that
-    was actually built and pushed -- deriving it would silently promise an image
-    for every dev version that will never exist.
-
-    Requiring an *exact* match, which this test used to do, cannot hold on
-    release day. A ``docker/release/*`` image installs InSARHub from conda-forge
-    and asserts the installed version equals ``INSARHUB_VERSION``, so ``:X.Y.Z``
-    is unbuildable until the feedstock has ``X.Y.Z`` -- which lands a day or more
-    after the tag is pushed. Exact equality therefore forced a choice between
-    tagging a release with red CI and pointing users at an image that does not
-    exist. 0.4.1 hit precisely that and shipped defaulting to the 0.4.0 images.
-
-    So a patch-level lag *within* one series is allowed: 0.4.1 may point at
-    ``:0.4.0``. That is safe because a patch release by definition carries no
-    processor or analyzer change large enough to matter to what runs inside the
-    image -- if it ever does, build the new patch images and re-tag.
-
-    What is still caught, because this is where images and code genuinely
-    diverge, is a lag across a **minor or major** bump: 0.5.0 may not ship
-    pointing at ``:0.4.x``. A tag running *ahead* of ``__version__`` is caught
-    too, since that names an image nobody has built yet.
+    The tag used to be written out literally in nine places, so a release bump
+    meant nine edits and forgetting one shipped a config silently pointing at the
+    previous release's image. It is now derived from ``_version.py``; this keeps
+    anyone from reintroducing a literal.
     """
-    import insarhub
+    from insarhub.config.defaultconfig import _container_image
 
     default = getattr(cfg, "container_default", None)
     if not isinstance(default, str) or ":" not in default:
         pytest.skip(f"{cfg.__name__} has no tagged container_default")
-    if ".dev" in insarhub.__version__ or "rc" in insarhub.__version__:
-        pytest.skip("prerelease build may legitimately point at an older tag")
-
-    tag = default.rsplit(":", 1)[1]
-    tag_v = _release_triple(tag)
-    this_v = _release_triple(insarhub.__version__)
-    assert tag_v is not None, (
-        f"{cfg.__name__}.container_default is tagged {tag!r}, which is not an "
-        "X.Y.Z version. Releases must pin an immutable, versioned tag."
-    )
-    assert this_v is not None, (
-        f"insarhub.__version__ is {insarhub.__version__!r}, which is not X.Y.Z "
-        "and carries no .dev/rc marker either -- fix _version.py."
+    # rebuild from the image name so a typo'd stack is caught too
+    name = default.rsplit("/", 1)[1].rsplit(":", 1)[0].removeprefix("insarhub-")
+    assert default == _container_image(name), (
+        f"{cfg.__name__}.container_default={default!r} is not what "
+        f"_container_image({name!r}) produces ({_container_image(name)!r}). "
+        "Do not hardcode the tag -- it is derived from _version.py."
     )
 
-    assert tag_v[:2] == this_v[:2], (
-        f"{cfg.__name__}.container_default is tagged {tag!r} but this is "
-        f"InSARHub {insarhub.__version__}. A patch-level lag is fine, but a "
-        f"minor or major bump means the images no longer match the code: build "
-        f"and push the {this_v[0]}.{this_v[1]}.x images and re-tag every "
-        "container_default -- see docker/README.md."
-    )
-    assert tag_v[2] <= this_v[2], (
-        f"{cfg.__name__}.container_default is tagged {tag!r}, which is ahead of "
-        f"InSARHub {insarhub.__version__}. That names an image that has not been "
-        "built; container_default may lag this version, never lead it."
+
+def test_prerelease_points_at_dev_image():
+    """A ``.dev``/``rc`` version must resolve to ``:dev``, not a version tag.
+
+    Release images are built only for released versions, so interpolating
+    ``0.4.3.dev0`` would promise an image that will never exist. The floating
+    ``:dev`` image is the one a developer on an unreleased tree actually wants.
+    """
+    import insarhub.config.defaultconfig as dc
+
+    real = dc._insarhub_version
+    try:
+        for v, want in (("0.4.3.dev0", "dev"), ("0.5.0rc1", "dev"),
+                        ("0.4.2", "0.4.2"), ("1.0.0", "1.0.0")):
+            dc._insarhub_version = v
+            assert dc._container_image("base").rsplit(":", 1)[1] == want, v
+    finally:
+        dc._insarhub_version = real
+
+
+@pytest.mark.needs_network
+@pytest.mark.parametrize("cfg", CONFIGS.values(), ids=list(CONFIGS))
+def test_container_default_tag_resolves(cfg):
+    """The pinned image must actually EXIST in the registry.
+
+    This is the guard the old string comparison could not provide. Every
+    versioned image was missing from ghcr.io through 0.4.0 and 0.4.1 -- a bare
+    ``--container`` failed with manifest-unknown for every user -- while the
+    string test passed happily, because it only ever compared two strings.
+    """
+    import json
+    import urllib.request
+
+    default = getattr(cfg, "container_default", None)
+    if not isinstance(default, str) or ":" not in default:
+        pytest.skip(f"{cfg.__name__} has no tagged container_default")
+    repo, tag = default.rsplit(":", 1)
+    path = repo.split("ghcr.io/", 1)[1]
+
+    def _get(url, hdrs=None):
+        req = urllib.request.Request(url, headers=hdrs or {})
+        return urllib.request.urlopen(req, timeout=20)
+
+    try:
+        with _get(f"https://ghcr.io/token?scope=repository:{path}:pull&service=ghcr.io") as r:
+            token = json.load(r)["token"]
+        with _get(f"https://ghcr.io/v2/{path}/tags/list",
+                  {"Authorization": f"Bearer {token}"}) as r:
+            tags = json.load(r).get("tags") or []
+    except Exception as exc:                       # offline, rate-limited, DNS
+        pytest.skip(f"registry unreachable: {exc}")
+
+    assert tag in tags, (
+        f"{cfg.__name__}.container_default={default!r} names a tag that does not "
+        f"exist in ghcr.io/{path}. Published tags: {sorted(tags)}. Build and push "
+        "the release images -- see docker/README.md."
     )
 
 

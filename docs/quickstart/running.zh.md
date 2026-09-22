@@ -4,7 +4,7 @@
 
 
 ## 模块
-InSAR 脚本设计了三个基于配置的主要模块，覆盖完整的 InSAR 处理流程：
+InSARHub 设计了三个基于配置的主要模块，覆盖完整的 InSAR 处理流程：
 
 [下载器](../advanced/downloader.md){.md-button .md-button--lg} [处理器](../advanced/processor.md){ .md-button .md-button--lg} [分析器](../advanced/analyzer.md){ .md-button .md-button--lg}
 

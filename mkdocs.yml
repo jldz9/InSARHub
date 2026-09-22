@@ -45,7 +45,6 @@ nav:
         - Running:
           - API: quickstart/running.md
           - CLI: quickstart/cli.md
-  - FAQ: faq.md
   - Web UI:
         - Overview: quickstart/frontend.md
         - Search & Download: frontend/search.md
@@ -68,6 +67,7 @@ nav:
         - Overview: contributing/contributing.md
         - Backend: contributing/backend.md
         - Frontend: contributing/frontend.md
+  - FAQ: faq.md
 
 
 extra:

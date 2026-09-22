@@ -4,7 +4,7 @@ This section provides an overview of the complete InSAR time-series processing w
 
 
 ## Modules 
-The InSAR script is designed with three config-based main modules to cover the entire InSAR processing workflow:
+InSARHub is designed with three config-based main modules to cover the entire InSAR processing workflow:
 
 [Downloader](../advanced/downloader.md){.md-button .md-button--lg} [Processor](../advanced/processor.md){ .md-button .md-button--lg} [Analyzer](../advanced/analyzer.md){ .md-button .md-button--lg}
 

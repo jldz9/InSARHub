@@ -8,10 +8,8 @@
         <link rel="canonical" href="https://jldz9.github.io/InSARHub/dev/faq/">
       
       
-        <link rel="prev" href="../quickstart/cli/">
+        <link rel="prev" href="../contributing/frontend/">
       
-      
-        <link rel="next" href="../quickstart/frontend/">
       
       
         
@@ -304,27 +302,6 @@
   
   
   
-    
-  
-  
-    <li class="md-tabs__item md-tabs__item--active">
-      <a href="./" class="md-tabs__link">
-        
-  
-  
-    
-  
-  FAQ
-
-      </a>
-    </li>
-  
-
-      
-        
-  
-  
-  
   
     
     
@@ -381,6 +358,27 @@
   
 
       
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  FAQ
+
+      </a>
+    </li>
+  
+
+      
     </ul>
   </div>
 </nav>
@@ -389,36 +387,102 @@
 </header>
     
   <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      var option = document.querySelector(".md-header__option");
-      if (!option) return;
+    (function () {
+      // Resolved once, on the initial full page load, so instant navigation
+      // cannot leave a stale relative path behind in the persistent header.
+      var QR_URL = new URL("../img/wechat-qr.png", document.baseURI).href;
 
-      function makeIcon(href, title, svgBody, newTab) {
+      var DISCORD_PATH = '<path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>';
+
+      // Font Awesome brands/weixin
+      var WECHAT_PATH = '<path d="M385.2 167.6c6.4 0 12.6.3 18.8 1.1C387.4 90.3 303.3 32 207.7 32 100.5 32 13 104.8 13 197.4c0 53.4 29.3 97.5 77.9 131.6l-19.3 58.6 68-34.1c24.4 4.8 43.8 9.7 68.2 9.7 6.2 0 12.1-.3 18.3-.8-4-12.9-6.2-26.6-6.2-40.8-.1-84.9 72.9-154 165.3-154m-104.5-52.9c14.5 0 24.2 9.7 24.2 24.4 0 14.5-9.7 24.2-24.2 24.2-14.8 0-29.3-9.7-29.3-24.2.1-14.7 14.6-24.4 29.3-24.4m-136.4 48.6c-14.5 0-29.3-9.7-29.3-24.2 0-14.8 14.8-24.4 29.3-24.4 14.8 0 24.4 9.7 24.4 24.4 0 14.6-9.6 24.2-24.4 24.2M563 319.4c0-77.9-77.9-141.3-165.4-141.3-92.7 0-165.4 63.4-165.4 141.3S305 460.7 397.6 460.7c19.3 0 38.9-5.1 58.6-9.9l53.4 29.3-14.8-48.6C534 402.1 563 363.2 563 319.4m-219.1-24.5c-9.7 0-19.3-9.7-19.3-19.6 0-9.7 9.7-19.3 19.3-19.3 14.8 0 24.4 9.7 24.4 19.3 0 10-9.7 19.6-24.4 19.6m107.1 0c-9.7 0-19.3-9.7-19.3-19.6 0-9.7 9.7-19.3 19.3-19.3 14.5 0 24.4 9.7 24.4 19.3.1 10-9.9 19.6-24.4 19.6"/>';
+
+      var EMAIL_PATH = '<path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>';
+
+      function isChinese() {
+        var lang = (document.documentElement.lang || "").toLowerCase();
+        return lang === "zh" || lang.indexOf("zh-") === 0;
+      }
+
+      function svg(viewBox, body) {
+        return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + viewBox +
+               '" style="width:1.2rem;height:1.2rem;fill:currentColor;">' + body + '</svg>';
+      }
+
+      function makeIcon(href, title, viewBox, body, newTab) {
         var a = document.createElement("a");
         a.href = href;
         a.title = title;
         if (newTab) { a.target = "_blank"; a.rel = "noopener"; }
-        a.className = "md-header__button md-icon";
-        a.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" style="width:1.2rem;height:1.2rem;fill:currentColor;">' + svgBody + '</svg>';
+        a.className = "md-header__button md-icon ih-injected";
+        a.innerHTML = svg(viewBox, body);
         return a;
       }
 
-      var discord = makeIcon(
-        "https://discord.gg/RJJM42MBUU", "Discord",
-        '<path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028 14.09 14.09 0 0 0 1.226-1.994.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/>',
-        true
-      );
+      // WeChat has no link to follow, so the icon carries a QR code that opens
+      // on hover (and on tap, which is all touch devices can offer).
+      function makeWeChat(linkClass, extraClass) {
+        var wrap = document.createElement("span");
+        wrap.className = "ih-wechat ih-injected" + (extraClass ? " " + extraClass : "");
 
-      var email = makeIcon(
-        "mailto:jiaweiliwork@outlook.com", "Email",
-        '<path d="M20 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4-8 5-8-5V6l8 5 8-5v2z"/>',
-        false
-      );
+        var a = document.createElement("a");
+        a.href = QR_URL;
+        a.target = "_blank";
+        a.rel = "noopener";
+        a.title = "微信";
+        a.className = linkClass + " ih-wechat__icon";
+        a.innerHTML = svg("0 0 576 512", WECHAT_PATH);
 
-      // Insert in reverse order so final left→right is: email | discord | [color toggle]
-      option.insertBefore(discord, option.firstChild);
-      option.insertBefore(email, discord);
-    });
+        var panel = document.createElement("span");
+        panel.className = "ih-wechat__qr";
+        panel.innerHTML = '<img src="' + QR_URL + '" alt="微信二维码"><span class="ih-wechat__caption">微信扫码联系</span>';
+
+        wrap.appendChild(a);
+        wrap.appendChild(panel);
+        return wrap;
+      }
+
+      function renderHeader() {
+        var option = document.querySelector(".md-header__option");
+        if (!option) return;
+
+        // The header survives instant navigation, so clear a previous pass
+        // before re-rendering for the language of the current page.
+        option.querySelectorAll(".ih-injected").forEach(function (el) { el.remove(); });
+
+        var chat = isChinese()
+          ? makeWeChat("md-header__button md-icon", "ih-wechat--header")
+          : makeIcon("https://discord.gg/RJJM42MBUU", "Discord", "0 0 24 24", DISCORD_PATH, true);
+
+        var email = makeIcon("mailto:jiaweiliwork@outlook.com", "Email", "0 0 24 24", EMAIL_PATH, false);
+
+        // Insert in reverse order so final left→right is: email | chat | [color toggle]
+        option.insertBefore(chat, option.firstChild);
+        option.insertBefore(email, chat);
+      }
+
+      function renderFooter() {
+        if (!isChinese()) return;
+        var discord = document.querySelector('.md-social__link[href*="discord"]');
+        if (!discord) return;
+        discord.replaceWith(makeWeChat("md-social__link", "ih-wechat--footer"));
+      }
+
+      function render() {
+        renderHeader();
+        renderFooter();
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        // document$ re-emits on every instant navigation; the footer is rebuilt
+        // each time, so patching it once would not survive.
+        if (typeof document$ !== "undefined" && document$.subscribe) {
+          document$.subscribe(render);
+        } else {
+          render();
+        }
+      });
+    })();
   </script>
 
     <div class="md-container" data-md-component="container">
@@ -731,157 +795,6 @@
       
   
   
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    FAQ
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    FAQ
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#the-insarhub-app-link-will-not-open" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The insarhub-app link will not open
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#search-finds-scenes-but-download-fails-with-search-does-not-return-any-result" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Search finds scenes, but Download fails with "Search does not return any result"
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#isce2-stops-part-way-through-and-the-terminal-process-disappears" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        ISCE2 stops part-way through and the terminal process disappears
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#what-does-pip-install-e-install" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        What does pip install -e . install?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#which-satellites-are-supported" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Which satellites are supported?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-do-i-see-what-insarhub-is-doing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How do I see what InSARHub is doing?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-select-pair-warns-that-no-pair-graph-will-be-generated" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --select-pair warns that no pair graph will be generated
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
   
   
     
@@ -900,10 +813,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -921,8 +834,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1101,10 +1014,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -1122,8 +1035,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1470,10 +1383,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
             
   
   
@@ -1491,8 +1404,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1593,6 +1506,135 @@
   
 
     
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FAQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#installation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Installation
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#web-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Web UI
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search-download" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search &amp; download
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Processing
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
   </ul>
 </nav>
                   </div>
@@ -1620,10 +1662,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#the-insarhub-app-link-will-not-open" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The insarhub-app link will not open
+        Installation
       
     </span>
   </a>
@@ -1631,10 +1673,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#search-finds-scenes-but-download-fails-with-search-does-not-return-any-result" class="md-nav__link">
+  <a href="#web-ui" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Search finds scenes, but Download fails with "Search does not return any result"
+        Web UI
       
     </span>
   </a>
@@ -1642,10 +1684,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#isce2-stops-part-way-through-and-the-terminal-process-disappears" class="md-nav__link">
+  <a href="#search-download" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ISCE2 stops part-way through and the terminal process disappears
+        Search &amp; download
       
     </span>
   </a>
@@ -1653,10 +1695,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#what-does-pip-install-e-install" class="md-nav__link">
+  <a href="#processing" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What does pip install -e . install?
+        Processing
       
     </span>
   </a>
@@ -1664,32 +1706,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#which-satellites-are-supported" class="md-nav__link">
+  <a href="#logging" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Which satellites are supported?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#how-do-i-see-what-insarhub-is-doing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        How do I see what InSARHub is doing?
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#-select-pair-warns-that-no-pair-graph-will-be-generated" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        --select-pair warns that no pair graph will be generated
+        Logging
       
     </span>
   </a>
@@ -1718,76 +1738,25 @@
 
 <h1 id="frequently-asked-questions">Frequently Asked Questions</h1>
 <p>Questions that have come up more than once, mostly from the
-<a href="https://github.com/jldz9/InSARHub/issues">issue tracker</a>.</p>
-<h2 id="the-insarhub-app-link-will-not-open">The <code>insarhub-app</code> link will not open</h2>
-<p><code>insarhub-app</code> prints a URL such as <code>http://127.0.0.1:8080</code>, but the browser shows
-nothing — a connection error, a blank page, or someone else's application.</p>
-<p>Port <strong>8080</strong> is a popular default, so something else on the machine has very
-likely taken it. Start the app somewhere else:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>insarhub-app<span class="w"> </span>--port<span class="w"> </span><span class="m">12345</span>
-</span></code></pre></div>
-<p>Then open the URL the app prints, not the old one. Any free port works.</p>
-<details class="note">
-<summary>Other things worth checking</summary>
-<ul>
-<li><strong>Open the URL it printed.</strong> With <code>--host 0.0.0.0</code> the app is reachable
-  from other machines, but the address to type is still the host's own.</li>
-<li><strong>Remote or HPC sessions.</strong> If <code>insarhub-app</code> runs on a remote machine,
-  forward the port first: <code>ssh -L 12345:127.0.0.1:12345 user@host</code>, then
-  open <code>http://127.0.0.1:12345</code> on your own computer.</li>
-<li><strong>Blank page rather than a connection error.</strong> That means the server is
-  up but the frontend bundle is missing — reinstall InSARHub, and see
-  <a href="../quickstart/install/">Installation</a>.</li>
-</ul>
-</details>
-<h2 id="search-finds-scenes-but-download-fails-with-search-does-not-return-any-result">Search finds scenes, but Download fails with "Search does not return any result"</h2>
-<p>Fixed in <strong>0.4.0</strong> (<a href="https://github.com/jldz9/InSARHub/issues/7">#7</a>). Upgrade:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub
-</span></code></pre></div>
-<p><code>asf_search</code> 13.0.0 changed how it decides which frame field a query means. Its
-<code>should_use_asf_frame()</code> stopped recognising a generic <code>platform=SENTINEL-1</code>
-search, so the frame filter silently queried the <strong>ESA</strong> frame number and
-matched nothing — which is why searching worked while downloading found zero
-scenes. InSARHub now routes frame filters to <code>asfFrame</code> explicitly, which
-behaves the same on <code>asf_search</code> 12.x and 13.x.</p>
-<p>If you previously pinned <code>asf_search=12.3.2</code> as a workaround, you can lift the
-pin.</p>
-<h2 id="isce2-stops-part-way-through-and-the-terminal-process-disappears">ISCE2 stops part-way through and the terminal process disappears</h2>
-<p>Two different causes, and they look identical from the outside.</p>
-<p><strong>A silent crash at a fixed step</strong> was a bug in 0.3.x
-(<a href="https://github.com/jldz9/InSARHub/issues/6">#6</a>): <code>_fix_cmd</code> failed to strip
-the trailing <code>&amp;</code> that ISCE2 writes into every <code>run_files</code> line, so the command
-returned instantly with success while its real work was orphaned. <strong>Fixed in
-0.4.0.</strong></p>
-<p><strong>A crash at a varying step, often on a large stack, is usually the kernel's
-OOM killer.</strong> InSARHub runs each <code>run_files</code> line in parallel, and several
-ISCE2 steps are memory-hungry, so the total can exceed RAM. Lower the
-concurrency:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/path/to/workdir<span class="w"> </span>submit<span class="w"> </span>--max_workers<span class="w"> </span><span class="m">2</span>
-</span></code></pre></div>
-<p><code>--max_workers</code> is the knob for every step except <code>topo</code> (<code>run_01</code>), which is a
-single command — use <code>--num_proc4topo</code> for that one. See
-<a href="../advanced/processor/">Processor</a>.</p>
-<details class="note">
-<summary>Telling the two apart</summary>
-<p>Run with <code>INSARHUB_DEBUG=1</code> and check <code>executor.log</code> in the work directory.
-An OOM kill leaves the step at <code>RUNNING</code> with no error, and
-<code>dmesg | grep -i "killed process"</code> names the process. See
-<a href="../advanced/cli_reference/#logging">Logging</a>.</p>
-</details>
-<h2 id="what-does-pip-install-e-install">What does <code>pip install -e .</code> install?</h2>
+<a href="https://github.com/jldz9/InSARHub/issues">issue tracker</a>. Click a question to
+open its answer.</p>
+<h2 id="installation">Installation</h2>
+<details class="question">
+<summary>What does <code>pip install -e .</code> install?</summary>
 <p>The <strong>trailing dot is required</strong> — it means "the package in the current
 directory" (<a href="https://github.com/jldz9/InSARHub/issues/2">#2</a>). Activate the
 environment first, and run it from the repository root:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>conda<span class="w"> </span>activate<span class="w"> </span>insarhub
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="nb">cd</span><span class="w"> </span>InSARHub
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </span></code></pre></div>
-<p><code>-e</code> is an <em>editable</em> install: the environment points at your checkout, so code
-changes take effect without reinstalling. You only need this to work on
+<p><code>-e</code> is an <em>editable</em> install: the environment points at your checkout, so
+code changes take effect without reinstalling. You only need this to work on
 InSARHub itself — to simply use it, install from conda-forge as in
 <a href="../quickstart/install/">Installation</a>.</p>
-<h2 id="which-satellites-are-supported">Which satellites are supported?</h2>
+</details>
+<details class="question">
+<summary>Which satellites are supported?</summary>
 <p>Sentinel-1 and NISAR today (<a href="https://github.com/jldz9/InSARHub/issues/1">#1</a>):</p>
 <table>
 <thead>
@@ -1824,20 +1793,88 @@ InSARHub itself — to simply use it, install from conda-forge as in
 download a large volume of data that nothing can then process. They remain
 available from the CLI and the Python API.</p>
 <p>ALOS, ERS and other platforms are not supported yet.</p>
-<h2 id="how-do-i-see-what-insarhub-is-doing">How do I see what InSARHub is doing?</h2>
+</details>
+<h2 id="web-ui">Web UI</h2>
+<details class="question">
+<summary>The <code>insarhub-app</code> link will not open</summary>
+<p><code>insarhub-app</code> prints a URL such as <code>http://127.0.0.1:8080</code>, but the browser
+shows nothing — a connection error, a blank page, or someone else's
+application.</p>
+<p>Port <strong>8080</strong> is a popular default, so something else on the machine has very
+likely taken it. Start the app somewhere else:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>insarhub-app<span class="w"> </span>--port<span class="w"> </span><span class="m">12345</span>
+</span></code></pre></div>
+<p>Then open the URL the app prints, not the old one. Any free port works.</p>
+<p>Other things worth checking:</p>
+<ul>
+<li><strong>Open the URL it printed.</strong> With <code>--host 0.0.0.0</code> the app is reachable
+  from other machines, but the address to type is still the host's own.</li>
+<li><strong>Remote or HPC sessions.</strong> If <code>insarhub-app</code> runs on a remote machine,
+  forward the port first: <code>ssh -L 12345:127.0.0.1:12345 user@host</code>, then
+  open <code>http://127.0.0.1:12345</code> on your own computer.</li>
+<li><strong>Blank page rather than a connection error.</strong> That means the server is
+  up but the frontend bundle is missing — reinstall InSARHub, and see
+  <a href="../quickstart/install/">Installation</a>.</li>
+</ul>
+</details>
+<h2 id="search-download">Search &amp; download</h2>
+<details class="question">
+<summary>Search finds scenes, but Download fails with “Search does not return any result”</summary>
+<p>Fixed in <strong>0.4.0</strong> (<a href="https://github.com/jldz9/InSARHub/issues/7">#7</a>). Upgrade:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>conda<span class="w"> </span>install<span class="w"> </span>-c<span class="w"> </span>conda-forge<span class="w"> </span>insarhub
+</span></code></pre></div>
+<p><code>asf_search</code> 13.0.0 changed how it decides which frame field a query means.
+Its <code>should_use_asf_frame()</code> stopped recognising a generic
+<code>platform=SENTINEL-1</code> search, so the frame filter silently queried the
+<strong>ESA</strong> frame number and matched nothing — which is why searching worked
+while downloading found zero scenes. InSARHub now routes frame filters to
+<code>asfFrame</code> explicitly, which behaves the same on <code>asf_search</code> 12.x and 13.x.</p>
+<p>If you previously pinned <code>asf_search=12.3.2</code> as a workaround, you can lift
+the pin.</p>
+</details>
+<h2 id="processing">Processing</h2>
+<details class="question">
+<summary>ISCE2 stops part-way through and the terminal process disappears</summary>
+<p>Two different causes, and they look identical from the outside.</p>
+<p><strong>A silent crash at a fixed step</strong> was a bug in 0.3.x
+(<a href="https://github.com/jldz9/InSARHub/issues/6">#6</a>): <code>_fix_cmd</code> failed to
+strip the trailing <code>&amp;</code> that ISCE2 writes into every <code>run_files</code> line, so the
+command returned instantly with success while its real work was orphaned.
+<strong>Fixed in 0.4.0.</strong></p>
+<p><strong>A crash at a varying step, often on a large stack, is usually the kernel's
+OOM killer.</strong> InSARHub runs each <code>run_files</code> line in parallel, and several
+ISCE2 steps are memory-hungry, so the total can exceed RAM. Lower the
+concurrency:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/path/to/workdir<span class="w"> </span>submit<span class="w"> </span>--max_workers<span class="w"> </span><span class="m">2</span>
+</span></code></pre></div>
+<p><code>--max_workers</code> is the knob for every step except <code>topo</code> (<code>run_01</code>), which is
+a single command — use <code>--num_proc4topo</code> for that one. See
+<a href="../advanced/processor/">Processor</a>.</p>
+<p>To tell the two apart, run with <code>INSARHUB_DEBUG=1</code> and check <code>executor.log</code>
+in the work directory. An OOM kill leaves the step at <code>RUNNING</code> with no
+error, and <code>dmesg | grep -i "killed process"</code> names the process.</p>
+</details>
+<details class="question">
+<summary><code>--select-pair</code> warns that no pair graph will be generated</summary>
+<p>Expected for <strong>S1_Burst</strong> and the <strong>NISAR</strong> products. ASF publishes no
+perpendicular baseline for them, so a baseline-vs-time network cannot be
+drawn.</p>
+<p>The pairs are still created, and processing is unaffected: the ISCE3
+processors build their own interferogram network through dolphin's phase
+linking, using temporal and index constraints rather than a
+perpendicular-baseline threshold. See
+<a href="../advanced/pair_quality/">Pair Quality Scoring</a>.</p>
+</details>
+<h2 id="logging">Logging</h2>
+<details class="question">
+<summary>How do I see what InSARHub is doing?</summary>
 <p>It is quiet by default — only the command's output, plus warnings and errors.
 Set <code>INSARHUB_DEBUG=1</code> for the full log:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nv">INSARHUB_DEBUG</span><span class="o">=</span><span class="m">1</span><span class="w"> </span>insarhub<span class="w"> </span>processor<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/path/to/workdir<span class="w"> </span>submit
 </span></code></pre></div>
-<p>This works for the CLI, <code>insarhub-app</code> and <code>import insarhub</code> alike. Details in
-<a href="../advanced/cli_reference/#logging">Logging</a>.</p>
-<h2 id="-select-pair-warns-that-no-pair-graph-will-be-generated"><code>--select-pair</code> warns that no pair graph will be generated</h2>
-<p>Expected for <strong>S1_Burst</strong> and the <strong>NISAR</strong> products. ASF publishes no
-perpendicular baseline for them, so a baseline-vs-time network cannot be drawn.</p>
-<p>The pairs are still created, and processing is unaffected: the ISCE3 processors
-build their own interferogram network through dolphin's phase linking, using
-temporal and index constraints rather than a perpendicular-baseline threshold.
-See <a href="../advanced/pair_quality/">Pair Quality Scoring</a>.</p>
+<p>This works for the CLI, <code>insarhub-app</code> and <code>import insarhub</code> alike. Details
+in <a href="../advanced/cli_reference/#logging">Logging</a>.</p>
+</details>
 
 
 

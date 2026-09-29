@@ -658,8 +658,8 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
             [(reference_scene, secondary_scene), ...].
             If None, pairs must be provided during submission.
 
-        name_prefix (str | None):
-            Prefix added to generated HyP3 job names.
+        project_name (str | None):
+            The project name provided by hyp3 for this execution.
 
         include_look_vectors (bool):
             If True, include look vector layers in the output product.
@@ -694,7 +694,7 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
     # ── UI metadata consumed by the API / settings panel ─────────────────────
     _ui_groups: ClassVar[list] = [
         {"label": "Processing",
-         "fields": ["looks", "phase_filter_parameter", "name_prefix", "apply_water_mask"]},
+         "fields": ["looks", "phase_filter_parameter", "project_name", "apply_water_mask"]},
         {"label": "Outputs",
          "fields": ["include_dem", "include_look_vectors", "include_inc_map",
                     "include_los_displacement", "include_wrapped_phase", "include_displacement_maps"]},
@@ -707,7 +707,7 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
         "phase_filter_parameter":   {"type": "number", "min": 0, "max": 1, "step": 0.1,
                                      "default": 0.6,
                                      "hint": "Goldstein filter strength (0 = off, 1 = maximum)"},
-        "name_prefix":              {"type": "text"},
+        "project_name":             {"type": "text"},
         "apply_water_mask":         {"type": "bool"},
         "include_dem":              {"type": "bool"},
         "include_look_vectors":     {"type": "bool"},
@@ -728,7 +728,7 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
 
     name: str = "Hyp3_S1_Config"
     pairs: list[tuple[str, str]] | None = None
-    name_prefix: str | None = 'ifg'
+    project_name: str | None = None
     include_look_vectors:bool=True
     include_los_displacement:bool=False
     include_inc_map:bool=True

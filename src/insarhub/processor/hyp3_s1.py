@@ -37,6 +37,7 @@ class Hyp3_S1(Hyp3Base):
         Raises:
             ValueError: If `self.config.pairs` is not a tuple of two strings
                         or a list of tuples of two strings.
+                        If `self.config.project_name` is empty or contains only whitespace.
 
         Returns:
             dict:
@@ -58,7 +59,13 @@ class Hyp3_S1(Hyp3Base):
             pairs = self.config.pairs
         else:
             raise ValueError(f"{Fore.RED}Invalid pairs format. Provide a list of tuples or a tuple of two strings.\n")
-        
+
+        # Validate project_name
+        if (not isinstance(self.config.project_name, str) or not self.config.project_name.strip()):
+            project_name = self.config.project_name.strip()
+        else:
+            raise ValueError(f"{Fore.RED}""Invalid project_name. " "Please provide a non-empty project_name.\n")
+
         job_queue: list[dict] = []
         
         for (ref_id, sec_id) in pairs:
@@ -67,7 +74,7 @@ class Hyp3_S1(Hyp3Base):
             job = self.client.prepare_insar_job(
                 granule1=ref_id,
                 granule2=sec_id,
-                name= f"{self.config.name_prefix}_{ref_id.split('_')[5]}_{sec_id.split('_')[5]}",
+                name=self.config.project_name,
                 include_look_vectors=self.config.include_look_vectors,
                 include_inc_map = self.config.include_inc_map,
                 looks = self.config.looks,

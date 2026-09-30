@@ -261,7 +261,11 @@ async def _run_hyp3_action(job_id: str, req: Hyp3ActionRequest):
                     for j in batch.jobs:
                         sc = j.status_code
                         counts[sc] = counts.get(sc, 0) + 1
-                        lines.append(f"  {j.name:<35} {j.job_id:<12} | {sc}")
+                        # Every job shares the project name, so the pair --
+                        # derived from the granules -- is what tells them apart.
+                        lines.append(f"  {(j.name or '-'):<22} "
+                                     f"{processor._pair_label(j):<20} "
+                                     f"{j.job_id:<12} | {sc}")
                         if sc == "SUCCEEDED" and j.files:
                             for fm in j.files:
                                 fn = fm.get("filename") or fm.get("s3", {}).get("key", "").split("/")[-1]

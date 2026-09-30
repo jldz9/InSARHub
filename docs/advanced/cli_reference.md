@@ -208,8 +208,9 @@ insarhub processor [--list-processors] <action> [options]
     | `-w`, `--workdir` | cwd | Working directory |
     | `--config` | `<workdir>/insarhub_config.json` | Path to saved config; omit value to use default path |
     | `--credential-pool` | `~/.credit_pool` | Path to a plain-text file with one `username:password` per line for multi-account submission |
-    | `--name-prefix` | `ifg` | Job name prefix |
-    | `--worker` | `4` | Parallel submission workers |
+    | `--project-name` | `ifg_<YYYYMMDD_HHMMSS>` | HyP3 job name shared by every job in the submission; `refresh`/`download` look the project up by it. Path/frame groups get `_p<path>_f<frame>` appended. Max 100 characters. (`--name-prefix` is a deprecated alias.) |
+    | `--force-submit` | off | Submit pairs this work directory has already submitted. Without it a repeated `submit` raises instead of paying for the same interferograms twice. Not persisted — pass it again each time. |
+| `--worker` | `4` | Parallel submission workers |
     | `--dry-run` | — | Print what would be submitted without sending jobs |
     | `--pairs-file` | auto | Pairs JSON from `downloader --select-pairs` |
     | `--pairs` | — | Inline pairs as `"reference,secondary"` strings |

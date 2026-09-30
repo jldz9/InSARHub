@@ -241,8 +241,11 @@ def create_parser() -> argparse.ArgumentParser:
                             "omit the value to use <workdir>/insarhub_config.json")
     g_sub.add_argument("--credential-pool", metavar="PATH",
                        help="JSON {username: password} for multi-account HyP3 submission")
-    g_sub.add_argument("--name-prefix", metavar="STR", default="ifg",
-                       help="Job name prefix (default: ifg)")
+    g_sub.add_argument("--project-name", "--name-prefix", dest="project_name",
+                       metavar="STR", default=None,
+                       help="HyP3 job name shared by every job in this submission; "
+                            "refresh/download look the project up by it "
+                            "(default: ifg_<today>). --name-prefix is a deprecated alias.")
     g_sub.add_argument("--worker", metavar="INT", type=int, default=None,
                        help="Parallelism. Sets both axes so you need not know "
                             "which one a stage uses: concurrent SLURM jobs for "
@@ -839,6 +842,8 @@ _SEARCH_SKIP_FIELDS = {"name"}  # handled via CLI flags or internal
 _SUBMIT_SKIP_FIELDS = {
     "name", "workdir", "pairs", "saved_job_path",
     "earthdata_credentials_pool",
+    "project_name",
+    # deprecated alias for project_name: no generated flag, never persisted
     "name_prefix",
     "sbatch_options_per_step",
 }
@@ -850,7 +855,7 @@ _SUBMIT_SKIP_FIELDS = {
 # (which has no --container flag to re-pass) re-runs inside the same image
 # instead of silently falling back to the host. A later submit/retry with an
 # explicit --container still overrides the persisted value.
-_RUNTIME_ONLY_FIELDS: set[str] = set()
+_RUNTIME_ONLY_FIELDS: set[str] = {"force_submit"}
 # Sentinel for a bare `--container` (no value): resolve to the processor/
 # analyzer's own `container_default` config value.
 _CONTAINER_DEFAULT_SENTINEL = "__default__"
@@ -1605,7 +1610,14 @@ def _proc_submit(args, extra_args: list[str]):
     _apply_config_overrides(overrides, config_cls, extra_args,
                             skip_fields=_SUBMIT_SKIP_FIELDS, label=processor_name)
 
-    overrides["name_prefix"] = args.name_prefix
+    if args.project_name:
+        # argparse cannot report which spelling was used, so check argv.
+        if any(a == "--name-prefix" or a.startswith("--name-prefix=") for a in sys.argv):
+            print("[DEPRECATED] --name-prefix is now --project-name, and its meaning "
+                  "changed: the value is the whole HyP3 job name shared by the "
+                  "submission, not a prefix for per-pair names. The old spelling will "
+                  "be removed in a future release.", file=sys.stderr)
+        overrides["project_name"] = args.project_name
     if getattr(args, "worker", None) is not None:
         overrides["max_workers"] = args.worker
 
@@ -1679,6 +1691,11 @@ def _proc_submit(args, extra_args: list[str]):
         print(f"[dry-run] Workdir   : {workdir}")
         print(f"[dry-run] Groups    : {len(groups)}")
 
+    # Resolved once here, not per group, so every path/frame group of a single
+    # invocation shares one project stem.
+    from datetime import datetime as _dt
+    base_project = overrides.get("project_name") or f"ifg_{_dt.now().strftime('%Y%m%d_%H%M%S')}"
+
     for pf, group_pairs in groups.items():
         folder = f"p{pf[0]}_f{pf[1]}" if pf else None
         # Avoid nesting if workdir is already the target group folder
@@ -1686,14 +1703,16 @@ def _proc_submit(args, extra_args: list[str]):
             job_dir = workdir
         else:
             job_dir = workdir / folder if folder else workdir
-        group_prefix = (f"{args.name_prefix}_p{pf[0]}_f{pf[1]}"
-                        if pf else args.name_prefix)
+        # Each path/frame group is its own HyP3 project, so each stays
+        # separately queryable by name.
+        group_project = (f"{base_project}_p{pf[0]}_f{pf[1]}"
+                         if pf else base_project)
         tag = f"[{folder}] " if folder else ""
         job_dir.mkdir(parents=True, exist_ok=True)
         group_overrides = {k: v for k, v in overrides.items()
                            if k not in ("name", "config")}
         group_overrides.update({"workdir": job_dir, "pairs": group_pairs,
-                                 "name_prefix": group_prefix})
+                                 "project_name": group_project})
         # Hyp3Base stamps the folder from __init__, so the flag has to reach
         # the processor being constructed -- not just this function's local
         # `dry_run` -- or building it writes insarhub_config.json.
@@ -1712,7 +1731,7 @@ def _proc_submit(args, extra_args: list[str]):
                                                     if f.name not in _skip_write}}})
         if dry_run:
             print(f"\n{tag}Would submit {len(group_pairs)} pairs → {job_dir}")
-            print(f"{tag}  name_prefix : {group_prefix}")
+            print(f"{tag}  project_name : {group_project}")
             for ref, sec in group_pairs:
                 print(f"{tag}  {ref}  ↔  {sec}")
             continue

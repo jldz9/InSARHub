@@ -50,7 +50,8 @@ _ROLE_CONFIG_STRIP_FIELDS = {"workdir", "name", "saved_job_path"}
 # ``container`` argument to _load_local_processor overrides the saved value.
 _SAVED_CFG_SKIP = {
     "name", "workdir", "pairs", "saved_job_path",
-    "earthdata_credentials_pool", "name_prefix", "sbatch_options_per_step",
+    "earthdata_credentials_pool", "project_name", "name_prefix",
+    "sbatch_options_per_step",
     "hpc_mode", "dry_run",
 }
 

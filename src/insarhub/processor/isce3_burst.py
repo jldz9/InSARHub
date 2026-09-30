@@ -712,7 +712,10 @@ class ISCE3_Burst(ISCE3_Base):
             # "OGR Error: Corrupt data" on a bad file instead of returning None,
             # which previously escaped here and failed the whole crop stage.
             try:
-                ds = gdal.Open(f'NETCDF:"{h5}":/data/VV')
+                # Not a hardcoded /data/VV: the high-latitude archive is HH,
+                # and opening a missing subdataset returns None, so every HH
+                # burst silently measured an empty extent here.
+                ds = gdal.Open(f'NETCDF:"{h5}":{self._subdataset}')
                 if ds is None:
                     continue
                 gt, nx, ny = ds.GetGeoTransform(), ds.RasterXSize, ds.RasterYSize
@@ -876,10 +879,66 @@ class ISCE3_Burst(ISCE3_Base):
                 "run the 'cslc' stage first")
         return cslc
 
+    #: Polarisations COMPASS may have written, in the order we prefer them.
+    #: Sentinel-1 images most land in VV+VH but the high latitudes in HH+HV, so a
+    #: VV-only assumption silently excludes the polar record entirely.
+    _POL_CANDIDATES: tuple[str, ...] = ("VV", "HH", "VH", "HV")
+
+    @property
+    def burst_polarization(self) -> str:
+        """Polarisation of the complex SLC inside the COMPASS CSLC products.
+
+        Config ``burst_polarization`` wins when set; otherwise it is DETECTED
+        from the first readable CSLC, because the polarisation is a property of
+        how ESA acquired the burst and not something the user should have to
+        know. Falls back to VV, which preserves the previous behaviour exactly
+        for every VV stack.
+
+        Detection is cached: gdal.Open on an HDF5 is not free and this is read
+        once per dolphin stage and once per crop.
+        """
+        cached = getattr(self, "_burst_pol_cached", None)
+        if cached:
+            return cached
+        cfg = str(getattr(self.config, "burst_polarization", "") or "").upper()
+        if cfg:
+            self._burst_pol_cached = cfg
+            return cfg
+        pol = "VV"
+        try:
+            # gdal is imported INSIDE functions throughout this module, never at
+            # module level, so referencing it here raised NameError -- which the
+            # except below swallowed, silently returning VV for HH stacks.  The
+            # fallback is deliberate, but it must not hide a coding error.
+            from osgeo import gdal
+
+            for h5 in sorted(self.cslc_dir.glob("t*_iw*/*/*.h5")):
+                if "static_layers" in h5.name:
+                    continue
+                ds = gdal.Open(f'NETCDF:"{h5}"')
+                if ds is None:
+                    continue
+                names = [n for n, _ in (ds.GetSubDatasets() or [])]
+                for cand in self._POL_CANDIDATES:
+                    if any(n.endswith(f"/data/{cand}") for n in names):
+                        pol = cand
+                        break
+                break
+        except Exception as e:                                       # noqa: BLE001
+            # Keep VV, but SAY so: a silent fallback here costs an entire
+            # polarisation and only shows up as "/data/VV ... Variable not found"
+            # several stages later.
+            logger.warning("ISCE3_Burst: polarisation detection failed (%s: %s);"
+                           " defaulting to VV", type(e).__name__, e)
+        self._burst_pol_cached = pol
+        return pol
+
     #: HDF5 subdataset dolphin reads the complex SLC from. COMPASS CSLC stores
-    #: it at ``/data/VV``; a NISAR-GSLC subclass overrides this with the NISAR
+    #: it at ``/data/<POL>``; a NISAR-GSLC subclass overrides this with the NISAR
     #: GSLC grid path (``/science/LSAR/GSLC/grids/frequencyA/<pol>``).
-    _subdataset: str = "/data/VV"
+    @property
+    def _subdataset(self) -> str:
+        return f"/data/{self.burst_polarization}"
 
     def _dolphin_cfg(self):
         """Build dolphin's ``DisplacementWorkflow`` from this processor's config.

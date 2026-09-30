@@ -2772,9 +2772,14 @@
 <td>每行一条 <code>username:password</code> 的纯文本文件，用于多账户提交</td>
 </tr>
 <tr>
-<td><code>--name-prefix</code></td>
-<td><code>ifg</code></td>
-<td>作业名称前缀</td>
+<td><code>--project-name</code></td>
+<td><code>ifg_&lt;YYYYMMDD_HHMMSS&gt;</code></td>
+<td>本次提交所有作业共用的 <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> 作业名；<code>refresh</code>/<code>download</code> 依此名称查回项目。按路径/帧分组时会追加 <code>_p&lt;path&gt;_f&lt;frame&gt;</code>。最长 100 字符。（<code>--name-prefix</code> 为已弃用的别名。）</td>
+</tr>
+<tr>
+<td><code>--force-submit</code></td>
+<td>关闭</td>
+<td>提交该工作目录已提交过的配对。不加此项时重复 <code>submit</code> 会直接报错，避免为同一批干涉对重复付费。不会被持久化，每次都需重新指定。</td>
 </tr>
 <tr>
 <td><code>--worker</code></td>

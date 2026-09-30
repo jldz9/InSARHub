@@ -1422,61 +1422,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#refresh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        refresh
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#download_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        download
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#retry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        retry
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#watch" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        watch
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#credits" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        credits
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#submit_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1488,7 +1433,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#refresh_1" class="md-nav__link">
+  <a href="#refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
         refresh
@@ -1499,7 +1444,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#retry_1" class="md-nav__link">
+  <a href="#retry" class="md-nav__link">
     <span class="md-ellipsis">
       
         retry
@@ -1521,7 +1466,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#watch_1" class="md-nav__link">
+  <a href="#watch" class="md-nav__link">
     <span class="md-ellipsis">
       
         watch
@@ -2123,61 +2068,6 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#refresh" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        refresh
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#download_1" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        download
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#retry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        retry
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#watch" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        watch
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#credits" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        credits
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
   <a href="#submit_1" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -2189,7 +2079,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#refresh_1" class="md-nav__link">
+  <a href="#refresh" class="md-nav__link">
     <span class="md-ellipsis">
       
         refresh
@@ -2200,7 +2090,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#retry_1" class="md-nav__link">
+  <a href="#retry" class="md-nav__link">
     <span class="md-ellipsis">
       
         retry
@@ -2222,7 +2112,7 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#watch_1" class="md-nav__link">
+  <a href="#watch" class="md-nav__link">
     <span class="md-ellipsis">
       
         watch
@@ -2729,7 +2619,7 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 </tr>
 </tbody>
 </table>
-<div class="tabbed-set tabbed-alternate" data-tabs="1:2"><input checked="checked" id="hyp3_s1" name="__tabbed_1" type="radio"><input id="isce2_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3_s1">Hyp3_S1</label><label for="isce2_s1">ISCE2_S1</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="1:1"><input checked="checked" id="hyp3_s1" name="__tabbed_1" type="radio"><div class="tabbed-labels"><label for="hyp3_s1">Hyp3_S1</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <p>Cloud processing via <abbr title="Alaska Satellite Facility">ASF</abbr> <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> — no local ISCE2 needed.</p>
@@ -2772,209 +2662,126 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 <td>Path to a plain-text file with one <code>username:password</code> per line for multi-account submission</td>
 </tr>
 <tr>
-<td><code>--name-prefix</code></td>
-<td><code>ifg</code></td>
-<td>Job name prefix</td>
+<td><code>--project-name</code></td>
+<td><code>ifg_&lt;YYYYMMDD_HHMMSS&gt;</code></td>
+<td><abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> job name shared by every job in the submission; <code>refresh</code>/<code>download</code> look the project up by it. Path/frame groups get <code>_p&lt;path&gt;_f&lt;frame&gt;</code> appended. Max 100 characters. (<code>--name-prefix</code> is a deprecated alias.)</td>
 </tr>
 <tr>
-<td><code>--worker</code></td>
-<td><code>4</code></td>
-<td>Parallel submission workers</td>
-</tr>
-<tr>
-<td><code>--dry-run</code></td>
-<td>—</td>
-<td>Print what would be submitted without sending jobs</td>
-</tr>
-<tr>
-<td><code>--pairs-file</code></td>
-<td>auto</td>
-<td>Pairs JSON from <code>downloader --select-pairs</code></td>
-</tr>
-<tr>
-<td><code>--pairs</code></td>
-<td>—</td>
-<td>Inline pairs as <code>"reference,secondary"</code> strings</td>
-</tr>
-</tbody>
-</table>
-<p>After submission, settings are saved to <code>insarhub_config.json</code>. Subsequent runs reload it automatically — only specify overrides:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># First submission</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="c1"># Dry run (recommended before first real submission)</span>
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--dry-run
-</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
-</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># Override a field and resubmit</span>
-</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-N<span class="w"> </span>Hyp3_S1<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--phase_filter_parameter<span class="w"> </span><span class="m">0</span>.5<span class="w"> </span>--dry-run
-</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>
-</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="c1"># Auto-detect pairs from p*_f* subfolders</span>
-</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--dry-run
-</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>
-</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="c1"># Specific pairs file</span>
-</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--pairs-file<span class="w"> </span>/data/pairs.json
-</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>
-</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="c1"># Inline pairs</span>
-</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>submit<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--pairs<span class="w"> </span><span class="s2">"S1A_20200101,S1A_20200113"</span>
-</span></code></pre></div>
-<p>When no <code>--pairs-file</code> is given, <code>submit</code> automatically looks for <code>stack_p&lt;path&gt;_f&lt;frame&gt;.json</code> files inside <code>p&lt;path&gt;_f&lt;frame&gt;/</code> subfolders under <code>workdir</code> (the layout produced by <code>downloader --select-pairs</code>).</p>
-<h4 id="refresh">refresh</h4>
-<p>Pull latest job statuses from <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr>.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-w</code>, <code>--workdir</code></td>
-<td>cwd</td>
-<td>Working directory</td>
-</tr>
-<tr>
-<td><code>--job-file</code></td>
-<td><code>&lt;workdir&gt;/hyp3_jobs.json</code></td>
-<td>Path to saved job IDs JSON</td>
-</tr>
-<tr>
-<td><code>-r</code>, <code>--recursive</code></td>
+<td><code>--force-submit</code></td>
 <td>off</td>
-<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
+<td>Submit pairs this work directory has already submitted. Without it a repeated <code>submit</code> raises instead of paying for the same interferograms twice. Not persisted — pass it again each time.</td>
 </tr>
 </tbody>
 </table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>refresh<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w">   </span><span class="c1"># search all subdirs including retry files</span>
-</span></code></pre></div>
-<h4 id="download_1">download</h4>
-<p>Download all completed <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> outputs.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-w</code>, <code>--workdir</code></td>
-<td>cwd</td>
-<td>Working directory</td>
-</tr>
-<tr>
-<td><code>--job-file</code></td>
-<td><code>&lt;workdir&gt;/hyp3_jobs.json</code></td>
-<td>Path to saved job IDs JSON</td>
-</tr>
-<tr>
-<td><code>--worker</code></td>
-<td>saved config</td>
-<td>Parallel download threads (overrides saved config)</td>
-</tr>
-<tr>
-<td><code>-r</code>, <code>--recursive</code></td>
-<td>off</td>
-<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
-</tr>
-</tbody>
-</table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>download<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
-</span></code></pre></div>
-<h4 id="retry">retry</h4>
-<p>Resubmit all failed <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> jobs.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>-w</code>, <code>--workdir</code></td>
-<td>cwd</td>
-<td>Working directory</td>
-</tr>
-<tr>
-<td><code>--job-file</code></td>
-<td>auto</td>
-<td>Saved job file</td>
-</tr>
-<tr>
-<td><code>-r</code>, <code>--recursive</code></td>
-<td>off</td>
-<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
-</tr>
-</tbody>
-</table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>retry<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>-r
-</span></code></pre></div>
-<h4 id="watch">watch</h4>
-<p>Poll <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> at regular intervals; downloads results as jobs succeed.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--interval</code></td>
-<td><code>300</code></td>
-<td>Seconds between polls</td>
-</tr>
-<tr>
-<td><code>-w</code>, <code>--workdir</code></td>
-<td>cwd</td>
-<td>Working directory</td>
-</tr>
-<tr>
-<td><code>--worker</code></td>
-<td>saved config</td>
-<td>Parallel download threads (overrides saved config)</td>
-</tr>
-<tr>
-<td><code>-r</code>, <code>--recursive</code></td>
-<td>off</td>
-<td>Recursively search workdir for all <code>hyp3*.json</code> files (including retry files)</td>
-</tr>
-</tbody>
-</table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span>
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--interval<span class="w"> </span><span class="m">600</span><span class="w"> </span>-r
-</span><span id="__span-17-3"><a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>watch<span class="w"> </span>-w<span class="w"> </span>/data/bryce<span class="w"> </span>--worker<span class="w"> </span><span class="m">8</span>
-</span></code></pre></div>
-<h4 id="credits">credits</h4>
-<p>Show remaining <abbr title="Hybrid Pluggable Processing Pipeline">HyP3</abbr> processing credits for all accounts.</p>
-<table>
-<thead>
-<tr>
-<th>Flag</th>
-<th>Default</th>
-<th>Description</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>--credential-pool</code></td>
-<td><code>~/.credit_pool</code></td>
-<td>Path to a plain-text file with one <code>username:password</code> per line for multiple accounts</td>
-</tr>
-</tbody>
-</table>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>credits
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>credits<span class="w"> </span>--credential-pool<span class="w"> </span>~/.credit_pool
-</span></code></pre></div>
 </div>
+</div>
+</div>
+<p>| <code>--worker</code> | <code>4</code> | Parallel submission workers |
+    | <code>--dry-run</code> | — | Print what would be submitted without sending jobs |
+    | <code>--pairs-file</code> | auto | Pairs JSON from <code>downloader --select-pairs</code> |
+    | <code>--pairs</code> | — | Inline pairs as <code>"reference,secondary"</code> strings |</p>
+<div class="language-text highlight"><pre><span></span><code>After submission, settings are saved to `insarhub_config.json`. Subsequent runs reload it automatically — only specify overrides:
+
+```bash
+# First submission
+insarhub processor submit -N Hyp3_S1 -w /data/bryce
+
+# Dry run (recommended before first real submission)
+insarhub processor submit -N Hyp3_S1 -w /data/bryce --dry-run
+
+# Override a field and resubmit
+insarhub processor submit -N Hyp3_S1 -w /data/bryce --phase_filter_parameter 0.5 --dry-run
+
+# Auto-detect pairs from p*_f* subfolders
+insarhub processor submit -w /data/bryce --dry-run
+
+# Specific pairs file
+insarhub processor submit -w /data/bryce --pairs-file /data/pairs.json
+
+# Inline pairs
+insarhub processor submit -w /data/bryce --pairs "S1A_20200101,S1A_20200113"
+```
+
+When no `--pairs-file` is given, `submit` automatically looks for `stack_p&lt;path&gt;_f&lt;frame&gt;.json` files inside `p&lt;path&gt;_f&lt;frame&gt;/` subfolders under `workdir` (the layout produced by `downloader --select-pairs`).
+
+#### refresh
+
+Pull latest job statuses from HyP3.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-w`, `--workdir` | cwd | Working directory |
+| `--job-file` | `&lt;workdir&gt;/hyp3_jobs.json` | Path to saved job IDs JSON |
+| `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
+
+```bash
+insarhub processor refresh -w /data/bryce
+insarhub processor refresh -w /data/bryce -r   # search all subdirs including retry files
+```
+
+#### download
+
+Download all completed HyP3 outputs.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-w`, `--workdir` | cwd | Working directory |
+| `--job-file` | `&lt;workdir&gt;/hyp3_jobs.json` | Path to saved job IDs JSON |
+| `--worker` | saved config | Parallel download threads (overrides saved config) |
+| `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
+
+```bash
+insarhub processor download -w /data/bryce
+insarhub processor download -w /data/bryce -r --worker 8
+```
+
+#### retry
+
+Resubmit all failed HyP3 jobs.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `-w`, `--workdir` | cwd | Working directory |
+| `--job-file` | auto | Saved job file |
+| `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
+
+```bash
+insarhub processor retry -w /data/bryce
+insarhub processor retry -w /data/bryce -r
+```
+
+#### watch
+
+Poll HyP3 at regular intervals; downloads results as jobs succeed.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--interval` | `300` | Seconds between polls |
+| `-w`, `--workdir` | cwd | Working directory |
+| `--worker` | saved config | Parallel download threads (overrides saved config) |
+| `-r`, `--recursive` | off | Recursively search workdir for all `hyp3*.json` files (including retry files) |
+
+```bash
+insarhub processor watch -w /data/bryce --interval 600
+insarhub processor watch -w /data/bryce --interval 600 -r
+insarhub processor watch -w /data/bryce --worker 8
+```
+
+#### credits
+
+Show remaining HyP3 processing credits for all accounts.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--credential-pool` | `~/.credit_pool` | Path to a plain-text file with one `username:password` per line for multiple accounts |
+
+```bash
+insarhub processor credits
+insarhub processor credits --credential-pool ~/.credit_pool
+```
+</code></pre></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="2:1"><input checked="checked" id="isce2_s1" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="isce2_s1">ISCE2_S1</label></div>
+<div class="tabbed-content">
 <div class="tabbed-block">
 <p>Local or <abbr title="High Performance Computing">HPC</abbr> processing using ISCE2 <code>stackSentinel</code> — requires ISCE2 installed. <abbr title="Single Look Complex">SLC</abbr> <code>.SAFE</code> files must be downloaded first (use <code>insarhub downloader -d</code>).</p>
 <h4 id="submit_1">submit</h4>
@@ -3121,7 +2928,7 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 </span></code></pre></div>
 <p><code>--container</code> is a per-invocation flag, not a saved setting — like <code>--dry-run</code>, it's never written to <code>insarhub_config.json</code>, so pass it again on every <code>submit</code>/<code>refresh</code>/<code>retry</code>/<code>watch</code>/<code>cancel</code> call you want to run inside the container.</p>
 </div>
-<h4 id="refresh_1">refresh</h4>
+<h4 id="refresh">refresh</h4>
 <p>Read step and command statuses from disk.</p>
 <table>
 <thead>
@@ -3184,7 +2991,7 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 </span><span id="__span-26-9"><a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>  ...
 </span></code></pre></div>
 </details>
-<h4 id="retry_1">retry</h4>
+<h4 id="retry">retry</h4>
 <p>Re-run all failed steps. <abbr title="High Performance Computing">HPC</abbr> mode is detected automatically from saved job metadata — no need to pass <code>--hpc_mode</code> again.</p>
 <table>
 <thead>
@@ -3244,7 +3051,7 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 </table>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>insarhub<span class="w"> </span>processor<span class="w"> </span>cancel<span class="w"> </span>-N<span class="w"> </span>ISCE2_S1<span class="w"> </span>-w<span class="w"> </span>/data/p100_f466
 </span></code></pre></div>
-<h4 id="watch_1">watch</h4>
+<h4 id="watch">watch</h4>
 <p>Poll step statuses until all steps complete.</p>
 <table>
 <thead>
@@ -3335,7 +3142,7 @@ and <code>87:087_185682_IW2</code> are the same stack.</p>
 </tbody>
 </table>
 <p>Any field shown by <code>--list-options</code> can be overridden on the command line before the action. Values are written into <code>mintpy.cfg</code> and persist across runs. If <code>workdir</code> contains multiple <code>p*_f*</code> subfolders, overrides and analysis are applied to each in sequence.</p>
-<div class="tabbed-set tabbed-alternate" data-tabs="2:2"><input checked="checked" id="hyp3_mintpy_sbas" name="__tabbed_2" type="radio"><input id="isce2_mintpy_sbas" name="__tabbed_2" type="radio"><div class="tabbed-labels"><label for="hyp3_mintpy_sbas">Hyp3_Mintpy_SBAS</label><label for="isce2_mintpy_sbas">ISCE2_Mintpy_SBAS</label></div>
+<div class="tabbed-set tabbed-alternate" data-tabs="3:2"><input checked="checked" id="hyp3_mintpy_sbas" name="__tabbed_3" type="radio"><input id="isce2_mintpy_sbas" name="__tabbed_3" type="radio"><div class="tabbed-labels"><label for="hyp3_mintpy_sbas">Hyp3_Mintpy_SBAS</label><label for="isce2_mintpy_sbas">ISCE2_Mintpy_SBAS</label></div>
 <div class="tabbed-content">
 <div class="tabbed-block">
 <h3 id="run">run</h3>

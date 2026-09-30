@@ -31,12 +31,14 @@ class Hyp3_S1(Hyp3Base):
         and submits them via `_submit_job_queue`, handling user rotation,
         batching, and credit checks.
 
-        The job names are automatically generated using the `name_prefix`
-        and scene IDs.
+        Every job in the submission is given the same `project_name`, which is
+        what lets `find_jobs(name=...)` retrieve the whole project later. The
+        individual pair is recovered from the job's granules, not its name.
 
         Raises:
             ValueError: If `self.config.pairs` is not a tuple of two strings
                         or a list of tuples of two strings.
+                        If `self.config.project_name` exceeds HyP3's 100-character limit.
 
         Returns:
             dict:
@@ -58,7 +60,11 @@ class Hyp3_S1(Hyp3Base):
             pairs = self.config.pairs
         else:
             raise ValueError(f"{Fore.RED}Invalid pairs format. Provide a list of tuples or a tuple of two strings.\n")
-        
+
+        # Shared by every job below, and persisted by save() so refresh() can
+        # query HyP3 for exactly this project.
+        self.project_name = self._resolve_project_name()
+
         job_queue: list[dict] = []
         
         for (ref_id, sec_id) in pairs:
@@ -67,7 +73,7 @@ class Hyp3_S1(Hyp3Base):
             job = self.client.prepare_insar_job(
                 granule1=ref_id,
                 granule2=sec_id,
-                name= f"{self.config.name_prefix}_{ref_id.split('_')[5]}_{sec_id.split('_')[5]}",
+                name=self.project_name,
                 include_look_vectors=self.config.include_look_vectors,
                 include_inc_map = self.config.include_inc_map,
                 looks = self.config.looks,

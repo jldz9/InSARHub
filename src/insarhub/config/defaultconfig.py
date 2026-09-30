@@ -1,3 +1,5 @@
+import warnings
+
 from dataclasses import dataclass, field, asdict
 from typing import ClassVar, Union
 from pathlib import Path
@@ -618,6 +620,12 @@ class Hyp3_Base_Config:
             Maximum number of worker threads used for concurrent
             submissions or downloads. Recommended to keep below 8
             to avoid overwhelming the API or triggering rate limits.
+
+        force_submit (bool):
+            Submit pairs that this work directory has already submitted.
+            Off by default, so a repeated ``submit`` raises instead of
+            silently paying for the same interferograms twice. Runtime-only:
+            never persisted, so it must be passed again each invocation.
     """
 
     name: str = "Hyp3_Base_Config"
@@ -631,6 +639,9 @@ class Hyp3_Base_Config:
     # to preview -- rewrote the folder's config every time.
     dry_run: bool = False
     submission_chunk_size: int = 200
+    # Runtime-only, like dry_run: a persisted force_submit would silently
+    # disarm the duplicate guard on every later submit.
+    force_submit: bool = False
     max_workers: int = 4 # Multithreading <8 to avoid overwhelming the API and to be mindful of local resources, also avoid bans from too many requests. 
 
     def __post_init__(self):
@@ -659,7 +670,17 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
             If None, pairs must be provided during submission.
 
         name_prefix (str | None):
-            Prefix added to generated HyP3 job names.
+            **Deprecated** alias for ``project_name``, kept so existing scripts
+            keep running. Note the meaning changed: it is no longer a prefix
+            that per-pair job names are built from, it *is* the whole job name,
+            shared by the submission. Emits a ``DeprecationWarning`` and will be
+            removed in a future release.
+
+        project_name (str | None):
+            HyP3 job name shared by every job in a submission, which is what
+            makes the whole project retrievable with one `find_jobs(name=...)`
+            query. Max 100 characters (a HyP3 limit). Defaults to
+            `ifg_<YYYYMMDD>` when unset.
 
         include_look_vectors (bool):
             If True, include look vector layers in the output product.
@@ -694,7 +715,8 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
     # ── UI metadata consumed by the API / settings panel ─────────────────────
     _ui_groups: ClassVar[list] = [
         {"label": "Processing",
-         "fields": ["looks", "phase_filter_parameter", "name_prefix", "apply_water_mask"]},
+         "fields": ["looks", "phase_filter_parameter", "project_name", "force_submit",
+                    "apply_water_mask"]},
         {"label": "Outputs",
          "fields": ["include_dem", "include_look_vectors", "include_inc_map",
                     "include_los_displacement", "include_wrapped_phase", "include_displacement_maps"]},
@@ -707,7 +729,11 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
         "phase_filter_parameter":   {"type": "number", "min": 0, "max": 1, "step": 0.1,
                                      "default": 0.6,
                                      "hint": "Goldstein filter strength (0 = off, 1 = maximum)"},
-        "name_prefix":              {"type": "text"},
+        "project_name":             {"type": "text",
+                                     "hint": "Shared HyP3 job name for this submission "
+                                             "(default: ifg_<today>, max 100 characters)"},
+        "force_submit":             {"type": "bool",
+                                     "hint": "Submit pairs this work directory already submitted"},
         "apply_water_mask":         {"type": "bool"},
         "include_dem":              {"type": "bool"},
         "include_look_vectors":     {"type": "bool"},
@@ -728,7 +754,12 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
 
     name: str = "Hyp3_S1_Config"
     pairs: list[tuple[str, str]] | None = None
-    name_prefix: str | None = 'ifg'
+    project_name: str | None = None
+    # Deprecated alias for project_name. Kept as a real field so that
+    # Hyp3_S1_Config(name_prefix=...) and Processor.create(..., name_prefix=...)
+    # still construct instead of raising TypeError. Excluded from the generated
+    # CLI flags, the GUI form and insarhub_config.json.
+    name_prefix: str | None = None
     include_look_vectors:bool=True
     include_los_displacement:bool=False
     include_inc_map:bool=True
@@ -741,6 +772,21 @@ class Hyp3_S1_Config(Hyp3_Base_Config):
     # and GMTSAR's phasefilt (hardcoded alpha=0.5), so the three backends
     # are comparable. ASF's own HyP3 default is 0.6.
     phase_filter_parameter :float=0.5
+
+    def __post_init__(self):
+        super().__post_init__()
+        if self.name_prefix is not None:
+            warnings.warn(
+                "Hyp3_S1_Config.name_prefix is deprecated and will be removed in a "
+                "future release -- use project_name instead. Note the meaning has "
+                "changed: the value is no longer a prefix that per-pair job names "
+                "are built from, it is the whole HyP3 job name, shared by every job "
+                "in the submission.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+            if self.project_name is None:
+                self.project_name = self.name_prefix
 
 
 @dataclass

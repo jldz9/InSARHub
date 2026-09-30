@@ -167,7 +167,7 @@ Implement all abstract methods, then subclass your new base for each sensor.
                 {
                     "job_type": "MY_JOB_TYPE",
                     "job_parameters": {"granules": [ref, sec], "looks": self.config.looks},
-                    "name": f"{self.config.name_prefix}_{ref[:15]}",
+                    "name": self.project_name,
                 }
                 for ref, sec in self.config.pairs
             ]

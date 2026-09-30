@@ -206,7 +206,8 @@ insarhub processor [--list-processors] <action> [options]
     | `-w`, `--workdir` | cwd | 工作目录 |
     | `--config` | `<workdir>/insarhub_config.json` | 已保存配置的路径；省略值则使用默认路径 |
     | `--credential-pool` | `~/.credit_pool` | 每行一条 `username:password` 的纯文本文件，用于多账户提交 |
-    | `--name-prefix` | `ifg` | 作业名称前缀 |
+    | `--project-name` | `ifg_<YYYYMMDD_HHMMSS>` | 本次提交所有作业共用的 HyP3 作业名；`refresh`/`download` 依此名称查回项目。按路径/帧分组时会追加 `_p<path>_f<frame>`。最长 100 字符。（`--name-prefix` 为已弃用的别名。） |
+    | `--force-submit` | 关闭 | 提交该工作目录已提交过的配对。不加此项时重复 `submit` 会直接报错，避免为同一批干涉对重复付费。不会被持久化，每次都需重新指定。 |
     | `--worker` | `4` | 并行提交工作线程数 |
     | `--dry-run` | — | 打印将要提交的内容，但不实际发送作业 |
     | `--pairs-file` | 自动 | 来自 `downloader --select-pairs` 的干涉对 JSON |

@@ -1,5 +1,17 @@
 # Changelog
 
+## [Unreleased]
+
+### HyP3 Job Naming
+
+* Every job in a submission now shares one HyP3 name — `project_name`, default `ifg_<YYYYMMDD_HHMMSS>`. `find_jobs(name=...)` matches exactly, so only a shared name makes a whole project retrievable in one query. The interferogram is identified by its granules instead, in a new `PAIR` column.
+* `refresh()` and `download()` look jobs up by project name rather than scanning a hardcoded 20-day window, so a stack revisited weeks later is reachable again. `hyp3_jobs.json` gained `project_name` and per-job granules; files without them keep the old search.
+* `submit()` refuses pairs this work directory already submitted, matched on acquisition dates rather than granule IDs — HyP3 charges per job and accepts duplicates silently. Override with `force_submit=True` / `--force-submit`; `retry()` always forces.
+
+### Deprecations
+
+* `name_prefix` → `project_name`. The old field still works and forwards, with a `DeprecationWarning`; `--name-prefix` aliases `--project-name` and prints a notice. The meaning changed: the value is now the whole job name, not a prefix for per-pair names.
+
 ## [0.4.2]
 
 ### Pair Quality

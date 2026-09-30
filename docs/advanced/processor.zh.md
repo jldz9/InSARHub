@@ -71,6 +71,33 @@ Processor.available()
         jobs = processor.submit()
         ```
 
+        !!! note "作业命名"
+            同一次提交中的所有作业共用一个 HyP3 名称，即 `project_name`
+            （默认 `ifg_<YYYYMMDD_HHMMSS>`，最长 100 字符）。这是有意为之：HyP3 的
+            `find_jobs(name=...)` 为精确匹配，不支持通配符，因此只有共用名称才能
+            用一次查询取回整个项目。`refresh()` 据此查询，不再扫描固定时间窗口，
+            数月之后仍可重新接上同一批作业。
+
+            单条干涉对并不编码在名称中，而是来自每个作业的 granules；`save()` 会把
+            它们与作业 ID 一并保存，重新载入后仍能标出每一对。此改动之前写出的作业
+            文件没有项目名，将回退到原先的 20 天搜索。
+
+        !!! info "从 `name_prefix` 迁移"
+            `name_prefix` 仍可使用，并会转发给 `project_name`，但会触发
+            `DeprecationWarning`，且将在未来版本中移除。请注意**语义已变**：该值不再是
+            用于拼接每条配对作业名的前缀，而就是整个作业名，由本次提交的所有作业共用。
+            命令行中 `--name-prefix` 是 `--project-name` 的别名，使用时会打印弃用提示。
+
+        !!! warning "重复提交同一配对"
+            `submit()` 会拒绝该工作目录已提交过的配对——HyP3 按作业计费，且不会对
+            重复提交作任何提示。比较依据是**成像日期**而非 granule ID，因此重新处理
+            过的 granule 仍算作同一条干涉对。
+
+            如确需提交，请设置 `force_submit=True`（命令行：`--force-submit`）。
+            `retry()` 始终强制提交，因为它重提的每一对本就已提交过。该检查读取工作
+            目录下的 `hyp3_jobs.json`；在保存 granules 之前写出的作业文件不含配对
+            信息，无法参与比较。
+
         ::: insarhub.processor.hyp3_s1.Hyp3_S1.submit
             options:
                 members: false

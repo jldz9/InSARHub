@@ -14,7 +14,7 @@ from pathlib import Path
 
 from collections import defaultdict
 from colorama import Fore, Style
-from hyp3_sdk import HyP3, Batch, Job
+from hyp3_sdk import HyP3, Batch
 from hyp3_sdk.exceptions import AuthenticationError, HyP3Error, ServerError
 from tqdm import tqdm
 
@@ -40,6 +40,15 @@ class Hyp3Base(CloudProcessor):
         self._hyp3_authorize(pool=self.config.earthdata_credentials_pool)
         self._paths = Hyp3Paths(Path(self.config.workdir))
 
+        # Resolved by submit(), or read back from a saved job file. refresh()
+        # queries HyP3 by this name instead of scanning a fixed time window, so
+        # it has to survive the round trip through hyp3_jobs.json.
+        self.project_name: str | None = None
+        # job_id -> [reference, secondary]. The HyP3 name is now one shared
+        # project label, so it cannot identify a single interferogram; the
+        # granules can, and these are what a reloaded run prints.
+        self._saved_pairs: dict[str, list[str]] = {}
+
         # 1. Load Saved Jobs
         if self.config.saved_job_path is not None:
             print(f"{Fore.GREEN}Loading job IDs from {self.config.saved_job_path}...\n")
@@ -47,6 +56,15 @@ class Hyp3Base(CloudProcessor):
             if job_path.is_file():
                 data = json.loads(job_path.read_text())
                 self.job_ids = defaultdict(list, data.get("job_ids", {}))
+                # Absent from job files written before project names existed;
+                # refresh() falls back to the time-window search in that case.
+                self.project_name = data.get("project_name")
+                self._saved_pairs = {
+                    entry["job_id"]: entry.get("granules")
+                    for entries in data.get("jobs", {}).values()
+                    for entry in entries
+                    if entry.get("job_id")
+                }
 
                 if not self.job_ids:
                     raise ValueError(f"{Fore.RED}No job found in {self.config.saved_job_path}.\n")
@@ -157,11 +175,19 @@ class Hyp3Base(CloudProcessor):
             print(f"{Fore.RED}No machine name {keyword} found in .netrc. Will prompt login.\n")
             return False
     
-    def _submit_job_queue(self, job_queue: list[dict]):
+    def _submit_job_queue(self, job_queue: list[dict], force: bool = False):
         """
         Generic submitter. Takes a list of prepared job dictionaries and handles
         credit checking, batching, and user rotation.
+
+        Args:
+            job_queue: prepared job dictionaries.
+            force: skip the already-submitted check. retry() passes True,
+                because resubmitting a failed pair is the whole point.
         """
+        if not (force or getattr(self.config, "force_submit", False)):
+            self._check_duplicate_pairs(job_queue)
+
         batchs = defaultdict(list)
         self.job_ids = defaultdict(list)
         total_jobs = len(job_queue)
@@ -259,6 +285,108 @@ class Hyp3Base(CloudProcessor):
             credits = self.client.check_credits()
             print(f"{Fore.CYAN}Remaining credits for {self._username_pool[self._user_index]}: {credits}{Fore.RESET}")
     
+    # HyP3 caps `name` at 100 characters and rejects the empty string
+    # (GET/POST /jobs, `name`: minLength 1, maxLength 100).
+    _PROJECT_NAME_MAX = 100
+
+    def _resolve_project_name(self) -> str:
+        """The HyP3 job name shared by every job in this submission.
+
+        One name per submission is what makes `find_jobs(name=...)` able to
+        return the whole project in a single query -- the API matches the name
+        exactly, with no wildcard or regex support, so a per-pair name would
+        make the project unqueryable.
+        """
+        name = (self.config.project_name or "").strip()
+        if not name:
+            name = f"ifg_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        if len(name) > self._PROJECT_NAME_MAX:
+            raise ValueError(
+                f"{Fore.RED}project_name is {len(name)} characters; HyP3 allows at "
+                f"most {self._PROJECT_NAME_MAX}.\n"
+            )
+        return name
+
+    @staticmethod
+    def _granule_pair_label(granules) -> str | None:
+        """`20230105_20230117` for a pair of granules, or None if unreadable.
+
+        Field 5 of a Sentinel-1 granule ID is its acquisition timestamp. The
+        dates -- not the granule IDs -- are what identify an interferogram, so
+        this is also what the duplicate check compares.
+        """
+        if not granules or len(granules) != 2:
+            return None
+        try:
+            return f"{granules[0].split('_')[5][:8]}_{granules[1].split('_')[5][:8]}"
+        except (IndexError, AttributeError):
+            return None
+
+    def _pair_label(self, job) -> str:
+        """Per-job identity for the status table.
+
+        Every job in a submission carries the same HyP3 name, so the name
+        cannot tell two interferograms apart. Live jobs carry their granules in
+        `job_parameters`; reloaded ones come from the saved file.
+        """
+        granules = (job.job_parameters or {}).get("granules") if job.job_parameters else None
+        if not granules:
+            granules = self._saved_pairs.get(job.job_id)
+        return self._granule_pair_label(granules) or job.job_id[:8]
+
+    def _submitted_pair_labels(self) -> dict[str, str]:
+        """{pair label: project name} for every job this work directory recorded.
+
+        Read from disk rather than from memory: a second `submit` is usually a
+        fresh process that never loaded the job file.
+        """
+        seen: dict[str, str] = {}
+        roots = {Path(self.config.workdir), self.output_dir, self._paths.jobs_file.parent}
+        files = {f for root in roots for pattern in ("hyp3_jobs.json", "hyp3_retry_jobs_*.json")
+                 for f in root.glob(pattern)}
+        for f in sorted(files):
+            try:
+                data = json.loads(f.read_text())
+            except (OSError, json.JSONDecodeError):
+                continue
+            project = data.get("project_name") or f.name
+            # Job files written before granules were stored carry job IDs only,
+            # so their pairs cannot be reconstructed and cannot be compared.
+            for entries in data.get("jobs", {}).values():
+                for entry in entries:
+                    label = self._granule_pair_label(entry.get("granules"))
+                    if label:
+                        seen.setdefault(label, project)
+        return seen
+
+    def _check_duplicate_pairs(self, job_queue: list[dict]) -> None:
+        """Refuse to resubmit an interferogram this work directory already has.
+
+        HyP3 charges per job and happily accepts the same pair twice, so a
+        repeated `submit` is silent money. Matching is on acquisition dates,
+        not granule IDs: a re-processed granule is still the same
+        interferogram.
+        """
+        already = self._submitted_pair_labels()
+        if not already:
+            return
+        clashes = []
+        for job in job_queue:
+            label = self._granule_pair_label((job.get("job_parameters") or {}).get("granules"))
+            if label and label in already:
+                clashes.append((label, already[label]))
+        if not clashes:
+            return
+        listed = "\n".join(f"    {label}  (already submitted as {project})"
+                            for label, project in clashes[:10])
+        more = f"\n    ... and {len(clashes) - 10} more" if len(clashes) > 10 else ""
+        raise ValueError(
+            f"{Fore.RED}{len(clashes)} of {len(job_queue)} pair(s) have already been "
+            f"submitted from {self.config.workdir}:\n{listed}{more}\n"
+            f"{Fore.RESET}Submit them anyway with force_submit=True "
+            f"(CLI: --force-submit), or remove the pairs from this run.\n"
+        )
+
     def refresh(self):
         """
         Refresh the status of all jobs.
@@ -289,23 +417,29 @@ class Hyp3Base(CloudProcessor):
                 password = self._password_pool[self._username_pool.index(username)]
                 client = HyP3(username=username, password=password)
                 
-                if isinstance(data[0], Job):
-                    batch_to_refresh = Batch(data)
-                    updated_batch = client.refresh(batch_to_refresh)
+                if self.project_name:
+                    # One exact-match query for the whole project, with no date
+                    # bound. The old time window was hardcoded to 20 days, so a
+                    # stack revisited after that silently refreshed nothing.
+                    skeleton_jobs = client.find_jobs(name=self.project_name)
                 else:
-                    start_date = datetime.now(timezone.utc) - timedelta(days=20) 
+                    # Job files written before project names existed.
+                    start_date = datetime.now(timezone.utc) - timedelta(days=20)
                     skeleton_jobs = client.find_jobs(start=start_date)
-                    updated_batch = Batch([job for job in skeleton_jobs if job.job_id in data])
-                
+                # Still filtered by ID: a project name can be reused across
+                # runs, and this batch is only the jobs this file recorded.
+                updated_batch = Batch([job for job in skeleton_jobs if job.job_id in data])
+
                 refreshed_batchs[username] = updated_batch
                 failures = [job for job in updated_batch.jobs if job.status_code == "FAILED"]
                 self.failed_jobs.extend(failures)
-                
-                print(f"\n{Style.BRIGHT}{'  ' :<3} {'JOB NAME':<{35}} {'JOB ID':<{37}}  {'STATUS'}{Style.RESET_ALL}")
+
+                print(f"\n{Style.BRIGHT}{'  ' :<3} {'PROJECT':<{22}} {'PAIR':<{20}} {'JOB ID':<{37}}  {'STATUS'}{Style.RESET_ALL}")
                 for job in updated_batch:
                     color = Fore.GREEN if job.status_code == 'SUCCEEDED' else \
                             Fore.RED if job.status_code == 'FAILED' else Fore.YELLOW
-                    print(f"  - {job.name:<35} {job.job_id:<12} | {color}{job.status_code}{Style.RESET_ALL}")
+                    print(f"  - {(job.name or '-'):<22} {self._pair_label(job):<20} "
+                          f"{job.job_id:<12} | {color}{job.status_code}{Style.RESET_ALL}")
             except Exception as e:
                 print(f"{Fore.RED}Failed to refresh {username}: {e}{Style.RESET_ALL}")
                 continue
@@ -339,7 +473,9 @@ class Hyp3Base(CloudProcessor):
             job_queue.append(prepared_dict)
         print(f"{Fore.YELLOW}Attempting to resubmit {len(job_queue)} failed jobs...{Fore.RESET}")
 
-        results = self._submit_job_queue(job_queue)
+        # A retry is a deliberate resubmission of pairs this workdir already
+        # has, so the duplicate guard would block every one of them.
+        results = self._submit_job_queue(job_queue, force=True)
         
         ts = time.strftime("%Y%m%dt%H%M%S")
         retry_path = self.output_dir.parent / f'hyp3_retry_jobs_{ts}.json'
@@ -368,6 +504,14 @@ class Hyp3Base(CloudProcessor):
 
         if hasattr(self, 'batchs') and self.batchs:
             job_ids_to_save = {user: [job.job_id for job in batch] for user, batch in self.batchs.items()}
+            # The granules travel with the IDs so a reloaded run can still name
+            # each interferogram -- the shared project name cannot.
+            jobs_to_save = {
+                user: [{"job_id": job.job_id,
+                        "granules": (job.job_parameters or {}).get("granules")}
+                       for job in batch]
+                for user, batch in self.batchs.items()
+            }
             
             if save_path is None:
                 path = self._paths.jobs_file
@@ -378,7 +522,12 @@ class Hyp3Base(CloudProcessor):
             if path.is_file():
                 path.unlink()
             
-            payload = {"job_ids": job_ids_to_save, "out_dir": self.output_dir.as_posix()}
+            # `job_ids` is kept alongside `jobs` so a file written here still
+            # loads in an older InSARHub.
+            payload = {"project_name": self.project_name,
+                       "job_ids": job_ids_to_save,
+                       "jobs": jobs_to_save,
+                       "out_dir": self.output_dir.as_posix()}
             with open(path, 'w') as f:
                 json.dump(payload, f, indent=2)
             print(f'Batch file saved under {path}. Resume later by loading this file path in to saved_job_path.')

@@ -71,6 +71,41 @@ Processor.available()
         jobs = processor.submit()
         ```
 
+        !!! note "Job naming"
+            Every job in one submission is given the same HyP3 name — the
+            `project_name` (default `ifg_<YYYYMMDD_HHMMSS>`, max 100 characters). That
+            is deliberate: HyP3 matches `find_jobs(name=...)` exactly, with no
+            wildcards, so a shared name is what makes the whole project
+            retrievable in a single query. `refresh()` uses it instead of
+            scanning a fixed time window, so a stack can be picked up again
+            months later.
+
+            The individual interferogram is *not* encoded in the name. It comes
+            from each job's granules, which `save()` stores next to the job IDs
+            so a reloaded run can still label every pair. Job files written
+            before this change have no project name and fall back to the old
+            20-day search.
+
+        !!! info "Migrating from `name_prefix`"
+            `name_prefix` still works and is forwarded to `project_name`, but it
+            raises a `DeprecationWarning` and will be removed in a future
+            release. The **meaning changed**: the value is no longer a prefix
+            that per-pair job names are built from — it is the whole job name,
+            shared by every job in the submission. On the CLI, `--name-prefix`
+            is an alias for `--project-name` and prints a deprecation notice.
+
+        !!! warning "Submitting the same pair twice"
+            `submit()` refuses pairs this work directory has already submitted,
+            because HyP3 charges per job and accepts duplicates without
+            complaint. Matching is on acquisition **dates**, not granule IDs, so
+            a re-processed granule still counts as the same interferogram.
+
+            Pass `force_submit=True` (CLI: `--force-submit`) to submit them
+            anyway. `retry()` always forces, since every pair it resubmits is by
+            definition already submitted. The check reads the work directory's
+            `hyp3_jobs.json`; job files written before granules were stored
+            carry no pairs and cannot be compared.
+
         ::: insarhub.processor.hyp3_s1.Hyp3_S1.submit
             options:
                 members: false

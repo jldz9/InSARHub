@@ -27,7 +27,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-14]
+        # macos-15, not macos-14: rasterio 1.5.x ships macOS wheels tagged
+        # macosx_15_0, so on a macOS 14 runner pip finds no usable wheel and
+        # falls back to the sdist -- which needs gdal-config, exactly what this
+        # job skips installing. Only the py3.12 leg hit it (rasterio 1.5
+        # requires_python >=3.12, so py3.11 resolves to 1.4.x).
+        os: [ubuntu-latest, macos-15]
         python: ['3.11', '3.12']
         include:
           - os: windows-latest
@@ -86,7 +91,7 @@ jobs:
   # docs/quickstart/install.md as written, then runs tier 1 inside the result.
   #
   # The BACKEND flavours are ubuntu-only: ISCE2 and the ISCE3 stack are
-  # Linux/macOS x86_64 only, and GitHub's macos-14 runners are arm64. GMTSAR is
+  # Linux/macOS x86_64 only, and GitHub's macos-15 runners are arm64. GMTSAR is
   # Linux-only too (its installer takes --system conda-linux-full).
   #
   # `base` is the exception and runs on Windows and macOS too, because it pulls
@@ -131,13 +136,13 @@ jobs:
           # `os` is not among the base matrix values, so each of these adds ONE
           # extra combination rather than merging into the ubuntu ones. Only
           # `base` goes here: isce2 ships linux-64/osx-64, the ISCE3 stack is
-          # x86_64 too, and macos-14 runners are arm64.
+          # x86_64 too, and macos-15 runners are arm64.
           - os: windows-latest
             python: '3.11'          # 3.12 cannot solve -- see the note above
             flavor: base
             conda_packages: gdal mintpy
             expect: mintpy
-          - os: macos-14
+          - os: macos-15
             python: '3.12'
             flavor: base
             conda_packages: gdal mintpy

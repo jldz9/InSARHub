@@ -119,7 +119,7 @@ class ASF_Base_Downloader(BaseDownloader):
     # retry loop below burns ~17 minutes of exponential backoff before surfacing
     # it. Subclasses extend this set rather than overriding search().
     _NON_SEARCH_FIELDS: frozenset = frozenset(
-        {"workdir", "name", "bbox", "granule_names", "ssl_verify", "max_workers"})
+        {"workdir", "name", "granule_names", "ssl_verify", "max_workers"})
 
     #: What the second half of a stack key IS, for user-facing output. Frame-based
     #: datasets key on frameNumber; SLC-BURST has no frameNumber at all and keys on
